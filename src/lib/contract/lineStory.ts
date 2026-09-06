@@ -36,6 +36,22 @@ import { detectMotifs, type AnyMotif } from "@/lib/tactics";
 import { detectTrappedPieces } from "@/lib/tactics/motifs/trapped_piece";
 import { attackersOf, cheapestCapture, rawAttacks, see, squareToCoord, coordToSquare } from "@/lib/tactics/utils";
 import { PIECE_UNITS } from "@/lib/tactics/netMaterial";
+import {
+  CENTRE_SQUARES,
+  batteryPartner,
+  distanceToCentre,
+  isEndgame,
+  isHalfOpenFileFor,
+  isOpenFile,
+  isOutpost,
+  isPassedPawn,
+  pawnAttacksFrom,
+  pawnDefends,
+  pawnMap,
+  pawnWeakness,
+  pinnedAgainst,
+  squareInFront,
+} from "./positionalFacts";
 
 export type StoryFact =
   | { kind: "checkmate" }
@@ -59,7 +75,20 @@ export type StoryFact =
   | { kind: "defends"; piece: PieceSymbol; square: Square }
   | { kind: "en_prise"; piece: PieceSymbol; square: Square; movedPiece: boolean; afterCapture: boolean }
   | { kind: "still_en_prise"; piece: PieceSymbol; square: Square }
-  | { kind: "leaves_trapped"; piece: PieceSymbol; square: Square };
+  | { kind: "leaves_trapped"; piece: PieceSymbol; square: Square }
+  // ── purposes of quiet moves (positionalFacts.ts) ──────────────────────────
+  | { kind: "attacks_pinned"; piece: PieceSymbol; square: Square; against: PieceSymbol }
+  | { kind: "to_open_file"; piece: PieceSymbol; file: string; open: boolean }
+  | { kind: "doubles"; piece: PieceSymbol; partner: PieceSymbol; line: string }
+  | { kind: "outpost"; piece: PieceSymbol; square: Square }
+  | { kind: "blockades"; piece: PieceSymbol; square: Square; pawnSquare: Square; weakness: "passed" | "isolated" }
+  | { kind: "attacks_weak_pawn"; square: Square; weakness: "isolated" | "backward" | "passed" }
+  | { kind: "pawn_challenges"; square: Square }
+  | { kind: "passed_pawn"; square: Square; created: boolean }
+  | { kind: "frees_enemy_pawn"; square: Square }
+  | { kind: "develops"; piece: PieceSymbol }
+  | { kind: "centralizes"; piece: PieceSymbol; square: Square }
+  | { kind: "king_activity"; to: Square };
 
 export interface PlyStory {
   /** 0-based index within the line — the `s<j>` of the citation id. */
@@ -117,6 +146,12 @@ export interface LineStoryOptions {
    * stays forcing (checks and captures), up to 12, so it never stops in the
    * middle of an exchange or one ply short of a mate. */
   maxPlies?: number;
+  /** Squares any piece has moved FROM since the game began (the builder knows
+   * the whole game; a bare FEN does not). With it, "develops" is exact — a
+   * knight that went b1-d2-f1-g3 is never "developed" again; without it the
+   * story falls back to a heuristic (home square of the right type, and the
+   * side still has castling rights or it is very early). */
+  movedFrom?: ReadonlySet<string>;
 }
 
 /** A position with `color` to move, or null when chess.js rejects the flip. */
@@ -163,10 +198,33 @@ function exposesDearerPiece(game: Chess, from: Square, capturedValueCp: number):
   return false;
 }
 
+/**
+ * A legal en passant capture of the pawn on `sq` by `by`: null when there is
+ * none, else whether it WINS the pawn (the capturing pawn cannot be taken
+ * back). Attack scans see pawn geometry only, so a double step landing beside
+ * an enemy pawn used to read as safe — and as "passed".
+ */
+function enPassantWins(game: Chess, sq: Square, by: Color): boolean | null {
+  const target = game.get(sq);
+  if (!target || target.type !== "p" || target.color === by || game.turn() !== by) return null;
+  const epSquare = game.fen().split(" ")[3];
+  if (!epSquare || epSquare === "-" || squareInFront(sq, by) !== epSquare) return null;
+  const ep = game.moves({ verbose: true }).find((m) => m.flags.includes("e") && m.to === epSquare);
+  if (!ep) return null;
+  try {
+    const clone = new Chess(game.fen());
+    clone.move(ep.san);
+    return !clone.moves({ verbose: true }).some((m) => m.to === epSquare && m.captured);
+  } catch {
+    return null;
+  }
+}
+
 /** Can `by` win the piece on `sq` outright — a full pawn of profit, by a capturer that is not relatively pinned? */
 function capturable(game: Chess, sq: Square, by: Color): boolean {
   const target = game.get(sq);
   if (!target || target.color === by || target.type === "k") return false;
+  if (target.type === "p" && enPassantWins(game, sq, by) === true) return true;
   if (attackersOf(game, sq, by).length === 0) return false;
   if (see(game, sq, by) < EN_PRISE_MIN_CP) return false;
   const positioned = withTurn(game.fen(), by);
@@ -281,7 +339,193 @@ function factSayable(f: StoryFact): string | null {
       return `leaves the ${name(f.piece)} on ${f.square} en prise`;
     case "still_en_prise": return `leaves the ${name(f.piece)} on ${f.square} hanging`;
     case "leaves_trapped": return `the ${name(f.piece)} on ${f.square} is now trapped`;
+    case "attacks_pinned": return `attacks the pinned ${name(f.piece)} on ${f.square}`;
+    case "to_open_file": return `brings the ${name(f.piece)} to the ${f.open ? "open" : "half-open"} ${f.file}-file`;
+    case "doubles": return f.piece === f.partner ? `doubles the rooks on the ${f.line}` : `lines up the ${name(f.piece)} with the ${name(f.partner)} on the ${f.line}`;
+    case "outpost": return `puts the ${name(f.piece)} on the ${f.square} outpost, where no pawn can drive it away`;
+    case "blockades": return `blockades the ${f.weakness} pawn on ${f.pawnSquare}`;
+    case "attacks_weak_pawn": return `attacks the ${f.weakness} pawn on ${f.square}`;
+    case "pawn_challenges": return `challenges the pawn on ${f.square}`;
+    case "passed_pawn": return f.created ? `creates a passed pawn on ${f.square}` : `advances the passed pawn to ${f.square}`;
+    case "frees_enemy_pawn": return `leaves the opponent with a passed pawn on ${f.square}`;
+    case "develops": return `develops the ${name(f.piece)}`;
+    case "centralizes": return `centralizes the ${name(f.piece)}`;
+    case "king_activity": return "brings the king toward the centre";
   }
+}
+
+/** Fact kinds that make a ply forcing or costly — the softer purposes stay quiet beside them. */
+const LOUD_KINDS = new Set<StoryFact["kind"]>([
+  "checkmate", "stalemate", "double_check", "discovered_check", "check", "capture", "motif",
+  "threatens_mate", "allows_mate", "only_move", "captures_checker", "escapes_check", "blocks_check",
+  "escapes_attack", "en_prise", "still_en_prise", "leaves_trapped",
+]);
+/** At most this many purpose facts per ply — a coach names the point, not the inventory. */
+const MAX_PURPOSES = 2;
+
+/** Home squares by piece TYPE — a knight arriving on f1 during a regroup is not "undeveloped". */
+const HOME_SQUARES: Record<Color, Record<"n" | "b", Set<string>>> = {
+  w: { n: new Set(["b1", "g1"]), b: new Set(["c1", "f1"]) },
+  b: { n: new Set(["b8", "g8"]), b: new Set(["c8", "f8"]) },
+};
+
+function hasCastlingRights(game: Chess, color: Color): boolean {
+  const rights = game.fen().split(" ")[2] ?? "-";
+  return color === "w" ? /[KQ]/.test(rights) : /[kq]/.test(rights);
+}
+
+interface PurposeContext {
+  mover: Color;
+  movedSquares: Square[];
+  /** The ply already carries forcing or costly facts. */
+  loud: boolean;
+  alreadyAttacked: Set<string>;
+  /** Enemy pieces that were already winnable before the move — bearing on them is not news. */
+  enemyEnPriseBefore: { has(sq: string): boolean };
+  /** Squares some piece has moved FROM: the game so far plus earlier plies of this line. */
+  movedFrom: ReadonlySet<string>;
+  /** Whether movedFrom covers the whole game (else "develops" uses a heuristic). */
+  historyKnown: boolean;
+}
+
+/**
+ * What a quiet move is FOR. Ordered by how much a coach would care; the
+ * first MAX_PURPOSES that apply are kept, then any consequence the mover did
+ * not intend (a pawn move that lets an enemy pawn through). `loud` says
+ * whether the ply already carries forcing or costly facts — "develops",
+ * "centralizes" and the king walk only speak on a quiet ply; the structural
+ * facts speak beside a check or a threat, but not beside a capture, which
+ * explains itself ("takes the pawn on d7" does not also "seize the d-file"
+ * it just opened — adversarial review 2026-09-05).
+ */
+function purposeFacts(
+  before: Chess,
+  after: Chess,
+  mv: { from: Square; to: Square; piece: PieceSymbol; captured?: string; flags: string },
+  ctx: PurposeContext,
+): StoryFact[] {
+  const { mover, movedSquares, loud, alreadyAttacked, enemyEnPriseBefore } = ctx;
+  const out: StoryFact[] = [];
+  const consequences: StoryFact[] = [];
+  const enemy = opp(mover);
+  const pmBefore = pawnMap(before);
+  const pmAfter = pawnMap(after);
+  const moveNumber = Number(after.fen().split(" ")[5]) || 1;
+  /** Where the piece now on `ms` came from (the castling rook from its corner). */
+  const cameFrom = (ms: Square): Square => (ms === mv.to ? mv.from : ((ms[0] === "f" ? `h${ms[1]}` : `a${ms[1]}`) as Square));
+  /** A pawn deep in the enemy half is "the passed pawn" before it is "the isolated pawn". */
+  const inEnemyHalf = (sq: Square, color: Color) => (color === "w" ? Number(sq[1]) >= 5 : Number(sq[1]) <= 4);
+
+  // Piling onto a pinned piece — any piece the moved piece(s) newly attack.
+  for (const ms of movedSquares) {
+    for (const sq of rawAttacks(after, ms)) {
+      const target = after.get(sq);
+      if (!target || target.color !== enemy || target.type === "k" || alreadyAttacked.has(sq)) continue;
+      const anchor = pinnedAgainst(after, sq, cp);
+      if (anchor) { out.push({ kind: "attacks_pinned", piece: target.type, square: sq, against: anchor.piece }); alreadyAttacked.add(sq); break; }
+    }
+  }
+
+  if (mv.piece === "p") {
+    // A promotion is a promotion — there is no pawn on the 8th rank to advance.
+    if (!mv.flags.includes("p") && isPassedPawn(pmAfter, mv.to, mover)) {
+      // A pawn that dies at once is not a passer: the first half of a pawn
+      // trade (dxe5 Nxe5), or a double step an enemy pawn can take en passant.
+      const doomed = enPassantWins(after, mv.to, enemy) !== null || (!!mv.captured && capturable(after, mv.to, enemy));
+      if (!doomed) out.push({ kind: "passed_pawn", square: mv.to, created: !isPassedPawn(pmBefore, mv.from, mover) });
+    }
+    if (!mv.captured) {
+      for (const sq of pawnAttacksFrom(mv.to, mover)) {
+        const t = after.get(sq);
+        // "challenges" is pawn-lever language; a pawn that was already hanging is simply lost.
+        if (t && t.color === enemy && t.type === "p" && !alreadyAttacked.has(sq) && !enemyEnPriseBefore.has(sq)) {
+          out.push({ kind: "pawn_challenges", square: sq });
+          break;
+        }
+      }
+    }
+  } else {
+    if ((mv.piece === "n" || mv.piece === "b") && isOutpost(pmAfter, mv.to, mover)) out.push({ kind: "outpost", piece: mv.piece, square: mv.to });
+    {
+      // Blockading an enemy pawn: standing on the square right in front of it.
+      // The pawn we blockade stands one step ahead of us in OUR direction of travel
+      // (a black blockader on d6 sits in front of a white pawn on d5). A passed
+      // pawn is always worth blockading; an isolated one is the other classic.
+      const ahead = squareInFront(mv.to, mover);
+      const pawn = ahead ? after.get(ahead) : null;
+      if (ahead && pawn && pawn.color === enemy && pawn.type === "p" && squareInFront(ahead, enemy) === mv.to) {
+        const weakness = isPassedPawn(pmAfter, ahead, enemy)
+          ? "passed"
+          : !pawnDefends(pmAfter, ahead, enemy) && pawnWeakness(pmAfter, ahead, enemy) === "isolated"
+            ? "isolated"
+            : null;
+        if (weakness) out.push({ kind: "blockades", piece: mv.piece, square: mv.to, pawnSquare: ahead, weakness });
+      }
+    }
+    if (!mv.captured) {
+      // Heavy pieces and lines. A line is only worth naming when it leads
+      // somewhere: a file with no friendly pawn on it, or the rank the enemy
+      // king lives behind (the 7th for White, the 2nd for Black). Two rooks
+      // side by side on their own back rank are not "doubled".
+      const heavy = (sq: Square, piece: PieceSymbol, from: Square) => {
+        const file = sq[0];
+        if (from[0] !== file) {
+          if (isOpenFile(pmAfter, file)) out.push({ kind: "to_open_file", piece, file, open: true });
+          else if (isHalfOpenFileFor(pmAfter, file, mover)) out.push({ kind: "to_open_file", piece, file, open: false });
+        }
+        const partner = batteryPartner(after, sq, mover);
+        if (partner) {
+          const onFile = partner.line.endsWith("file");
+          const sameLineBefore = onFile ? from[0] === sq[0] : from[1] === sq[1];
+          const usable = onFile ? !pmAfter[mover][file] : Number(sq[1]) === (mover === "w" ? 7 : 2);
+          if (!sameLineBefore && usable) out.push({ kind: "doubles", piece, partner: partner.piece, line: partner.line });
+        }
+      };
+      if (mv.piece === "r" || mv.piece === "q") heavy(mv.to, mv.piece, mv.from);
+      else if (mv.piece === "k" && movedSquares[1]) heavy(movedSquares[1], "r", cameFrom(movedSquares[1])); // castling: the rook lands on d1/f1
+    }
+    // A weak enemy pawn the moved piece NEWLY bears on (one no pawn defends and
+    // none ever can) — not one the same piece already attacked from where it
+    // stood, nor one that was already loose, nor one the blockade just named.
+    for (const ms of movedSquares) {
+      let found = false;
+      const attackedBefore = new Set<string>(rawAttacks(before, cameFrom(ms)));
+      for (const sq of rawAttacks(after, ms)) {
+        const t = after.get(sq);
+        if (!t || t.color !== enemy || t.type !== "p" || alreadyAttacked.has(sq)) continue;
+        if (attackedBefore.has(sq) || enemyEnPriseBefore.has(sq)) continue;
+        if (out.some((f) => f.kind === "blockades" && f.pawnSquare === sq)) continue;
+        if (pawnDefends(pmAfter, sq, enemy)) continue;
+        const weakness = isPassedPawn(pmAfter, sq, enemy) && inEnemyHalf(sq, enemy) ? "passed" : pawnWeakness(pmAfter, sq, enemy);
+        if (weakness) { out.push({ kind: "attacks_weak_pawn", square: sq, weakness }); alreadyAttacked.add(sq); found = true; break; }
+      }
+      if (found) break;
+    }
+  }
+
+  if (!loud) {
+    const home = (mv.piece === "n" || mv.piece === "b") && HOME_SQUARES[mover][mv.piece].has(mv.from);
+    const neverMoved = !ctx.movedFrom.has(mv.from) && (ctx.historyKnown || hasCastlingRights(before, mover) || moveNumber <= 8);
+    if (home && !mv.captured && neverMoved && moveNumber <= 20) {
+      out.push({ kind: "develops", piece: mv.piece });
+    } else if ((mv.piece === "n" || mv.piece === "b" || mv.piece === "q") && !mv.captured && CENTRE_SQUARES.includes(mv.to) && !out.some((f) => f.kind === "outpost" || f.kind === "blockades")) {
+      out.push({ kind: "centralizes", piece: mv.piece, square: mv.to });
+    } else if (mv.piece === "k" && !mv.flags.includes("k") && !mv.flags.includes("q") && isEndgame(after) && distanceToCentre(mv.to) < distanceToCentre(mv.from)) {
+      out.push({ kind: "king_activity", to: mv.to });
+    }
+  }
+
+  // Pushing past an enemy pawn (or taking the pawn that held it) lets it through too.
+  if (mv.piece === "p" || mv.captured === "p") {
+    outer: for (const row of after.board()) {
+      for (const sq of row) {
+        if (!sq || sq.color !== enemy || sq.type !== "p") continue;
+        const s = sq.square as Square;
+        if (!isPassedPawn(pmBefore, s, enemy) && isPassedPawn(pmAfter, s, enemy)) { consequences.push({ kind: "frees_enemy_pawn", square: s }); break outer; }
+      }
+    }
+  }
+  return [...out.slice(0, MAX_PURPOSES), ...consequences];
 }
 
 function formatNet(netCp: number, owner: Color): string {
@@ -305,6 +549,8 @@ function narrationLimit(san: readonly string[], maxPlies: number): number {
  */
 export function buildLineStory(fenStart: string, san: readonly string[], opts: LineStoryOptions = {}): LineStory {
   const maxPlies = opts.maxPlies ?? 6;
+  const movedFrom = new Set<string>(opts.movedFrom ?? []);
+  const historyKnown = !!opts.movedFrom;
   const empty = (truncated: boolean): LineStory => ({
     plies: [], owner: "w", netMaterialCp: 0, endsInMate: false, endsInStalemate: false, truncated, unresolvedSacrifice: null,
   });
@@ -343,7 +589,16 @@ export function buildLineStory(fenStart: string, san: readonly string[], opts: L
     const label = `${moveNumber}${mover === "w" ? "." : "..."}`;
 
     const before = new Chess(fenBefore);
-    const ownEnPriseBefore = deferredBaseline[mover] ?? enPriseSquares(before, mover);
+    let ownEnPriseBefore = deferredBaseline[mover] ?? enPriseSquares(before, mover);
+    if (deferredBaseline[mover]) {
+      // The baseline was read two plies ago; keep only squares still holding the same piece of ours.
+      ownEnPriseBefore = new Map(
+        Array.from(ownEnPriseBefore).filter(([sq, piece]) => {
+          const now = before.get(sq);
+          return !!now && now.color === mover && now.type === piece;
+        }),
+      );
+    }
     deferredBaseline[mover] = undefined;
     const enemyEnPriseBefore = enPriseSquares(before, enemy);
     const checkers = wasInCheck ? attackersOf(before, kingSquare(before, mover)!, enemy).map((a) => a.square) : [];
@@ -499,7 +754,14 @@ export function buildLineStory(fenStart: string, san: readonly string[], opts: L
         if (costsApply) facts.push({ kind: "en_prise", piece, square, movedPiece, afterCapture: !!mv.captured });
         newlyEnPrise.push({ piece, square, movedPiece });
       });
-      if (givesCheck) deferredBaseline[mover] = ownEnPriseBefore;
+      if (givesCheck) {
+        // Compare the next ply against the pre-check board, except for the
+        // checking piece itself, whose "can now be taken" was said just now.
+        const baseline = new Map(ownEnPriseBefore);
+        const checker = ownEnPriseAfter.get(mv.to as Square);
+        if (checker) baseline.set(mv.to as Square, checker);
+        deferredBaseline[mover] = baseline;
+      }
       if (i === 0) {
         // The offer: the dearest piece (>= a minor) the first move newly leaves capturable,
         // excluding a piece that was already lost before the move (a desperado is not a sacrifice).
@@ -516,6 +778,29 @@ export function buildLineStory(fenStart: string, san: readonly string[], opts: L
         }
       }
     }
+
+    // 5. What a quiet move is FOR (positional purposes) — said after what the
+    // move does and fixes, before what it costs: "centralizes the knight, but
+    // the knight can be taken" is the order a coach uses.
+    if (!terminal) {
+      const loud = facts.some((f) => LOUD_KINDS.has(f.kind));
+      const alreadyAttacked = new Set<string>(
+        facts.flatMap((f) => (f.kind === "attacks" ? [f.square] : f.kind === "motif" && f.motif.motif === "fork" ? f.motif.targets.map((t) => t.square) : [])),
+      );
+      try {
+        const purposes = purposeFacts(before, game, mv as { from: Square; to: Square; piece: PieceSymbol; captured?: string; flags: string }, {
+          mover, movedSquares, loud, alreadyAttacked, enemyEnPriseBefore, movedFrom, historyKnown,
+        });
+        const firstCost = facts.findIndex((f) => f.kind === "en_prise" || f.kind === "still_en_prise" || f.kind === "leaves_trapped");
+        if (firstCost === -1) facts.push(...purposes);
+        else facts.splice(firstCost, 0, ...purposes);
+      } catch {
+        // purposes are garnish — never let them take the story down
+      }
+    }
+    movedFrom.add(mv.from);
+    if (mv.flags.includes("k")) movedFrom.add(mover === "w" ? "h1" : "h8");
+    if (mv.flags.includes("q")) movedFrom.add(mover === "w" ? "a1" : "a8");
 
     if (offer && mover !== owner && mv.captured && (mv.to as Square) === offer.square && offerCapturedAt === -1) offerCapturedAt = i;
     if (offer && i === 1) {

@@ -56,7 +56,20 @@
   },
   "density": {
     "plies": 3649,
-    "quiet": 296,
-    "avgFacts": 1.9043573581803235
+    "quiet": 115,
+    "avgFacts": 2.2847355439846533,
+    "purposeCounts": {
+      "to_open_file": 482,
+      "attacks_weak_pawn": 284,
+      "pawn_challenges": 32,
+      "passed_pawn": 217,
+      "attacks_pinned": 178,
+      "doubles": 82,
+      "outpost": 15,
+      "king_activity": 55,
+      "blockades": 37,
+      "centralizes": 11,
+      "develops": 2
+    }
   }
 }

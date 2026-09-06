@@ -89,6 +89,16 @@ export interface CompactInsight {
   /** The game's own continuation from that position, told the same way. */
   gameStory: string[];
   /**
+   * Verified relational facts about the position BEFORE the move — hanging
+   * pieces and pins ("The q on c1 is undefended.") — the review's own board
+   * reads, so a follow-up can say "your queen was hanging" and the referee
+   * can license it. Empty for contracts built before this field.
+   */
+  relationalSayables: string[];
+  /** The positions the insight is about — a follow-up's "the rook on c8" is checked against these and the board under discussion. */
+  fenBefore: string;
+  fenAfter: string;
+  /**
    * Did this insight ship as a card the user can see? Non-shipped insights are
    * still real engine facts (they lost to the MAX_GAME_REVIEW_CARDS cap, which
    * is a latency bound, not a truth bound) so they stay available to answer
@@ -193,6 +203,9 @@ export function toCompactContract(
       motifSayables: ins.sayables.motifs,
       bestLineStory: chatStoryLines(bestLine?.story),
       gameStory: chatStoryLines(ins.gameStory),
+      relationalSayables: [...(ins.sayables?.relationalHanging ?? []), ...(ins.sayables?.relationalPins ?? [])],
+      fenBefore: ins.fenBefore,
+      fenAfter: ins.fenAfter,
       shipped: served ? served.has(ins.factIdPrefix) : null,
     };
   });
@@ -316,6 +329,9 @@ export function renderContractCompact(
     if ((ins.gameStory ?? []).length > 0) {
       extra.push("  what the game did next:");
       for (const l of ins.gameStory) extra.push(`    - ${l}`);
+    }
+    if ((ins.relationalSayables ?? []).length > 0) {
+      extra.push(`  on the board before the move: ${ins.relationalSayables.join(" ")}`);
     }
     blocks.push(lines.join("\n"));
     storyExtras.push(extra.join("\n"));

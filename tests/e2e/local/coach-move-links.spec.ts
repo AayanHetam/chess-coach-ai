@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { stubSignedIn } from "../helpers";
 
 /**
  * Coach move links — a recommended move that the game happened to play LATER
@@ -30,6 +31,9 @@ const COMPOSER = "Ask anything — answering without engine analysis.";
 
 async function pinComposerOpen(page: Page) {
   await page.route("**/engines/**", (route) => route.abort());
+  // Signed in: a signed-out composer opens the sign-in dialog instead of
+  // sending, and the stubbed review would never be requested.
+  await stubSignedIn(page);
 }
 
 test.describe("coach move links", () => {

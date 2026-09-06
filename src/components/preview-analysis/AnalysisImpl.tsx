@@ -162,6 +162,7 @@ import {
 import { detectOpening } from "@/lib/unifiedOpeningDetector";
 import { getPositionWinPercentage } from "@/lib/engine/helpers/winPercentage";
 import { LoadGameDialog } from "@/components/ui/LoadGameDialog";
+import { useAuthDialog } from "@/contexts/AuthDialogContext";
 import { CoachShareDialog } from "@/components/ui/CoachShareDialog";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { setContext as setSentryContext } from "@sentry/react";
@@ -4378,7 +4379,19 @@ function CoachPanel({
   onChoosePlayerSide,
   onRunCommand,
   onLaunchPuzzleSet,
+  signedOut,
+  onSignIn,
 }: {
+  /**
+   * True once auth has resolved to "nobody is signed in". The coach routes
+   * are session-gated, so every send from an anonymous visitor came back 401:
+   * the composer let them type, send, and only then read a banner with no
+   * way to act on it. With this set the composer says so up front, and every
+   * send path — Enter, the send button, the suggestion chips — opens the
+   * sign-in dialog instead of firing a request that cannot succeed.
+   */
+  signedOut?: boolean;
+  onSignIn?: () => void;
   messages: CoachMessage[];
   input: string;
   onChangeInput: (v: string) => void;
@@ -4883,7 +4896,9 @@ function CoachPanel({
           {suggestions.map((s) => (
             <Box
               key={s.text}
-              onClick={() => onSuggestion(s.text)}
+              onClick={() =>
+                signedOut ? onSignIn?.() : onSuggestion(s.text)
+              }
               sx={{
                 cursor: "pointer",
                 px: 1.5,
@@ -4981,6 +4996,53 @@ function CoachPanel({
             openings still work.
           </Box>
         )}
+        {!AI_DISABLED && signedOut && (
+          <Box
+            sx={{
+              mb: 1.5,
+              px: 1.5,
+              py: 1,
+              borderRadius: "10px",
+              border: "1px solid rgba(249,115,22,0.28)",
+              background: "rgba(249,115,22,0.08)",
+              fontSize: "0.78rem",
+              lineHeight: 1.5,
+              color: "rgba(255,255,255,0.75)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1.5,
+              flexWrap: "wrap",
+            }}
+          >
+            <Box>
+              <Box component="span" sx={{ color: "#FB923C", fontWeight: 600 }}>
+                The coach needs a free account.
+              </Box>{" "}
+              Engine analysis runs without one; explanations don&apos;t.
+            </Box>
+            <Button
+              size="small"
+              onClick={onSignIn}
+              sx={{
+                textTransform: "none",
+                fontWeight: 700,
+                fontSize: "0.78rem",
+                px: 1.5,
+                py: 0.4,
+                borderRadius: "10px",
+                color: "#0A0A0A",
+                background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
+                "&:hover": {
+                  background:
+                    "linear-gradient(135deg, #FB923C 0%, #F97316 100%)",
+                },
+              }}
+            >
+              Sign in — free
+            </Button>
+          </Box>
+        )}
         <Stack direction="row" spacing={1.5} alignItems="center">
           <TextField
             value={input}
@@ -5017,6 +5079,10 @@ function CoachPanel({
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 if (analysisActive || isThinking) return;
+                if (signedOut) {
+                  onSignIn?.();
+                  return;
+                }
                 // A fully typed command runs here rather than being sent as a
                 // chat message.
                 const parsed = parseCommand(input);
@@ -5032,7 +5098,9 @@ function CoachPanel({
             placeholder={
               AI_DISABLED
                 ? "AI coaching is paused — see the note above."
-                : analysisActive
+                : signedOut
+                  ? "Sign in to ask the coach — free account, no card."
+                  : analysisActive
                   ? "Analyzing your game… coach unlocks when Stockfish finishes."
                   : engineDataUnavailable
                     ? "Ask anything — answering without engine analysis."
@@ -5064,7 +5132,7 @@ function CoachPanel({
             }}
           />
           <IconButton
-            onClick={onSend}
+            onClick={signedOut ? () => onSignIn?.() : onSend}
             disabled={
               AI_DISABLED || !input.trim() || isThinking || analysisActive
             }
@@ -7722,7 +7790,8 @@ export default function AnalysisPage() {
   // the LLM skill-tier calibration (beginner/intermediate/advanced derivation
   // at coachChatPrompt.ts:98-102) is keyed to the user's actual strength
   // instead of a constant 1500.
-  const { user, profile } = useViewer();
+  const { user, profile, loading: authLoading } = useViewer();
+  const { openAuthDialog } = useAuthDialog();
 
   // G6: auto-analyze state machine. Mirrors production's autoAnalyzeStateAtom
   // (src/sections/analysis/states.ts:87-93). Triggered by ?autoAnalyze=1
@@ -9247,7 +9316,7 @@ export default function AnalysisPage() {
       } catch (err) {
         const errorText =
           err instanceof CoachAuthError
-            ? "**Sign-in required** — the coach endpoint is auth-gated."
+            ? "**Sign-in required** — the coach needs a free account. Use **Sign in** above and ask again."
             : err instanceof CoachApiError
               ? `**Coach is offline** (HTTP ${err.status}).`
               : "**Network error** reaching the coach.";
@@ -9817,7 +9886,7 @@ export default function AnalysisPage() {
       } catch (err) {
         const errorText =
           err instanceof CoachAuthError
-            ? "**Sign-in required** — the coach endpoint is auth-gated."
+            ? "**Sign-in required** — the coach needs a free account. Use **Sign in** above and ask again."
             : err instanceof CoachApiError
               ? `**Coach is offline** (HTTP ${err.status}).`
               : "**Network error** reaching the coach.";
@@ -10678,7 +10747,13 @@ export default function AnalysisPage() {
                 <TabStrip
                   active={rightTab}
                   onChange={handleTabChange}
-                  movesBadge={`${currentPly}/${allMoves.length}`}
+                  // The move COUNT. This used to be `${currentPly}/${total}`,
+                  // which on a freshly loaded game read "0/20" and was taken
+                  // for analysis progress stuck at zero; the cursor position
+                  // is already visible in the move list itself.
+                  movesBadge={
+                    allMoves.length > 0 ? String(allMoves.length) : undefined
+                  }
                   mastersBadge={
                     rightTab === "masters" && takeoverCandidates.length > 0
                       ? String(takeoverCandidates.length)
@@ -10714,6 +10789,8 @@ export default function AnalysisPage() {
                           onChangeInput={setInput}
                           onSend={handleSend}
                           onSuggestion={handleSuggestion}
+                          signedOut={!authLoading && !user}
+                          onSignIn={() => openAuthDialog()}
                           isThinking={isThinking}
                           analysisActive={analysisActive}
                           engineDataUnavailable={engineDataUnavailable}

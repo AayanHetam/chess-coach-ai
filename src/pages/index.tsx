@@ -529,7 +529,7 @@ function Hero() {
           >
             <Box>Engine-grounded AI coaching</Box>
             <Box>·</Box>
-            <Box>No sign-up required</Box>
+            <Box>Free account, no card</Box>
             <Box>·</Box>
             <Box>Lichess sync</Box>
           </Stack>
@@ -548,7 +548,7 @@ function MarqueeStrip() {
     "Stockfish 17",
     "Engine-grounded AI coach",
     "Hallucination validator",
-    "100,000+ Lichess puzzles",
+    "100,000 Lichess puzzles",
     "Maia-2 humanlike opponent",
     "Neo4j puzzle graph",
     "Lichess OAuth sync",
@@ -965,7 +965,7 @@ function BentoSection() {
               color: "rgba(255,255,255,0.96)",
             }}
           >
-            <NumberTicker value={100000} suffix="+" />
+            <NumberTicker value={100000} />
           </Typography>
           <Typography
             variant="h3"
@@ -1574,7 +1574,7 @@ function DailyPuzzleSection() {
                 flexWrap: "wrap",
               }}
             >
-              <Box>100,000+ puzzles in the deck</Box>
+              <Box>100,000 puzzles in the deck</Box>
               <Box>·</Box>
               <Box>Adaptive to your rating</Box>
             </Stack>
@@ -2261,7 +2261,9 @@ function StatsStrip() {
       suffix: "+",
       label: "Engine Elo behind every verdict",
     },
-    { value: 100000, prefix: "", suffix: "+", label: "Puzzles indexed" },
+    // Measured, not rounded: public/data/lichess_puzzles_100k.csv has exactly
+    // 100,000 rows and the Neo4j graph reports 99,850, so there is no "+".
+    { value: 100000, prefix: "", suffix: "", label: "Puzzles indexed" },
     { value: 100, prefix: "", suffix: "%", label: "Claims fact-checked" },
   ];
 
@@ -2394,9 +2396,9 @@ function FinalCTA() {
               lineHeight: 1.55,
             }}
           >
-            Get top-tier analysis with no sign-up. Chess calculations can run in
-            your browser; AI coaching requests are sent securely to Anthropic or
-            OpenAI. Chess Masti&apos;s coaching features are free.
+            Engine analysis runs in your browser with no account at all. The
+            coach needs a free account — no card — and its requests are sent
+            securely to Anthropic or OpenAI. Every coaching feature is free.
           </Typography>
           <Stack
             direction="row"

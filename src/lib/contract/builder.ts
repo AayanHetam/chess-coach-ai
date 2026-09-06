@@ -212,7 +212,7 @@ function degradeVisibility(
 }
 
 // ── Line facts ──────────────────────────────────────────────────────────────
-function buildLineFacts(idPrefix: string, fenBefore: string, playedSan: string, lines: RawLine[]): LineFact[] {
+function buildLineFacts(idPrefix: string, fenBefore: string, playedSan: string, lines: RawLine[], movedFrom: ReadonlySet<string>): LineFact[] {
   return lines.map((l, idx) => {
     const pvUci = l.pv ?? [];
     const san = pvUci.length > 0 ? convertPvToSan(fenBefore, pvUci) : [];
@@ -224,16 +224,16 @@ function buildLineFacts(idPrefix: string, fenBefore: string, playedSan: string, 
       pvUci,
       eval: evalFactFromLine(l),
       isPlayedLine: firstMove === playedSan,
-      story: safeLineStory(fenBefore, san),
+      story: safeLineStory(fenBefore, san, movedFrom),
     };
   });
 }
 
 /** Never lets a story failure take the contract down: an empty story is "nothing to say". */
-function safeLineStory(fenStart: string, san: readonly string[]): LineStory | undefined {
+function safeLineStory(fenStart: string, san: readonly string[], movedFrom: ReadonlySet<string>): LineStory | undefined {
   if (san.length === 0) return undefined;
   try {
-    return buildLineStory(fenStart, san, { maxPlies: STORY_MAX_PLIES });
+    return buildLineStory(fenStart, san, { maxPlies: STORY_MAX_PLIES, movedFrom });
   } catch {
     return undefined;
   }
@@ -262,6 +262,10 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
     }
   }
   const historyTruncated = replayedPlies < totalHalfMoves;
+  // From-squares of every played move, so a story at ply P knows which home
+  // squares have been vacated since move 1 ("develops" must not fire for a
+  // knight passing back through f1).
+  const fromSquares = game.history({ verbose: true }).map((m) => m.from as string);
   const finalFen = game.fen();
   const resultText = game.isCheckmate()
     ? ("Checkmate" as const)
@@ -501,12 +505,13 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
       stockfishBestMoveMate: lines[0]?.mate ?? null,
     });
 
-    const lineFacts = buildLineFacts(topRank ? `M${topRank}` : `I${intelRank}`, fenBefore, playedSan, lines);
+    const movedFrom = new Set(fromSquares.slice(0, ply));
+    const lineFacts = buildLineFacts(topRank ? `M${topRank}` : `I${intelRank}`, fenBefore, playedSan, lines, movedFrom);
     // What the game actually did from here: the played move and the next few
     // real plies, told the same way as the engine lines ("after your Ng4,
     // White played d6 and your knight was left en prise"). Same detectors,
     // same ledger, cite token <P>.game.s<j>.
-    const gameStory = safeLineStory(fenBefore, moveHistory.slice(ply, ply + STORY_MAX_PLIES));
+    const gameStory = safeLineStory(fenBefore, moveHistory.slice(ply, ply + STORY_MAX_PLIES), movedFrom);
     // Story motifs deliberately do NOT join motifLicense: a fork six plies
     // down a sideline must not license the word "fork" anywhere in the card.
     // The referee licenses them sentence-by-sentence instead, through the

@@ -84,10 +84,13 @@ for (const [theme, motif] of Object.entries(THEME_TO_MOTIF)) {
 }
 
 // 5. Quiet share: how many solver plies have no facts at all (the model is told to call these quiet)
+//    — and how often each positional purpose speaks (a sanity check on their rates, not a truth test)
 {
-  let plies = 0, quiet = 0, avgFacts = 0;
-  for (const p of pick(() => true, 1000)) { const line = solverLine(p); if (!line) continue; const s = buildLineStory(line.fen, line.san, { maxPlies: 12 }); for (const pl of s.plies) { plies++; if (pl.facts.length === 0) quiet++; avgFacts += pl.facts.length; } }
+  let plies = 0, quiet = 0, avgFacts = 0; const purposeCounts: Record<string, number> = {};
+  const PURPOSES = ["attacks_pinned", "to_open_file", "doubles", "outpost", "blockades", "attacks_weak_pawn", "pawn_challenges", "passed_pawn", "develops", "centralizes", "king_activity"];
+  for (const p of pick(() => true, 1000)) { const line = solverLine(p); if (!line) continue; const s = buildLineStory(line.fen, line.san, { maxPlies: 12 }); for (const pl of s.plies) { plies++; if (pl.facts.length === 0) quiet++; avgFacts += pl.facts.length; for (const f of pl.facts) if (PURPOSES.includes(f.kind)) purposeCounts[f.kind] = (purposeCounts[f.kind] ?? 0) + 1; } }
   console.log(`all solutions     plies=${plies}  quiet plies=${pct(quiet, plies)}  facts/ply=${(avgFacts / Math.max(1, plies)).toFixed(2)}`);
-  report.density = { plies, quiet, avgFacts: avgFacts / Math.max(1, plies) };
+  console.log(`purpose facts per 100 plies: ${PURPOSES.map((k) => `${k}=${((100 * (purposeCounts[k] ?? 0)) / Math.max(1, plies)).toFixed(1)}`).join("  ")}`);
+  report.density = { plies, quiet, avgFacts: avgFacts / Math.max(1, plies), purposeCounts };
 }
 if (OUT) { fs.writeFileSync(OUT, JSON.stringify(report, null, 2)); console.log(`wrote ${OUT}`); }

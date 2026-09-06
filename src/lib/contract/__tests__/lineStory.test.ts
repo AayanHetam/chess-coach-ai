@@ -76,9 +76,9 @@ describe("a line that offers material the shown moves never cash in", () => {
   it("does not flag a normal developing line", () => {
     const story = buildLineStory(new Chess().fen(), ["e4", "e5", "Nf3", "Nc6", "Bb5"]);
     expect(story.unresolvedSacrifice).toBeNull();
-    expect(story.plies[2].sayable).toBe("2.Nf3 — attacks the undefended pawn on e5");
-    expect(story.plies[3].sayable).toBe("2...Nc6 — defends the pawn on e5");
-    expect(story.plies[4].facts).toEqual([]);
+    expect(story.plies[2].sayable).toBe("2.Nf3 — attacks the undefended pawn on e5; develops the knight");
+    expect(story.plies[3].sayable).toBe("2...Nc6 — defends the pawn on e5; develops the knight");
+    expect(story.plies[4].facts).toEqual([{ kind: "develops", piece: "b" }]);
   });
 });
 
@@ -157,7 +157,11 @@ describe("what the adversarial review taught it (2026-09-05)", () => {
   });
   it("a reply that defuses a mate threat says so, and a mate threat suspends other costs", () => {
     const story = buildLineStory("r1bq1rk1/pppnbppp/2n1p3/3pP3/3P4/2NB1N2/PPP2PPP/R1BQ1RK1 w - - 0 1", ["Bxh7+", "Kxh7", "Ng5+", "Kg8", "Qh5", "Re8"]);
-    expect(story.plies[4].facts).toEqual([{ kind: "threatens_mate", mateSan: "Qh7#" }]);
+    // Qh5 threatens mate AND protects the knight the e7 bishop was attacking — both true, both said
+    expect(story.plies[4].facts).toEqual([
+      { kind: "threatens_mate", mateSan: "Qh7#" },
+      { kind: "defends", piece: "n", square: "g5" },
+    ]);
     expect(story.plies[5].facts.map((f) => f.kind)).toContain("parries_mate");
   });
   it("a check delivered by the uncovered piece is a discovered check", () => {
@@ -171,6 +175,122 @@ describe("what the adversarial review taught it (2026-09-05)", () => {
   it("castling credits the rook's new attack", () => {
     const story = buildLineStory("6k1/6pp/8/5b2/8/8/P5PP/4K2R w K - 0 1", ["O-O"]);
     expect(story.plies[0].facts.some((f) => f.kind === "attacks" && f.square === "f5")).toBe(true);
+  });
+});
+
+describe("what a quiet move is for (positionalFacts)", () => {
+  it("a rook coming to an open file, and rooks doubling", () => {
+    const s = buildLineStory("3r2k1/pp3ppp/8/8/8/8/PP3PPP/R4RK1 w - - 0 1", ["Rfe1", "Kf8", "Re2", "Kg8", "Rae1"]);
+    expect(s.plies[0].sayable).toBe("1.Rfe1 — brings the rook to the open e-file");
+    expect(s.plies[4].facts).toContainEqual({ kind: "doubles", piece: "r", partner: "r", line: "e-file" });
+  });
+  it("a knight on an outpost no pawn can ever attack", () => {
+    const s = buildLineStory("r2q1rk1/1b2bppp/p2p1n2/1p2p3/4P3/1NN1B3/PPP2PPP/R2Q1RK1 w - - 0 1", ["Nd5"]);
+    expect(s.plies[0].facts).toContainEqual({ kind: "outpost", piece: "n", square: "d5" });
+    expect(s.plies[0].facts.some((f) => f.kind === "centralizes")).toBe(false);
+  });
+  it("piling onto a pinned piece", () => {
+    // Bg5 pins the f6 knight to the d8 queen; Nd5 attacks the pinned knight
+    const s = buildLineStory("r2q1rk1/ppp2ppp/2np1n2/4p1B1/2B1P3/2NP4/PPP2PPP/R2Q1RK1 w - - 0 1", ["Nd5"]);
+    expect(s.plies[0].facts).toContainEqual({ kind: "attacks_pinned", piece: "n", square: "f6", against: "q" });
+  });
+  it("creating a passed pawn, then blockading one", () => {
+    const created = buildLineStory("8/8/8/2p5/1P6/8/5K1k/8 w - - 0 1", ["bxc5"]);
+    expect(created.plies[0].facts).toContainEqual({ kind: "passed_pawn", square: "c5", created: true });
+    const blockade = buildLineStory("6k1/5ppp/8/3P4/8/8/5PPP/3N2K1 b - - 0 1", ["Kf8", "Kf1", "Ke7", "Ke2", "Kd6"]);
+    expect(blockade.plies[4].facts).toContainEqual({ kind: "blockades", piece: "k", square: "d6", pawnSquare: "d5", weakness: "passed" });
+  });
+  it("attacks an isolated pawn; a home-rank pawn is never called backward", () => {
+    // d5 is isolated (no black c- or e-pawn) and adequately defended (rook + bishop), so it is not "hanging" — the weakness is the point
+    const iso = buildLineStory("3r2k1/pp3ppp/4b3/3p4/8/8/PP3PPP/2RR2K1 w - - 0 1", ["Rc5"]);
+    expect(iso.plies[0].facts).toContainEqual({ kind: "attacks_weak_pawn", square: "d5", weakness: "isolated" });
+    const greek = buildLineStory("r1bq1rk1/ppp2ppp/2n1pn2/3p4/1bPP4/2NBPN2/PP3PPP/R2QK2R w KQ - 0 8", ["Bxh7+", "Kxh7", "Ng5+", "Kg8", "Qh5"]);
+    expect(greek.plies[4].facts.some((f) => f.kind === "attacks_weak_pawn")).toBe(false);
+  });
+  it("develops and centralizes only on quiet plies; the king walks only in an endgame", () => {
+    const opening = buildLineStory(new Chess().fen(), ["e4", "e5", "Nf3", "Nc6", "Bb5", "Nf6", "Nc3"], { maxPlies: 8 });
+    expect(opening.plies[6].facts).toContainEqual({ kind: "develops", piece: "n" });
+    const middlegame = buildLineStory("r1bq1rk1/pp3ppp/2n1pn2/3p4/1bPP4/2NBPN2/PP3PPP/R2QK2R w KQ - 0 8", ["Ke2"]);
+    expect(middlegame.plies[0].facts.some((f) => f.kind === "king_activity")).toBe(false);
+    const endgame = buildLineStory("8/pp3k2/8/8/8/8/PP3K2/8 w - - 0 1", ["Ke3"]);
+    expect(endgame.plies[0].facts).toEqual([{ kind: "king_activity", to: "e3" }]);
+  });
+  it("a checking move's own hanging piece is not charged again at the next ply", () => {
+    const s = buildLineStory("8/8/8/2k5/2P5/8/5K2/8 w - - 0 1", ["Kf3", "Kd6", "c5+", "Kc6", "Ke4"]);
+    expect(s.plies[2].facts).toContainEqual({ kind: "en_prise", piece: "p", square: "c5", movedPiece: true, afterCapture: false });
+    expect(s.plies[4].facts.some((f) => f.kind === "en_prise")).toBe(false);
+  });
+});
+
+describe("what the second adversarial review taught it (purposes, 2026-09-05)", () => {
+  it("a piece passing back through a home square is not being developed", () => {
+    // Breyer regroup: the knight arrives on g3 from f1 (its fourth move), the bishop fianchettoes from f8 (its third)
+    const breyer = buildLineStory("r2qrbk1/1bpn1ppp/p2p1n2/1p2p3/3PP3/2P2N1P/PPB2PP1/R1BQRNK1 w - - 7 14", ["Ng3", "g6", "a4", "Bg7"]);
+    expect(breyer.plies[0].facts.some((f) => f.kind === "develops")).toBe(false);
+    expect(breyer.plies[3].facts.some((f) => f.kind === "develops")).toBe(false);
+    // Within a line the story remembers what left home; with game history it is exact
+    const shuffle = buildLineStory(new Chess().fen(), ["Nf3", "Nf6", "Ng1", "Ng8", "Nf3"], { maxPlies: 8 });
+    expect(shuffle.plies[0].facts).toContainEqual({ kind: "develops", piece: "n" });
+    expect(shuffle.plies[4].facts.some((f) => f.kind === "develops")).toBe(false);
+    const known = buildLineStory(new Chess().fen(), ["Nf3"], { movedFrom: new Set(["g1"]) });
+    expect(known.plies[0].facts.some((f) => f.kind === "develops")).toBe(false);
+  });
+  it("doubling is only named on a line that leads somewhere", () => {
+    const backRank = buildLineStory("2r3k1/pp3ppp/5n2/8/3R4/8/PP3PPP/4R1K1 w - - 0 30", ["Rdd1"]);
+    expect(backRank.plies[0].facts.some((f) => f.kind === "doubles")).toBe(false);
+    const seventh = buildLineStory("2r1n1k1/R4ppp/8/8/8/8/1P3PPP/3R2K1 w - - 0 30", ["Rdd7"]);
+    expect(seventh.plies[0].facts).toContainEqual({ kind: "doubles", piece: "r", partner: "r", line: "7th rank" });
+    // Qd2 behind Rd1 with White's own d4 pawn on the file: a closed file is no battery
+    const closed = buildLineStory("r1bqr1k1/pp3ppp/2pb1n2/3p4/3P4/2PBPN2/PP2QPPP/R1BR2K1 w - - 0 14", ["Qd2"]);
+    expect(closed.plies[0].facts.some((f) => f.kind === "doubles" || f.kind === "to_open_file")).toBe(false);
+  });
+  it("a capture explains itself — no open-file or doubling garnish on top", () => {
+    const s = buildLineStory("3r2k1/R2p1ppp/8/8/8/8/1P3PPP/3R2K1 w - - 0 30", ["Raxd7", "Rxd7", "Rxd7"]);
+    expect(s.plies[0].facts.some((f) => f.kind === "to_open_file" || f.kind === "doubles")).toBe(false);
+  });
+  it("castling long brings the rook to the half-open d-file; a pawn on its own file is not pinned", () => {
+    const s = buildLineStory("rn1qk2r/1p2bppp/p2pbn2/4p3/4P3/1NN1BP2/PPP3PP/R2QKB1R w KQkq - 1 9", ["Qd2", "Nbd7", "O-O-O"]);
+    expect(s.plies[0].facts.some((f) => f.kind === "attacks_pinned")).toBe(false);
+    expect(s.plies[2].facts).toContainEqual({ kind: "to_open_file", piece: "r", file: "d", open: false });
+  });
+  it("a knight in front of an isolated pawn blockades it; the 4th rank is no outpost", () => {
+    const s = buildLineStory("1r4k1/pp3pbp/6p1/3p4/8/4PN2/PP3PPP/3R2K1 w - - 0 25", ["Nd4"]);
+    expect(s.plies[0].facts).toContainEqual({ kind: "blockades", piece: "n", square: "d4", pawnSquare: "d5", weakness: "isolated" });
+    expect(s.plies[0].facts.some((f) => f.kind === "outpost" || f.kind === "centralizes")).toBe(false);
+  });
+  it("a promotion is not a pawn advancing; a pawn that dies at once is not passed", () => {
+    const promo = buildLineStory("8/k3P2p/8/8/8/8/8/6K1 w - - 0 1", ["e8=Q"]);
+    expect(promo.plies[0].facts.some((f) => f.kind === "passed_pawn")).toBe(false);
+    // f4?? walks into exf3 en passant — the attack scans could not see it before
+    const ep = buildLineStory("6k1/p7/8/8/4p3/8/P4P2/6K1 w - - 0 1", ["f4"]);
+    expect(ep.plies[0].facts.some((f) => f.kind === "passed_pawn")).toBe(false);
+    expect(ep.plies[0].facts).toContainEqual({ kind: "en_prise", piece: "p", square: "f4", movedPiece: true, afterCapture: false });
+    // dxe5 Nxe5: the first half of a trade
+    const trade = buildLineStory("6k1/p7/2n5/4p3/3P4/8/P7/6K1 w - - 0 1", ["dxe5", "Nxe5"]);
+    expect(trade.plies[0].facts.some((f) => f.kind === "passed_pawn")).toBe(false);
+  });
+  it("pushing past an enemy pawn frees it too", () => {
+    const s = buildLineStory("6k1/7p/8/p7/1P6/8/7P/6K1 w - - 0 1", ["b5"]);
+    expect(s.plies[0].facts).toContainEqual({ kind: "passed_pawn", square: "b5", created: true });
+    expect(s.plies[0].facts).toContainEqual({ kind: "frees_enemy_pawn", square: "a5" });
+    expect(s.plies[0].sayable).toContain("leaves the opponent with a passed pawn on a5");
+  });
+  it("a pawn level with its neighbour is not backward", () => {
+    const level = buildLineStory("6k1/p3b2p/2pp4/4p3/4P3/4N3/P6P/6K1 w - - 0 1", ["Nc4"]);
+    expect(level.plies[0].facts.some((f) => f.kind === "attacks_weak_pawn")).toBe(false);
+    const behind = buildLineStory("6k1/p3b2p/3p4/2p1p3/4P3/4N3/P6P/6K1 w - - 0 1", ["Nc4"]);
+    expect(behind.plies[0].facts).toContainEqual({ kind: "blockades", piece: "n", square: "c4", pawnSquare: "c5", weakness: "passed" });
+    expect(behind.plies[0].facts).toContainEqual({ kind: "attacks_weak_pawn", square: "d6", weakness: "backward" });
+  });
+  it("bearing on a pawn is only news when it is new, and a far-advanced passer is called passed", () => {
+    // Ra1 already attacked a7; Ra6 changes nothing about it
+    const same = buildLineStory("6k1/p7/8/8/8/8/8/R5K1 w - - 0 1", ["Ra6"]);
+    expect(same.plies[0].facts.some((f) => f.kind === "attacks_weak_pawn")).toBe(false);
+    const passer = buildLineStory("r5k1/4P3/8/8/8/8/8/4R1K1 b - - 0 1", ["Re8", "Kf2", "Kf7"]);
+    expect(passer.plies[2].facts).toContainEqual({ kind: "attacks_weak_pawn", square: "e7", weakness: "passed" });
+    // d4 does not "challenge" an e5 pawn that was already hanging to the knight
+    const loose = buildLineStory("6k1/p6p/8/4p3/8/5N2/P2P3P/6K1 w - - 0 1", ["d4"]);
+    expect(loose.plies[0].facts.some((f) => f.kind === "pawn_challenges")).toBe(false);
   });
 });
 

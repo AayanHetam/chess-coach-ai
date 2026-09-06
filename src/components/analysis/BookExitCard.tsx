@@ -39,15 +39,21 @@ export interface BookExitCardProps {
 export default function BookExitCard({ sans, side }: BookExitCardProps) {
   const [state, setState] = useState<BookExitResponse | null>(null);
   const [failed, setFailed] = useState(false);
+  // The request is keyed on the game's CONTENT, not the array's identity. The
+  // parent rebuilds `sans` on every render, and /analysis re-renders on every
+  // engine evaluation tick — keyed on the array this effect fired ~20 times a
+  // second and a signed-out reader produced a 401 storm in production
+  // (2026-09-06, 1,000 POSTs in 49 s). SAN never contains a space.
+  const sansKey = sans.join(" ");
 
   useEffect(() => {
-    if (sans.length === 0) return;
+    if (sansKey.length === 0) return;
     let live = true;
     void fetch("/api/book-exit", {
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sans, side }),
+      body: JSON.stringify({ sans: sansKey.split(" "), side }),
     })
       .then((r) => (r.ok ? (r.json() as Promise<BookExitResponse>) : null))
       .then((body) => {
@@ -63,7 +69,7 @@ export default function BookExitCard({ sans, side }: BookExitCardProps) {
     };
     // The game and the side are the whole request. Re-running on anything else
     // would re-ask the same question.
-  }, [sans, side]);
+  }, [sansKey, side]);
 
   if (failed || !state) return null;
   const body = renderBookExit(state);

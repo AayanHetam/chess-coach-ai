@@ -166,3 +166,20 @@ test("an opponent leaving first is reported as theirs", async ({ page }) => {
   await expect(card.getByText(/Your opponent left the book first/)).toBeVisible();
   await expect(card.getByText(/Move \d+: you played/)).toHaveCount(0);
 });
+
+test("asks once per game, however often the page re-renders", async ({ page }) => {
+  // 2026-09-06: production logged 1,000 POSTs to /api/book-exit in 49 seconds
+  // from one signed-out reader — the card's effect was keyed on an array the
+  // parent rebuilt on every engine tick. A signed-out reader gets a 401 and the
+  // panel is simply absent; that must cost ONE request per game, not one per
+  // render. The engine runs during this wait, so the page re-renders plenty.
+  await stubAccount(page);
+  let calls = 0;
+  await page.route("**/api/book-exit", (r) => {
+    calls++;
+    return r.fulfill({ status: 401, json: { error: "not signed in" } });
+  });
+  await page.goto("/analysis?pgn=" + encodeURIComponent(PGN));
+  await page.waitForTimeout(15_000);
+  expect(calls).toBeLessThanOrEqual(1);
+});

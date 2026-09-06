@@ -4486,6 +4486,9 @@ function CoachPanel({
     [personalityId]
   );
   const [personalityMenuOpen, setPersonalityMenuOpen] = useState(false);
+  // Stable identity for BookExitCard: a fresh array per render made its
+  // effect refetch on every engine tick (see the note in BookExitCard).
+  const bookExitSans = useMemo(() => (allMoves ?? []).map((mv) => mv.san), [allMoves]);
   const personalityChipRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -4795,7 +4798,7 @@ function CoachPanel({
               reports the opponent's departure as the reader's. The card fetches
               its own answer and renders nothing at all when it has none. */}
           {playerSide && (allMoves?.length ?? 0) > 0 && (
-            <BookExitCard sans={allMoves!.map((m) => m.san)} side={playerSide.color} />
+            <BookExitCard sans={bookExitSans} side={playerSide.color} />
           )}
           {mistakeContext && (
             <Box sx={{ alignSelf: "stretch" }}>

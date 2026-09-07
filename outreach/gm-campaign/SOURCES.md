@@ -68,3 +68,41 @@ Personal sites and published press addresses (e.g. `pr@mauriceashley.com`,
   explicitly checked for. If you extend the list from any older source, re-run a
   deceased check before sending — this is the single most damaging mistake this
   campaign could make.
+
+---
+
+# Second pass (same day) — full titled-coach sweep
+
+After the GM-only pass, the brief widened to "collect emails like there is no tomorrow".
+
+## Lichess, remaining 1,640 titled coaches — 460 emails
+
+Same method and same rate limiting as the GM pass, run as two parallel streams:
+all non-GM titled coaches in the directory (479 IM, 562 FM, 217 CM, 162 NM,
+100 WFM, 83 WIM, 36 WGM, 1 LM). **460 of 1,640 (28%) publish an email.**
+
+## FIDE Trainers' Commission — 12 new addresses
+
+Crawled 372 posts across the commission's seminar, workshop and news categories.
+These are seminar **organisers and lecturers**, so some are FIDE Senior Trainers
+and some are arbiters or administrators. Tier `P6`, titles marked `unknown`.
+Treat as the weakest rows in the file.
+
+## Checked and rejected in this pass
+
+- **chess.com coach directory.** Crawlable, and `/coaches` and `/member` are not
+  disallowed by its robots.txt, but profiles carry no contact addresses — the
+  platform routes everything through internal messaging. The only `@` strings on
+  those pages are avatar filename hashes. No rows taken from chess.com.
+- **FIDE federation directory** (`fide.com/federations`) — no addresses in the
+  served HTML.
+- **chessfactor, chess.run, nurtr, elitechesstraining** — no exposed addresses.
+- **chess-results.com tournament organisers** — deliberately not crawled. High
+  volume, but organisers are mostly clubs and arbiters rather than titled
+  players, and padding the list with irrelevant recipients is how a sending
+  domain gets burned.
+
+## Final counts
+
+645 rows, 643 unique addresses, zero duplicates, zero malformed, every row
+carrying a source URL.

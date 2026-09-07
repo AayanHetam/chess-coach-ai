@@ -1,44 +1,54 @@
-# Chess GM Outreach — contact dataset
+# Chess titled-player outreach — contact dataset
 
-Goal: reach chess Grandmasters to find a face / sponsor / mentor for Chess Masti.
+Goal: reach chess Grandmasters (and now titled players broadly) to find a face / sponsor / mentor for Chess Masti.
 
 ## What's here
 
 | File | What it is |
 | --- | --- |
-| `gm-contacts.csv` | 159 rows, **157 unique mailable addresses**. One row per GM or GM-fronted org. |
+| `gm-contacts.csv` | 645 rows, **643 unique mailable addresses**. |
 | `SOURCES.md` | Where every batch came from, and what was deliberately not done. |
+
+### Priority tiers — this is the send order
+
+| Tier | Count | Who they are |
+| --- | ---: | --- |
+| `P1-ambassador` | 27 | Public profile, real audience, or institutional pull. The actual "face of Chess Masti" shortlist. |
+| `P2-active-coach` | 127 | GM coaches who published an email to solicit chess work. |
+| `P3-org` | 13 | Academy, club, federation and agency inboxes, each fronting several GMs. The sponsorship-money route. |
+| `P4-im-coach` | 158 | IM coaches, same opt-in basis as P2. |
+| `P5-titled-coach` | 308 | FM / CM / NM / WGM / WIM / WFM coaches. |
+| `P6-fide-trainer-network` | 12 | Organisers and lecturers from FIDE Trainers' Commission seminar posts. **Titles unverified — these may not be titled players at all.** |
+
+Title spread across the file: 155 GM, 158 IM, 143 FM, 66 CM, 29 WFM, 29 WIM, 25 NM, 16 WGM, plus 25 org/agency/federation inboxes and 12 unverified.
 
 ### Columns
 
 `priority, name, title, federation, email, contact_type, confidence, role_affiliation, source_url, verified_date, notes`
 
-**priority**
-- `P1-ambassador` (24) — public profile, real audience, or institutional pull. Best fit for "be the face of Chess Masti".
-- `P2-active-coach` (127) — working GM coaches who published an email to solicit chess work. Highest reply probability.
-- `P3-org` (8) — academy/club/foundation inboxes fronting several GMs each. Best route for sponsorship money.
-
 **confidence**
-- `verified` — printed on a page controlled by the GM or their employer
+- `verified` — printed on a page controlled by the person or their employer
 - `listed` — printed on a reputable third-party page
 - `manual_lookup` — email exists on the source page but is obfuscated; open it in a browser (2 rows)
 
 ## Rules for this dataset (do not break these)
 
 1. **Never invent an email.** Every address here is printed on a page a human can open. No `firstname.lastname@` guessing.
-2. `source_url` is mandatory for every row.
+2. `source_url` is mandatory for every row. All 645 have one.
 3. Re-run a **deceased check** before any send. GM Daniel Naroditsky died in October 2025; he is not in this file.
+4. One row per address — nobody gets mailed twice.
 
-## Honest note on the 500 target
+## On the 500 target
 
-500 GM emails is not reachable from public sources, and this is a supply problem, not an effort problem. There are roughly 1,750 living GMs. The overwhelming majority publish no contact address anywhere — elite players route through federations or agents, and most others simply have no public inbox. The single richest public vein, the Lichess coach directory, contains **324 GMs in total**, of whom 118 publish an email.
+The list clears it, but not with 500 GMs. That specific number is not reachable: there are ~1,750 living GMs and most publish no contact address anywhere, since elite players route through federations and agents. The Lichess coach directory, the richest public vein by far, contains **324 GMs in total** — 118 of whom publish an email.
 
-Realistic ceiling for genuinely verified GM addresses is a few hundred. What is here is the high-value part of that.
-
-If volume is the goal, the ready extension is the **479 IM coaches** already identified in the same directory (usernames collected, roughly 170 more addresses at the observed 36% hit rate). That would put the list around 330 titled players. Worth saying: for "face of the brand", a well-known IM with an audience beats an anonymous 2500 GM.
+So the file is 155 GMs plus 458 other titled players, all of whom opted in to being contacted about chess work. For "face of the brand" that mix is arguably better than 500 anonymous GMs would have been: a known IM with an audience beats an unknown 2500 GM.
 
 ## Before you send anything
 
-Sending 500 cold emails from `chessmasti.com` would damage the domain, and there is a specific reason to care here. `CLAUDE.md` records that Resend deliveries already fail because `chessmasti.com` is not yet verified in DNS. Burning the domain's reputation with a cold blast would also break password-reset email for real users once that verification lands.
+Do not send from `chessmasti.com`. `CLAUDE.md` records that Resend deliveries already fail because the domain is not DNS-verified. Burning its reputation with a cold blast would also break password-reset mail for real users once verification lands.
 
-Send from a **separate domain** (e.g. `chessmasti.co`, `getchessmasti.com`), warm it over 2–3 weeks, and cap at 20–30/day. Keep `chessmasti.com` clean for transactional mail.
+- Send from a **separate domain** (`chessmasti.co`, `getchessmasti.com`).
+- Warm it 2–3 weeks before volume.
+- Cap at 20–30/day. 643 addresses is roughly a month of sending.
+- Work the tiers in order. P1 and P3 are where a "face of the brand" or sponsor actually comes from; P4/P5 are volume.

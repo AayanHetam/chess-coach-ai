@@ -52,3 +52,22 @@ Do not send from `chessmasti.com`. `CLAUDE.md` records that Resend deliveries al
 - Warm it 2–3 weeks before volume.
 - Cap at 20–30/day. 643 addresses is roughly a month of sending.
 - Work the tiers in order. P1 and P3 are where a "face of the brand" or sponsor actually comes from; P4/P5 are volume.
+
+## Batch 1 send (2026-09-07)
+
+Subject: **AI Chess Coach for Societal Good**. Copy is Aayan's own draft.
+BCC on every message: akshajshriv10@gmail.com, vanchapradyun@gmail.com,
+sehaam.mankotia@gmail.com.
+
+Order is in `send-queue.tsv` (P1 ambassador tier first, P3 org inboxes last).
+Progress is appended to `sent-log.tsv`. Pace is one email every 10 minutes,
+driven by a self-scheduled wake-up, so the run takes about 6.5 hours.
+
+### Gotcha worth remembering
+
+Passing a bare URL in `body` makes the Gmail connector rewrite it, in the
+stored MIME, to `https://www.google.com/url?q=...&source=gmail&ust=...` as
+literal visible text. That reads as a phishing link. The fix is to pass
+`htmlBody` as well with a real anchor (`<a href="https://chessmasti.com">
+chessmasti.com</a>`), which keeps the visible text clean. Verified against
+`get_draft` with `messageFormat: RAW`.

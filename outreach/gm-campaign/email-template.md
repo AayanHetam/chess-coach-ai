@@ -1,4 +1,6 @@
-# Cold email template — testimonial ask (batch 1, 40 recipients)
+# Cold email template — batch 1 (40 recipients)
+
+Author: Aayan. Claude applied mechanical fixes only, no voice changes.
 
 **Subject:** `a free chess coach`
 
@@ -7,36 +9,53 @@
 ```
 {SALUTATION}
 
-I built a free AI chess coach called Chess Masti. There is no paid tier and no
-usage quota. The site raises money for the Akanksha Education Fund, a
-501(c)(3) that funds schools for under-resourced kids in Mumbai and Pune.
+My name is Aayan Hetamsaria. I am a 16 year old in Seattle who grew up in
+Mumbai. I saw first-hand the half-naked children and frail women sleeping on
+the streets.
 
-It is engine-grounded, so Stockfish supplies the evaluation and the coaching
-layer explains it in plain language. That join is the part I most wanted to get
-right, and it is the part a strong player would break fastest.
+Today, chess coaching has become overly expensive, with some coaches charging
+over $200/hour. I built a free AI chess coach called Chess Masti to help give
+these children that do not have that kind of money a powerful resource to
+learn, train and play chess. We directly raise money for the Akanksha Education
+Fund, a 501(c)(3) that funds such schools for under-resourced kids in Mumbai
+and Pune.
 
-Would you give it ten minutes and tell me where it is wrong? chessmasti.com,
-nothing to sign up for.
+I would be permanently indebted to you if you could try out the AI for 15
+minutes and give me some feedback. GM testimonials like yours can help grow
+this product's impact exponentially.
 
-If you find it genuinely useful, a line I could quote would help it reach more
-players. If you don't, I would rather hear that.
-
-Aayan
 chessmasti.com
+
+Thank you so much for your time and attention. If you are willing to give me a
+quick line about why you like the product, that would be deeply appreciated.
+
+Thank you so much!
+
+Sincerely,
+Aayan Hetamsaria
 ```
 
-## Why it is shaped this way
+## Mechanical fixes applied to Aayan's draft
 
-- **The ask is criticism, not praise.** "Tell me where it is wrong" is easier to
-  say yes to than "please endorse us", and a GM who finds a real flaw usually
-  replies. The testimonial is the second, conditional ask.
-- **"If you don't, I would rather hear that"** is the line that makes the whole
-  email credible. Removing it turns this back into a pitch.
-- **No flattery opener.** No "I came across your profile". Titled players get
-  those daily.
-- **One link, no HTML, no attachment.** All three are spam signals.
-- **Length is ~110 words.** Anything longer gets skimmed.
+- Comma splice after "Aayan Hetamsaria" became a full stop
+- "I first-hand saw" became "I saw first-hand"
+- "200$/hour" became "$200/hour"
+- "Chess coaching" and "play Chess" lowercased mid-sentence
+- "Chessmasti.comThank you" was run together, split and lowercased to
+  chessmasti.com
+- "Thank you so much!Sincerely,Aayan Hetamsaria" was run together, split onto
+  separate lines
+- Paragraph breaks inserted
 
-## House style applied
+## One accuracy change (not mechanical)
 
-No em dashes, no semicolons. Plain sentences.
+"a 501(c)(3) that **leads** such schools" became "that **funds** such schools".
+The Akanksha Education Fund is the US 501(c)(3) that funds the Akanksha
+Foundation, which runs the schools. "Leads" would have been inaccurate.
+
+## Salutation rules
+
+- Male GMs, addressed personally: `Dear GM {Surname} Sir,`
+- Susan Polgar: `Dear GM Polgar Ma'am,` (never "Sir")
+- Assistants and managers (Karen, Jennifer, Sreekar, Sagar): first name, no honorific
+- Organisation inboxes: `Dear {Org} team,`

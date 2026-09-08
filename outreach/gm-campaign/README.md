@@ -34,15 +34,32 @@ Title spread across the file: 155 GM, 158 IM, 143 FM, 66 CM, 29 WFM, 29 WIM, 25 
 ## Rules for this dataset (do not break these)
 
 1. **Never invent an email.** Every address here is printed on a page a human can open. No `firstname.lastname@` guessing.
-2. `source_url` is mandatory for every row. All 645 have one.
-3. Re-run a **deceased check** before any send. GM Daniel Naroditsky died in October 2025; he is not in this file.
+2. `source_url` is mandatory for every row. All 644 have one.
+3. Re-run a **deceased check** before any send, on the specific addresses in that
+   batch. A corpus-wide sweep is not a substitute — see below.
+   - GM Daniel Naroditsky died in October 2025; he is not in this file.
+   - GM Ziaur Rahman died 5 July 2024, at the board during the Bangladesh
+     Championship. He **was** in this file and was removed on 2026-09-08. See
+     `deceased-exclusions.csv`.
+
+   **Why the Lichess rows are the risk.** Lichess does not retire a coach profile
+   when the coach dies. Rahman's profile at https://lichess.org/coach/ziachess
+   still renders "Active" and "Accepting students" 26 months after his death,
+   which is exactly how he entered this file with `confidence: verified`. Every
+   P2/P4/P5 row comes from that directory, so "the profile says active" carries
+   no signal about whether the person is alive.
+
+   **The check that actually works** is per batch, not per corpus: before sending
+   40, verify those 40 by name. Checking 600 by name is not tractable, and a
+   sweep of published obituaries only catches players notable enough for English
+   coverage — which is a small minority of this list.
 4. One row per address — nobody gets mailed twice.
 
 ## On the 500 target
 
 The list clears it, but not with 500 GMs. That specific number is not reachable: there are ~1,750 living GMs and most publish no contact address anywhere, since elite players route through federations and agents. The Lichess coach directory, the richest public vein by far, contains **324 GMs in total** — 118 of whom publish an email.
 
-So the file is 155 GMs plus 458 other titled players, all of whom opted in to being contacted about chess work. For "face of the brand" that mix is arguably better than 500 anonymous GMs would have been: a known IM with an audience beats an unknown 2500 GM.
+So the file is 154 GMs plus 458 other titled players, all of whom opted in to being contacted about chess work. For "face of the brand" that mix is arguably better than 500 anonymous GMs would have been: a known IM with an audience beats an unknown 2500 GM.
 
 ## Before you send anything
 

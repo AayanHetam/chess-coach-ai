@@ -209,6 +209,16 @@ SURNAME_FROM_ADDRESS = {
 }
 
 WTITLES = {"WGM", "WIM", "WFM", "WCM"}
+
+# Women who hold an open (non-W) title. The W-prefix rule cannot see them, and
+# "Sir" to a woman is the one salutation error that actually offends.
+WOMEN_OPEN_TITLE = {
+    "Anita Gara", "Anna M. Sargsyan", "Iva Videnova-Kuljasevic",
+    "Lela Javakhishvili", "Nisha Mohota", "Fanny Duarte Napoles",
+    "Juliana Terao", "Lara Schulze", "Liwia Jarocka",
+}
+# Given names used for both men and women. No honorific rather than a guess.
+NO_HONORIFIC = {"Snehal Bhosale"}
 ORG_SALUTATION = {
     "mesadepartes@federacionperuanadeajedrez.org": "Dear Federación Peruana de Ajedrez team,",
 }
@@ -227,7 +237,9 @@ def salutation(name, title, email):
         return ORG_SALUTATION[email]
     if name.startswith("(unident") or name in HANDLES:
         return "Dear Coach,"
-    hon = "Ma'am" if title in WTITLES else "Sir"
+    hon = "Ma'am" if (title in WTITLES or name in WOMEN_OPEN_TITLE) else "Sir"
+    if name in NO_HONORIFIC:
+        hon = None
     if email in SURNAME_FROM_ADDRESS:
         addr = SURNAME_FROM_ADDRESS[email]
     elif name in SURNAME:
@@ -240,7 +252,7 @@ def salutation(name, title, email):
             addr = name              # never guess; formal beats wrong
     addr = " ".join(shout_fix(t) for t in addr.split())
     prefix = f"{title} " if title and title.upper() != "UNKNOWN" else ""
-    return f"Dear {prefix}{addr} {hon},"
+    return f"Dear {prefix}{addr}," if hon is None else f"Dear {prefix}{addr} {hon},"
 
 def testimonial_clause(title):
     t = (title or "").upper()

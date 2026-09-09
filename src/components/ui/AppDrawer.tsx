@@ -279,6 +279,7 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                       <Box
                         component={Link}
                         href={targetHref}
+                        prefetch={false}
                         onClick={onClose}
                         sx={{
                           display: "flex",
@@ -439,6 +440,7 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                       <Box
                         component={Link}
                         href="/profile"
+                        prefetch={false}
                         onClick={onClose}
                         sx={{
                           display: "flex",

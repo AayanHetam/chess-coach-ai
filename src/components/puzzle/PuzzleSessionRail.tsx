@@ -2,8 +2,16 @@
 
 import { addressAs } from "@/lib/auth/displayIdentity";
 import { useRouter } from "next/router";
-import { Avatar, Box, IconButton, Stack, Typography } from "@mui/material";
-import { ArrowLeft, Check, Settings, X } from "lucide-react";
+import {
+  Avatar,
+  Box,
+  Button,
+  IconButton,
+  Stack,
+  Typography,
+} from "@mui/material";
+import { ArrowLeft, Check, Settings, UserRound, X } from "lucide-react";
+import { useAuthDialog } from "@/contexts/AuthDialogContext";
 import type { PuzzleContext } from "@/lib/validation/puzzleChatSchemas";
 import type { SessionResult } from "@/lib/puzzleSession";
 import { buildRailRows, type RowState } from "@/lib/puzzle/railRows";
@@ -98,7 +106,8 @@ export function PuzzleSessionRail({
   upcomingLimit = 8,
 }: PuzzleSessionRailProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { openAuthDialog } = useAuthDialog();
 
   const rows = buildRailRows({
     results,
@@ -107,7 +116,11 @@ export function PuzzleSessionRail({
     upcomingLimit,
   });
 
-  const displayName = addressAs(user);
+  // `addressAs(null)` falls back to "Chess Player", which on this chip read
+  // as an account — a guest session pretending to be signed in while the
+  // header said "Sign in" (2026-09-08 QA). A visitor with no account gets
+  // told so, and a way to get one.
+  const displayName = user ? addressAs(user) : "Not signed in";
 
   return (
     <Box
@@ -290,13 +303,17 @@ export function PuzzleSessionRail({
             src={user?.photoURL || undefined}
             sx={{ width: 34, height: 34, bgcolor: VIOLET.soft }}
           >
-            {displayName.charAt(0).toUpperCase()}
+            {user ? (
+              displayName.charAt(0).toUpperCase()
+            ) : (
+              <UserRound size={16} />
+            )}
           </Avatar>
           <Typography
             sx={{
               flex: 1,
               minWidth: 0,
-              color: TEXT,
+              color: user ? TEXT : TEXT_DIM,
               fontSize: "0.9rem",
               fontWeight: 600,
               overflow: "hidden",
@@ -304,16 +321,42 @@ export function PuzzleSessionRail({
               whiteSpace: "nowrap",
             }}
           >
-            {displayName}
+            {/* Blank while auth resolves rather than flashing "Not signed
+                in" at someone who is. */}
+            {authLoading ? "" : displayName}
           </Typography>
-          <IconButton
-            size="small"
-            aria-label="Profile settings"
-            onClick={() => router.push("/profile")}
-            sx={{ color: TEXT_DIM, "&:hover": { color: TEXT } }}
-          >
-            <Settings size={16} />
-          </IconButton>
+          {user ? (
+            <IconButton
+              size="small"
+              aria-label="Profile settings"
+              onClick={() => router.push("/profile")}
+              sx={{ color: TEXT_DIM, "&:hover": { color: TEXT } }}
+            >
+              <Settings size={16} />
+            </IconButton>
+          ) : authLoading ? null : (
+            <Button
+              size="small"
+              onClick={() => openAuthDialog()}
+              sx={{
+                textTransform: "none",
+                fontWeight: 700,
+                fontSize: "0.78rem",
+                px: 1.25,
+                py: 0.35,
+                minWidth: 0,
+                borderRadius: "10px",
+                color: "#0A0A0A",
+                background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
+                "&:hover": {
+                  background:
+                    "linear-gradient(135deg, #FB923C 0%, #F97316 100%)",
+                },
+              }}
+            >
+              Sign in
+            </Button>
+          )}
         </Stack>
       </Box>
     </Box>

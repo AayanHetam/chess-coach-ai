@@ -176,6 +176,7 @@ function PrimaryCTA({ href, children }: { href: string; children: ReactNode }) {
     <Button
       component={Link}
       href={href}
+      prefetch={false}
       variant="contained"
       disableElevation
       endIcon={<ArrowRight size={18} />}
@@ -229,6 +230,7 @@ function GhostCTA({ href, children }: { href: string; children: ReactNode }) {
     <Button
       component={Link}
       href={href}
+      prefetch={false}
       variant="outlined"
       sx={{
         color: "rgba(255,255,255,0.92)",
@@ -1471,6 +1473,7 @@ function DailyPuzzleSection() {
                   <Button
                     component={Link}
                     href={askCoachLink}
+                    prefetch={false}
                     variant="outlined"
                     startIcon={<Sparkles size={16} />}
                     sx={{
@@ -1492,6 +1495,7 @@ function DailyPuzzleSection() {
                   <Button
                     component={Link}
                     href={analysisLink}
+                    prefetch={false}
                     variant="outlined"
                     sx={{
                       color: "rgba(255,255,255,0.78)",
@@ -1540,6 +1544,7 @@ function DailyPuzzleSection() {
                   <Button
                     component={Link}
                     href={askCoachLink}
+                    prefetch={false}
                     variant="outlined"
                     startIcon={<Sparkles size={16} />}
                     sx={{
@@ -2070,6 +2075,7 @@ function ChromeExtension() {
               <Button
                 component={Link}
                 href="/extension"
+                prefetch={false}
                 variant="contained"
                 disableElevation
                 startIcon={<Download size={18} />}

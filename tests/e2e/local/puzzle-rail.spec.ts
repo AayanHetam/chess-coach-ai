@@ -16,6 +16,17 @@ import { waitForStableFen } from "../helpers";
 
 const RAIL = 'nav[aria-label="Session puzzles"]';
 
+// Settle consent before driving the board. At Playwright's 1280×720 the page
+// now flows (the one-screen lock is height-aware), so "Submit move" sits below
+// the fold and the fixed cookie banner would intercept the scrolled-to click.
+// The banner itself is covered by the answer-mode specs; this spec is about
+// rail rows. Same cookie the one-screen spec seeds.
+test.beforeEach(async ({ page }) => {
+  await page.context().addCookies([
+    { name: "cm_consent", value: "accepted", domain: "127.0.0.1", path: "/" },
+  ]);
+});
+
 function boardOnly(fen: string): string {
   return fen.split(" ")[0];
 }
@@ -126,7 +137,7 @@ test("exactly one rail row is marked current after solving", async ({
   await expect(current).toHaveCount(1);
 });
 
-test("the solved current row keeps BOTH its check and its highlight", async ({
+test("the graded current row keeps BOTH its outcome glyph and its highlight", async ({
   page,
 }) => {
   // Dropping the current row would also remove the duplicate — and lose the
@@ -146,11 +157,14 @@ test("the solved current row keeps BOTH its check and its highlight", async ({
       current.evaluate((el) => getComputedStyle(el).backgroundColor)
     )
     .toMatch(/rgba?\(255, 122, 26/);
-  // ...and still shows the solved glyph, which is the green disc.
+  // ...and still shows its outcome glyph. The helper learned the line from
+  // "Show solution", and seeing the answer grades as a MISS (it used to let
+  // the demo's final position count as a first-try solve), so the disc here
+  // is the failed red — not the green check a genuine first-try solve gets.
   const glyph = current.locator("div").first();
   await expect
     .poll(async () =>
       glyph.evaluate((el) => getComputedStyle(el).backgroundColor)
     )
-    .toMatch(/rgb\(74, 222, 128\)/);
+    .toMatch(/rgba?\(248, 113, 113/);
 });

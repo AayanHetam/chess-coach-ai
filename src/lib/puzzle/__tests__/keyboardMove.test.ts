@@ -6,8 +6,9 @@ const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const ITALIAN = "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4";
 // White pawn on e7, ready to promote.
 const PROMO = "8/4P2k/8/8/8/8/8/4K3 w - - 0 1";
-// Two knights can reach d2: Nb1 and Nf3.
-const AMBIG = "rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 0 1";
+// Two knights can reach d2: Nb1 and Nf3 (the d-pawn is gone, so d2 is free —
+// with the pawn still there "Nd2" was simply illegal, not ambiguous).
+const AMBIG = "rnbqkbnr/pppppppp/8/8/8/5N2/PPP1PPPP/RNBQKB1R w KQkq - 0 1";
 // Black pawn on b5 and bishop on d5 can both capture on c4 (diagonally).
 const B_FILE = "rnbqk1nr/pp1ppppp/8/1p1b4/2P5/8/PP1PPPPP/RNBQKBNR b KQkq - 0 3";
 
@@ -43,10 +44,50 @@ describe("parseKeyboardMove — SAN", () => {
     }
   });
 
-  it("rejects an ambiguous SAN token instead of guessing", () => {
+  it("asks which piece when a SAN token is ambiguous, instead of guessing or calling it illegal", () => {
+    // Two knights can reach d2. "Not a legal move here." was the old answer,
+    // which to the player is the board contradicting what they can see.
     expect(parseKeyboardMove(AMBIG, "Nd2")).toEqual({
       ok: false,
-      error: "Not a legal move here.",
+      error: "Two knights can reach d2 (b1 and f3) — type Nbd2 or Nfd2.",
+    });
+  });
+
+  it("plays a disambiguated token from an ambiguous position", () => {
+    expect(parseKeyboardMove(AMBIG, "Nbd2")).toMatchObject({ ok: true, from: "b1", to: "d2" });
+    expect(parseKeyboardMove(AMBIG, "Nfd2")).toMatchObject({ ok: true, from: "f3", to: "d2" });
+  });
+
+  describe("the 2026-09-08 report: Rc1 rejected as illegal", () => {
+    // White rooks on a1 and f1, c1 empty: "Rc1" is legal for either rook.
+    const TWO_ROOKS = "4k3/8/8/8/8/8/8/R4RK1 w - - 0 1";
+    // Only the a1 rook can reach c1 (the other rook is on h1 behind the king).
+    const ONE_ROOK = "4k3/8/8/8/8/8/8/R5KR w - - 0 1";
+    // A black bishop sits on c1: the move is a capture, Rxc1.
+    const CAPTURE = "4k3/8/8/8/8/8/8/R1b3KR w - - 0 1";
+
+    it("explains the ambiguity and names the two spellings", () => {
+      expect(parseKeyboardMove(TWO_ROOKS, "Rc1")).toEqual({
+        ok: false,
+        error: "Two rooks can reach c1 (a1 and f1) — type Rac1 or Rfc1.",
+      });
+      expect(parseKeyboardMove(TWO_ROOKS, "Rac1")).toMatchObject({ ok: true, from: "a1", to: "c1" });
+    });
+
+    it("plays Rc1 when only one rook can get there", () => {
+      expect(parseKeyboardMove(ONE_ROOK, "Rc1")).toMatchObject({ ok: true, from: "a1", to: "c1", piece: "wR" });
+    });
+
+    it("forgives a capture typed without the x", () => {
+      expect(parseKeyboardMove(CAPTURE, "Rc1")).toMatchObject({ ok: true, from: "a1", to: "c1" });
+      expect(parseKeyboardMove(CAPTURE, "Rxc1")).toMatchObject({ ok: true, from: "a1", to: "c1" });
+    });
+
+    it("still refuses a square the piece cannot reach", () => {
+      expect(parseKeyboardMove(ONE_ROOK, "Rc3")).toEqual({
+        ok: false,
+        error: "Not a legal move here.",
+      });
     });
   });
 });

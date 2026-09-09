@@ -320,10 +320,19 @@ function pickPrimaryTheme(themes: string[] | undefined): string {
  */
 const LOCK_MIN_HEIGHT_PX = 870;
 /** Board width when the page is NOT locked at desktop widths: as wide as the
- *  column allows, capped so the whole board sits on the first screen (its
- *  top edge lands ~325px down, ~365px where the toolbar wraps at 1280 wide)
- *  and the controls follow just under the fold. */
-const UNLOCKED_BOARD_WIDTH = "min(100%, max(330px, calc(100dvh - 365px)))";
+ *  column allows, capped so the whole board sits on the first screen and the
+ *  controls follow just under the fold.
+ *
+ *  The subtrahend is the chrome above the board plus the controls below it.
+ *  It was 365 when the board's top edge landed ~325px down; the 2026-09-08
+ *  chrome reclaim (nav margins, the header row hidden on short screens, a
+ *  single-line filter row, thinner card padding and toolbar, and the status
+ *  row merged into the action row) moved that edge to 186px and un-wrapped
+ *  the 1280 toolbar, so 365 left ~120px of dead space below the controls and
+ *  a board ~125px smaller than the screen allowed. Measured after the
+ *  reclaim: 186 top + 55 for the action row = 241, rounded to 240 so the
+ *  controls still land a hair under the fold rather than above it. */
+const UNLOCKED_BOARD_WIDTH = "min(100%, max(330px, calc(100dvh - 240px)))";
 /** Floor for the locked slot — a legitimately squeezed slot (choice mode's
  *  answer rows) scrolls the card rather than shrinking the board to nothing. */
 const BOARD_MIN_PX = 320;

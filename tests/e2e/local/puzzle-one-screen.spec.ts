@@ -190,6 +190,15 @@ test.describe("short desktop viewports", () => {
         box!.width,
         `${vp.label}: board too small to play on`
       ).toBeGreaterThanOrEqual(330);
+      // And the flowing layout must actually USE the screen: after the
+      // 2026-09-08 chrome reclaim these measure 528 / 480 / 417. The floor
+      // sits ~50px under that, so a stale UNLOCKED_BOARD_WIDTH subtrahend —
+      // the thing that regressed once the chrome above the board shrank —
+      // shows up here instead of as dead space nobody measures.
+      expect(
+        box!.width,
+        `${vp.label}: board smaller than the screen allows`
+      ).toBeGreaterThanOrEqual(Math.min(vp.height - 290, 470));
       // The page may scroll here, but the board itself is on the first screen.
       expect(box!.y, `${vp.label}: board top cut off`).toBeGreaterThanOrEqual(
         -1

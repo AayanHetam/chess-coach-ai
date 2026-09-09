@@ -179,6 +179,7 @@ SURNAME = {
     "Badmatsyrenov Oleg": "Badmatsyrenov",
     "Antonyan Hamlet": "Antonyan",
     "Papp Bence": "Papp",
+    "Mikes Jan": "Mikes",
     # South Indian: trailing initials are not a surname, the given name is used
     "Divyalakshmi R": "Divyalakshmi",
     "Harshad S": "Harshad",

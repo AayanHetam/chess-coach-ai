@@ -15,6 +15,7 @@ import {
   Clipboard,
   Cpu,
   Crosshair,
+  Crown,
   Download,
   Flame,
   Globe,
@@ -24,6 +25,7 @@ import {
   Minus,
   MousePointerClick,
   Puzzle,
+  Quote,
   RotateCcw,
   ShieldCheck,
   Sparkles,
@@ -62,6 +64,7 @@ import { InternalHomeCard } from "@/components/intern/InternalHomeCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { startPlanHref } from "@/lib/onboarding/quizGate";
 import { homePageJsonLd } from "@/app/_seo/JsonLd";
+import { EXPERT_TESTIMONIALS } from "@/data/expertTestimonials";
 
 const HOME_TITLE = "Chess Masti AI — engine-grounded chess coaching, free";
 const HOME_DESC =
@@ -2337,6 +2340,174 @@ function StatsStrip() {
   );
 }
 
+/**
+ * Expert Testimonials: grandmasters on the project, quoted verbatim from
+ * src/data/expertTestimonials.ts. Sits between the stats strip and the final
+ * CTA so the "GM-quality" claim in that CTA lands right after GMs have said it.
+ */
+function ExpertTestimonials() {
+  return (
+    <Box
+      component="section"
+      aria-labelledby="expert-testimonials-heading"
+      sx={{ py: { xs: 6, md: 10 } }}
+    >
+      <RevealOnScroll>
+        <Box sx={{ maxWidth: 720, mb: 6 }}>
+          <EyebrowBadge>EXPERT TESTIMONIALS</EyebrowBadge>
+          <Typography
+            id="expert-testimonials-heading"
+            variant="h2"
+            sx={{
+              mt: 2.5,
+              fontSize: { xs: "2rem", md: "2.8rem" },
+              color: "rgba(255,255,255,0.96)",
+            }}
+          >
+            What grandmasters say{" "}
+            <Box
+              component="span"
+              sx={{
+                background: "linear-gradient(135deg, #F97316, #A855F7)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              about Chess Masti.
+            </Box>
+          </Typography>
+        </Box>
+      </RevealOnScroll>
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
+          gap: 2.5,
+          alignItems: "stretch",
+        }}
+      >
+        {EXPERT_TESTIMONIALS.map((t, i) => (
+          <RevealOnScroll
+            key={t.id}
+            delay={i * 0.1}
+            style={{ display: "flex" }}
+          >
+            <Box
+              component="figure"
+              sx={{
+                m: 0,
+                flex: 1,
+                position: "relative",
+                display: "flex",
+                flexDirection: "column",
+                borderRadius: "1.5rem",
+                background: "rgba(20,22,28,0.55)",
+                backdropFilter: "blur(14px) saturate(140%)",
+                WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                boxShadow:
+                  "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+                p: 4,
+                transition: "all 240ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+                "&:hover": {
+                  transform: "translateY(-3px)",
+                  boxShadow:
+                    "0 16px 48px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.1)",
+                },
+              }}
+            >
+              <Box
+                aria-hidden
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: "12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "rgba(249,115,22,0.12)",
+                  border: "1px solid rgba(249,115,22,0.3)",
+                  mb: 3,
+                }}
+              >
+                <Quote size={18} color="#F97316" />
+              </Box>
+              <Typography
+                component="blockquote"
+                sx={{
+                  m: 0,
+                  flex: 1,
+                  fontSize: { xs: "1.15rem", md: "1.3rem" },
+                  fontWeight: 500,
+                  lineHeight: 1.5,
+                  letterSpacing: "-0.01em",
+                  color: "rgba(255,255,255,0.9)",
+                }}
+              >
+                {t.quote}
+              </Typography>
+              <Box
+                component="figcaption"
+                sx={{
+                  mt: 3.5,
+                  pt: 3,
+                  borderTop: "1px solid rgba(255,255,255,0.06)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                }}
+              >
+                <Box
+                  aria-hidden
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: "50%",
+                    flexShrink: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "linear-gradient(135deg, #F97316, #FB923C)",
+                    boxShadow: "0 0 0 1px rgba(249,115,22,0.5)",
+                  }}
+                >
+                  <Crown size={18} color="#0A0A0A" strokeWidth={2.5} />
+                </Box>
+                <Box>
+                  <Typography
+                    sx={{
+                      fontWeight: 700,
+                      fontSize: "0.98rem",
+                      lineHeight: 1.2,
+                      color: "rgba(255,255,255,0.94)",
+                    }}
+                  >
+                    {t.name}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.5,
+                      fontSize: "0.76rem",
+                      fontWeight: 600,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "rgba(255,255,255,0.5)",
+                    }}
+                  >
+                    {t.title}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          </RevealOnScroll>
+        ))}
+      </Box>
+    </Box>
+  );
+}
+
 function FinalCTA() {
   return (
     <RevealOnScroll>
@@ -2613,6 +2784,7 @@ export default function LandingPage() {
           <Comparison />
           <ChromeExtension />
           <StatsStrip />
+          <ExpertTestimonials />
           <FinalCTA />
           <Footer />
         </Box>

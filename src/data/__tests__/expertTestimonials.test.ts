@@ -37,6 +37,9 @@ describe("expert testimonials", () => {
   });
 
   it("ships every declared photo as a real file under public/", () => {
+    // Both grandmasters have a portrait on file; a regression that drops one
+    // would silently fall back to initials, so pin the count.
+    expect(EXPERT_TESTIMONIALS.filter((t) => t.photo)).toHaveLength(2);
     for (const t of EXPERT_TESTIMONIALS) {
       if (!t.photo) continue;
       expect(t.photo.src).toMatch(
@@ -46,8 +49,11 @@ describe("expert testimonials", () => {
       expect(fs.existsSync(file), `${t.name}: missing ${file}`).toBe(true);
       expect(fs.statSync(file).size).toBeGreaterThan(1024);
       if (t.photo.credit) {
-        expect(t.photo.credit.licenseUrl).toMatch(/^https:\/\//);
         expect(t.photo.credit.sourceUrl).toMatch(/^https:\/\//);
+        // A licence name without its deed URL would render a dangling link.
+        if (t.photo.credit.license) {
+          expect(t.photo.credit.licenseUrl).toMatch(/^https:\/\//);
+        }
       }
     }
   });

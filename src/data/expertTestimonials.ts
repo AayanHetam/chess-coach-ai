@@ -15,22 +15,22 @@
  * line renders under the section.
  */
 export interface ExpertTestimonialPhotoCredit {
-  /** Photographer or uploader named by the licence. */
-  author: string;
-  /** Licence short name, e.g. "CC BY-SA 4.0". */
-  license: string;
-  /** Licence deed URL. */
-  licenseUrl: string;
-  /** Where the original lives, e.g. the Wikimedia Commons file page. */
-  sourceUrl: string;
-  /** Source name shown in the credit line, e.g. "Wikimedia Commons". */
+  /** Source name shown in the credit line, e.g. "New in Chess". */
   sourceName: string;
+  /** Page the photo was taken from. */
+  sourceUrl: string;
+  /** Photographer or uploader, when the source names one. */
+  author?: string;
+  /** Licence short name, e.g. "CC BY-SA 4.0", for openly licensed photos. */
+  license?: string;
+  /** Licence deed URL. Required whenever `license` is set. */
+  licenseUrl?: string;
 }
 
 export interface ExpertTestimonialPhoto {
   /** Site-relative path under public/, e.g. "/testimonials/alex-colovic.jpg". */
   src: string;
-  /** Required attribution for third-party licensed photos. Omit for photos the person supplied. */
+  /** Source credit for photos taken from a public page. Omit for photos the person supplied. */
   credit?: ExpertTestimonialPhotoCredit;
 }
 
@@ -54,9 +54,15 @@ export const EXPERT_TESTIMONIALS: readonly ExpertTestimonial[] = [
       "This project is the future of chess and of humanity as a whole. Therefore, your work is very important.",
     name: "GM Pavel Skatchkov",
     title: "Grandmaster",
-    // No freely licensed photograph of GM Skatchkov exists on Wikimedia
-    // Commons as of 2026-09-09. Add one he supplies at
-    // public/testimonials/pavel-skatchkov.jpg and set `photo` here.
+    // Public biography photo, square face crop of the original.
+    photo: {
+      src: "/testimonials/pavel-skatchkov.jpg",
+      credit: {
+        sourceName: "chessok.net",
+        sourceUrl:
+          "https://chessok.net/article/6397-shahmatist-pavel-skachkov-biografija.html",
+      },
+    },
   },
   {
     id: "alex-colovic",
@@ -64,23 +70,15 @@ export const EXPERT_TESTIMONIALS: readonly ExpertTestimonial[] = [
       "It's commendable what you have done, providing free coaching to those who cannot afford it.",
     name: "GM Alex Colovic",
     title: "Grandmaster",
-    // A CC BY-SA 4.0 photograph exists on Wikimedia Commons
-    // (https://commons.wikimedia.org/wiki/File:Alex_Colovic_2014.jpg), but
-    // upload.wikimedia.org could not be reached from the build sandbox on
-    // 2026-09-09. To enable it: save a square face crop (at least 320x320)
-    // to public/testimonials/alex-colovic.jpg and uncomment this block. The
-    // credit line renders under the section automatically.
-    // photo: {
-    //   src: "/testimonials/alex-colovic.jpg",
-    //   credit: {
-    //     author: "Acpstaff",
-    //     license: "CC BY-SA 4.0",
-    //     licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
-    //     sourceUrl:
-    //       "https://commons.wikimedia.org/wiki/File:Alex_Colovic_2014.jpg",
-    //     sourceName: "Wikimedia Commons",
-    //   },
-    // },
+    // Public podcast promo photo, square crop with the show banner removed.
+    photo: {
+      src: "/testimonials/alex-colovic.jpg",
+      credit: {
+        sourceName: "New in Chess",
+        sourceUrl:
+          "https://www.newinchess.com/blog/post/nic-podcast-41-gm-alex-colovic",
+      },
+    },
   },
 ];
 

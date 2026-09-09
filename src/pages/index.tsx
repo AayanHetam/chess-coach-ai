@@ -2586,15 +2586,20 @@ function ExpertTestimonials() {
         >
           {credits.map(({ id, name, credit }) => (
             <Box component="span" key={id} sx={{ display: "block" }}>
-              Photo of {name}: {credit.author},{" "}
-              <a
-                href={credit.licenseUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {credit.license}
-              </a>
-              , via{" "}
+              Photo of {name}: {credit.author ? `${credit.author}, ` : null}
+              {credit.license && credit.licenseUrl ? (
+                <>
+                  <a
+                    href={credit.licenseUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {credit.license}
+                  </a>
+                  ,{" "}
+                </>
+              ) : null}
+              via{" "}
               <a
                 href={credit.sourceUrl}
                 target="_blank"

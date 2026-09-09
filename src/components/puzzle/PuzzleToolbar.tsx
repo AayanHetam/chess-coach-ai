@@ -74,9 +74,11 @@ function ToolButton({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 0.4,
-        px: 1.25,
-        py: 0.75,
+        // Tighter at lg: the toolbar sits above the board inside the
+        // one-screen card, so its height is paid for in board pixels.
+        gap: { xs: 0.4, lg: 0.25 },
+        px: { xs: 1.25, lg: 1 },
+        py: { xs: 0.75, lg: 0.5 },
         // Ember fill + edge, not just a colour shift. Against two flat
         // borderless neighbours, a filled chip is what the eye actually lands
         // on — alpha alone reads as "same button, slightly brighter". The
@@ -195,10 +197,10 @@ export function PuzzleToolbar({
       sx={{
         display: "flex",
         alignItems: "center",
-        gap: 1,
+        gap: { xs: 1, lg: 0.75 },
         flexWrap: "wrap",
-        pb: 1.25,
-        mb: 1.75,
+        pb: { xs: 1.25, lg: 0.75 },
+        mb: { xs: 1.75, lg: 1.25 },
         borderBottom: "1px solid rgba(255,255,255,0.07)",
       }}
     >
@@ -287,7 +289,7 @@ export function PuzzleToolbar({
         onClick={onToggleAnalyse}
       />
 
-      {trailing ? <Box sx={{ ml: 1 }}>{trailing}</Box> : null}
+      {trailing ? <Box sx={{ ml: { xs: 1, lg: 0.5 } }}>{trailing}</Box> : null}
     </Box>
   );
 }

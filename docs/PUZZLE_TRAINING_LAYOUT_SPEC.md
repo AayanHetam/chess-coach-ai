@@ -258,13 +258,17 @@ actually good would teach the wrong lesson, and chess correctness is
 non-negotiable.
 
 ### 3.5 The action pair — near-exact copy (decided)
-- `Submit move` on the left, **disabled until a move is staged**, in Acely's
-  gray disabled treatment.
-- **Confirm-move is a setting, default ON for everyone, toggleable off.**
-  (Decided; supersedes the earlier proposal to gate it by rating.) Players who
-  want instant-drop back can switch it off in profile settings, and the toggle
-  should also be reachable from the puzzle screen itself — the moment you want
-  it off is the moment it just slowed you down.
+- When confirm-move is on: `Submit move` on the left, **disabled until a move
+  is staged**, in Acely's gray disabled treatment. By default (confirm off) the
+  row holds only `New puzzle ⌄`.
+- **Confirm-move is a setting, default OFF since 2026-09-08, toggleable on from
+  the puzzle screen.** It shipped default ON per the 2026-08-10 decision below;
+  GM Alex Colovic's signed-out review ("I was a bit annoyed by the 'submit
+  move' feature. Usually you make the move on the board and that's it") flipped
+  the default — see *Update — 2026-09-08*. The toggle lives on the puzzle
+  screen itself (the moment you want it changed is the moment it just got in
+  the way); there is no profile-settings control, because the pref is
+  per-device.
 - **Confirm applies only to the user's own moves.** In a multi-move puzzle the
   opponent's replies still auto-play, exactly as they do today
   ([puzzles.tsx:401-404](../src/pages/puzzles.tsx#L401-L404)). If the user is
@@ -322,8 +326,10 @@ divider. Ship Analyse and Reference first; Eliminate needs board annotation
 work and can trail in its own PR.
 
 **PR-4 — Action pair + confirm-move setting.** Stage-then-commit input behind a
-`confirmMoves` preference (default true, editable in ProfileDialog *and* from
-the puzzle screen), staging keyed off "user's turn" so opponent replies still
+`confirmMoves` preference (default true when built; default false since
+2026-09-08 — see *Update — 2026-09-08*; editable from the puzzle screen — the
+ProfileDialog control planned here was never built and is not needed for a
+per-device pref), staging keyed off "user's turn" so opponent replies still
 auto-play. Disabled `Submit move`, `New puzzle ⌄` with the Easier/Same/Harder
 menu, both bottom-anchored under a divider. Retire the bare "Next puzzle" button
 at [:1607](../src/pages/puzzles.tsx#L1607). Needs tests: a multi-move puzzle
@@ -505,6 +511,97 @@ All four open questions are resolved. Recorded here so nobody relitigates them.
 4. **No hand-drawn illustration.** Logo + "Chess Masti Puzzle AI" in an elegant
    serif. See §3.6 — already built.
 
+### Update — 2026-09-08 (GM Alex Colovic's review)
+
+GM Alex Colovic tried the platform signed out and sent two notes: "the chess
+board should be bigger. As it is, I strained myself to see where the pieces
+are (perhaps also change the colours and piece style for better visibility)",
+and "I was a bit annoyed by the 'submit move' feature. Usually you make the
+move on the board and that's it." Both were reproduced against production
+(`3e539258`) with a headless probe and fixed in one PR:
+
+1. **Confirm-move default is now OFF** (supersedes decision 1 above; the
+   setting stays, opt-in from the puzzle screen). A drop is graded on the spot,
+   as on every chess site; the deliberate stage-then-submit mode is one click
+   away for players who want it. The `cm_puzzle_confirm_moves` key is kept so
+   devices whose user explicitly toggled keep their choice. Pinned by a unit
+   test (`src/lib/__tests__/puzzlePrefs.test.ts`) and by the first test in
+   `puzzle-confirm-move.spec.ts`, which proves the default path; the staging
+   tests opt in through the toggle.
+
+2. **Board legibility — walnut dark squares.** The dark square moved from
+   `#5C4630` to `#9A7654` in `boardTheme.ts` (shared by every puzzle surface
+   and now the landing hero board too). `#5C4630` has a relative luminance of
+   0.069, which sits *inside* maestro's black-piece gradient (0.030–0.171), so
+   a black piece body on a dark square measured 1.13:1 and only its 1px stroke
+   separated it from the square. `#9A7654` clears the whole gradient: cburnett
+   black vs dark 2.37:1 → 5.09:1, maestro body 1.13:1 → 1.90:1, white pieces on
+   dark still ≥3.4:1, light/dark checker 3.0:1 — a warmer, more saturated
+   walnut than lichess brown that still reads as the ember-lit object on the
+   obsidian page. Overlay alphas were re-tuned for the lighter square, wrong
+   moves use `#DC2626` (at any alpha `#EF4444` lands on the walnut's exact
+   luminance), legal cues moved from white to warm ink so they read on BOTH
+   squares, and pieces carry a 1px drop-shadow (paint-only, follows the SVG
+   silhouette) that lifts white bodies off the light square. The piece-set
+   default (maestro → cburnett) is a separate open PR (#452) and was left alone.
+
+3. **Board size — ~200px of chrome reclaimed at lg.** Measured on the same
+   probe (board mode, consent settled):
+
+   | viewport | before | after |
+   |---|---|---|
+   | 1280×720 | 172 (toolbar wrapped to two rows) | 428 |
+   | 1366×768 | 259 | 476 |
+   | 1440×900 | 391 | 608 |
+   | 1536×864 | 355 | 572 |
+   | 1512×982 | — | 612 |
+   | 1920×1080 | 572 | 710 |
+   | 390×844 (phone) | 324 | 324 (unchanged) |
+
+   Every edit is lg-only (or under the existing `min-width:1200px and
+   max-height:900px` rule) so the phone layout is byte-identical:
+   - NavPill `mb` 24 → 10 and container `mt` 16 → 0 at lg; outer `pt`/`pb`
+     12 → 8. The pill's own margin is the gap.
+   - The `PUZZLE COACH · N matching` header row is hidden on ≤900px-tall lg
+     screens by the same media query that already hid the headline (it cost
+     48px there: the Stack's `mb` cannot collapse inside a flex item). Tall
+     desktops keep the chip row and the headline.
+   - Filter row: THEME/RATING labels hidden at lg (the chip group carries
+     `role="group" aria-label`), chips `px` 10 → 8, `nowrap` at lg. Measured
+     ~1084px of chips vs 1232px available at 1280, so it is one line by
+     construction, not by font luck (it wrapped to two lines at every width
+     ≤1536 before: 54px → 23px).
+   - Card padding 24 → 16 at lg. The board wrapper keeps its own 0.85rem
+     radius inside the 1.5rem card; the extra 16px of width is what stops the
+     toolbar wrapping at 1280.
+   - Toolbar tools `py` 6 → 4, `gap` 3 → 2, `px` 10 → 8, row `pb`/`mb`
+     tightened at lg: 57px → 48px. Icon-over-label identity kept.
+   - The status row and the bottom-anchored action bar become **one row at
+     lg** under the hairline: status pill left, Reset + Show solution, then
+     Submit/Change move (confirm on) and `New puzzle ⌄` right-aligned. Done
+     with a CSS-only wrapper (`flexDirection: column` at xs, `row` at lg), so
+     DOM order never changes and the status pill stays a single element
+     (specs read it with `getByText`). 115px → 56px. `#id · rating` is hidden
+     at lg (it is in the coach header and on the rail's current row) so the
+     row fits 1280. With confirm on and a move staged the actions wrap to a
+     second line at ≤1366 — an opt-in state, and the ResizeObserver re-fits
+     the board.
+   - Toggles row `mt` 8 → 4 and button `py` 2 → 0 at lg: 33px → 25px.
+   - The board-sizing mechanism is untouched: the slot is still the card's
+     only `flex: 1 / minHeight: 0` child and the ref-callback ResizeObserver
+     floors `min(width, height)`; every gain is a sibling shrinking or the
+     card growing. No board floor was added — the card is `overflow: hidden`
+     + `minHeight: 0`, so a slot floor would clip the bottom row rather than
+     scroll the column; that (with `overflow: clip`) is a follow-up.
+
+   Guarded by `puzzle-one-screen.spec.ts`: per-viewport board floors (~40px
+   under the measured sizes), 1280×720 added to the viewport list, and a
+   confirm-on variant proving Submit still sits above the fold at 1440×900.
+
+   Still cramped and out of scope here: choice mode (four 62px rows between
+   the board and the bottom row) and the Reference card at 1280/1366 — a 2×2
+   choice grid at lg and a conditional-state floor are the follow-ups.
+
 ### Status
 
 **This is an in-place reshape of `/puzzles`, not a parallel surface.** No new
@@ -550,8 +647,10 @@ type-safe — a new pattern for no gain over the one already established.
 
 #### PR-4 as built
 - `confirmMovesAtom` in [src/lib/puzzlePrefs.ts](../src/lib/puzzlePrefs.ts) —
-  localStorage, default `true`, per-device on purpose (the right answer differs
-  between laptop and phone for the same person).
+  localStorage, default `false` since 2026-09-08 (was `true`), per-device on
+  purpose (the right answer differs between laptop and phone for the same
+  person). The storage key was kept, so a device whose user explicitly toggled
+  keeps that choice.
 - `onBoardMove` now probes legality, then either stages or grades. Staging sets
   `{from, to, fen}`; `game` keeps the pre-move position, so `handleMove` works
   unchanged when Submit fires.
@@ -564,9 +663,9 @@ type-safe — a new pattern for no gain over the one already established.
   mode is the fix, since re-picking becomes natural there.
 - Staging is cleared on puzzle change, reset, and on toggling confirm-mode off
   (otherwise a move strands on the board with no Submit to commit it).
-- Action pair is bottom-anchored under a divider: `Submit move` (disabled until
-  staged) + `New puzzle ⌄`, with the confirm-mode toggle as a quiet line
-  beneath. `New puzzle` is a **split control** — the body advances at the
+- Action row is bottom-anchored under a divider: `New puzzle ⌄`, joined by
+  `Submit move` (disabled until staged) + `Change move` when confirm-move is
+  on, with the confirm-mode toggle as a quiet line. `New puzzle` is a **split control** — the body advances at the
   current difficulty (preserving the one-tap "Next puzzle" it replaced), the
   chevron opens Easier / Same difficulty / Harder. It keeps the ember gradient
   on solve, so the "you're done, go on" signal survives.

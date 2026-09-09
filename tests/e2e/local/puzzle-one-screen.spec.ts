@@ -19,11 +19,21 @@ import { waitForStableFen } from "../helpers";
  * and fully on the first screen" — the short-desktop block below.
  */
 
-/** Tall desktop viewports, where the one-screen lock applies. */
+/**
+ * Tall desktop viewports, where the one-screen lock applies.
+ *
+ * `minBoard` is a floor on the board's side in px. Before the 2026-09-08
+ * chrome reclaim the locked board was 391px at 1440x900 and 572 at 1080p,
+ * because ~509px of chrome surrounded it — a GM reviewer "strained to see
+ * where the pieces are". The reclaim measured 608 / 612 / 710; these floors
+ * sit ~40px under that so it cannot silently erode (a wrapped filter row or
+ * toolbar costs 25-40px) while leaving room for font-metric differences
+ * between macOS and the Linux runner.
+ */
 const DESKTOP_VIEWPORTS = [
-  { width: 1920, height: 1080, label: "1080p" },
-  { width: 1512, height: 982, label: "MacBook 14" },
-  { width: 1440, height: 900, label: "MacBook Air" },
+  { width: 1920, height: 1080, label: "1080p", minBoard: 660 },
+  { width: 1512, height: 982, label: "MacBook 14", minBoard: 560 },
+  { width: 1440, height: 900, label: "MacBook Air", minBoard: 560 },
 ];
 
 /** Short desktop viewports: what a 768p / 720p laptop shows once the browser
@@ -103,13 +113,17 @@ test.describe("one-screen layout", () => {
         box!.width,
         `${vp.label}: board too small to play on`
       ).toBeGreaterThan(240);
+      expect(
+        box!.width,
+        `${vp.label}: board shrank below the 2026-09-08 reclaim floor`
+      ).toBeGreaterThanOrEqual(vp.minBoard);
     });
   }
 
   test("the action pair stays reachable without scrolling", async ({
     page,
   }) => {
-    // Fitting the board is pointless if Submit ends up below the fold.
+    // Fitting the board is pointless if New puzzle ends up below the fold.
     await page.setViewportSize({ width: 1440, height: 900 });
     await acceptConsent(page);
     await page.goto("/puzzles");
@@ -123,6 +137,34 @@ test.describe("one-screen layout", () => {
       expect(box).not.toBeNull();
       expect(box!.y + box!.height).toBeLessThanOrEqual(901);
     }
+  });
+
+  test("with confirm-move on, Submit is reachable too and nothing scrolls", async ({
+    page,
+  }) => {
+    // Confirm-move is off by default (2026-09-08); when a player opts in, the
+    // bottom row grows by a Submit button. That is the tallest state of the
+    // row, so it is the one to prove still fits the screen.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await acceptConsent(page);
+    await page.goto("/puzzles");
+    await waitForStableFen(page);
+    await page.getByRole("button", { name: /Confirm each move: off/ }).click();
+
+    for (const name of [/submit move/i, /new puzzle/i, /show solution/i]) {
+      const box = await page
+        .getByRole("button", { name })
+        .first()
+        .boundingBox();
+      expect(box, `${name} must render`).not.toBeNull();
+      expect(box!.y + box!.height).toBeLessThanOrEqual(901);
+    }
+    const scroll = await page.evaluate(
+      () =>
+        document.documentElement.scrollHeight -
+        document.documentElement.clientHeight
+    );
+    expect(scroll).toBeLessThanOrEqual(1);
   });
 });
 
@@ -148,6 +190,15 @@ test.describe("short desktop viewports", () => {
         box!.width,
         `${vp.label}: board too small to play on`
       ).toBeGreaterThanOrEqual(330);
+      // And the flowing layout must actually USE the screen: after the
+      // 2026-09-08 chrome reclaim these measure 528 / 480 / 417. The floor
+      // sits ~50px under that, so a stale UNLOCKED_BOARD_WIDTH subtrahend —
+      // the thing that regressed once the chrome above the board shrank —
+      // shows up here instead of as dead space nobody measures.
+      expect(
+        box!.width,
+        `${vp.label}: board smaller than the screen allows`
+      ).toBeGreaterThanOrEqual(Math.min(vp.height - 290, 470));
       // The page may scroll here, but the board itself is on the first screen.
       expect(box!.y, `${vp.label}: board top cut off`).toBeGreaterThanOrEqual(
         -1

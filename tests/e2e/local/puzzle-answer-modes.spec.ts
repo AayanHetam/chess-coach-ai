@@ -82,13 +82,17 @@ test.describe("puzzle answer modes", () => {
 
   test("board-only controls disappear in choice mode", async ({ page }) => {
     // The whole point of hiding them: a disabled "Submit move" sitting beside
-    // the real answer rows reads as a broken screen.
+    // the real answer rows reads as a broken screen. Confirm is OFF by
+    // default, so turn it on first — otherwise the Submit assertion below is
+    // vacuously true.
     await page.goto("/puzzles");
     await waitForPuzzle(page);
 
     await expect(
-      page.getByRole("button", { name: /Confirm each move/ }),
+      page.getByRole("button", { name: /Confirm each move: off/ }),
     ).toBeVisible();
+    await page.getByRole("button", { name: /Confirm each move: off/ }).click();
+    await expect(page.getByRole("button", { name: "Submit move" })).toBeVisible();
 
     await page.getByRole("button", { name: "Answer: on the board" }).click();
     await expect(page.getByRole("radiogroup", { name: "Choose a move" })).toBeVisible();

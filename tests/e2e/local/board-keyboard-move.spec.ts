@@ -10,7 +10,7 @@ import { waitForStableFen } from "../helpers";
  * character opens an entry overlay; Enter feeds the parsed move through the
  * SAME onPieceDrop sink a drag uses. Because the change lives in the shared
  * component, one keyboard path serves every surface — these tests pin the
- * two ends: /puzzles (staging semantics) and the course trainer (the probe
+ * two ends: /puzzles (staging semantics, with confirm-move turned on) and the course trainer (the probe
  * that motivated the fix).
  */
 
@@ -38,6 +38,14 @@ test.describe("keyboard entry on /puzzles", () => {
     await acceptConsent(page);
     await page.goto("/puzzles");
     await waitForStableFen(page);
+    // Confirm-move is OFF by default (2026-09-08). This describe pins the
+    // STAGING contract for typed moves, so opt in the way a user would —
+    // through the quiet toggle — rather than seeding localStorage, so the
+    // toggle itself stays exercised.
+    await page.getByRole("button", { name: /Confirm each move: off/ }).click();
+    await expect(
+      page.getByRole("button", { name: "Submit move" }),
+    ).toBeDisabled();
   });
 
   test("a typed UCI move stages exactly like a dragged one", async ({
@@ -61,7 +69,7 @@ test.describe("keyboard entry on /puzzles", () => {
 
     await typeMove(page, `${move.from}${move.to}`);
 
-    // Confirm-move is ON by default: the typed move STAGES — the board shows
+    // With confirm-move turned on, the typed move STAGES — the board shows
     // the staged position and Submit arms. Identical to the drag contract.
     await expect
       .poll(async () => board(page).getAttribute("data-board-fen"), {

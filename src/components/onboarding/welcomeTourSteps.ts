@@ -23,12 +23,18 @@ const SURFACE_STEP: ReadonlyArray<readonly [prefix: string, label: TourNavLabel]
     ["/practice", "Practice"],
   ];
 
-/** Index into TOUR_STEP_ORDER to open on for `pathname`; 0 when nothing matches. */
-export function initialTourStep(pathname: string): number {
+/** The tour card that describes `pathname`, or null for surfaces without one. */
+export function surfaceLabelFor(pathname: string): TourNavLabel | null {
   const match = SURFACE_STEP.find(
     ([p]) => pathname === p || pathname.startsWith(`${p}/`)
   );
-  if (!match) return 0;
-  const idx = TOUR_STEP_ORDER.indexOf(match[1]);
+  return match ? match[1] : null;
+}
+
+/** Index into TOUR_STEP_ORDER to open on for `pathname`; 0 when nothing matches. */
+export function initialTourStep(pathname: string): number {
+  const label = surfaceLabelFor(pathname);
+  if (!label) return 0;
+  const idx = TOUR_STEP_ORDER.indexOf(label);
   return idx >= 0 ? idx : 0;
 }

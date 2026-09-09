@@ -252,6 +252,7 @@ export function NavPill({
                 key={item.id}
                 component={Link}
                 href={item.href}
+                prefetch={false}
                 onMouseEnter={() => setHovered(item.id)}
                 sx={{
                   position: "relative",

@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { waitForStableFen } from "../helpers";
 
 /**
- * /puzzles fits one screen on desktop and never scrolls.
+ * /puzzles fits one screen on a TALL desktop viewport and never scrolls.
  *
  * What the layout spec asked for from the start: "three regions, full viewport
  * height, no page scroll". The point of the format is that you never leave the
@@ -11,25 +11,37 @@ import { waitForStableFen } from "../helpers";
  * Two assertions, because either alone is satisfiable in a broken way. "No page
  * scroll" passes fine if the board is clipped, and "board fully visible" passes
  * fine on a page you had to scroll. Both together are the actual contract.
+ *
+ * The lock is height-aware since the 2026-09-08 QA pass: on the ~660–720px
+ * viewports that 768p laptops really have, the leftover height made a
+ * 148–172px board. Below LOCK_MIN_HEIGHT_PX (see pages/puzzles.tsx) the page
+ * flows and may scroll, and the contract becomes "the board is a usable size
+ * and fully on the first screen" — the short-desktop block below.
  */
 
 /**
- * Desktop heights that actually exist. 720 is the cramped end of the range.
+ * Tall desktop viewports, where the one-screen lock applies.
  *
- * `minBoard` is a floor on the board's side in px. Before 2026-09-08 the board
- * was 391px at 1440x900 and 259px at 1366x768 (172 at 1280x720) because ~509px
- * of chrome surrounded it — a GM reviewer "strained to see where the pieces
- * are". The layout reclaim measured 608 / 476 / 428 (1512x982: 612, 1080p:
- * 710); the floors sit ~40px under those so the reclaim cannot silently erode
- * (a wrapped filter row or toolbar costs 25-40px), while leaving room for
- * font-metric differences between macOS and the Linux runner.
+ * `minBoard` is a floor on the board's side in px. Before the 2026-09-08
+ * chrome reclaim the locked board was 391px at 1440x900 and 572 at 1080p,
+ * because ~509px of chrome surrounded it — a GM reviewer "strained to see
+ * where the pieces are". The reclaim measured 608 / 612 / 710; these floors
+ * sit ~40px under that so it cannot silently erode (a wrapped filter row or
+ * toolbar costs 25-40px) while leaving room for font-metric differences
+ * between macOS and the Linux runner.
  */
 const DESKTOP_VIEWPORTS = [
   { width: 1920, height: 1080, label: "1080p", minBoard: 660 },
   { width: 1512, height: 982, label: "MacBook 14", minBoard: 560 },
   { width: 1440, height: 900, label: "MacBook Air", minBoard: 560 },
-  { width: 1366, height: 768, label: "768p laptop", minBoard: 430 },
-  { width: 1280, height: 720, label: "720p laptop", minBoard: 380 },
+];
+
+/** Short desktop viewports: what a 768p / 720p laptop shows once the browser
+ *  chrome is taken off. The lock would leave a postage-stamp board here. */
+const SHORT_DESKTOP_VIEWPORTS = [
+  { width: 1366, height: 768, label: "768p laptop, no browser chrome" },
+  { width: 1280, height: 720, label: "720p" },
+  { width: 1366, height: 657, label: "768p laptop with browser chrome" },
 ];
 
 async function boardBox(page: Page) {
@@ -154,6 +166,46 @@ test.describe("one-screen layout", () => {
     );
     expect(scroll).toBeLessThanOrEqual(1);
   });
+});
+
+test.describe("short desktop viewports", () => {
+  test.skip(
+    ({ viewport }) => (viewport?.width ?? 0) < 1200,
+    "desktop-only layout"
+  );
+
+  for (const vp of SHORT_DESKTOP_VIEWPORTS) {
+    test(`the board is a usable size and on the first screen at ${vp.label}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await acceptConsent(page);
+      await page.goto("/puzzles");
+      await waitForStableFen(page);
+
+      const box = await boardBox(page);
+      expect(box, "board must render").not.toBeNull();
+      // 148px at 1366×657 and 172px at 1280×720 is what the lock produced.
+      expect(
+        box!.width,
+        `${vp.label}: board too small to play on`
+      ).toBeGreaterThanOrEqual(330);
+      // The page may scroll here, but the board itself is on the first screen.
+      expect(box!.y, `${vp.label}: board top cut off`).toBeGreaterThanOrEqual(
+        -1
+      );
+      expect(
+        box!.y + box!.height,
+        `${vp.label}: board bottom below the fold`
+      ).toBeLessThanOrEqual(vp.height + 1);
+      const sideways = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth
+      );
+      expect(sideways, `${vp.label}: sideways scroll`).toBeLessThanOrEqual(1);
+    });
+  }
 });
 
 test("mobile keeps normal document flow", async ({ page, viewport }) => {

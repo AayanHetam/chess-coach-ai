@@ -64,10 +64,12 @@ test("first product-page visit walks Puzzles → Analyze → Plan, then stays di
     tour.getByRole("heading", { name: "Plan ties it together" }),
   ).toBeVisible();
 
-  // Finishing routes to the plan and marks the tour seen.
-  await tour.getByRole("button", { name: "Start training" }).click();
-  await expect(page).toHaveURL(/\/plan$/, { timeout: 15_000 });
+  // Finishing marks the tour seen and stays put: it used to push /plan from
+  // wherever it was opened, taking a visitor away from the puzzle they were
+  // about to train on. Off /plan the button just says so.
+  await tour.getByRole("button", { name: "Got it" }).click();
   await expect(dialog(page)).toBeHidden();
+  await expect(page).toHaveURL(/\/puzzles/);
 
   await page.reload();
   // Wait for hydrated chrome (the signed-out /plan page has no role=heading,

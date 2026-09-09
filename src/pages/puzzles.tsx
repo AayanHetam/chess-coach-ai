@@ -1717,12 +1717,17 @@ export default function PreviewPuzzlesPage() {
           display: "flex",
           flexDirection: "column",
           overflow: { lg: "hidden" },
-          pt: { xs: 2, lg: 1.5 },
-          pb: { xs: 4, lg: 1.5 },
+          // Trimmed at lg (was 1.5/1.5): on the one-screen layout every
+          // vertical pixel outside the board card is paid for in board size.
+          pt: { xs: 2, lg: 1 },
+          pb: { xs: 4, lg: 1 },
           px: { xs: 2, md: 3 },
         }}
       >
-        <NavPill active="practice" />
+        {/* The pill's own mb:3 plus the container's mt stacked to 40px of
+            empty space between nav and content at lg. sx is the sanctioned
+            override (/analysis uses it too); xs restated so mobile is untouched. */}
+        <NavPill active="practice" sx={{ mb: { xs: 3, lg: 1.25 } }} />
 
         {/* Widened from 1500 for the three-region layout — at 1500 the rail's
             240px minimum ate into the board column. */}
@@ -1731,7 +1736,7 @@ export default function PreviewPuzzlesPage() {
             maxWidth: 1640,
             mx: "auto",
             width: "100%",
-            mt: { xs: 3, lg: 2 },
+            mt: { xs: 3, lg: 0 },
             // The column that owns the leftover height. minHeight:0 is what
             // lets a flex child actually shrink — without it the grid below
             // refuses to go under its content size and the page scrolls again.
@@ -1744,7 +1749,23 @@ export default function PreviewPuzzlesPage() {
           {/* Page header — compact, doesn't compete with the board. Tighter
               still at lg, where every pixel it takes comes straight out of the
               board. flexShrink:0 so it never squeezes instead of the grid. */}
-          <Box sx={{ mb: { xs: 2.5, lg: 1.25 }, flexShrink: 0 }}>
+          <Box
+            sx={{
+              mb: { xs: 2.5, lg: 1.25 },
+              flexShrink: 0,
+              // Same rule as the headline inside it: on a wide-but-short
+              // laptop this row is 48px that comes straight out of the board
+              // (the Stack's mb can't collapse inside a flex item, so even
+              // with the h1 hidden the chip row cost 28 + 10 + 10). The
+              // surface is still named by the NavPill's "Practice" pill, the
+              // violet card tint and the rail heading. Measured 2026-09-08:
+              // the board was 391px at 1440x900 with ~509px of chrome around
+              // it — a GM's "I strained myself to see where the pieces are".
+              "@media (min-width:1200px) and (max-height:900px)": {
+                display: "none",
+              },
+            }}
+          >
             <Stack direction="row" alignItems="center" spacing={1.5} mb={1.25}>
               <Box
                 sx={{
@@ -1818,12 +1839,13 @@ export default function PreviewPuzzlesPage() {
           {/* Filter row — themes + rating band */}
           <Box
             sx={{
-              mb: { xs: 3, lg: 1.5 },
+              mb: { xs: 3, lg: 1 },
               flexShrink: 0,
               display: "flex",
               flexDirection: { xs: "column", md: "row" },
-              gap: { xs: 1.5, md: 3 },
+              gap: { xs: 1.5, md: 3, lg: 2 },
               alignItems: { xs: "flex-start", md: "center" },
+              minWidth: 0,
             }}
           >
             <FilterChipRow
@@ -1863,7 +1885,7 @@ export default function PreviewPuzzlesPage() {
                 display: "flex",
                 alignItems: "center",
                 gap: 1.5,
-                mb: 2,
+                mb: { xs: 2, lg: 1 },
                 px: 2,
                 py: 1,
                 borderRadius: "999px",
@@ -1993,7 +2015,11 @@ export default function PreviewPuzzlesPage() {
                     opacity: 0.65,
                     pointerEvents: "none",
                   },
-                  p: { xs: 2, md: 3 },
+                  // 16px at lg (was 24): the board wrapper has its own
+                  // 0.85rem radius inside the 1.5rem card, so the nested-glass
+                  // read survives, and the 16px of width is what stops the
+                  // toolbar wrapping to two rows at 1280 wide.
+                  p: { xs: 2, md: 3, lg: 2 },
                   // At lg the card takes the column's height and the board
                   // sizes itself from what's left. A fixed 540 min-height here
                   // is what used to push the card past the viewport.
@@ -2196,12 +2222,50 @@ export default function PreviewPuzzlesPage() {
                       />
                     )}
 
+                    {/* Bottom of the card. Below lg this wrapper is a plain
+                        column — status row, then the bottom-anchored action
+                        bar — exactly as before. At lg the two become ONE row
+                        under the hairline: status pill left, Reset + Show
+                        solution, then the actions right-aligned. On the
+                        one-screen layout every row here is paid for in board
+                        pixels (measured 115px → 56px at 1440x900). CSS-only,
+                        so DOM order and the mobile presentation never change,
+                        and the status pill stays a single element (specs read
+                        it with getByText, which does not skip hidden nodes). */}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: { xs: "column", lg: "row" },
+                        // "1 1 auto" at xs, not 1: the column must take the
+                        // card's leftover height so the action bar's mt:auto
+                        // still pins it to the bottom, as it always has.
+                        flex: { xs: "1 1 auto", lg: "0 0 auto" },
+                        alignItems: { lg: "center" },
+                        flexWrap: { lg: "wrap" },
+                        gap: { lg: 1.5 },
+                        mt: { lg: "auto" },
+                        pt: { lg: 1.5 },
+                        borderTop: {
+                          xs: "none",
+                          lg: "1px solid rgba(255,255,255,0.07)",
+                        },
+                      }}
+                    >
                     {/* Status row */}
                     <Stack
                       direction="row"
                       alignItems="center"
                       spacing={1.5}
-                      sx={{ mt: 2, flexWrap: "wrap" }}
+                      sx={{
+                        mt: { xs: 2, lg: 0 },
+                        // Basis auto so the wrapper wraps the ACTION box to a
+                        // second line when confirm-move's Submit/Change move
+                        // don't fit, rather than wrapping Reset/Show solution
+                        // inside this row.
+                        flex: { lg: "1 1 auto" },
+                        minWidth: 0,
+                        flexWrap: "wrap",
+                      }}
                     >
                       <Box
                         sx={{
@@ -2275,6 +2339,10 @@ export default function PreviewPuzzlesPage() {
                           fontSize: "0.78rem",
                           color: "rgba(255,240,224,0.5)",
                           fontFamily: "Monaco, Menlo, monospace",
+                          // At lg the id is in the coach header and the rating
+                          // on the rail's current row; here it would push the
+                          // merged bottom row to two lines at 1280 wide.
+                          display: { xs: "block", lg: "none" },
                         }}
                       >
                         #{puzzle.id}
@@ -2303,7 +2371,7 @@ export default function PreviewPuzzlesPage() {
                         disabled={!!activeDemo}
                         startIcon={<Eye size={14} />}
                         sx={{
-                          px: 1.75,
+                          px: { xs: 1.75, lg: 1.5 },
                           py: 0.6,
                           borderRadius: "999px",
                           background: "rgba(22,18,14,0.7)",
@@ -2326,19 +2394,29 @@ export default function PreviewPuzzlesPage() {
                     </Stack>
 
                     {/* Action bar — Acely's commit/escape pair, bottom-anchored
-                        under a divider. Submit is the only path from a staged
-                        move to a graded one; "New puzzle" is deliberately just
-                        as heavy, because skipping shouldn't feel punished. */}
+                        under a divider below lg; the right half of the merged
+                        bottom row at lg. Submit exists only when confirm-move
+                        is on (off by default since 2026-09-08) and is then the
+                        only path from a staged move to a graded one; by default
+                        the bar is just "New puzzle", deliberately as heavy as
+                        Submit would be, because skipping shouldn't feel
+                        punished. */}
                     <Box
                       sx={{
-                        mt: "auto",
-                        pt: 2.5,
-                        borderTop: "1px solid rgba(255,255,255,0.07)",
+                        mt: { xs: "auto", lg: 0 },
+                        pt: { xs: 2.5, lg: 0 },
+                        borderTop: {
+                          xs: "1px solid rgba(255,255,255,0.07)",
+                          lg: "none",
+                        },
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
+                        justifyContent: { xs: "center", lg: "flex-end" },
                         gap: 1.5,
                         flexWrap: "wrap",
+                        flexShrink: 0,
+                        // Right-aligned on its own line too, when it wraps.
+                        ml: { lg: "auto" },
                       }}
                     >
                       {/* Board-only. In choice mode a tap grades
@@ -2359,7 +2437,7 @@ export default function PreviewPuzzlesPage() {
                               color: staged ? "#0A0907" : undefined,
                               fontSize: "0.9rem",
                               fontWeight: 700,
-                              minWidth: 172,
+                              minWidth: { xs: 172, lg: 150 },
                               "&:hover": {
                                 background: staged
                                   ? "linear-gradient(135deg, #FB923C, #FBBF24)"
@@ -2376,7 +2454,7 @@ export default function PreviewPuzzlesPage() {
                             <Button
                               onClick={handleUnstageMove}
                               sx={{
-                                px: 1.5,
+                                px: { xs: 1.5, lg: 1 },
                                 py: 1,
                                 borderRadius: "0.6rem",
                                 color: "rgba(255,240,224,0.6)",
@@ -2511,6 +2589,7 @@ export default function PreviewPuzzlesPage() {
                         </MenuItem>
                       </Menu>
                     </Box>
+                    </Box>
 
                     {/* The moment you want confirm-mode off is the moment it
                         just slowed you down — so the toggle lives here, not
@@ -2527,7 +2606,7 @@ export default function PreviewPuzzlesPage() {
                       sx={{
                         display: "flex",
                         justifyContent: "center",
-                        mt: 1,
+                        mt: { xs: 1, lg: 0.5 },
                       }}
                     >
                       <Button
@@ -2538,7 +2617,7 @@ export default function PreviewPuzzlesPage() {
                         }
                         sx={{
                           px: 1,
-                          py: 0.25,
+                          py: { xs: 0.25, lg: 0 },
                           minHeight: 0,
                           color: "rgba(255,240,224,0.4)",
                           fontSize: "0.74rem",
@@ -2558,7 +2637,7 @@ export default function PreviewPuzzlesPage() {
                           onClick={() => setConfirmMoves((v) => !v)}
                           sx={{
                             px: 1,
-                            py: 0.25,
+                            py: { xs: 0.25, lg: 0 },
                             minHeight: 0,
                             color: "rgba(255,240,224,0.4)",
                             fontSize: "0.74rem",
@@ -2903,11 +2982,20 @@ function FilterChipRow({
 }) {
   return (
     <Box
+      // The visible label is hidden at lg (below), so the group carries it.
+      role="group"
+      aria-label={label}
       sx={{
         display: "flex",
         alignItems: "center",
-        gap: 1,
-        flexWrap: "wrap",
+        gap: { xs: 1, lg: 0.75 },
+        // One line at lg. This row sits above the one-screen grid, so a
+        // second line here is paid for in board pixels (it cost 31px at every
+        // width ≤1536). With the labels hidden the chips measure ~1084px
+        // against 1232px available at 1280 wide, so nowrap is a guarantee,
+        // not a gamble on font metrics.
+        flexWrap: { xs: "wrap", lg: "nowrap" },
+        minWidth: 0,
       }}
     >
       <Typography
@@ -2918,6 +3006,7 @@ function FilterChipRow({
           color: "rgba(255,240,224,0.45)",
           textTransform: "uppercase",
           mr: 0.5,
+          display: { xs: "block", lg: "none" },
         }}
       >
         {label}
@@ -2929,8 +3018,9 @@ function FilterChipRow({
           type="button"
           onClick={() => onClick(c.id)}
           sx={{
-            px: 1.25,
+            px: { xs: 1.25, lg: 1 },
             py: 0.45,
+            whiteSpace: "nowrap",
             borderRadius: "999px",
             border: c.active
               ? `1px solid ${c.accent.border}`

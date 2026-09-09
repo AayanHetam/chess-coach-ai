@@ -39,6 +39,7 @@ import {
   type ReactNode,
 } from "react";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
+import { DEFAULT_PUZZLE_THEME } from "@/components/puzzle/boardTheme";
 import { surfaceAccent, type Accent } from "@/components/ui/accents";
 
 const ChessgroundBoard = dynamic(
@@ -47,9 +48,10 @@ const ChessgroundBoard = dynamic(
   { ssr: false }
 );
 
-// Board square colors for puzzle demo (matches analysis page)
-const PUZZLE_DARK = "#5C4630";
-const PUZZLE_LIGHT = "#F0D9B5";
+// Board square colors for the puzzle demo — the same tokens every puzzle
+// surface renders, so the first board a visitor sees is the board they solve on.
+const PUZZLE_DARK = DEFAULT_PUZZLE_THEME.dark;
+const PUZZLE_LIGHT = DEFAULT_PUZZLE_THEME.light;
 import { BentoCard } from "@/components/ui/BentoCard";
 import { BorderBeam } from "@/components/ui/BorderBeam";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";

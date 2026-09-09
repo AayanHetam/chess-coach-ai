@@ -11,10 +11,18 @@ import { atomWithStorage } from "jotai/utils";
 /**
  * Confirm-move ("stage then submit") mode.
  *
- * ON by default for everyone, per Aayan's 2026-08-10 call — dropping a piece
- * stages the move and arms the Submit button instead of grading immediately.
- * Kills mis-drops and adds a beat of deliberation, which is the whole point of
- * the Acely format (docs/PUZZLE_TRAINING_LAYOUT_SPEC.md §3.5).
+ * OFF by default since 2026-09-08. It shipped ON for everyone (Aayan's
+ * 2026-08-10 call, docs/PUZZLE_TRAINING_LAYOUT_SPEC.md §3.5) to kill mis-drops
+ * and add a beat of deliberation; GM Alex Colovic's signed-out review called
+ * the extra "Submit move" step annoying — "usually you make the move on the
+ * board and that's it" — and that is how every chess site works. Staying an
+ * opt-in from the puzzle screen keeps the deliberate mode for players who want
+ * it. The storage key is deliberately unchanged: atomWithStorage only writes
+ * on set, so the only devices holding a value are ones whose user explicitly
+ * toggled, and that choice should survive the default flip.
+ *
+ * When ON, dropping a piece stages the move and arms the Submit button instead
+ * of grading immediately.
  *
  * IMPORTANT: this gates the USER's moves only. In a multi-move puzzle the
  * opponent's replies still auto-play — they are applied inside the reply timer
@@ -22,7 +30,7 @@ import { atomWithStorage } from "jotai/utils";
  */
 export const confirmMovesAtom = atomWithStorage<boolean>(
   "cm_puzzle_confirm_moves",
-  true,
+  false,
 );
 
 /**

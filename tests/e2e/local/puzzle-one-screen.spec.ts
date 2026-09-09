@@ -13,12 +13,23 @@ import { waitForStableFen } from "../helpers";
  * fine on a page you had to scroll. Both together are the actual contract.
  */
 
-/** Desktop heights that actually exist. 768 is the cramped end of the range. */
+/**
+ * Desktop heights that actually exist. 720 is the cramped end of the range.
+ *
+ * `minBoard` is a floor on the board's side in px. Before 2026-09-08 the board
+ * was 391px at 1440x900 and 259px at 1366x768 (172 at 1280x720) because ~509px
+ * of chrome surrounded it — a GM reviewer "strained to see where the pieces
+ * are". The layout reclaim measured 608 / 476 / 428 (1512x982: 612, 1080p:
+ * 710); the floors sit ~40px under those so the reclaim cannot silently erode
+ * (a wrapped filter row or toolbar costs 25-40px), while leaving room for
+ * font-metric differences between macOS and the Linux runner.
+ */
 const DESKTOP_VIEWPORTS = [
-  { width: 1920, height: 1080, label: "1080p" },
-  { width: 1512, height: 982, label: "MacBook 14" },
-  { width: 1440, height: 900, label: "MacBook Air" },
-  { width: 1366, height: 768, label: "768p laptop" },
+  { width: 1920, height: 1080, label: "1080p", minBoard: 660 },
+  { width: 1512, height: 982, label: "MacBook 14", minBoard: 560 },
+  { width: 1440, height: 900, label: "MacBook Air", minBoard: 560 },
+  { width: 1366, height: 768, label: "768p laptop", minBoard: 430 },
+  { width: 1280, height: 720, label: "720p laptop", minBoard: 380 },
 ];
 
 async function boardBox(page: Page) {
@@ -90,13 +101,17 @@ test.describe("one-screen layout", () => {
         box!.width,
         `${vp.label}: board too small to play on`
       ).toBeGreaterThan(240);
+      expect(
+        box!.width,
+        `${vp.label}: board shrank below the 2026-09-08 reclaim floor`
+      ).toBeGreaterThanOrEqual(vp.minBoard);
     });
   }
 
   test("the action pair stays reachable without scrolling", async ({
     page,
   }) => {
-    // Fitting the board is pointless if Submit ends up below the fold.
+    // Fitting the board is pointless if New puzzle ends up below the fold.
     await page.setViewportSize({ width: 1440, height: 900 });
     await acceptConsent(page);
     await page.goto("/puzzles");
@@ -110,6 +125,34 @@ test.describe("one-screen layout", () => {
       expect(box).not.toBeNull();
       expect(box!.y + box!.height).toBeLessThanOrEqual(901);
     }
+  });
+
+  test("with confirm-move on, Submit is reachable too and nothing scrolls", async ({
+    page,
+  }) => {
+    // Confirm-move is off by default (2026-09-08); when a player opts in, the
+    // bottom row grows by a Submit button. That is the tallest state of the
+    // row, so it is the one to prove still fits the screen.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await acceptConsent(page);
+    await page.goto("/puzzles");
+    await waitForStableFen(page);
+    await page.getByRole("button", { name: /Confirm each move: off/ }).click();
+
+    for (const name of [/submit move/i, /new puzzle/i, /show solution/i]) {
+      const box = await page
+        .getByRole("button", { name })
+        .first()
+        .boundingBox();
+      expect(box, `${name} must render`).not.toBeNull();
+      expect(box!.y + box!.height).toBeLessThanOrEqual(901);
+    }
+    const scroll = await page.evaluate(
+      () =>
+        document.documentElement.scrollHeight -
+        document.documentElement.clientHeight
+    );
+    expect(scroll).toBeLessThanOrEqual(1);
   });
 });
 

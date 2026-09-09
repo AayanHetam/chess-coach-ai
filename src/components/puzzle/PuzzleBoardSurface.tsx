@@ -21,8 +21,8 @@ import {
  * The single, shared puzzle board renderer. Every puzzle-solving surface
  * (preview/puzzles, /practice, puzzle-rush, daily, placement, the curriculum
  * drill, in-chat inline puzzles) renders through this so they all share the
- * exact "Puzzle Coach" look — ember squares, orange last-move/selection, white
- * legal-target dots, the red/green flash ring.
+ * exact "Puzzle Coach" look — warm walnut squares, ember last-move/selection,
+ * warm-ink legal-target dots, the red/green flash ring (tokens in boardTheme.ts).
  *
  * Ownership split (matches usePuzzleBoardState's contract):
  *   • This component owns ONLY the VISUAL board + click-to-move UX:
@@ -65,6 +65,14 @@ function buildCustomPieces(pieceSet: string): CustomPieces {
         sx={{
           backgroundImage: `url(/piece/${pieceSet}/${piece}.svg)`,
           backgroundSize: "contain",
+          // A hairline shadow hugging the piece silhouette (drop-shadow works
+          // on the rendered alpha, so it follows the SVG, not the square).
+          // It lifts white piece bodies off the light square — the one pairing
+          // no square colour can fix (~1.3:1 body contrast on every board on
+          // every site; the stroke does the work). Paint-only: no layout,
+          // and react-chessboard's drag layer renders the same function, so
+          // the drag ghost matches. Kept ≤1px so it never reads as 3D.
+          filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.42))",
         }}
       />
     );

@@ -64,19 +64,27 @@ describe("expert testimonials", () => {
     expect(testimonialInitials("Magnus")).toBe("M");
   });
 
-  it("is rendered by the landing page", () => {
+  it("is rendered by the landing page, directly under the hero", () => {
     const source = fs.readFileSync(
       path.join(root, "src/pages/index.tsx"),
       "utf8"
     );
     expect(source).toContain('from "@/data/expertTestimonials"');
     expect(source).toContain("<ExpertTestimonials />");
-    // Section order: proof (stats, then GM voices), then the final CTA.
-    expect(source.indexOf("<StatsStrip />")).toBeLessThan(
+    // Section order: hero, then the grandmasters, then everything else. The
+    // endorsement is the first thing a visitor reads after the pitch.
+    expect(source.indexOf("<Hero />")).toBeLessThan(
       source.indexOf("<ExpertTestimonials />")
     );
     expect(source.indexOf("<ExpertTestimonials />")).toBeLessThan(
-      source.indexOf("<FinalCTA />")
+      source.indexOf("<MarqueeStrip />")
+    );
+    // The hero's one-line signal deep-links to the section.
+    expect(source).toContain('id="gm-backed"');
+    expect(source).toContain('href="#gm-backed"');
+    // Photo credits ship in the footer, not under the section.
+    expect(source.indexOf("<TestimonialPhotoCredits />")).toBeGreaterThan(
+      source.indexOf("function Footer()")
     );
   });
 });

@@ -523,6 +523,18 @@ function Hero() {
         </motion.div>
 
         <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: 0.7,
+            ease: [0.22, 0.61, 0.36, 1],
+            delay: 0.42,
+          }}
+        >
+          <GmBackedLine />
+        </motion.div>
+
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 0.55 }}
@@ -531,7 +543,7 @@ function Hero() {
             direction="row"
             spacing={3}
             sx={{
-              mt: 5,
+              mt: 4,
               color: "rgba(255,255,255,0.42)",
               fontSize: "0.78rem",
               letterSpacing: "0.04em",
@@ -2344,6 +2356,146 @@ function StatsStrip() {
   );
 }
 
+/** "A and B", or "A, B and C" for longer lists. */
+function joinNames(names: readonly string[]): string {
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/**
+ * One-line credibility signal for the hero: the grandmasters' faces and
+ * names, linking to their words in the section below. Deliberately quiet.
+ * The endorsement is a selling point, not the product's positioning, so it
+ * sits under the CTAs rather than in the headline.
+ */
+function GmBackedLine() {
+  return (
+    <Box
+      component="a"
+      href="#gm-backed"
+      sx={{
+        mt: 3.5,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 1.5,
+        textDecoration: "none",
+        color: "rgba(255,255,255,0.72)",
+        fontSize: "0.92rem",
+        lineHeight: 1.3,
+        transition: "color 200ms",
+        "&:hover": { color: "rgba(255,255,255,0.94)" },
+        "&:hover .gm-backed-arrow": { transform: "translateX(3px)" },
+      }}
+    >
+      <Box sx={{ display: "flex", flexShrink: 0 }}>
+        {EXPERT_TESTIMONIALS.map((t, i) => (
+          <Box
+            key={t.id}
+            aria-hidden
+            sx={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              overflow: "hidden",
+              ml: i === 0 ? 0 : -1,
+              boxShadow: "0 0 0 2px #0F1014, 0 0 0 3px rgba(249,115,22,0.45)",
+              background: "linear-gradient(135deg, #F97316, #A855F7)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "0.62rem",
+              fontWeight: 800,
+              color: "#0A0A0A",
+            }}
+          >
+            {t.photo ? (
+              <Image
+                src={t.photo.src}
+                alt=""
+                width={64}
+                height={64}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block",
+                }}
+              />
+            ) : (
+              testimonialInitials(t.name)
+            )}
+          </Box>
+        ))}
+      </Box>
+      <Box component="span">
+        Backed by{" "}
+        <Box
+          component="span"
+          sx={{ color: "rgba(255,255,255,0.94)", fontWeight: 600 }}
+        >
+          {joinNames(EXPERT_TESTIMONIALS.map((t) => t.name))}
+        </Box>
+      </Box>
+      <ArrowRight
+        className="gm-backed-arrow"
+        size={15}
+        style={{ flexShrink: 0, transition: "transform 200ms" }}
+      />
+    </Box>
+  );
+}
+
+/**
+ * Source credits for third-party portraits. Rendered in the footer, not
+ * under the section, so the endorsement reads clean where it matters and
+ * the attribution still ships on the same page.
+ */
+function TestimonialPhotoCredits() {
+  const credits = EXPERT_TESTIMONIALS.flatMap((t) =>
+    t.photo?.credit ? [{ id: t.id, name: t.name, credit: t.photo.credit }] : []
+  );
+  if (credits.length === 0) return null;
+  return (
+    <Typography
+      component="p"
+      sx={{
+        m: 0,
+        fontSize: "0.72rem",
+        lineHeight: 1.6,
+        color: "rgba(255,255,255,0.32)",
+        "& a": {
+          color: "inherit",
+          textDecorationColor: "rgba(255,255,255,0.2)",
+        },
+        "& a:hover": { color: "rgba(255,255,255,0.55)" },
+      }}
+    >
+      {credits.map(({ id, name, credit }) => (
+        <Box component="span" key={id} sx={{ display: "block" }}>
+          Photo of {name}: {credit.author ? `${credit.author}, ` : null}
+          {credit.license && credit.licenseUrl ? (
+            <>
+              <a
+                href={credit.licenseUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {credit.license}
+              </a>
+              ,{" "}
+            </>
+          ) : null}
+          via{" "}
+          <a href={credit.sourceUrl} target="_blank" rel="noopener noreferrer">
+            {credit.sourceName}
+          </a>
+          , cropped.
+        </Box>
+      ))}
+    </Typography>
+  );
+}
+
 /**
  * Circular portrait filling the card's left third. Falls back to the
  * person's initials when no photograph is on file, so both cards keep the
@@ -2407,26 +2559,25 @@ function TestimonialPortrait({
 
 /**
  * Expert Testimonials: grandmasters on the project, quoted verbatim from
- * src/data/expertTestimonials.ts. Sits between the stats strip and the final
- * CTA so the "GM-quality" claim in that CTA lands right after GMs have said it.
+ * src/data/expertTestimonials.ts. Sits directly under the hero so the
+ * endorsement is the first thing a visitor reads after the pitch. It is a
+ * credibility signal, not the positioning: the headline above it stays about
+ * free coaching for everyone, and this section says who vouches for it.
  *
  * Each card splits one third / two thirds: portrait, name, and credential on
  * the left, the quote on the right. Cards stack to a single column on phones.
  */
 function ExpertTestimonials() {
-  const credits = EXPERT_TESTIMONIALS.flatMap((t) =>
-    t.photo?.credit ? [{ id: t.id, name: t.name, credit: t.photo.credit }] : []
-  );
-
   return (
     <Box
       component="section"
+      id="gm-backed"
       aria-labelledby="expert-testimonials-heading"
-      sx={{ py: { xs: 6, md: 10 } }}
+      sx={{ py: { xs: 6, md: 10 }, scrollMarginTop: 96 }}
     >
       <RevealOnScroll>
         <Box sx={{ maxWidth: 720, mb: 6 }}>
-          <EyebrowBadge>EXPERT TESTIMONIALS</EyebrowBadge>
+          <EyebrowBadge>BACKED BY GRANDMASTERS</EyebrowBadge>
           <Typography
             id="expert-testimonials-heading"
             variant="h2"
@@ -2448,6 +2599,16 @@ function ExpertTestimonials() {
             >
               about Chess Masti.
             </Box>
+          </Typography>
+          <Typography
+            sx={{
+              mt: 2.5,
+              fontSize: "1.05rem",
+              lineHeight: 1.55,
+              color: "rgba(255,255,255,0.6)",
+            }}
+          >
+            Two grandmasters who have seen the project, in their own words.
           </Typography>
         </Box>
       </RevealOnScroll>
@@ -2568,50 +2729,6 @@ function ExpertTestimonials() {
           </RevealOnScroll>
         ))}
       </Box>
-
-      {credits.length > 0 && (
-        <Typography
-          component="p"
-          sx={{
-            mt: 2.5,
-            fontSize: "0.74rem",
-            lineHeight: 1.6,
-            color: "rgba(255,255,255,0.38)",
-            "& a": {
-              color: "inherit",
-              textDecorationColor: "rgba(255,255,255,0.25)",
-            },
-            "& a:hover": { color: "rgba(255,255,255,0.6)" },
-          }}
-        >
-          {credits.map(({ id, name, credit }) => (
-            <Box component="span" key={id} sx={{ display: "block" }}>
-              Photo of {name}: {credit.author ? `${credit.author}, ` : null}
-              {credit.license && credit.licenseUrl ? (
-                <>
-                  <a
-                    href={credit.licenseUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {credit.license}
-                  </a>
-                  ,{" "}
-                </>
-              ) : null}
-              via{" "}
-              <a
-                href={credit.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {credit.sourceName}
-              </a>
-              , cropped.
-            </Box>
-          ))}
-        </Typography>
-      )}
     </Box>
   );
 }
@@ -2706,69 +2823,74 @@ function Footer() {
   return (
     <Box
       component="footer"
-      sx={{
-        py: 5,
-        borderTop: "1px solid rgba(255,255,255,0.06)",
-        display: "flex",
-        flexDirection: { xs: "column", md: "row" },
-        gap: 2,
-        alignItems: "center",
-        justifyContent: "space-between",
-      }}
+      sx={{ py: 5, borderTop: "1px solid rgba(255,255,255,0.06)" }}
     >
-      <Stack direction="row" spacing={1.5} alignItems="center">
-        <Box
-          sx={{
-            width: 22,
-            height: 22,
-            borderRadius: "6px",
-            background: "linear-gradient(135deg, #F97316, #A855F7)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Sparkles size={12} color="#0A0A0A" />
-        </Box>
-        <Typography
-          sx={{
-            fontSize: "0.85rem",
-            color: "rgba(255,255,255,0.5)",
-          }}
-        >
-          Chess Masti · built by Aayan Hetamsaria
-        </Typography>
-      </Stack>
-      <Stack
-        direction="row"
-        spacing={2.5}
-        alignItems="center"
-        sx={{ color: "rgba(255,255,255,0.42)", fontSize: "0.78rem" }}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          gap: 2,
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
       >
-        <Box>Engine-grounded by</Box>
-        <Box sx={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-          Stockfish 17
-        </Box>
-        {[
-          { href: "/privacy", label: "Privacy" },
-          { href: "/terms", label: "Terms" },
-          { href: "/accessibility", label: "Accessibility" },
-        ].map((link) => (
+        <Stack direction="row" spacing={1.5} alignItems="center">
           <Box
-            key={link.href}
-            component="a"
-            href={link.href}
             sx={{
-              color: "rgba(255,255,255,0.42)",
-              textDecoration: "none",
-              "&:hover": { color: "rgba(255,255,255,0.7)" },
-              transition: "color 0.2s",
+              width: 22,
+              height: 22,
+              borderRadius: "6px",
+              background: "linear-gradient(135deg, #F97316, #A855F7)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            {link.label}
+            <Sparkles size={12} color="#0A0A0A" />
           </Box>
-        ))}
-      </Stack>
+          <Typography
+            sx={{
+              fontSize: "0.85rem",
+              color: "rgba(255,255,255,0.5)",
+            }}
+          >
+            Chess Masti · built by Aayan Hetamsaria
+          </Typography>
+        </Stack>
+        <Stack
+          direction="row"
+          spacing={2.5}
+          alignItems="center"
+          sx={{ color: "rgba(255,255,255,0.42)", fontSize: "0.78rem" }}
+        >
+          <Box>Engine-grounded by</Box>
+          <Box sx={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
+            Stockfish 17
+          </Box>
+          {[
+            { href: "/privacy", label: "Privacy" },
+            { href: "/terms", label: "Terms" },
+            { href: "/accessibility", label: "Accessibility" },
+          ].map((link) => (
+            <Box
+              key={link.href}
+              component="a"
+              href={link.href}
+              sx={{
+                color: "rgba(255,255,255,0.42)",
+                textDecoration: "none",
+                "&:hover": { color: "rgba(255,255,255,0.7)" },
+                transition: "color 0.2s",
+              }}
+            >
+              {link.label}
+            </Box>
+          ))}
+        </Stack>
+      </Box>
+      <Box sx={{ mt: 3, textAlign: { xs: "center", md: "left" } }}>
+        <TestimonialPhotoCredits />
+      </Box>
     </Box>
   );
 }
@@ -2885,6 +3007,7 @@ export default function LandingPage() {
           {/* Renders only for logged-in CMIP interns; renders nothing for customers. */}
           <InternalHomeCard />
           <Hero />
+          <ExpertTestimonials />
           <MarqueeStrip />
           <HowItWorks />
           <BentoSection />
@@ -2892,7 +3015,6 @@ export default function LandingPage() {
           <Comparison />
           <ChromeExtension />
           <StatsStrip />
-          <ExpertTestimonials />
           <FinalCTA />
           <Footer />
         </Box>

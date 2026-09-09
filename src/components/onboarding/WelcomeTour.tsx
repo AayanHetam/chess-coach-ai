@@ -11,6 +11,7 @@ import { NUDGE_DISMISS_KEY } from "@/components/onboarding/OnboardingNudge";
 import {
   TOUR_STEP_ORDER,
   initialTourStep,
+  surfaceLabelFor,
 } from "@/components/onboarding/welcomeTourSteps";
 
 export const TOUR_SEEN_KEY = "cm-welcome-tour-v1";
@@ -117,10 +118,13 @@ export default function WelcomeTour() {
     }
   };
 
-  const startTraining = () => {
-    finish();
-    if (router.pathname !== "/plan") void router.push("/plan");
-  };
+  // Finishing never navigates. The tour used to push /plan from wherever it
+  // was opened, which on /puzzles meant "Start training" took you AWAY from
+  // the puzzle you were about to train on (2026-09-08 QA). The Plan card has
+  // already said where Plan lives; the visitor can go there when they want.
+  const surfaceLabel = surfaceLabelFor(router.pathname);
+  const onPlan = router.pathname === "/plan";
+  const finishLabel = onPlan ? "Start training" : "Got it";
 
   const onProductSurface = PRODUCT_PREFIXES.some(
     (p) => router.pathname === p || router.pathname.startsWith(`${p}/`),
@@ -339,6 +343,14 @@ export default function WelcomeTour() {
                   color: "rgba(255,255,255,0.6)",
                 }}
               >
+                {/* The card for the page under the dialog says so, because
+                    "Practice serves puzzles…" read as describing some OTHER
+                    page to a visitor who was already on the puzzle trainer. */}
+                {current.navLabel === surfaceLabel && (
+                  <Box component="span" sx={{ color: "#FB923C", fontWeight: 700 }}>
+                    You&apos;re here.{" "}
+                  </Box>
+                )}
                 {current.body}
               </Typography>
             </motion.div>
@@ -397,9 +409,7 @@ export default function WelcomeTour() {
           <Box
             component="button"
             type="button"
-            onClick={
-              isLast ? startTraining : () => setStep((s) => s + 1)
-            }
+            onClick={isLast ? finish : () => setStep((s) => s + 1)}
             sx={{
               cursor: "pointer",
               border: "none",
@@ -420,7 +430,7 @@ export default function WelcomeTour() {
               },
             }}
           >
-            {isLast ? "Start training" : "Next"}
+            {isLast ? finishLabel : "Next"}
           </Box>
         </Stack>
       </Box>

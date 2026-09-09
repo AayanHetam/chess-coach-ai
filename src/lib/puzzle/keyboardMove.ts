@@ -38,6 +38,69 @@ function candidates(text: string): string[] {
   return out;
 }
 
+type LegalMove = ReturnType<Chess["moves"]> extends Array<infer T>
+  ? T extends { from: string }
+    ? T
+    : never
+  : never;
+
+// piece? from-file? from-rank? x? to promotion? check?
+const SAN_TOKEN_RE =
+  /^([KQRBN])?([a-h])?([1-8])?x?([a-h][1-8])(?:=?([QRBNqrbn]))?[+#]?$/;
+
+const PIECE_NAME: Record<string, string> = {
+  p: "pawn",
+  n: "knight",
+  b: "bishop",
+  r: "rook",
+  q: "queen",
+  k: "king",
+};
+
+type LenientMatch =
+  | { kind: "one"; move: ReturnType<Chess["move"]> }
+  | { kind: "ambiguous"; error: string }
+  | { kind: "none" };
+
+/**
+ * Resolve a SAN-shaped token against the position's legal moves without
+ * chess.js's strictness about captures and disambiguation. Never guesses:
+ * exactly one candidate plays, two or more come back as a question that
+ * names the tokens which would settle it.
+ */
+function matchLenient(game: Chess, text: string): LenientMatch {
+  const m = SAN_TOKEN_RE.exec(text);
+  if (!m) return { kind: "none" };
+  const [, pieceLetter, fromFile, fromRank, to, promo] = m;
+  const piece = (pieceLetter ?? "p").toLowerCase();
+  const wantPromo = promo ? promo.toLowerCase() : undefined;
+
+  const legal = game.moves({ verbose: true }) as LegalMove[];
+  // Sorted by origin square so the question reads the same way every time
+  // ("b1 and f3", not whichever order the move generator happened to use).
+  const found = legal.filter(
+    (mv) =>
+      mv.piece === piece &&
+      mv.to === to &&
+      (!fromFile || mv.from[0] === fromFile) &&
+      (!fromRank || mv.from[1] === fromRank) &&
+      (wantPromo ? mv.promotion === wantPromo : !mv.promotion || mv.promotion === "q")
+  ).sort((a, b) => a.from.localeCompare(b.from));
+
+  if (found.length === 0) return { kind: "none" };
+  if (found.length === 1) {
+    const only = found[0];
+    return { kind: "one", move: game.move({ from: only.from, to: only.to, promotion: only.promotion }) };
+  }
+  const name = PIECE_NAME[piece] ?? "piece";
+  const squares = found.map((mv) => mv.from).join(" and ");
+  const sans = found.map((mv) => mv.san).join(" or ");
+  return {
+    kind: "ambiguous",
+    error: `Two ${name}s can reach ${to} (${squares}) — type ${sans}.`,
+  };
+}
+
 export function parseKeyboardMove(fen: string, raw: string): ParsedKeyboardMove {
   const text = raw.trim();
   if (!text) return { ok: false, error: "Type a move like e4, Nf3 or O-O." };
@@ -73,7 +136,21 @@ export function parseKeyboardMove(fen: string, raw: string): ParsedKeyboardMove 
     }
   }
 
-  if (!move) return { ok: false, error: "Not a legal move here." };
+  if (!move) {
+    // chess.js rejects "Rc1" when two rooks can reach c1, and (strictly) a
+    // capture typed without the x. Both came back as "Not a legal move
+    // here." — to a player looking at a rook that can plainly go to c1, that
+    // is the board being wrong, not them (2026-09-08 QA). Resolve the token
+    // against the legal moves ourselves: one match plays, several ask which.
+    const lenient = matchLenient(game, text);
+    if (lenient.kind === "one") {
+      move = lenient.move;
+    } else if (lenient.kind === "ambiguous") {
+      return { ok: false, error: lenient.error };
+    } else {
+      return { ok: false, error: "Not a legal move here." };
+    }
+  }
 
   // The sink's signature is (from, to, piece) and the board auto-queens —
   // an underpromotion would silently grade as a queen promotion, which is a

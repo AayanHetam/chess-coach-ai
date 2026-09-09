@@ -307,6 +307,27 @@ function pickPrimaryTheme(themes: string[] | undefined): string {
   return themes[0];
 }
 
+/**
+ * The viewport-height lock (page never scrolls; the board takes the leftover
+ * height) only pays off when the leftover is a usable board. Measured at
+ * 1440×900 the chrome above and below the board comes to ~510px, so the
+ * locked board is roughly (viewport height − 510): 391px at 900, 259px at a
+ * 768 viewport, and 148–172px on the ~660–720px viewports that 768p laptops
+ * actually have once the browser's own chrome is taken off — "a postage
+ * stamp in a huge empty panel" (2026-09-08 QA). Below this height the page
+ * flows and scrolls like it does on mobile, with the board capped so it
+ * still fits on the first screen and the controls sit just under it.
+ */
+const LOCK_MIN_HEIGHT_PX = 870;
+/** Board width when the page is NOT locked at desktop widths: as wide as the
+ *  column allows, capped so the whole board sits on the first screen (its
+ *  top edge lands ~325px down, ~365px where the toolbar wraps at 1280 wide)
+ *  and the controls follow just under the fold. */
+const UNLOCKED_BOARD_WIDTH = "min(100%, max(330px, calc(100dvh - 365px)))";
+/** Floor for the locked slot — a legitimately squeezed slot (choice mode's
+ *  answer rows) scrolls the card rather than shrinking the board to nothing. */
+const BOARD_MIN_PX = 320;
+
 export default function PreviewPuzzlesPage() {
   const { user, profile, updateProfile, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -336,7 +357,12 @@ export default function PreviewPuzzlesPage() {
   // combined with a max-width guess can't express "whichever axis runs out
   // first" once BOTH axes are bounded by real, varying content.
   const boardTheme = useTheme();
-  const boardHeightBound = useMediaQuery(boardTheme.breakpoints.up("lg"));
+  const isDesktopWidth = useMediaQuery(boardTheme.breakpoints.up("lg"));
+  // See LOCK_MIN_HEIGHT_PX: width alone used to decide the lock.
+  const heightLocked = useMediaQuery(
+    `${boardTheme.breakpoints.up("lg")} and (min-height: ${LOCK_MIN_HEIGHT_PX}px)`
+  );
+  const boardHeightBound = heightLocked;
   const boardHeightBoundRef = useRef(boardHeightBound);
   boardHeightBoundRef.current = boardHeightBound;
   const [boardSquarePx, setBoardSquarePx] = useState<number | null>(null);
@@ -868,6 +894,18 @@ export default function PreviewPuzzlesPage() {
     recordGrade(wrongAttempts === 0);
   }, [status, puzzle, wrongAttempts, recordGrade]);
 
+  // A first wrong move IS the miss — grade it right then, the way Lichess
+  // does. Before this the grade waited for the eventual solve, so the HUD sat
+  // at 0/0/0 after a failed attempt (2026-09-08 QA) and a player who moved on
+  // without solving was never counted at all. The solve effect above stays
+  // one-grade-per-puzzle via gradedRef, so the later solve doesn't re-grade.
+  useEffect(() => {
+    if (wrongAttempts === 0 || !puzzle) return;
+    if (gradedRef.current === puzzle.id) return;
+    gradedRef.current = puzzle.id;
+    recordGrade(false);
+  }, [wrongAttempts, puzzle, recordGrade]);
+
   // Persist the current session to history (newest first). Save-only — the
   // counters are cleared separately by resetSession so the recap can still read
   // them after a Finish.
@@ -1077,6 +1115,13 @@ export default function PreviewPuzzlesPage() {
       return;
     }
     if (sanMoves.length === 0) return;
+    // Seeing the answer is a miss, not a solve: when the demo lands on the
+    // final position the solve effect would otherwise grade an untouched
+    // puzzle as solved first try. Grade it here, once, as failed.
+    if (gradedRef.current !== puzzle.id) {
+      gradedRef.current = puzzle.id;
+      recordGrade(false);
+    }
     // The answer is now out, so the analysis gate opens for this puzzle.
     setSolutionRevealed(true);
     setCoachHighlights(null);
@@ -1088,7 +1133,7 @@ export default function PreviewPuzzlesPage() {
       idx: 0,
       finished: false,
     });
-  }, [puzzle, game, bumpActivity]);
+  }, [puzzle, game, bumpActivity, recordGrade]);
 
   // Whether Analyse may run at all. Kept as one value so the disabled state,
   // the click handler and the panel mount all read the SAME decision — three
@@ -1711,14 +1756,21 @@ export default function PreviewPuzzlesPage() {
           // locked page there is no scrolling out from under it, so the
           // answer-mode and confirm-mode toggles were simply unclickable for
           // any first-time visitor on a 720p laptop. The e2e suite caught it.
-          height: { lg: "calc(100dvh - var(--cm-consent-h, 0px))" },
-          minHeight: { xs: "100vh", lg: 0 },
+          height: heightLocked
+            ? "calc(100dvh - var(--cm-consent-h, 0px))"
+            : undefined,
+          minHeight: heightLocked ? 0 : "100vh",
           color: "rgba(255,240,224,0.94)",
           display: "flex",
           flexDirection: "column",
-          overflow: { lg: "hidden" },
+          overflow: heightLocked ? "hidden" : undefined,
           pt: { xs: 2, lg: 1.5 },
-          pb: { xs: 4, lg: 1.5 },
+          // When the page flows, the fixed cookie banner still covers the
+          // bottom of the viewport — so the page must be scrollable PAST it,
+          // or Submit / New puzzle sit under the banner for every first-time
+          // visitor on a short desktop. The locked layout subtracts the same
+          // variable from its height instead.
+          pb: heightLocked ? 1.5 : "calc(32px + var(--cm-consent-h, 0px))",
           px: { xs: 2, md: 3 },
         }}
       >
@@ -1735,8 +1787,8 @@ export default function PreviewPuzzlesPage() {
             // The column that owns the leftover height. minHeight:0 is what
             // lets a flex child actually shrink — without it the grid below
             // refuses to go under its content size and the page scrolls again.
-            flex: { lg: 1 },
-            minHeight: { lg: 0 },
+            flex: heightLocked ? 1 : undefined,
+            minHeight: heightLocked ? 0 : undefined,
             display: "flex",
             flexDirection: "column",
           }}
@@ -1929,7 +1981,7 @@ export default function PreviewPuzzlesPage() {
               // than the viewport and forced the scroll. Now it takes exactly
               // the height left over after the header, and each region handles
               // its own overflow internally.
-              flex: { lg: 1 },
+              flex: heightLocked ? 1 : undefined,
               minHeight: { xs: "auto", lg: 0 },
             }}
           >
@@ -1952,8 +2004,8 @@ export default function PreviewPuzzlesPage() {
                 display: "flex",
                 flexDirection: "column",
                 gap: 2,
-                minHeight: { lg: 0 },
-                overflowY: { lg: "auto" },
+                minHeight: heightLocked ? 0 : undefined,
+                overflowY: heightLocked ? "auto" : undefined,
                 // Hairline scrollbar so the board card doesn't get a heavy
                 // gutter on the one screen the whole design is about.
                 "&::-webkit-scrollbar": { width: 6 },
@@ -1997,9 +2049,12 @@ export default function PreviewPuzzlesPage() {
                   // At lg the card takes the column's height and the board
                   // sizes itself from what's left. A fixed 540 min-height here
                   // is what used to push the card past the viewport.
-                  minHeight: { xs: 540, lg: 0 },
-                  flex: { lg: 1 },
-                  overflow: { lg: "hidden" },
+                  minHeight: heightLocked ? 0 : 540,
+                  flex: heightLocked ? 1 : undefined,
+                  // Scrolls (rather than clips) when the board's minimum
+                  // height plus the tools no longer fit a short viewport.
+                  overflowX: heightLocked ? "hidden" : undefined,
+                  overflowY: heightLocked ? "auto" : undefined,
                   display: "flex",
                   flexDirection: "column",
                 }}
@@ -2061,8 +2116,13 @@ export default function PreviewPuzzlesPage() {
                     <Box
                       ref={setBoardSlotRef}
                       sx={{
-                        flex: { lg: 1 },
-                        minHeight: { lg: 0 },
+                        flex: heightLocked ? 1 : undefined,
+                        // The board is what the page is for. Below this the
+                        // card scrolls instead of the board shrinking: on a
+                        // 768p laptop the leftover height after the chrome
+                        // was ~165px, and the QA pass called it a postage
+                        // stamp in an empty panel (2026-09-08).
+                        minHeight: heightLocked ? BOARD_MIN_PX : undefined,
                         minWidth: 0,
                         display: "flex",
                         alignItems: "center",
@@ -2090,8 +2150,12 @@ export default function PreviewPuzzlesPage() {
                           // (At xs the slot's own height is content-driven, so
                           // percentage height against it resolves to auto per
                           // spec — this doesn't change mobile at all.)
-                          width: boardSquarePx ?? "100%",
-                          height: boardSquarePx ?? "100%",
+                          width:
+                            boardSquarePx ??
+                            (isDesktopWidth ? UNLOCKED_BOARD_WIDTH : "100%"),
+                          height:
+                            boardSquarePx ??
+                            (isDesktopWidth ? "auto" : "100%"),
                           maxWidth: "100%",
                           flexShrink: 0,
                           mx: "auto",

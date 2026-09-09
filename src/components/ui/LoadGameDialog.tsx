@@ -13,6 +13,10 @@ import {
 } from "@mui/material";
 import { Loader } from "@/components/ui/Loader";
 import { Chess } from "chess.js";
+import {
+  describePgnError,
+  type PgnErrorDescription,
+} from "@/lib/pgn/describePgnError";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bookmark,
@@ -329,12 +333,12 @@ export function LoadGameDialog({ open, onClose, onLoad }: LoadGameDialogProps) {
 
 function PastePgnTab({ onLoad }: { onLoad: (game: Chess) => void }) {
   const [pgn, setPgn] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PgnErrorDescription | null>(null);
 
   const handleLoad = useCallback(() => {
     const trimmed = pgn.trim();
     if (!trimmed) {
-      setError("Paste a PGN first.");
+      setError({ headline: "Paste a PGN first." });
       return;
     }
     try {
@@ -342,13 +346,23 @@ function PastePgnTab({ onLoad }: { onLoad: (game: Chess) => void }) {
       g.loadPgn(trimmed);
       const history = g.history();
       if (history.length === 0) {
-        setError("Couldn't parse any moves from that PGN.");
+        setError({
+          headline: "Couldn't find any moves in that PGN.",
+          detail:
+            "A PGN is numbered moves like 1. e4 e5 2. Nf3 — headers in [brackets] are optional.",
+        });
         return;
       }
       onLoad(g);
     } catch (err) {
+      // chess.js's parser error is precise and unreadable ("Expected brace
+      // comment, end of input, game termination marker, … but "a" found").
+      // Say what kind of thing went wrong; keep the detail underneath.
       setError(
-        err instanceof Error ? err.message : "Couldn't parse that PGN."
+        describePgnError(
+          err instanceof Error ? err.message : String(err),
+          trimmed
+        )
       );
     }
   }, [pgn, onLoad]);
@@ -404,7 +418,20 @@ function PastePgnTab({ onLoad }: { onLoad: (game: Chess) => void }) {
             py: 0.85,
           }}
         >
-          {error}
+          {error.headline}
+          {error.detail && (
+            <Box
+              component="span"
+              sx={{
+                display: "block",
+                mt: 0.5,
+                fontSize: "0.76rem",
+                color: "rgba(252,165,165,0.72)",
+              }}
+            >
+              {error.detail}
+            </Box>
+          )}
         </Typography>
       )}
       <Stack direction="row" justifyContent="flex-end" spacing={1}>

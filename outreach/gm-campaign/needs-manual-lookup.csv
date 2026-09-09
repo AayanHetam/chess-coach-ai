@@ -1,0 +1,6 @@
+name,title,broken_email_as_scraped,why_it_cannot_be_sent,source_url,held_out_on
+Alexander Shabalov,GM,SEE_SOURCE_PAGE,Address is Cloudflare-obfuscated on the source page. Decoding it would defeat an anti-harvesting protection; open the page in a browser instead.,https://pittsburghchessclub.org/coaching/index.html,2026-09-09
+Bryan Smith,GM,SEE_SOURCE_PAGE,Address is Cloudflare-obfuscated on the source page. Decoding it would defeat an anti-harvesting protection; open the page in a browser instead.,https://pittsburghchessclub.org/coaching/index.html,2026-09-09
+Rajesh Nayak,FM,Slot-rkn.rajesh5555@gmail.com,"Scraper glued the label text ""Slot-"" onto the local part. The clean form is not attested anywhere in the corpus, and this campaign never guesses an address.",https://lichess.org/coach/rajesh_1464,2026-09-09
+Roberto Carlos Miramontes,FM,HOUR...Robertomiramontes1977@gmail.com,"Scraper glued the label text ""HOUR..."" onto the local part. The clean form is not attested anywhere in the corpus.",https://lichess.org/coach/Gatiloco77,2026-09-09
+Nawin JJ,FM,chessdomi10@gamil.com,"Domain is gamil.com, a typo-squat of gmail.com. Sending would deliver the message to the squatter rather than to the coach.",https://lichess.org/coach/Nawin_JJ,2026-09-09

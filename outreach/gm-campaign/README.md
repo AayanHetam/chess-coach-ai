@@ -49,6 +49,21 @@ Title spread across the file: 155 GM, 158 IM, 143 FM, 66 CM, 29 WFM, 29 WIM, 25 
    P2/P4/P5 row comes from that directory, so "the profile says active" carries
    no signal about whether the person is alive.
 
+   **Coverage of the automated phase (batches 3+).** The 100/day scheduled send
+   cannot do a genuine per-batch name check, so the check was front-loaded on
+   2026-09-09 against the whole remaining queue:
+
+   - All 70 remaining GMs were checked by name against published 2023-2026
+     chess obituaries. Clean. The 2026 GM deaths (Timman, Eingorn, Plachetka,
+     Mokry, Parma) and the 2024-2025 ones (Naroditsky, Rahman, Enders, Neuman,
+     Dueckstein, Franco Ocampos, Georgiev, Ionescu, Beshukov, Spassky) are none
+     of them in this file.
+   - The other 465 (IM/FM/CM/NM/W-titled coaches) were **not** checked by name.
+     Published obituaries only exist for players notable enough for English
+     coverage, which almost none of them are, so a name check on that cohort
+     would return nothing and would not mean they are alive. This is a known,
+     accepted gap, not an oversight.
+
    **The check that actually works** is per batch, not per corpus: before sending
    40, verify those 40 by name. Checking 600 by name is not tractable, and a
    sweep of published obituaries only catches players notable enough for English
@@ -88,3 +103,44 @@ literal visible text. That reads as a phishing link. The fix is to pass
 `htmlBody` as well with a real anchor (`<a href="https://chessmasti.com">
 chessmasti.com</a>`), which keeps the visible text clean. Verified against
 `get_draft` with `messageFormat: RAW`.
+
+## Automated send (batches 3+, from 2026-09-09)
+
+Batches 1 and 2 (90 emails) were sent by hand from a live session. Everything
+after that is scheduled, so no session has to stay awake.
+
+| File | What it is |
+| --- | --- |
+| `build-queue.py` | Builds the queue from `gm-contacts.csv`. Rerunnable, deterministic. |
+| `queue-remaining.jsonl` | 535 rows. Each line is one **fully rendered** email: `to`, `subject`, `body`, `htmlBody`. The sending session does no templating. |
+| `sent-log-remaining.tsv` | Append-only. `index<TAB>email<TAB>ISO8601<TAB>SENT`. **This file in git is the only thing preventing a double-send**, so a firing that sends must push before it exits. |
+| `needs-manual-lookup.csv` | 5 contacts held out because their address cannot be sent without guessing at it. |
+
+**No BCC.** Batches 1 and 2 blind-copied 3-4 addresses. Aayan dropped that on
+2026-09-09, which also quadruples throughput: Gmail's free tier counts
+*recipients*, not messages, so 1 recipient per send instead of 4 moves the
+ceiling from ~125/day to 500/day.
+
+**Cadence.** 5 firings a day, 20 emails each, 100/day. 535 rows is 5 days and
+change. A missed firing costs 20 emails, never a burst, because each firing
+sends a fixed 20 rather than "everything owed".
+
+**How the queue was built** (`build-queue.py`, in order):
+1. Drop rows whose `email` is not a valid address, plus the 3 scraper-mangled
+   ones in `needs-manual-lookup.csv`.
+2. Drop any address already in `sent-log.tsv` / `sent-log-batch2.tsv`.
+3. Drop any row for a **person** already emailed at a different address. This is
+   the rule that matters: Akash Ganesan and Cemil Aghamaliyev each hold multiple
+   addresses and would otherwise have been mailed twice. Dedupe is on the human,
+   not the address.
+4. Salutation. `Dear {TITLE} {Surname} Sir,` / `Ma'am,` for the 517 rows where
+   the surname is unambiguous. Where the automatic "last token" rule would be
+   wrong the surname is hand-curated in `SURNAME` — Hispanic first-surname
+   convention, Slavic and Hungarian surname-first order, South Indian trailing
+   initials, compound surnames. Where no correct short form exists (Ethiopian,
+   Vietnamese) the full name is used. 17 Lichess rows whose display name is a
+   handle rather than a name get `Dear Coach,`.
+5. The testimonial line adapts to the recipient's title, since only 70 of the
+   535 are GMs: "IM testimonials like yours", "WGM testimonials like yours",
+   and for the 12 untitled FIDE-trainer rows, "Testimonials from experienced
+   coaches like you".

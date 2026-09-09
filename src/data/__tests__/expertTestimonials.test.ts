@@ -1,7 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { EXPERT_TESTIMONIALS } from "@/data/expertTestimonials";
+import {
+  EXPERT_TESTIMONIALS,
+  testimonialInitials,
+} from "@/data/expertTestimonials";
 
 const root = process.cwd();
 
@@ -23,7 +26,7 @@ describe("expert testimonials", () => {
     ]);
   });
 
-  it("uses unique ids, title-prefixed names, and untrimmed-free quotes", () => {
+  it("uses unique ids, title-prefixed names, and trimmed quotes", () => {
     const ids = EXPERT_TESTIMONIALS.map((t) => t.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const t of EXPERT_TESTIMONIALS) {
@@ -31,6 +34,28 @@ describe("expert testimonials", () => {
       expect(t.quote).toBe(t.quote.trim());
       expect(t.quote.length).toBeGreaterThan(0);
     }
+  });
+
+  it("ships every declared photo as a real file under public/", () => {
+    for (const t of EXPERT_TESTIMONIALS) {
+      if (!t.photo) continue;
+      expect(t.photo.src).toMatch(
+        /^\/testimonials\/[a-z0-9-]+\.(jpg|png|webp)$/
+      );
+      const file = path.join(root, "public", t.photo.src);
+      expect(fs.existsSync(file), `${t.name}: missing ${file}`).toBe(true);
+      expect(fs.statSync(file).size).toBeGreaterThan(1024);
+      if (t.photo.credit) {
+        expect(t.photo.credit.licenseUrl).toMatch(/^https:\/\//);
+        expect(t.photo.credit.sourceUrl).toMatch(/^https:\/\//);
+      }
+    }
+  });
+
+  it("derives initials for the no-photo fallback", () => {
+    expect(testimonialInitials("GM Pavel Skatchkov")).toBe("PS");
+    expect(testimonialInitials("GM Alex Colovic")).toBe("AC");
+    expect(testimonialInitials("Magnus")).toBe("M");
   });
 
   it("is rendered by the landing page", () => {

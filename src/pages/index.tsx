@@ -5,6 +5,7 @@ import { Box, Button, Stack, Typography } from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import Head from "next/head";
+import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
@@ -15,7 +16,6 @@ import {
   Clipboard,
   Cpu,
   Crosshair,
-  Crown,
   Download,
   Flame,
   Globe,
@@ -64,7 +64,11 @@ import { InternalHomeCard } from "@/components/intern/InternalHomeCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { startPlanHref } from "@/lib/onboarding/quizGate";
 import { homePageJsonLd } from "@/app/_seo/JsonLd";
-import { EXPERT_TESTIMONIALS } from "@/data/expertTestimonials";
+import {
+  EXPERT_TESTIMONIALS,
+  testimonialInitials,
+  type ExpertTestimonial,
+} from "@/data/expertTestimonials";
 
 const HOME_TITLE = "Chess Masti AI — engine-grounded chess coaching, free";
 const HOME_DESC =
@@ -2341,11 +2345,79 @@ function StatsStrip() {
 }
 
 /**
+ * Circular portrait filling the card's left third. Falls back to the
+ * person's initials when no photograph is on file, so both cards keep the
+ * same geometry whether or not a photo has been supplied.
+ */
+function TestimonialPortrait({
+  testimonial: t,
+}: {
+  testimonial: ExpertTestimonial;
+}) {
+  const ring = {
+    width: "100%",
+    maxWidth: { xs: 128, sm: 160 },
+    aspectRatio: "1 / 1",
+    borderRadius: "50%",
+    flexShrink: 0,
+    overflow: "hidden",
+    position: "relative",
+    boxShadow:
+      "0 0 0 3px rgba(8,9,12,0.9), 0 0 0 5px rgba(249,115,22,0.55), 0 12px 32px rgba(0,0,0,0.45)",
+  } as const;
+
+  if (t.photo) {
+    return (
+      <Box sx={ring}>
+        <Image
+          src={t.photo.src}
+          alt={`Portrait of ${t.name}`}
+          width={320}
+          height={320}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+          }}
+        />
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      aria-hidden
+      sx={{
+        ...ring,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, #F97316, #A855F7)",
+        color: "#0A0A0A",
+        fontWeight: 800,
+        fontSize: { xs: "2.2rem", sm: "2.8rem" },
+        letterSpacing: "-0.02em",
+      }}
+    >
+      {testimonialInitials(t.name)}
+    </Box>
+  );
+}
+
+/**
  * Expert Testimonials: grandmasters on the project, quoted verbatim from
  * src/data/expertTestimonials.ts. Sits between the stats strip and the final
  * CTA so the "GM-quality" claim in that CTA lands right after GMs have said it.
+ *
+ * Each card splits one third / two thirds: portrait, name, and credential on
+ * the left, the quote on the right. Cards stack to a single column on phones.
  */
 function ExpertTestimonials() {
+  const credits = EXPERT_TESTIMONIALS.flatMap((t) =>
+    t.photo?.credit ? [{ id: t.id, name: t.name, credit: t.photo.credit }] : []
+  );
+
   return (
     <Box
       component="section"
@@ -2400,8 +2472,13 @@ function ExpertTestimonials() {
                 m: 0,
                 flex: 1,
                 position: "relative",
-                display: "flex",
-                flexDirection: "column",
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "minmax(0, 1fr) minmax(0, 2fr)",
+                },
+                gap: { xs: 3, sm: 3.5 },
+                alignItems: "center",
                 borderRadius: "1.5rem",
                 background: "rgba(20,22,28,0.55)",
                 backdropFilter: "blur(14px) saturate(140%)",
@@ -2419,91 +2496,117 @@ function ExpertTestimonials() {
               }}
             >
               <Box
-                aria-hidden
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: "12px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "rgba(249,115,22,0.12)",
-                  border: "1px solid rgba(249,115,22,0.3)",
-                  mb: 3,
-                }}
-              >
-                <Quote size={18} color="#F97316" />
-              </Box>
-              <Typography
-                component="blockquote"
-                sx={{
-                  m: 0,
-                  flex: 1,
-                  fontSize: { xs: "1.15rem", md: "1.3rem" },
-                  fontWeight: 500,
-                  lineHeight: 1.5,
-                  letterSpacing: "-0.01em",
-                  color: "rgba(255,255,255,0.9)",
-                }}
-              >
-                {t.quote}
-              </Typography>
-              <Box
                 component="figcaption"
                 sx={{
-                  mt: 3.5,
-                  pt: 3,
-                  borderTop: "1px solid rgba(255,255,255,0.06)",
+                  minWidth: 0,
                   display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
-                  gap: 1.5,
+                  textAlign: "center",
                 }}
               >
+                <TestimonialPortrait testimonial={t} />
+                <Typography
+                  sx={{
+                    mt: 2,
+                    fontWeight: 700,
+                    fontSize: "0.98rem",
+                    lineHeight: 1.2,
+                    color: "rgba(255,255,255,0.94)",
+                  }}
+                >
+                  {t.name}
+                </Typography>
+                <Typography
+                  sx={{
+                    mt: 0.5,
+                    fontSize: "0.74rem",
+                    fontWeight: 600,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "rgba(255,255,255,0.5)",
+                  }}
+                >
+                  {t.title}
+                </Typography>
+              </Box>
+
+              <Box sx={{ minWidth: 0 }}>
                 <Box
                   aria-hidden
                   sx={{
                     width: 40,
                     height: 40,
-                    borderRadius: "50%",
-                    flexShrink: 0,
+                    borderRadius: "12px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    background: "linear-gradient(135deg, #F97316, #FB923C)",
-                    boxShadow: "0 0 0 1px rgba(249,115,22,0.5)",
+                    background: "rgba(249,115,22,0.12)",
+                    border: "1px solid rgba(249,115,22,0.3)",
+                    mb: 2.5,
+                    mx: { xs: "auto", sm: 0 },
                   }}
                 >
-                  <Crown size={18} color="#0A0A0A" strokeWidth={2.5} />
+                  <Quote size={18} color="#F97316" />
                 </Box>
-                <Box>
-                  <Typography
-                    sx={{
-                      fontWeight: 700,
-                      fontSize: "0.98rem",
-                      lineHeight: 1.2,
-                      color: "rgba(255,255,255,0.94)",
-                    }}
-                  >
-                    {t.name}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      mt: 0.5,
-                      fontSize: "0.76rem",
-                      fontWeight: 600,
-                      letterSpacing: "0.08em",
-                      textTransform: "uppercase",
-                      color: "rgba(255,255,255,0.5)",
-                    }}
-                  >
-                    {t.title}
-                  </Typography>
-                </Box>
+                <Typography
+                  component="blockquote"
+                  sx={{
+                    m: 0,
+                    fontSize: { xs: "1.1rem", md: "1.22rem" },
+                    fontWeight: 500,
+                    lineHeight: 1.5,
+                    letterSpacing: "-0.01em",
+                    color: "rgba(255,255,255,0.9)",
+                    textAlign: { xs: "center", sm: "left" },
+                  }}
+                >
+                  {t.quote}
+                </Typography>
               </Box>
             </Box>
           </RevealOnScroll>
         ))}
       </Box>
+
+      {credits.length > 0 && (
+        <Typography
+          component="p"
+          sx={{
+            mt: 2.5,
+            fontSize: "0.74rem",
+            lineHeight: 1.6,
+            color: "rgba(255,255,255,0.38)",
+            "& a": {
+              color: "inherit",
+              textDecorationColor: "rgba(255,255,255,0.25)",
+            },
+            "& a:hover": { color: "rgba(255,255,255,0.6)" },
+          }}
+        >
+          {credits.map(({ id, name, credit }) => (
+            <Box component="span" key={id} sx={{ display: "block" }}>
+              Photo of {name}: {credit.author},{" "}
+              <a
+                href={credit.licenseUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {credit.license}
+              </a>
+              , via{" "}
+              <a
+                href={credit.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {credit.sourceName}
+              </a>
+              , cropped.
+            </Box>
+          ))}
+        </Typography>
+      )}
     </Box>
   );
 }

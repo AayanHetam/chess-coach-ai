@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess, Square } from "chess.js";
 import { Box, Typography } from "@mui/material";
 import { Chessboard } from "react-chessboard";
@@ -134,6 +134,63 @@ function pieceCodeAt(game: Chess, square: Square): string {
   return p ? `${p.color}${p.type.toUpperCase()}` : "";
 }
 
+/**
+ * May this piece be picked up?
+ *
+ * Normally: only the side to move, and only while the board accepts moves.
+ *
+ * The `dragFrom` exception is load-bearing, not a nicety. react-chessboard
+ * attaches react-dnd's drag connector conditionally —
+ * `ref={arePiecesDraggable && canDrag ? drag : null}` — so the instant this
+ * returns false react-dnd runs its connector cleanup, and that cleanup ends
+ * with `node.setAttribute('draggable', 'false')` (see connectDragSource in
+ * react-dnd-html5-backend). Doing that to the element the browser is
+ * CURRENTLY dragging is the documented way to lose the drag: the backend's
+ * own comment reads "the drag source node disappeared from DOM, so the
+ * browser didn't dispatch the dragend event".
+ *
+ * Nothing then ends the drag. `dragend` and `drop` are bound on the root, so a
+ * drop that lands on a square still cleans up (handleTopDrop calls endDrag) —
+ * but a release ANYWHERE ELSE fires neither, and the monitor stays stuck in
+ * the dragging state. The source piece keeps `opacity: 0` (so it vanishes off
+ * the board) while CustomDragLayer, which is `position: fixed`, carries on
+ * painting it wherever the pointer last was — a piece stranded beside the
+ * board. `onPieceDragEnd` never fires either, so the square keeps its
+ * selection ring and legal-move dots. The backend's only rescue is a
+ * `mousemove` listener armed 1000ms after the drag began, which is why the
+ * stranded piece sits there long enough to screenshot. (Reported on /puzzles
+ * by GM Pavel Skatchkov, 2026-09-09: a rook left floating beside the board
+ * when playing Rd1-d8.)
+ *
+ * And the "interactive" input flips under a drag from six directions at once:
+ * /puzzles derives it from `status !== "solved" && !staged && !activeDemo &&
+ * !choiceModeActive && !eliminateMode && !!puzzle`, several of which move on
+ * timers (playOpponentReply) or synchronously inside `onPieceDrop` itself.
+ * `movableColor` also follows `game.turn()`, which flips under the hand
+ * holding the piece. So the piece being dragged keeps its grip until the drag
+ * actually ends; legality is still enforced at drop time by `handleDrop`,
+ * which is where it belongs.
+ *
+ * Pure and exported so the invariant is pinned by a test rather than by a
+ * comment — there is no jsdom in this suite to drive a real drag.
+ */
+export function isPieceDraggable({
+  piece,
+  sourceSquare,
+  movableColor,
+  dragFrom,
+}: {
+  piece: string;
+  sourceSquare: string;
+  /** Side that may move, or null when the board is inert. */
+  movableColor: "w" | "b" | null;
+  /** Square a drag is currently in flight from, or null. */
+  dragFrom: string | null;
+}): boolean {
+  if (dragFrom !== null && sourceSquare === dragFrom) return true;
+  return !!movableColor && piece.startsWith(movableColor);
+}
+
 export function PuzzleBoardSurface({
   fen,
   orientation,
@@ -250,13 +307,45 @@ export function PuzzleBoardSurface({
     [interactive, onInactiveSquareTap, selected, isOwnPiece, onPieceDrop, game],
   );
 
+  // Square a drag is in flight from. A ref, not state: it is read during
+  // render (via isDraggablePiece) and must be up to date the moment the drag
+  // starts, without scheduling a render of its own.
+  const dragFromRef = useRef<string | null>(null);
+
+  const endDrag = useCallback(() => {
+    dragFromRef.current = null;
+    setSelected(null);
+  }, []);
+
   const onPieceDragBegin = useCallback((_p: Piece, sq: Square) => {
+    dragFromRef.current = sq;
     setSelected(sq);
   }, []);
-  const onPieceDragEnd = useCallback(() => setSelected(null), []);
+  const onPieceDragEnd = useCallback(() => endDrag(), [endDrag]);
+
+  // Belt and braces for the drags react-dnd never reports back: a pointer
+  // released outside the window, or a drop the browser cancels. Without this
+  // the board would keep showing a selection ring and legal-move dots for a
+  // piece nobody is holding any more.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.addEventListener("dragend", endDrag);
+    window.addEventListener("drop", endDrag);
+    return () => {
+      window.removeEventListener("dragend", endDrag);
+      window.removeEventListener("drop", endDrag);
+    };
+  }, [endDrag]);
+
   const isDraggablePiece = useCallback(
-    ({ piece }: { piece: Piece }) => isOwnPiece(piece),
-    [isOwnPiece],
+    ({ piece, sourceSquare }: { piece: Piece; sourceSquare: Square }) =>
+      isPieceDraggable({
+        piece,
+        sourceSquare,
+        movableColor,
+        dragFrom: dragFromRef.current,
+      }),
+    [movableColor],
   );
 
   // ── Keyboard move entry ──────────────────────────────────────────────

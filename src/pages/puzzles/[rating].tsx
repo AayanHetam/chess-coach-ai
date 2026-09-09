@@ -32,8 +32,11 @@ import { useViewer } from "@/hooks/useViewer";
  * must never reach a client bundle.
  *
  * Piece images on this page are the "cburnett" set (GPLv2+, credited
- * below). The app-default "maestro" is CC BY-NC-SA — non-commercial — so
- * it must not be widened onto these public landing pages.
+ * below). This page pinned cburnett while the app default was "maestro"
+ * (CC BY-NC-SA, non-commercial); the app default is now cburnett too, but
+ * the pin stays deliberate — a landing page is public and crawled, so its
+ * assets should not be able to change under it when someone edits a default.
+ * See src/lib/licensing/pieceSetLicenses.ts.
  */
 
 const BANDS = Array.from({ length: 17 }, (_, i) => 600 + i * 100);

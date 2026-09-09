@@ -121,9 +121,25 @@ after that is scheduled, so no session has to stay awake.
 *recipients*, not messages, so 1 recipient per send instead of 4 moves the
 ceiling from ~125/day to 500/day.
 
-**Cadence.** 5 firings a day, 20 emails each, 100/day. 535 rows is 5 days and
-change. A missed firing costs 20 emails, never a burst, because each firing
-sends a fixed 20 rather than "everything owed".
+**Cadence.** 100/day. 535 rows is 5 days and change.
+
+**The scheduled send does not work yet, and the reason is not fixable from a
+session.** A Routine created with `create_trigger` spawns a fresh session per
+firing, which is the only mechanism here that does not need a session to stay
+awake. But that Routine cannot carry the Gmail connector: `create_trigger`
+rejects its `connectors` parameter outright ("not available for this
+organization"), and a Routine created without it warns that "the sessions it
+fires will run without connector tools". Fired as a live test on 2026-09-09 at
+03:26 UTC with an instruction to stop and report if Gmail was missing, the
+spawned session ran, went idle, sent nothing and pushed nothing; Gmail's sent
+folder confirms no message left the account between 02:53 and the manual sends
+that followed.
+
+The Routine `trig_01S4Fyw3hhYZs4vQ9okGeFhW` exists with the correct prompt and
+schedule (`5 1,13,16,19,22 * * *` UTC, 20 emails per firing) and is **disabled**
+so it does not fire uselessly. To turn it on, attach the Gmail connector to it
+in the claude.ai Routines UI, then re-enable it. Until that happens, batches are
+sent by hand from a live session, which is how batch 3 (indices 1-100) went out.
 
 **How the queue was built** (`build-queue.py`, in order):
 1. Drop rows whose `email` is not a valid address, plus the 3 scraper-mangled

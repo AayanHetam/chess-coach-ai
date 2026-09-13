@@ -55,6 +55,7 @@ SURNAME = {
     "Péczely Sebastian Zsombor": "Péczely",
     "Manukyan Sargis A.": "Manukyan",
     "Makarov Pavel (Pavlo)": "Makarov",
+    "Tahbaz Arash": "Tahbaz",
     "VMU (Usmanov V.)": "Usmanov",
     # scraper noise glued to the name
     "Ismael Vidal ID FIDE: 3901718": "Vidal",

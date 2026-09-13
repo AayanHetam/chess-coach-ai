@@ -175,6 +175,9 @@ gap documented above applies unchanged.
   <TAB>SENT` to `sent-log-remaining.tsv` before the next batch; otherwise the
   next batch sends 234 first and then continues from 302.
 - Index 301 was sent in 234's place so the day still totalled 100.
+- Index 299 (`dionmoyoj@yahoo.co.uk`, CM Dion Moyo) hard-bounced: Yahoo
+  554.30, "mailbox is disabled", status 5.2.1. Left as `SENT` in the log so
+  it is never retried; do not use that address for a follow-up.
 - Index 206 (`Tahbaz Arash`) was surname-first in the source; salutation fixed
   to `Dear IM Tahbaz Sir,` in both the queue and `build-queue.py` before
   sending.

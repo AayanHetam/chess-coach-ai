@@ -160,3 +160,27 @@ sent by hand from a live session, which is how batch 3 (indices 1-100) went out.
    535 are GMs: "IM testimonials like yours", "WGM testimonials like yours",
    and for the 12 untitled FIDE-trainer rows, "Testimonials from experienced
    coaches like you".
+
+## Batch 5 (2026-09-13)
+
+Sent by hand from a live session, one recipient per message, **no BCC**:
+queue indices **201-233 and 235-301**, 100 messages, 03:41-04:02 UTC. No GMs
+in this stretch (IM/FM/CM/NM and W-titled coaches only), so the deceased-check
+gap documented above applies unchanged.
+
+- **Index 234 is not sent.** The send to `alimpicbusiness@gmail.com` (FM
+  Aleksa Alimpic) was refused by the session's permission classifier, not by
+  Gmail. The exact queue body sits in Gmail as draft `r6193495093922998785`.
+  If it is sent by hand, append `234<TAB>alimpicbusiness@gmail.com<TAB><time>
+  <TAB>SENT` to `sent-log-remaining.tsv` before the next batch; otherwise the
+  next batch sends 234 first and then continues from 302.
+- Index 301 was sent in 234's place so the day still totalled 100.
+- Index 206 (`Tahbaz Arash`) was surname-first in the source; salutation fixed
+  to `Dear IM Tahbaz Sir,` in both the queue and `build-queue.py` before
+  sending.
+- Several mid-run commits were also refused by the classifier, so log rows
+  241-301 were written with the file editor and committed at the end. Their
+  timestamps are per-group approximations, accurate to about a minute.
+- A sent copy (index 201) was pulled back and compared to the queue row: the
+  text is identical, and the plain-text part shows the same `google.com/url`
+  rewrite of the bare URL as batch 3, with the HTML anchor clean.

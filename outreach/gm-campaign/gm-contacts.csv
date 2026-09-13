@@ -1,0 +1,642 @@
+priority,name,title,federation,email,contact_type,confidence,role_affiliation,source_url,verified_date,notes
+P1-ambassador,Alex Colovic,GM,MKD,alex@alexcolovic.com,direct,verified,Professional player & coach,https://www.alexcolovic.com/coaching/,2026-09-07,Also GM at TheChessWorld
+P1-ambassador,Alex Onischuk,GM,USA,alex.onischuk@ttu.edu,direct,listed,Director & Head Coach Texas Tech,https://www.depts.ttu.edu/ttuchess/professionalstaff.php,2026-09-07,Former US Champion
+P1-ambassador,Bartlomiej Macieja,GM,POL,bartek.macieja@utrgv.edu,direct,listed,Head Coach & Director of Chess UTRGV,https://www.utrgv.edu/chess/,2026-09-07,Former European Champion
+P1-ambassador,Ben Finegold,GM,USA,karen@atlchessclub.com,agent_pr,listed,Atlanta Chess Club; YouTube/Twitch personality,https://www.chess.com/member/gmbenjaminfinegold,2026-09-07,Booking via Karen Finegold
+P1-ambassador,Boris Avrukh,GM,ISR/USA,boris@avrukh.com,direct,verified,Coach & author; Illinois Chess Association directory,https://il-chess.org/coaches-and-tds-155,2026-09-07,Grandmaster Repertoire author
+P1-ambassador,Davorin Kuljasevic,GM,CRO,dkuljasevic@gmail.com,direct,listed,Author & FIDE Trainer; Grandmaster Academy,https://www.grandmaster-academy.com/,2026-09-07,Chessable author
+P1-ambassador,Efstratios Grivas,GM,GRE,GrivasEfs@yahoo.co.uk,direct,listed,FIDE Senior Trainer; ECU Trainers Commission; author,http://www.grivaschess.com/links.html,2026-09-07,One of the most credentialled trainers in world chess
+P1-ambassador,Gregory Serper,GM,USA,info@grandknightschess.com,business,listed,Grand Knights Chess Academy; Chess.com columnist,https://grandknightschess.com/our-coaches/,2026-09-07,
+P1-ambassador,Hikaru Nakamura,GM,USA,teamgmhikaru@gmail.com,agent_pr,listed,5x US Champion; largest chess streamer,https://www.twitch.tv/gmhikaru,2026-09-07,Business inquiries address - long shot but real channel
+P1-ambassador,Igor Smirnov,GM,UKR,support@chess-teacher.com,business,listed,Founder Remote Chess Academy; 800k+ YouTube subs,https://chess-teacher.com/gm-smirnov/,2026-09-07,STRONG candidate - large audience
+P1-ambassador,Jonathan Speelman,GM,ENG,jonathan@jspeelman.co.uk,direct,listed,3x British Champion; World Championship Candidate,https://lichess.org/coach/Jon_Speelman,2026-09-07,ChessBase columnist
+P1-ambassador,Jose Gascon Del Nogal,GM,ESP/VEN,josegascondelnogal@gmail.com,direct,listed,Founder GasconChess academy (Spanish-language),https://lichess.org/coach/jrgascon,2026-09-07,Spanish-speaking audience
+P1-ambassador,Maurice Ashley,GM,USA,pr@mauriceashley.com,agent_pr,verified,Commentator; first Black GM; public speaker,https://mauriceashley.com/home/,2026-09-07,STRONG ambassador candidate - professional speaker
+P1-ambassador,Maxim Dlugy,GM,USA,office@chessmaxacademy.com,business,listed,Chess Max Academy,https://chessmaxacademy.com/learn-chess/chess-coaches/,2026-09-07,
+P1-ambassador,Melikset Khachiyan,GM,USA,meliksetk@hotmail.com,direct,listed,FIDE Senior Trainer; seminar organiser,https://trainers.fide.com/2026/07/23/fide-trainers-online-seminar-english-6/,2026-09-07,FST; coached Levon Aronian
+P1-ambassador,"MGD1 eSports (Koneru Humpy, Arjun Erigaisi, Srinath Narayanan)",AGENCY,IND,sreekar@mgd.one,agent_pr,listed,India's first chess-only talent management firm,https://www.mgd.one/about-us/,2026-09-07,BEST single route to India top GMs - co-founder Sreekar Channapragada; covers Humpy
+P1-ambassador,Nicholas Pert,GM,ENG,fleetchess@gmail.com,direct,listed,Head coach English Chess Federation,https://www.gmchess.co.uk/,2026-09-07,Runs Nick Pert Junior Chess
+P1-ambassador,Pravin Thipsay,GM,IND,pravinthipsay@gmail.com,direct,listed,Arjuna awardee; Thipsay Chess Academy Mumbai,https://academy.chess7.com/coaches/pravin-thipsay/,2026-09-07,Veteran Indian GM
+P1-ambassador,Ramachandran Ramesh,GM,IND,info@chessgurukul.com,business,listed,Founder Chess Gurukul; coach of Praggnanandhaa,https://chessgurukul.com/,2026-09-07,STRONG candidate - India audience
+P1-ambassador,Sagar Shah & Amruta Mokal (ChessBase India),IM_MEDIA,IND,sagarchess1@yahoo.co.in,direct,listed,Founders of India's biggest chess media platform,https://chessbase.in/about/,2026-09-07,Stated contact for lectures/simuls/chess promotion; alt chessbaseindia@gmail.com
+P1-ambassador,Simon Williams,GM,ENG,sales@gingergm.com,business,listed,Ginger GM founder; commentator & streamer,https://gingergm.com/support,2026-09-07,STRONG candidate - big personality/YouTube
+P1-ambassador,Susan Polgar,GM,USA/HUN,susanpolgar@aol.com,direct,verified,SPICE founder; Webster coach emeritus,https://susanpolgar.com/contact/,2026-09-07,STRONG candidate - chess education focus
+P1-ambassador,Swapnil Dhopade,GM,IND,chesspathshaala@gmail.com,business,listed,Founder Chess Pathshala,https://www.chesspathshala.com/,2026-09-07,Second address swapnil.dhopade@gmail.com
+P1-ambassador,Timur Gareyev,GM,USA,jennifer@blindfoldking.com,agent_pr,verified,Blindfold world record holder; booking via Jennifer Vallens,https://www.blindfoldking.com/about-timur,2026-09-07,Second address offdarook@gmail.com
+P1-ambassador,Varuzhan Akobian,GM,USA,varuzhan.akobian@slu.edu,direct,listed,Head Coach Saint Louis University chess team,https://www.slu.edu/life-at-slu/chess-team/index.php,2026-09-07,US Championship winner; active collegiate coach
+P1-ambassador,Vishnu Prasanna V,GM,IND,reachgmvishnu@gmail.com,direct,listed,Coach of GM Gukesh; Chennai,https://vishnuprasanna.com/,2026-09-07,STRONG India candidate - coached world champion
+P1-ambassador,Yury Shulman,GM,USA,yury@shulmanchess.com,direct,verified,2008 US Champion; Illinois Chess Association directory,https://il-chess.org/coaches-and-tds-155,2026-09-07,Runs Yury Shulman Chess School
+P2-active-coach,Ahmad Ahmadzada,GM,,ahmadzadaahmad@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/El_ninho9,2026-09-07,lichess:El_ninho9
+P2-active-coach,Akash Ganesan,GM,,contact@madrasschoolofchess.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/gakashchess,2026-09-07,lichess:gakashchess
+P2-active-coach,Akash Ganesan,GM,,gakashganesan@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/gakashchess,2026-09-07,lichess:gakashchess
+P2-active-coach,Alejandro Hoffman,GM,,aleserhoffman@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/AHoffman,2026-09-07,lichess:AHoffman
+P2-active-coach,Aleksander Goloshchapov,GM,,chess.coach.gm@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Goloshchapov_Alex,2026-09-07,lichess:Goloshchapov_Alex
+P2-active-coach,Aleksandr Rakhmanov,GM,,aleksrakhmanov@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Rakhmanov_Aleksandr,2026-09-07,lichess:Rakhmanov_Aleksandr
+P2-active-coach,Aleksandr Shimanov,GM,,gmshimanov@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Multibrendovyi,2026-09-07,lichess:Multibrendovyi
+P2-active-coach,Alexander Kovchan,GM,,akovchan@ukr.net,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/luckshmi,2026-09-07,lichess:luckshmi
+P2-active-coach,Alexander Shabalov,GM,USA,SEE_SOURCE_PAGE,direct,manual_lookup,4x US Champion; Pittsburgh CC coach directory,https://pittsburghchessclub.org/coaching/index.html,2026-09-07,Email on page but Cloudflare-obfuscated; open in browser
+P2-active-coach,Andrea Stella,GM,,andreastella93@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Superetual,2026-09-07,lichess:Superetual
+P2-active-coach,Andres Rodriguez Vila,GM,URU,andyrodri@hotmail.com,direct,verified,Uruguay's first and only GM; 30+ yrs coaching,https://lichess.org/coach/andyrodri,2026-09-07,
+P2-active-coach,Andrey Gutov,GM,,gutovandrey812@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/GutovAndrey,2026-09-07,lichess:GutovAndrey
+P2-active-coach,Andrey Sumets,GM,,andsum1980@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Odessacoach,2026-09-07,lichess:Odessacoach
+P2-active-coach,Ante Brkić,GM,,ante.brkic9@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/DinoPopuslic,2026-09-07,lichess:DinoPopuslic
+P2-active-coach,Ante Saric,GM,,antesaric@windowslive.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Sailor1951,2026-09-07,lichess:Sailor1951
+P2-active-coach,Arman Mikaelyan,GM,,armanmikaelyan1996@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Peacefulwarrior1996,2026-09-07,lichess:Peacefulwarrior1996
+P2-active-coach,Artem Iljin,GM,,artemilyin@aptchess.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Artem_Ilyin,2026-09-07,lichess:Artem_Ilyin
+P2-active-coach,Artem Omelja,GM,,temiksstars@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/gidropark,2026-09-07,lichess:gidropark
+P2-active-coach,Artur Davtyan,GM,,Davtyanartur18@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Artur0208,2026-09-07,lichess:Artur0208
+P2-active-coach,Aryan Gholami,GM,,Chessariangholami@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/TopGrandMaster,2026-09-07,lichess:TopGrandMaster
+P2-active-coach,Asghar Golizadeh,GM,,Asghargolizadeh98@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/lanchester1,2026-09-07,lichess:lanchester1
+P2-active-coach,Axel Rombaldoni,GM,,info@axelrombaldoni.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/GMAxel,2026-09-07,lichess:GMAxel
+P2-active-coach,Benjamin Bok,GM,,gmbenjaminbok@outlook.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/BenjaminBokTwitch,2026-09-07,lichess:BenjaminBokTwitch
+P2-active-coach,Bogdanov Egor,GM,,egorkabogdanov23@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/vizumatv4hoda,2026-09-07,lichess:vizumatv4hoda
+P2-active-coach,Borki Predojevic,GM,,borki_predojevic@yahoo.co.uk,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Kiborg1987,2026-09-07,lichess:Kiborg1987
+P2-active-coach,Brian Escalante,GM,,sebra46@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Brian46,2026-09-07,lichess:Brian46
+P2-active-coach,Bryan Smith,GM,USA,SEE_SOURCE_PAGE,direct,manual_lookup,Pittsburgh CC coach directory,https://pittsburghchessclub.org/coaching/index.html,2026-09-07,Email on page but Cloudflare-obfuscated; open in browser
+P2-active-coach,Cemil Aghamaliyev,GM,,cemilchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/CEMILGMCHESS,2026-09-07,lichess:CEMILGMCHESS
+P2-active-coach,Cemil Aghamaliyev,GM,,cemilchess@mail.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/CEMILGMCHESS,2026-09-07,lichess:CEMILGMCHESS
+P2-active-coach,Cemil Aghamaliyev,GM,,cemilsabanoglu@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/CEMILGMCHESS,2026-09-07,lichess:CEMILGMCHESS
+P2-active-coach,CRISTHIAN ARNALDO CRUZ SANCHEZ,GM,,GMCristhianCruz@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/CristhianC92,2026-09-07,lichess:CristhianC92
+P2-active-coach,Daniil Yuffa,GM,,daniilyuffa@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/CrazySage,2026-09-07,lichess:CrazySage
+P2-active-coach,Dariusz Swiercz,GM,,daro94@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/daro94,2026-09-07,lichess:daro94
+P2-active-coach,David Lariño,GM,,davidlarino1@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Nitratochess,2026-09-07,lichess:Nitratochess
+P2-active-coach,Davor Rogic,GM,,davorr@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Davor_Rogic,2026-09-07,lichess:Davor_Rogic
+P2-active-coach,Debashis Das,GM,,debashisdas555@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Vivekananda555,2026-09-07,lichess:Vivekananda555
+P2-active-coach,Dejan Antic,GM,,gmanticdejan@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Sand68,2026-09-07,lichess:Sand68
+P2-active-coach,Diego Flores,GM,,diegoflores87@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/pigonthewing,2026-09-07,lichess:pigonthewing
+P2-active-coach,Dimitri Komarov,GM,,gmkomarov@i.ua,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/gmkomarov,2026-09-07,lichess:gmkomarov
+P2-active-coach,Ermes Espinosa Veloz,GM,,ermescuba87@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Ermito,2026-09-07,lichess:Ermito
+P2-active-coach,Federico Perez Ponsa,GM,,fperezponsa@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Federicov93,2026-09-07,lichess:Federicov93
+P2-active-coach,Fidel Corrales,GM,,gmfidelcorrales@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ficorrales,2026-09-07,lichess:ficorrales
+P2-active-coach,FT Harikrishnan A Ra,GM,,harikrishnan.ara@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/hari2209,2026-09-07,lichess:hari2209
+P2-active-coach,FT Swayams Mishra,GM,,swayams2150@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/mr_bh6,2026-09-07,lichess:mr_bh6
+P2-active-coach,Georgy Pilavov,GM,,Pilav29@mail.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Digora,2026-09-07,lichess:Digora
+P2-active-coach,GILBERTO HERNANDEZ,GM,,hernandez.gm@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/GILBERTOHDEZ,2026-09-07,lichess:GILBERTOHDEZ
+P2-active-coach,Groszpeter Attila,GM,,groszpet@t-online.hu,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Incike,2026-09-07,lichess:Incike
+P2-active-coach,Harshit Raja,GM,,harshitraja.work@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Johnking,2026-09-07,lichess:Johnking
+P2-active-coach,Homayoon Toufighi,GM,,Homi.tofighi1990@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/HomayooonT,2026-09-07,lichess:HomayooonT
+P2-active-coach,Hovhannes Gabuzyan,GM,,gabuzyan1995@mail.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/GABUZYAN_CHESSMOOD,2026-09-07,lichess:GABUZYAN_CHESSMOOD
+P2-active-coach,Ibro Saric,GM,,sahmatny@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Sensei82,2026-09-07,lichess:Sensei82
+P2-active-coach,Isan Ortiz,GM,,isanortiz@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/crackcubano,2026-09-07,lichess:crackcubano
+P2-active-coach,Iuri Shkuro,GM,,gm2829iurishkuro@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Triumph-of-Diversity,2026-09-07,lichess:Triumph-of-Diversity
+P2-active-coach,Jordi Magem Badals,GM,,jordimagem@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/JordiMagemBadals,2026-09-07,lichess:JordiMagemBadals
+P2-active-coach,José Carlos Ibarra Jerez,GM,,info@gmspideribarra.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Macrofago,2026-09-07,lichess:Macrofago
+P2-active-coach,José Cubas,GM,,gmjosecubas@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/gmjosecubas,2026-09-07,lichess:gmjosecubas
+P2-active-coach,José Gabriel Cardoso Cardoso,GM,,gabrielkiller.1010@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Drthebigboss,2026-09-07,lichess:Drthebigboss
+P2-active-coach,Julio Catalino Sadorra,GM,PHI/USA,julio.sadorra@utdallas.edu,direct,listed,Director & Head Coach UT Dallas Chess Program,https://chess.utdallas.edu/team-club/contact-us,2026-09-07,
+P2-active-coach,Justin Tan,GM,,gmjustintan@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/justantan,2026-09-07,lichess:justantan
+P2-active-coach,Karen Grigoryan,GM,,gmkarengrigoryan@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/MardakerXXX,2026-09-07,lichess:MardakerXXX
+P2-active-coach,Krasimir Rusev,GM,,rusev83@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Krasimir_Rusev,2026-09-07,lichess:Krasimir_Rusev
+P2-active-coach,Lazaro Bruzon,GM,,lbruzoncu@yahoo.es,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/LazaroBruzon,2026-09-07,lichess:LazaroBruzon
+P2-active-coach,Leandro Krysa,GM,,leokrysa@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/krysaleok,2026-09-07,lichess:krysaleok
+P2-active-coach,Mahdi Gholami Orimi,GM,,mahdigholamii1381@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/MetiForce,2026-09-07,lichess:MetiForce
+P2-active-coach,Marcin Dziuba,GM,,gmmarcindziuba@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Dziubsen,2026-09-07,lichess:Dziubsen
+P2-active-coach,Marin Bosiocic,GM,,marin.bosiocic@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/MarinBosiocic,2026-09-07,lichess:MarinBosiocic
+P2-active-coach,Mark Heimann,GM,,maheimann64@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/squat2depth,2026-09-07,lichess:squat2depth
+P2-active-coach,Matthias Wahls,GM,,matthias.wahls@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Matthias_Wahls,2026-09-07,lichess:Matthias_Wahls
+P2-active-coach,Merab Gagunashvili,GM,,gmgaguna@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/teddybear1,2026-09-07,lichess:teddybear1
+P2-active-coach,Mesgen Amanov,GM,TKM/USA,mesgen.amanov@gmail.com,direct,verified,Coach listed in Illinois Chess Association directory,https://il-chess.org/coaches-and-tds-155,2026-09-07,
+P2-active-coach,Michael Oratovsky,GM,,mishelorat@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/MichaelOratovsky,2026-09-07,lichess:MichaelOratovsky
+P2-active-coach,Mikhail Antipov,GM,RUS/USA,mikhail.antipov@utdallas.edu,direct,listed,Coach UT Dallas Chess Program,https://news.utdallas.edu/faculty-staff/chess-program-new-coach-2025,2026-09-07,
+P2-active-coach,Mikhail Golubev,GM,,gmi@europe.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Mikhail_Golubev,2026-09-07,lichess:Mikhail_Golubev
+P2-active-coach,Mikuláš Maník,GM,,miki.sach@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Mikulas,2026-09-07,lichess:Mikulas
+P2-active-coach,Milan Zajić,GM,,milanzajic77@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/MilanZajic,2026-09-07,lichess:MilanZajic
+P2-active-coach,Miloje Ratkovic,GM,,ratkovicmiloje96@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Ratkovic_Miloje,2026-09-07,lichess:Ratkovic_Miloje
+P2-active-coach,Mircea Parligras,GM,,mparli@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/mircica,2026-09-07,lichess:mircica
+P2-active-coach,morteza mahjoob zardast,GM,,mortezmi@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/show-time,2026-09-07,lichess:show-time
+P2-active-coach,Nijat Abasov,GM,,abasov_nijat@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/AbasovN,2026-09-07,lichess:AbasovN
+P2-active-coach,Nikita Matinian,GM,,mekitka@yandex.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Gannikus21,2026-09-07,lichess:Gannikus21
+P2-active-coach,Nikola Nestorovic,GM,,nestorovik@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Storm89,2026-09-07,lichess:Storm89
+P2-active-coach,Nikolay Chadaev,GM,,chadaevchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/N-Chadaev,2026-09-07,lichess:N-Chadaev
+P2-active-coach,Oleg Romanishin,GM,,romberlin52@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/OlegRomanishin,2026-09-07,lichess:OlegRomanishin
+P2-active-coach,Oleg Romanishin,GM,,romol@mail.lviv.ua,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/OlegRomanishin,2026-09-07,lichess:OlegRomanishin
+P2-active-coach,Oliver Barbosa,GM,,info@gmbarbosachess.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/gmbarbosachess,2026-09-07,lichess:gmbarbosachess
+P2-active-coach,Omar Almeida Quintana,GM,,gatus2810@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/O-Almeida,2026-09-07,lichess:O-Almeida
+P2-active-coach,Oskar Wieczorek,GM,,Oskar.Wieczorek.94@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Midnight_Chess,2026-09-07,lichess:Midnight_Chess
+P2-active-coach,Pablo Zarnicki,GM,,pzarnicki@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/PabloZarnicki,2026-09-07,lichess:PabloZarnicki
+P2-active-coach,Pavel Potapov,GM,,pavel-potapov@mail.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ElfenomenoR9,2026-09-07,lichess:ElfenomenoR9
+P2-active-coach,Pavel Skatchkov,GM,,pavel_skatchkov@mail.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/spv79,2026-09-07,lichess:spv79
+P2-active-coach,Petar Genov,GM,,petar_genov@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/valdizer,2026-09-07,lichess:valdizer
+P2-active-coach,Platon Galperin,GM,,platon.galperin@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Chesssplayer21,2026-09-07,lichess:Chesssplayer21
+P2-active-coach,Pouya Idani,GM,,Idanip@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Poudini,2026-09-07,lichess:Poudini
+P2-active-coach,Rashad Babaev,GM,AZE/USA,info@gmchessprep.com,business,verified,Founder GMChessPrep; FIDE Trainer,https://www.rashadbabaev.com/team/,2026-09-07,Also reaches GM Farid Abbasov
+P2-active-coach,Rodrigo Vasquez,GM,,kastorgm@hotmail.cl,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Kastorcito,2026-09-07,lichess:Kastorcito
+P2-active-coach,Rolando Kutirov,GM,,gmkutirov@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/KutirovGM,2026-09-07,lichess:KutirovGM
+P2-active-coach,Salvador Alonso,GM,,salvaalon@yahoo.com.ar,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/gaizca,2026-09-07,lichess:gaizca
+P2-active-coach,Samy Shoker,GM,,samyshoker1@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/polomarco,2026-09-07,lichess:polomarco
+P2-active-coach,Sasa Martinovic,GM,,sasa.martinovic91@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Dr-CRO,2026-09-07,lichess:Dr-CRO
+P2-active-coach,Semen Khanin,GM,,samkhaninchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Up_to_something,2026-09-07,lichess:Up_to_something
+P2-active-coach,Sergei Azarov,GM,,sergeiaza@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Sergeiaza,2026-09-07,lichess:Sergeiaza
+P2-active-coach,Sergei Lobanov,GM,,serlob-01@mail.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Like_a_Gin,2026-09-07,lichess:Like_a_Gin
+P2-active-coach,Sergei Zhigalko,GM,,zhigalko-sergei@mail.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Zhigalko_Sergei,2026-09-07,lichess:Zhigalko_Sergei
+P2-active-coach,Sergey Matsenko,GM,,gm.matsenko@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/TexasMustang,2026-09-07,lichess:TexasMustang
+P2-active-coach,Sergey Zablotskiy,GM,,zablotskiy.sergey@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Zablotsky_Sergei,2026-09-07,lichess:Zablotsky_Sergei
+P2-active-coach,Shahin Lorparizangeneh,GM,,shahinlorpari@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/shahinlorpari,2026-09-07,lichess:shahinlorpari
+P2-active-coach,Sipke Ernst,GM,,sipkeernst@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/supersipke,2026-09-07,lichess:supersipke
+P2-active-coach,Tair Vahidov,GM,,vahidovt63@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/UzbekTiger63,2026-09-07,lichess:UzbekTiger63
+P2-active-coach,Thomas Roussel-Roozmon,GM,,trousselroozmon@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Thomas_RR,2026-09-07,lichess:Thomas_RR
+P2-active-coach,Todor Todorov,GM,,chessland.sgdb@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Ttodorov,2026-09-07,lichess:Ttodorov
+P2-active-coach,Trần Tuấn Minh,GM,,Gminhjtran@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/CBR650F,2026-09-07,lichess:CBR650F
+P2-active-coach,Ulvi Bajarani,GM,AZE/USA,info@azerichessacademy.com,business,listed,Founder Azeri Chess Academy Houston,https://azerichessacademy.com/,2026-09-07,
+P2-active-coach,Ulvi Sadikhov,GM,,ulvisadikhov@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/TheRagnarLothbrok,2026-09-07,lichess:TheRagnarLothbrok
+P2-active-coach,Vignesh NR,GM,,nrvigneshchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Goodgoodchess,2026-09-07,lichess:Goodgoodchess
+P2-active-coach,Viktor Matviishen,GM,,vmatviis@ttu.edu,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ViktorMMs,2026-09-07,lichess:ViktorMMs
+P2-active-coach,Visakh NR,GM,,nrvisakh@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/nrvisakh,2026-09-07,lichess:nrvisakh
+P2-active-coach,Vladimir Belous,GM,,belousvovis@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/VladimirBelous,2026-09-07,lichess:VladimirBelous
+P2-active-coach,Vojtech Plat,GM,,vojtechplat@seznam.cz,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/VojtaPlat,2026-09-07,lichess:VojtaPlat
+P2-active-coach,Yago Santiago,GM,,yagosantiago17@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/YagoSantiago,2026-09-07,lichess:YagoSantiago
+P2-active-coach,Yuniesky Quesada,GM,,yuniesky3184@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/YuQuesada,2026-09-07,lichess:YuQuesada
+P2-active-coach,Yuri González Vidal,GM,,yurigv2004@yahoo.es,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/yurigonzalezvidal,2026-09-07,lichess:yurigonzalezvidal
+P2-active-coach,Yuri Vovk,GM,,gmyurivovk@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/coachvovk,2026-09-07,lichess:coachvovk
+P2-active-coach,Yuriy Kuzubov,GM,,yuretsmaster@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/KuzubovY,2026-09-07,lichess:KuzubovY
+P2-active-coach,Zahar Efimenko,GM,,Zefimenko1985@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/saxar85,2026-09-07,lichess:saxar85
+P2-active-coach,Zvonko Stanojoski,GM,,zvonkostanojoski@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Ucitelot,2026-09-07,lichess:Ucitelot
+P2-active-coach,Алексей Илюшин,GM,,fan-milan@mail.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Iljushin_Alexey,2026-09-07,lichess:Iljushin_Alexey
+P3-org,All India Chess Federation,FEDERATION,IND,indianchessfed@gmail.com,business,listed,National governing body for Indian chess,https://aicf.in/contact/,2026-09-07,Institutional route to Indian GMs
+P3-org,ASEAN Chess Academy (Tiviakov/Zhang Zhong/Nguyen Anh Dung),GM_GROUP,MULTI,info@aseanchessacademy.com,business,listed,Academy with GM panel across SE Asia,https://aseanchessacademy.com/contact/,2026-09-07,Gateway to several GMs
+P3-org,Chess Academy of Armenia,GM_GROUP,ARM,info@chessacademy.am,business,listed,National academy with large GM coaching roster,https://chessacademy.am/static/article/6?lang=en,2026-09-07,
+P3-org,ChessBase India (Sagar Shah),IM_MEDIA,IND,chessbaseindia@gmail.com,business,listed,Largest Indian chess media platform,https://chessbase.in/about/,2026-09-07,NOT a GM - media/distribution partner for reaching Indian GMs
+P3-org,GM Chess School St Petersburg,GM_ORG,RUS,info@gmchess.com,business,listed,School founded by St Petersburg grandmasters,http://www.gmchess.com/gmschool/index/,2026-09-07,
+P3-org,Grandmaster Chess Institute (Eljanov/Le Quang Liem/Avrukh/Lenderman/Moradiabadi/Gorovets),GM_GROUP,MULTI,support@grandmasterinstitute.com,business,listed,Institute fronted by multiple 2600+ GMs,https://www.grandmasterinstitute.com/coaches/,2026-09-07,Gateway to 6+ elite GMs incl. Le Quang Liem (Webster head coach)
+P3-org,Grandmaster Chess School NYC (Krush/Kacheishvili/Gelashvili),GM_GROUP,USA,info@gmchessinc.com,business,listed,NYC academy with GM roster,http://gmchessinc.com/contact-us,2026-09-07,Gateway to several NYC GMs
+P3-org,Kasparov Chess Foundation,GM_ORG,USA,info@kasparovchessfoundation.org,business,listed,Garry Kasparov's education foundation,https://kasparovchessfoundation.org/,2026-09-07,Alt office@kasparovchessfoundation.org
+P3-org,Mechanics Institute Chess Club,GM_ORG,USA,chessroom@milibrary.org,business,listed,Oldest US chess club; coaching staff,https://www.milibrary.org/chess/chess-classes/,2026-09-07,
+P3-org,Modern Chess (Grigorov/Arnaudov + intl GM author team),GM_GROUP,BUL,contact@modern-chess.com,business,listed,Academy & publisher founded by GMs Grigor Grigorov and Petar Arnaudov,https://www.modern-chess.com/contact,2026-09-07,Gateway to large international GM author roster
+P3-org,Pro Chess Training (Kasimdzhanov/Shirov/Harikrishna/Ganguly/Narayanan),GM_GROUP,MULTI,info@prochesstraining.com,business,listed,Academy fronted by multiple elite GMs,https://prochesstraining.com/home/our_coaches,2026-09-07,Gateway to several 2600+ GMs; alt prochesstraining@gmail.com
+P3-org,Saint Louis Chess Club (GM-in-Residence programme),GM_GROUP,USA,info@saintlouischessclub.org,business,verified,Hosts GM-in-Residence; elite US hub,https://saintlouischessclub.org/about-us/contact-us/,2026-09-07,STRONG sponsor-route - best-funded US chess org
+P3-org,TheChessWorld (Alterman/Henley/Smirin/Roiz/Werle/Ipatov/Arnaudov/Kraai),GM_GROUP,MULTI,support@thechessworld.com,business,listed,Course platform fronted by 10+ GMs,https://thechessworld.com/store/presenters/,2026-09-07,Gateway to many GM presenters
+P4-im-coach,Abdyzhapar Asylbek,IM,,asyl_1988@outlook.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Burjugul_7,2026-09-07,lichess:Burjugul_7
+P4-im-coach,Adarsh Tripathi,IM,,adarsh@chesscoaching.org,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/adarshwick,2026-09-07,lichess:adarshwick
+P4-im-coach,Alexander Slizhevsky,IM,,alexanderslizhevsky@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ChessPromotionAlex,2026-09-07,lichess:ChessPromotionAlex
+P4-im-coach,Alexey Maly,IM,,malyyoleksiy@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/malyy,2026-09-07,lichess:malyy
+P4-im-coach,Alexey Palekha,IM,,rainspistols.a@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/rainspistols,2026-09-07,lichess:rainspistols
+P4-im-coach,Alexis Murillo Tsijli,IM,,alexismurillotsijli@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Lucena1497,2026-09-07,lichess:Lucena1497
+P4-im-coach,Amirmohammad Soozankar,IM,,ams197_chess@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/So0o0o0zi,2026-09-07,lichess:So0o0o0zi
+P4-im-coach,Andrei Cioara,IM,,andreicioara71@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Cioxminator,2026-09-07,lichess:Cioxminator
+P4-im-coach,Anita Gara,IM,,garaa83@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Angiechess83,2026-09-07,lichess:Angiechess83
+P4-im-coach,Anna M. Sargsyan,IM,,sargsianann2001@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ASargsyan,2026-09-07,lichess:ASargsyan
+P4-im-coach,ANUJ SHRIVATRI,IM,,anujshrivatri838@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/AnujShrivatri,2026-09-07,lichess:AnujShrivatri
+P4-im-coach,Ariel Marichal,IM,,marichalglez@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/cubanoases,2026-09-07,lichess:cubanoases
+P4-im-coach,Arman Hakemi,IM,,Hakemi.arman@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/darkness_24,2026-09-07,lichess:darkness_24
+P4-im-coach,Armen Barseghyan,IM,,armenchessmate@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Armen_ChessMate,2026-09-07,lichess:Armen_ChessMate
+P4-im-coach,Artiom Tsepotan,IM,,artiom@chessstudy.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Artiom,2026-09-07,lichess:Artiom
+P4-im-coach,Atanas Kizov,IM,,imkizov@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/imkizov,2026-09-07,lichess:imkizov
+P4-im-coach,Badmatsyrenov Oleg,IM,,olegchess19@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Ellaijio,2026-09-07,lichess:Ellaijio
+P4-im-coach,Bahadir Ozen,IM,,bahadirozenchessk@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/BahadirOzen,2026-09-07,lichess:BahadirOzen
+P4-im-coach,Balázs Csonka,IM,,bazsi415@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/CSB7,2026-09-07,lichess:CSB7
+P4-im-coach,Balázs Csonka,IM,,csonka.balazs97@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/CSB7,2026-09-07,lichess:CSB7
+P4-im-coach,Bohdan Bilovil,IM,,bbilovil@ttu.edu,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/BogdanChess97,2026-09-07,lichess:BogdanChess97
+P4-im-coach,Bojan Jovanovic,IM,,gmbojan@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/BojanChessTrainer,2026-09-07,lichess:BojanChessTrainer
+P4-im-coach,Christian Braun,IM,,exploringchess@outlook.de,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ExploringChess,2026-09-07,lichess:ExploringChess
+P4-im-coach,Daniel Pulvett,IM,,pulvettd25@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/pulvettd,2026-09-07,lichess:pulvettd
+P4-im-coach,Danyyil Mosesov,IM,,dmosesov@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/DanMos,2026-09-07,lichess:DanMos
+P4-im-coach,Darko Doric,IM,,darko_doric@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Toro123,2026-09-07,lichess:Toro123
+P4-im-coach,Dmitry Ponomarev,IM,,dimaponomareff@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Ponomarev_Dmitry,2026-09-07,lichess:Ponomarev_Dmitry
+P4-im-coach,Dusan Jovanovic,IM,,JovanovicDusanD@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Gorbaev,2026-09-07,lichess:Gorbaev
+P4-im-coach,Dusan Lekic,IM,,dusanl@blic.net,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Dusanako,2026-09-07,lichess:Dusanako
+P4-im-coach,Dusan Radovanovic,IM,,radovanovic.dusan64@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Shepa2017,2026-09-07,lichess:Shepa2017
+P4-im-coach,Edoardo Di Benedetto,IM,,edo.diben@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/eragon11,2026-09-07,lichess:eragon11
+P4-im-coach,Emil Risteski,IM,,ykc.emilristeski@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Imperatorce,2026-09-07,lichess:Imperatorce
+P4-im-coach,Eric Jr. Labog,IM,,labogericjr25@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/GwapingsAttack2002,2026-09-07,lichess:GwapingsAttack2002
+P4-im-coach,Erik Kislik,IM,,imerikkislik@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ChessSuccess,2026-09-07,lichess:ChessSuccess
+P4-im-coach,Fenil Shah,IM,,fenilchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/fenil_shah95,2026-09-07,lichess:fenil_shah95
+P4-im-coach,Francisco Hernandez Basante,IM,,mifhb@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/fherbas,2026-09-07,lichess:fherbas
+P4-im-coach,FT Hemant Sharma,IM,,chess_hemant@yahoo.co.in,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/LampardFan08,2026-09-07,lichess:LampardFan08
+P4-im-coach,Gabriele Lumachi,IM,,gabrielelumachi22@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Gabriele_Lumachi,2026-09-07,lichess:Gabriele_Lumachi
+P4-im-coach,Gert Schnider,IM,,gert.schnider@a1.net,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Valandir,2026-09-07,lichess:Valandir
+P4-im-coach,GORAN TRKULJA,IM,,trkulja.chess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Dangor,2026-09-07,lichess:Dangor
+P4-im-coach,Guillermo José Llanos,IM,,guillermollanos@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ajedrezhoy,2026-09-07,lichess:ajedrezhoy
+P4-im-coach,HAMPUS SORENSEN,IM,,hampus.sorensen@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/HSGM,2026-09-07,lichess:HSGM
+P4-im-coach,Harshad S,IM,,chessharshad@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Bornforchess007,2026-09-07,lichess:Bornforchess007
+P4-im-coach,Huseyin Can Agdelen,IM,,huseyincanagdelen@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Patetico,2026-09-07,lichess:Patetico
+P4-im-coach,Ilgar Bajarani,IM,,azerichess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Maestro99az,2026-09-07,lichess:Maestro99az
+P4-im-coach,Isaac Okeke,IM,,Okekeissac226@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Nextlevel4naija,2026-09-07,lichess:Nextlevel4naija
+P4-im-coach,Ismael Alshameary Puente,IM,,isma_echess@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/mabumba,2026-09-07,lichess:mabumba
+P4-im-coach,Iva Videnova-Kuljasevic,IM,,Videnova.iva@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Iva_Videnova,2026-09-07,lichess:Iva_Videnova
+P4-im-coach,IVAN GALIC,IM,,imivangalic@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/imivangalic,2026-09-07,lichess:imivangalic
+P4-im-coach,Ivan Soriano Quispe,IM,,ivansorianoquispe@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/IvanSoriano_UNMSM,2026-09-07,lichess:IvanSoriano_UNMSM
+P4-im-coach,John Bryant,IM,,JohnDanielBryant@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/JohnDBryant,2026-09-07,lichess:JohnDBryant
+P4-im-coach,Jop Delemarre,IM,,jop@schaaktrainer.nl,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Chesstrainerjop,2026-09-07,lichess:Chesstrainerjop
+P4-im-coach,Jorge Bobadilla,IM,,IMJorgeBobadilla@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/jsdbv,2026-09-07,lichess:jsdbv
+P4-im-coach,Juan Sebastián Melián Rodríguez,IM,,bastiandash07@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/bastiandash,2026-09-07,lichess:bastiandash
+P4-im-coach,Julian Estrada,IM,,julianestrada@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/vampirenergetik,2026-09-07,lichess:vampirenergetik
+P4-im-coach,Julijan Plenca,IM,,Plenca.Julijan@gmx.de,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Frutek,2026-09-07,lichess:Frutek
+P4-im-coach,Kevin Paveto,IM,,kpaveto@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/KevinPaveto,2026-09-07,lichess:KevinPaveto
+P4-im-coach,Khamitskiy Sergei,IM,,itskiy@tut.by,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Chomuszka,2026-09-07,lichess:Chomuszka
+P4-im-coach,Kim Steven Yap,IM,,kimstevenyap21@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/kimstevenyap,2026-09-07,lichess:kimstevenyap
+P4-im-coach,Kushager Krishnater,IM,,kushagerkrishnater@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Kushagerchess,2026-09-07,lichess:Kushagerchess
+P4-im-coach,Lazaro Antonio Bueno Perez,IM,,lbuenoaruba@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/lbuenop,2026-09-07,lichess:lbuenop
+P4-im-coach,Lela Javakhishvili,IM,,lelatoreli@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Lelatoreli,2026-09-07,lichess:Lelatoreli
+P4-im-coach,Luis Marcos Medarde Santiago,IM,,luismedardesantiago@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Medarde94,2026-09-07,lichess:Medarde94
+P4-im-coach,Luis Torres,IM,,luistorreschess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Vagerhook,2026-09-07,lichess:Vagerhook
+P4-im-coach,Luís Henrique Coelho,IM,,luishpcoelho@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/DeepRabbit,2026-09-07,lichess:DeepRabbit
+P4-im-coach,Maksim Schekachikhin,IM,,maximshchek@yandex.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/SchekachikhinMaksim,2026-09-07,lichess:SchekachikhinMaksim
+P4-im-coach,Marcelo Alejandro Panelo Muñoz,IM,,marcelopanelo@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/QuieroAJedrez,2026-09-07,lichess:QuieroAJedrez
+P4-im-coach,Marcin Molenda,IM,,mmolenda.wspolpraca@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/MarcinMolenda,2026-09-07,lichess:MarcinMolenda
+P4-im-coach,Marco Dobrikov,IM,,marcodobrikov9@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/marcodobrikov,2026-09-07,lichess:marcodobrikov
+P4-im-coach,Marcos Paolozzi,IM,,Support@ChessAcademy.pro,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/EasyChess64,2026-09-07,lichess:EasyChess64
+P4-im-coach,Mariano Ortega Amarelle,IM,,marianokar@yahoo.es,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/mariokar,2026-09-07,lichess:mariokar
+P4-im-coach,Mario Villanueva,IM,,marionov31@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/MarioVillanueva,2026-09-07,lichess:MarioVillanueva
+P4-im-coach,Mark Quinn,IM,,mark@chessbud.ie,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ChessBudIreland,2026-09-07,lichess:ChessBudIreland
+P4-im-coach,Marko Nenezić,IM,,nenezicmarko95@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Crimson_walker95,2026-09-07,lichess:Crimson_walker95
+P4-im-coach,Martin Bitelmajer,IM,,martinbitelmajer@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/bmartin,2026-09-07,lichess:bmartin
+P4-im-coach,Martin Martinez Romero,IM,,martinm9501@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Murakami,2026-09-07,lichess:Murakami
+P4-im-coach,Martin Neugebauer,IM,,neugebauermartin99@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Martini99,2026-09-07,lichess:Martini99
+P4-im-coach,Mateusz Bobula,IM,,chess@matbobula.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/MatBobula,2026-09-07,lichess:MatBobula
+P4-im-coach,Matthieu Bissières,IM,,matthieu.bissieres@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Bibiii,2026-09-07,lichess:Bibiii
+P4-im-coach,Mieszko Miś,IM,,mieszko.mis2003@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Mishka_The_Great,2026-09-07,lichess:Mishka_The_Great
+P4-im-coach,Miguel Medina Paz,IM,,medinapaz@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/medinapaz,2026-09-07,lichess:medinapaz
+P4-im-coach,Mikes Jan,IM,,honza1013@seznam.cz,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/trainingaccount996,2026-09-07,lichess:trainingaccount996
+P4-im-coach,Milan Popovic,IM,,popmilan95@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/PopMilan95,2026-09-07,lichess:PopMilan95
+P4-im-coach,Miragha Aghayev,IM,,miragha.aghayev53@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/pipita09,2026-09-07,lichess:pipita09
+P4-im-coach,Mohammad Fahad Rahman,IM,,mohammadfahadrahman@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Jungle_Jaguar,2026-09-07,lichess:Jungle_Jaguar
+P4-im-coach,Mushini Ajay,IM,,ajayunclear@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/lionking15,2026-09-07,lichess:lionking15
+P4-im-coach,Mushini Ajay,IM,,skychessacademy@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/lionking15,2026-09-07,lichess:lionking15
+P4-im-coach,Muthaiah AL,IM,,muthaiahalagappan1999@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Beast64chess,2026-09-07,lichess:Beast64chess
+P4-im-coach,Máté Bagi,IM,,bagielninho1995@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Baggio95,2026-09-07,lichess:Baggio95
+P4-im-coach,Máximo Iack,IM,,mimaxmacedo@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/MIack,2026-09-07,lichess:MIack
+P4-im-coach,Nail Bashirli,IM,,bashirlinail@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Bashirli,2026-09-07,lichess:Bashirli
+P4-im-coach,Nemanja Zivkovic,IM,,nemanjazivk1992@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ZivkovicN,2026-09-07,lichess:ZivkovicN
+P4-im-coach,Nick Maatman,IM,,nickmaatman@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Babbelbox,2026-09-07,lichess:Babbelbox
+P4-im-coach,Nico Zwirs,IM,,nico@zwirs.net,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/FirstKnight,2026-09-07,lichess:FirstKnight
+P4-im-coach,Nikhil Dixit,IM,,contact@nikhildixit.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/nikhildixit,2026-09-07,lichess:nikhildixit
+P4-im-coach,Nikola Radovanovic,IM,,nradovanovic58@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/mornarpopaj,2026-09-07,lichess:mornarpopaj
+P4-im-coach,Nisha Mohota,IM,,trainermohota@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/shineatchess,2026-09-07,lichess:shineatchess
+P4-im-coach,Novak Pezelj,IM,,npsomborac@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/NPezelj,2026-09-07,lichess:NPezelj
+P4-im-coach,Oleksii Bilych,IM,,obilych@ttu.edu,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Olexiy_Bilych,2026-09-07,lichess:Olexiy_Bilych
+P4-im-coach,Orkhan Abdulov,IM,,orkhanchess88@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Abtron,2026-09-07,lichess:Abtron
+P4-im-coach,Orlen Ruiz Sánchez,IM,,orlenrs@yahoo.es,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Orsanchez,2026-09-07,lichess:Orsanchez
+P4-im-coach,Oscar Zavarce,IM,,oscarzavarce2@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/oezs95,2026-09-07,lichess:oezs95
+P4-im-coach,Pablo Nicolas Barrionuevo,IM,,estudiojuridicogrecco@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Morenoteambarrio,2026-09-07,lichess:Morenoteambarrio
+P4-im-coach,Patryk Chylewski,IM,,patryk.chylewski@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/patryk2001,2026-09-07,lichess:patryk2001
+P4-im-coach,Pavel Sevostianov,IM,,chessintermaster@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/IMcoach,2026-09-07,lichess:IMcoach
+P4-im-coach,Petar Benkovic,IM,,benkochess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/benko_008,2026-09-07,lichess:benko_008
+P4-im-coach,Piotr Piesik,IM,,p.piesik.ue@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Kildepiotr,2026-09-07,lichess:Kildepiotr
+P4-im-coach,Prantik Roy,IM,,royprantikchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/MIR4CLE,2026-09-07,lichess:MIR4CLE
+P4-im-coach,Providence Oatlhotse,IM,,lessons@playonpurposechess.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Letapa_Lepako,2026-09-07,lichess:Letapa_Lepako
+P4-im-coach,Rafael Prasca,IM,,rafaelfprascas@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/PrascaR,2026-09-07,lichess:PrascaR
+P4-im-coach,Rafael Prasca,IM,,rafaelito85@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/PrascaR,2026-09-07,lichess:PrascaR
+P4-im-coach,Raghunandan KS,IM,,collab@raghunandanks.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/kaumandur01,2026-09-07,lichess:kaumandur01
+P4-im-coach,RAHUL SANGMA,IM,,rahulsangma@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/OctaChamp,2026-09-07,lichess:OctaChamp
+P4-im-coach,Rajdeep Sarkar,IM,,rajdeepsarkaroct@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Duh_Backbencher,2026-09-07,lichess:Duh_Backbencher
+P4-im-coach,Ramazan Zhalmakhanov,IM,,soiyrgas@mail.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Zhalmakhanov_R,2026-09-07,lichess:Zhalmakhanov_R
+P4-im-coach,Rathanvel VS,IM,,chesstraining122@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/dieselbot,2026-09-07,lichess:dieselbot
+P4-im-coach,RAVI TEJA S,IM,,raviteja81293@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/scofieldmike,2026-09-07,lichess:scofieldmike
+P4-im-coach,Roberto Carlos Sánchez Álvarez,IM,,chessrcsa12@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/RCSA007,2026-09-07,lichess:RCSA007
+P4-im-coach,Roderick Nava,IM,,navaroderick23@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/RodTwinkz,2026-09-07,lichess:RodTwinkz
+P4-im-coach,Rohan Talukdar,IM,,rst032103@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/RST2003,2026-09-07,lichess:RST2003
+P4-im-coach,Roman Pyrih,IM,,pyrig2503@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/danger_in_prime,2026-09-07,lichess:danger_in_prime
+P4-im-coach,Sai Agni Jeevitesh J,IM,,saiagnijeevitesh@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Pheonix_98,2026-09-07,lichess:Pheonix_98
+P4-im-coach,Sambit Panda,IM,,sambitpanda04@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Levi_1604,2026-09-07,lichess:Levi_1604
+P4-im-coach,Samid Eduardo Escalona Landi,IM,,Samidescalona2002@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Samid2002,2026-09-07,lichess:Samid2002
+P4-im-coach,Sandeep Sethuraman,IM,,sandeepchesse4@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/sANdeEP2007,2026-09-07,lichess:sANdeEP2007
+P4-im-coach,Sanket Chakravarty,IM,,sanket.chak.04@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/DrGreateinstein,2026-09-07,lichess:DrGreateinstein
+P4-im-coach,Sebastian Lukas Kostolansky,IM,,skostolansky42@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/SebastianKost,2026-09-07,lichess:SebastianKost
+P4-im-coach,Sebastian Sanchez Lizcano,IM,,sebassanchezajedrez@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/pifion,2026-09-07,lichess:pifion
+P4-im-coach,Shantanu Bhambure,IM,,shantanubhambure95@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Defence1234,2026-09-07,lichess:Defence1234
+P4-im-coach,Sharan Rao,IM,,raoschesscorner@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/THE_COOL_GUY,2026-09-07,lichess:THE_COOL_GUY
+P4-im-coach,Siddharth Ravichandran,IM,,siddy2006@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/siddy2006,2026-09-07,lichess:siddy2006
+P4-im-coach,Simón Alejandro Languidey,IM,,simon_elmaskpo14@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/elpepinillo14,2026-09-07,lichess:elpepinillo14
+P4-im-coach,Slaven Pastar,IM,,slaven@knight-jump.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/SlavenPastar,2026-09-07,lichess:SlavenPastar
+P4-im-coach,Soham Kamotra,IM,,shravit2700@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Shiraas,2026-09-07,lichess:Shiraas
+P4-im-coach,Spas Kozhuharov,IM,,Im.spas.kozhuharov@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/SilentAndCalm,2026-09-07,lichess:SilentAndCalm
+P4-im-coach,Srinath Rao SV,IM,,srinathraosv@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Srinath_rao,2026-09-07,lichess:Srinath_rao
+P4-im-coach,Suyog Wagh,IM,,suyogwagh64@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/suyu28,2026-09-07,lichess:suyu28
+P4-im-coach,Tadej Sakelšek,IM,,tadejsakelsek@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/sakelsek,2026-09-07,lichess:sakelsek
+P4-im-coach,Tahbaz Arash,IM,,tahbaz.arash2025@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Arash-Tahbaz,2026-09-07,lichess:Arash-Tahbaz
+P4-im-coach,Tamas Balla,IM,,tamasb365@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Balla_Tamas,2026-09-07,lichess:Balla_Tamas
+P4-im-coach,Taron Shagbazyan,IM,,taron.shagbazian@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Lovkay,2026-09-07,lichess:Lovkay
+P4-im-coach,Toni Lazov,IM,,toni.lazov2000@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Dispecher,2026-09-07,lichess:Dispecher
+P4-im-coach,Valentin Baidetskyi,IM,,chesscoachbaidetskyi@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Baidetskyi_Valentin,2026-09-07,lichess:Baidetskyi_Valentin
+P4-im-coach,Vasiliy Korchmar,IM,,korchmarvasiliy@yandex.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Korchmar_Vasiliy,2026-09-07,lichess:Korchmar_Vasiliy
+P4-im-coach,Vaso Blesic,IM,,vaso.blesic@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/VasilijeVladacki,2026-09-07,lichess:VasilijeVladacki
+P4-im-coach,Viktor Skliarov,IM,,skliarovviktor1993@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Skliarov_Viktor,2026-09-07,lichess:Skliarov_Viktor
+P4-im-coach,Vitor Carneiro,IM,,ice.chess@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/VitorRoberto,2026-09-07,lichess:VitorRoberto
+P4-im-coach,Vladan Rabrenovic,IM,,v.rabrenco@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/VRabren,2026-09-07,lichess:VRabren
+P4-im-coach,Vladimir Bukal,IM,,vlado10buki@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/buki23,2026-09-07,lichess:buki23
+P4-im-coach,Vladislav Nozdrachev,IM,,vlnozdrachev@yandex.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Nozdrachev_Vladislav,2026-09-07,lichess:Nozdrachev_Vladislav
+P4-im-coach,VMU (Usmanov V.),IM,,chessplayer.spb@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/gammagramma,2026-09-07,lichess:gammagramma
+P4-im-coach,Vojislav Milanovic,IM,,vojachess@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/JohnyGun,2026-09-07,lichess:JohnyGun
+P4-im-coach,Yasel Borges Ferias,IM,,ibisaki95@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Aquiiles,2026-09-07,lichess:Aquiiles
+P4-im-coach,Zoran Petronijevic,IM,,zpetronijevic2004@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/zoranp,2026-09-07,lichess:zoranp
+P4-im-coach,Ανδρέας Τζερμιαδιανός,IM,,tzermia72@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/tzermia,2026-09-07,lichess:tzermia
+P4-im-coach,Ανδρέας Τζερμιαδιανός,IM,,tzermia@otenet.gr,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/tzermia,2026-09-07,lichess:tzermia
+P4-im-coach,Виктор Дмитренко,IM,,vidmitrenko1712@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ViktorDmitrenko,2026-09-07,lichess:ViktorDmitrenko
+P5-titled-coach,/ AGM / FI / FA / NA / AO Alvin Alcala,NM,,alvinalcala@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/AlvinAlcala,2026-09-07,lichess:AlvinAlcala
+P5-titled-coach,Aayush Bhattacherjee,FM,,aayush.bhattacherjee2007@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Aayush_Blue,2026-09-07,lichess:Aayush_Blue
+P5-titled-coach,Adianet Perez,WFM,,digitalchess2024@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Chess4always,2026-09-07,lichess:Chess4always
+P5-titled-coach,Adrian Secheres,FM,,adriansecheres@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Disturbed01,2026-09-07,lichess:Disturbed01
+P5-titled-coach,Adriana Kostadinova Nikolova,WGM,,wgmnikolova88@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/wgmnikolova,2026-09-07,lichess:wgmnikolova
+P5-titled-coach,ALBERT CASTILLO DALMAU,FM,,AlbertCastilloChessCoach@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/AlbertCastillo,2026-09-07,lichess:AlbertCastillo
+P5-titled-coach,Alberto Jesús López Rodríguez,FM,,clubdeajedrezgrunfeld@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/jsorel32,2026-09-07,lichess:jsorel32
+P5-titled-coach,Alejandro García García,FM,,regalchessschool@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/A_L_E,2026-09-07,lichess:A_L_E
+P5-titled-coach,Alejandro González Vega,FM,,agvega14@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/agvega14,2026-09-07,lichess:agvega14
+P5-titled-coach,ALEJANDRO WALDO ZALAPA,NM,,shahmw@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/walchess,2026-09-07,lichess:walchess
+P5-titled-coach,Aleksa Alimpic,FM,,alimpicbusiness@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Alimpic,2026-09-07,lichess:Alimpic
+P5-titled-coach,Aleksandra Dimitrijevic,WGM,,Lexychess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/lexydim,2026-09-07,lichess:lexydim
+P5-titled-coach,Aleksandra Lach,WIM,,aleksandraalach@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/OlaaLaa,2026-09-07,lichess:OlaaLaa
+P5-titled-coach,Alessandro Manzone Barranco,FM,,alessandromanzonebarranco@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Heineccius,2026-09-07,lichess:Heineccius
+P5-titled-coach,Alex Verzhansky,FM,,alexverzhanskiy@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/AlexVerzhansky,2026-09-07,lichess:AlexVerzhansky
+P5-titled-coach,ALEXANDROS TSILIDIS,FM,,strongher1978@mail.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/strongher1978,2026-09-07,lichess:strongher1978
+P5-titled-coach,Ali Faghirnavaz,FM,,a.faghirnavaz@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Avaada_kedavra,2026-09-07,lichess:Avaada_kedavra
+P5-titled-coach,Ali Rastbod,FM,,ali.rastbod@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Ali_rastbod,2026-09-07,lichess:Ali_rastbod
+P5-titled-coach,Amina Mezioud,WGM,,amezioud@yahoo.fr,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Mezioud-Amina88,2026-09-07,lichess:Mezioud-Amina88
+P5-titled-coach,Amro El Jawich,FM,,amrsh95@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Amroeljawich,2026-09-07,lichess:Amroeljawich
+P5-titled-coach,Amy Ashley Cepero Lopez,WIM,,ceperolopezamy@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Amyjenny,2026-09-07,lichess:Amyjenny
+P5-titled-coach,Ana Benderac,WGM,,anabenderac@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Slanci77,2026-09-07,lichess:Slanci77
+P5-titled-coach,Ana Berke,WIM,,anaberke@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/AnaBerke,2026-09-07,lichess:AnaBerke
+P5-titled-coach,Ana Daniela Madrigal,WFM,,anadanielamadrigal@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Anamad1990,2026-09-07,lichess:Anamad1990
+P5-titled-coach,Ana Gavasheli,WIM,,gavasheliana@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Tslapana,2026-09-07,lichess:Tslapana
+P5-titled-coach,Ana Kuchava,WFM,,anichess1@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/AnaKuchava,2026-09-07,lichess:AnaKuchava
+P5-titled-coach,Anas khwira,FM,,anas.khwira@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/AnasKhwira,2026-09-07,lichess:AnasKhwira
+P5-titled-coach,Anastasia Chigaeva,WFM,,elv_chess@mail.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/elv_chess,2026-09-07,lichess:elv_chess
+P5-titled-coach,Andrea Simonetto,FM,,andrea.simonetto20@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/jonny_magia,2026-09-07,lichess:jonny_magia
+P5-titled-coach,Andres Guerrero,FM,,Andresgvt@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/andresgv36,2026-09-07,lichess:andresgv36
+P5-titled-coach,Aniruddha Deshpande,FM,,chessquestacademy@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Malhar9,2026-09-07,lichess:Malhar9
+P5-titled-coach,Anna Zozulia,WGM,,anutochka23@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/AnnaZozulia,2026-09-07,lichess:AnnaZozulia
+P5-titled-coach,Ante Leon Starčević,NM,,anteleon.starcevic@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/divljasvinja,2026-09-07,lichess:divljasvinja
+P5-titled-coach,Antonio Ruperez Benito,FM,,goldenpawns@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ARuperez,2026-09-07,lichess:ARuperez
+P5-titled-coach,Antonyan Hamlet,CM,,hantonyan229@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Soldier_Boi,2026-09-07,lichess:Soldier_Boi
+P5-titled-coach,Arena International Master César Arturo Rosas García,NM,,ajedrezparalamovilidadsocial@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/MNRosas1971,2026-09-07,lichess:MNRosas1971
+P5-titled-coach,Argimiro Aponte Ramos,CM,,argimiroaponte9@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/AAponte,2026-09-07,lichess:AAponte
+P5-titled-coach,Ariadna Ojeda,WFM,,ary960325@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Arychess25,2026-09-07,lichess:Arychess25
+P5-titled-coach,Arman Ghevondyan,CM,,armanghevondyancm@bk.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ArmanGhevondyanchess,2026-09-07,lichess:ArmanGhevondyanchess
+P5-titled-coach,Arman Pourghanbarzad,FM,,pourghanbararman@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/navidkhosravi,2026-09-07,lichess:navidkhosravi
+P5-titled-coach,Arpita Mukherjee,WIM,,arpitamukherjee2001@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Pretty_Eyes,2026-09-07,lichess:Pretty_Eyes
+P5-titled-coach,Artai Bringas,CM,,trainer.artai@proton.me,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/artanita,2026-09-07,lichess:artanita
+P5-titled-coach,Artem Legenya,NM,,mr.artemchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/LEGENYA19989898,2026-09-07,lichess:LEGENYA19989898
+P5-titled-coach,Artem Odegov,FM,,odegchess@mail.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Artem_0degov,2026-09-07,lichess:Artem_0degov
+P5-titled-coach,Artur Steinhauer,CM,,steinhauerartur4@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Artur_Steinhauer,2026-09-07,lichess:Artur_Steinhauer
+P5-titled-coach,Artyom Manukyan,CM,,artyom-manukyan-99@list.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Tyoma888,2026-09-07,lichess:Tyoma888
+P5-titled-coach,Arvinder Preet Singh,FM,,arvinderpreet@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Arvinder_Amateur,2026-09-07,lichess:Arvinder_Amateur
+P5-titled-coach,Ashirwad Swain,CM,,ashirwadchess2000@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/kira_kami_64,2026-09-07,lichess:kira_kami_64
+P5-titled-coach,Aspet Tadevosyan,CM,,a@iaspet.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/iAspet,2026-09-07,lichess:iAspet
+P5-titled-coach,Atul Dahale,CM,,atuldahale64@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/incredible123,2026-09-07,lichess:incredible123
+P5-titled-coach,Avik Sarker,CM,,avik01827@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Sarker_Avik,2026-09-07,lichess:Sarker_Avik
+P5-titled-coach,Barathkalyan Maran,CM,,chessbarathkalyan@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Barath2000,2026-09-07,lichess:Barath2000
+P5-titled-coach,Beloslava Krasteva,WGM,,beloslava.krasteva64@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/BeloslavaKrasteva,2026-09-07,lichess:BeloslavaKrasteva
+P5-titled-coach,Ben Hercules,CM,,ben@chessroutine.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/thesneakyweasel,2026-09-07,lichess:thesneakyweasel
+P5-titled-coach,Bernadette Galas,WIM,,baddettegalas01@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/NrebGalas01,2026-09-07,lichess:NrebGalas01
+P5-titled-coach,Bianka Havanecz,WIM,,biankahavanecz@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/chessbia,2026-09-07,lichess:chessbia
+P5-titled-coach,Boris Alexei Martinez Alpizar,FM,,alphafide@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/lanieta,2026-09-07,lichess:lanieta
+P5-titled-coach,Calvin Klaasen,FM,,calvinklaasenchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/CalvinKChess,2026-09-07,lichess:CalvinKChess
+P5-titled-coach,Carlos Abiad,CM,,carlosjoseabiadp@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/sawkito,2026-09-07,lichess:sawkito
+P5-titled-coach,Carlos Alejandro Didenot Chirinos,NM,,didenotc@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/eldidi,2026-09-07,lichess:eldidi
+P5-titled-coach,Carlos González Lema,CM,,gonazalezlema13@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Carloslema,2026-09-07,lichess:Carloslema
+P5-titled-coach,Catherine Kaslan,WFM,,kaslancatherine26@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Catherine_Kaslan,2026-09-07,lichess:Catherine_Kaslan
+P5-titled-coach,chess_09L,WFM,,lorenabeatrizmontejobello@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/chess_09L,2026-09-07,lichess:chess_09L
+P5-titled-coach,CM McLean Handjaba,CM,,rubinsteinchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Kingslayer061,2026-09-07,lichess:Kingslayer061
+P5-titled-coach,Corals Patiño,WFM,,coralschess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Corals17,2026-09-07,lichess:Corals17
+P5-titled-coach,Cristi-Iulian Coca,FM,,cristicoca19@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Cristi_Coca,2026-09-07,lichess:Cristi_Coca
+P5-titled-coach,Daler Vakhidov,FM,,onlinechesscoach2020@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Millionaire_19,2026-09-07,lichess:Millionaire_19
+P5-titled-coach,Dan Heisman,CM,,danheisman@comcast.net,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/danheisman,2026-09-07,lichess:danheisman
+P5-titled-coach,Daniel José Ledezma Borregales,FM,,danieljledezma@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/DanielStarsChess,2026-09-07,lichess:DanielStarsChess
+P5-titled-coach,Daniel Sanz Wawer,FM,,danielsw2003@gazeta.pl,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/focusedonchess,2026-09-07,lichess:focusedonchess
+P5-titled-coach,Daria Visanescu,WFM,,visanescudaria@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Ryadda,2026-09-07,lichess:Ryadda
+P5-titled-coach,Dariusz Bieliński,CM,,jjdariuszb@o2.pl,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/JAMJEST,2026-09-07,lichess:JAMJEST
+P5-titled-coach,Deniz Arman,FM,,denizarman1985@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/FedaMaster,2026-09-07,lichess:FedaMaster
+P5-titled-coach,Deniz Arman,FM,,fedamastertv@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/FedaMaster,2026-09-07,lichess:FedaMaster
+P5-titled-coach,Dennys Orduñez Echarte,FM,,clubvillacapablanca@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/MF14,2026-09-07,lichess:MF14
+P5-titled-coach,Diana Mirza,WFM,,dianamchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/DianaMirza,2026-09-07,lichess:DianaMirza
+P5-titled-coach,Dion james Moyo,CM,,dionmoyoj@yahoo.co.uk,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Ambushtactics,2026-09-07,lichess:Ambushtactics
+P5-titled-coach,Divyalakshmi R,WFM,,divyalakshmi.chess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/divya25,2026-09-07,lichess:divya25
+P5-titled-coach,Dmitry Darmin,FM,,darmind@yandex.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Darmin_D,2026-09-07,lichess:Darmin_D
+P5-titled-coach,Dominik Marczuk,FM,,dominikchessadventure@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Dinamo4,2026-09-07,lichess:Dinamo4
+P5-titled-coach,Donny Gray,NM,,donny@grayknight.net,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/AngryWeasel,2026-09-07,lichess:AngryWeasel
+P5-titled-coach,Dr. Norbert Barth,FM,,dr.barth@zoho.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/zumpili,2026-09-07,lichess:zumpili
+P5-titled-coach,Eamon Montgomery,NM,,eamon.montgomery@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/EamonMont,2026-09-07,lichess:EamonMont
+P5-titled-coach,Edgar Hayrapetyan,FM,,chesscoach.edgar@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Edgarhay012,2026-09-07,lichess:Edgarhay012
+P5-titled-coach,Egemen Gülden,CM,,egemengulden.uk@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/EgeSsaMaster,2026-09-07,lichess:EgeSsaMaster
+P5-titled-coach,ERIC FLEISCHMAN,NM,,fleischman.e@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/queenveresov60,2026-09-07,lichess:queenveresov60
+P5-titled-coach,Erik Rönkä,FM,,erikronka@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/SalainenErik,2026-09-07,lichess:SalainenErik
+P5-titled-coach,Erkin Karaokcu,FM,,erkinkaraokcu@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/LiderChessAcademy,2026-09-07,lichess:LiderChessAcademy
+P5-titled-coach,Esshan Wadhawan,FM,,esshan19wadhawan@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/caramelrush,2026-09-07,lichess:caramelrush
+P5-titled-coach,Esteban Horacio Deichmann,FM,,deichmannchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/CAPAHAALAND,2026-09-07,lichess:CAPAHAALAND
+P5-titled-coach,Ethan Saya,FM,,ethan.saya@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/banane_verte,2026-09-07,lichess:banane_verte
+P5-titled-coach,Evgeniy Burmakin,FM,,evgenyburmakin8@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/EvgenyBurmakin,2026-09-07,lichess:EvgenyBurmakin
+P5-titled-coach,Fanny Duarte Napoles,FM,,duartenapolesfanny@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Ragnar_Lothbrok85,2026-09-07,lichess:Ragnar_Lothbrok85
+P5-titled-coach,federerchi,FM,,mezfchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/federerchi,2026-09-07,lichess:federerchi
+P5-titled-coach,Federico García Lemos,CM,,pipiquiel@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/buenamor1972,2026-09-07,lichess:buenamor1972
+P5-titled-coach,Flavia Cancio-Bello Ayes,WFM,,fcanciobello@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/fla2021,2026-09-07,lichess:fla2021
+P5-titled-coach,Franklin Annervys Palomo Chess,FM,,academialeyendaajedrez@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/FranklinAPalomo,2026-09-07,lichess:FranklinAPalomo
+P5-titled-coach,Franklin Annervys Palomo Chess,FM,,teamchessplayer@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/FranklinAPalomo,2026-09-07,lichess:FranklinAPalomo
+P5-titled-coach,Fruzsina Szente-Varga,WFM,,fruzsina.szente.varga@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/szefru,2026-09-07,lichess:szefru
+P5-titled-coach,Gabor Balazs,FM,,balazsgabor1991@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Bgabor91,2026-09-07,lichess:Bgabor91
+P5-titled-coach,Gabriel Antonio Salazar Olchowski,FM,,gabosalazarolchowski@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/GaboSalazar,2026-09-07,lichess:GaboSalazar
+P5-titled-coach,Gabriel Enrique Ledezma Villamizar,FM,,ledezchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/LedezChess,2026-09-07,lichess:LedezChess
+P5-titled-coach,Gabriela Antova,WGM,,gabiantova32@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/GABS1S,2026-09-07,lichess:GABS1S
+P5-titled-coach,Gasan Guliev,CM,,leogalante27@outlook.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/blue_tiger98,2026-09-07,lichess:blue_tiger98
+P5-titled-coach,Gastón Martin,FM,,gastonmartincar@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/gastonmartinn,2026-09-07,lichess:gastonmartinn
+P5-titled-coach,GeL Esteb,NM,,gelosterky@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/GeLoSterky,2026-09-07,lichess:GeLoSterky
+P5-titled-coach,George Stoleriu,FM,,stoleriug22@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/georgestoleriu,2026-09-07,lichess:georgestoleriu
+P5-titled-coach,Gergana Peycheva,WIM,,gerganapeychevaofficial@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/bambi3000,2026-09-07,lichess:bambi3000
+P5-titled-coach,Gireman Jagadeesan,FM,,gjags7107@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/TheOneTrapMan,2026-09-07,lichess:TheOneTrapMan
+P5-titled-coach,giuseppe fabiano,FM,,giu.fabiano64@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/tirumpu,2026-09-07,lichess:tirumpu
+P5-titled-coach,Guadalupe Besso,WIM,,guadalupeinesbesso@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/GuadalupeBesso,2026-09-07,lichess:GuadalupeBesso
+P5-titled-coach,Haridas Kesavan,CM,,harichesse4@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/HaridasKesavan,2026-09-07,lichess:HaridasKesavan
+P5-titled-coach,Harun Pasalic,FM,,bihchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Harun_Pasalic,2026-09-07,lichess:Harun_Pasalic
+P5-titled-coach,Hayk Yeritsyan,FM,,yeritsyanhayk@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Haykk_Yeritsyan,2026-09-07,lichess:Haykk_Yeritsyan
+P5-titled-coach,Ismael Vidal ID FIDE: 3901718,FM,,ismaelviidal0312@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/idvidal,2026-09-07,lichess:idvidal
+P5-titled-coach,Ivan Jakić,FM,,ijaki2004@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Zadar1968,2026-09-07,lichess:Zadar1968
+P5-titled-coach,Ivan Zivkovic,FM,,fidezivkovic@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/fidezivkovic,2026-09-07,lichess:fidezivkovic
+P5-titled-coach,Javier Jiménez Carrazoni,CM,,javierjimenezc2007@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/JavierChess2300,2026-09-07,lichess:JavierChess2300
+P5-titled-coach,Jeet Jain,FM,,jeetjain1000@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/onlychesss,2026-09-07,lichess:onlychesss
+P5-titled-coach,Jesse February,WIM,,jesse2801@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/JesseFebruary,2026-09-07,lichess:JesseFebruary
+P5-titled-coach,Jeth Romy Morado,FM,,jethro.morado6@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/jethromy_morado,2026-09-07,lichess:jethromy_morado
+P5-titled-coach,Joaquin Ignacio Miranda Camus,FM,,clasesajedrezjoaquin@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Joaquin17,2026-09-07,lichess:Joaquin17
+P5-titled-coach,John MacArthur,NM,,MasterChessDojo@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/MasterChessDojo,2026-09-07,lichess:MasterChessDojo
+P5-titled-coach,Jose Luis Castro Torres,FM,,jcastro.lt@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/athemm,2026-09-07,lichess:athemm
+P5-titled-coach,Jose Riverol,FM,,nau64ajedrez@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/nau64,2026-09-07,lichess:nau64
+P5-titled-coach,Joseph Wan,CM,,joseph.wan881@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/yuuki-asuna,2026-09-07,lichess:yuuki-asuna
+P5-titled-coach,Jovana Milosevic,WFM,,jovana51796@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/jovana51796,2026-09-07,lichess:jovana51796
+P5-titled-coach,Jovana Srdanovic,WIM,,jovanasrdanovic03@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/joksi_03,2026-09-07,lichess:joksi_03
+P5-titled-coach,Juan Cruz Arias,FM,,juan.cruz.arias.11@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/juancruzariasTDF,2026-09-07,lichess:juancruzariasTDF
+P5-titled-coach,Juan David Becerra Morales,FM,,jdbecerra26@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Brocha,2026-09-07,lichess:Brocha
+P5-titled-coach,Juan Pedro CORDON GUTIERREZ,CM,,juanpedrocordongutierrez@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/GOMEZ2019,2026-09-07,lichess:GOMEZ2019
+P5-titled-coach,Julian Andes Gallego Vasquez,FM,,JGALLEGO0207@GMAIL.COM,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Gallego_12,2026-09-07,lichess:Gallego_12
+P5-titled-coach,Juliana Terao,FM,,julianaterao@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/msjust,2026-09-07,lichess:msjust
+P5-titled-coach,Kan Nakahara,CM,,kan.nakahara2005@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/nkhrkan,2026-09-07,lichess:nkhrkan
+P5-titled-coach,Karla July Fernandez Rivero,WIM,,chessclass.kj@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/muzilandia,2026-09-07,lichess:muzilandia
+P5-titled-coach,Ketan Boricha,CM,,ketanchessmaster@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/yoey03,2026-09-07,lichess:yoey03
+P5-titled-coach,Kinga Polak,WFM,,wfm.kingapolak@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Kin_kin_z,2026-09-07,lichess:Kin_kin_z
+P5-titled-coach,Kirill Otdelnov,FM,,fm.coach.2024@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Kirill_Razumovsky,2026-09-07,lichess:Kirill_Razumovsky
+P5-titled-coach,Kostas Tsiamis,FM,,tsiamiskostas@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/kostas83,2026-09-07,lichess:kostas83
+P5-titled-coach,kstorn,NM,,jtstorn@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/kstorn,2026-09-07,lichess:kstorn
+P5-titled-coach,Lara Schulze,FM,,laraschulze.chess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Schlumpfine,2026-09-07,lichess:Schlumpfine
+P5-titled-coach,Leandro Formes de Arruda,NM,,leandro20formes@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/lekoSMA,2026-09-07,lichess:lekoSMA
+P5-titled-coach,Leandro Tobares,FM,,leotobares@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/LeoTobares,2026-09-07,lichess:LeoTobares
+P5-titled-coach,Leon Marohom,NM,,jhunmar21@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Marohzevich,2026-09-07,lichess:Marohzevich
+P5-titled-coach,Leonardo Gavrilovic,CM,,leonardogavrilovic@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/leochessq,2026-09-07,lichess:leochessq
+P5-titled-coach,Liliam Barbara Blanco Garcia,WFM,,liliamb2109@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Atomyvaleria,2026-09-07,lichess:Atomyvaleria
+P5-titled-coach,Liwia Jarocka,FM,,liwciajarocka@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/picturesquecheck,2026-09-07,lichess:picturesquecheck
+P5-titled-coach,Ljubisa Andonovski,FM,,ljandonovski16@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ljubisha,2026-09-07,lichess:ljubisha
+P5-titled-coach,Lorner Jesus Acosta Villarroel,CM,,lornerchess28@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/lorneracosta12345,2026-09-07,lichess:lorneracosta12345
+P5-titled-coach,Louie Jiang,FM,,sicarius2357@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Adipiscitur,2026-09-07,lichess:Adipiscitur
+P5-titled-coach,Louis Sanchez,FM,,louisanchez@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Sanchez_Louis,2026-09-07,lichess:Sanchez_Louis
+P5-titled-coach,Luca Silva,FM,,lucasilvacardozo@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/user_silva2002,2026-09-07,lichess:user_silva2002
+P5-titled-coach,Luca Varriale,NM,,lucavarriale9@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Matador99,2026-09-07,lichess:Matador99
+P5-titled-coach,Luis David Jiménez Almeida,FM,,luisdajimenez96@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/pingah9,2026-09-07,lichess:pingah9
+P5-titled-coach,LUIS ENRIQUE VALDES MARTIN,FM,,analisis.email.luisenriquevaldesmartin@gmail.com.whatsapp,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/luiso1961,2026-09-07,lichess:luiso1961
+P5-titled-coach,Luis Enrique Valle Maytin,FM,,levallem1@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Levallem,2026-09-07,lichess:Levallem
+P5-titled-coach,Maciej Malik,CM,,maciek.malik@interia.pl,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/maciekpmkatowice05,2026-09-07,lichess:maciekpmkatowice05
+P5-titled-coach,Maka Purtseladze,WGM,,purtseladze.maka@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/imnow,2026-09-07,lichess:imnow
+P5-titled-coach,Makarov Pavel (Pavlo),CM,,odessos@ukr.net,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/PaulMakarov,2026-09-07,lichess:PaulMakarov
+P5-titled-coach,Maksym Goroshkov,FM,,maksym.goroshkov@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Goroshkov_Maksym,2026-09-07,lichess:Goroshkov_Maksym
+P5-titled-coach,Malek Koniahli,FM,,malekkoniahli@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Malek_Koniahli,2026-09-07,lichess:Malek_Koniahli
+P5-titled-coach,Manuel Asis Campos Rosas,NM,,manuel.asis2155@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Dragon_Sword,2026-09-07,lichess:Dragon_Sword
+P5-titled-coach,Manuela Hernández,WFM,,manuelitahb@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Manuela004,2026-09-07,lichess:Manuela004
+P5-titled-coach,Manukyan Sargis A.,FM,,Saqochess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Saqochess,2026-09-07,lichess:Saqochess
+P5-titled-coach,Marek Pniaczek,FM,,m-pniaczek@wp.pl,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/JungBoss123,2026-09-07,lichess:JungBoss123
+P5-titled-coach,Margarita Voyska,WGM,,voyska.m@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/champion64,2026-09-07,lichess:champion64
+P5-titled-coach,Mariami Choladze,WFM,,mari.choladze@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/marichola,2026-09-07,lichess:marichola
+P5-titled-coach,Mario Enrique Diéguez Álvarez,FM,,mariodieguez1998@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/MKiller9803,2026-09-07,lichess:MKiller9803
+P5-titled-coach,Mariya Zubova,WIM,,m_chess@ukr.net,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Mariya_Kiev,2026-09-07,lichess:Mariya_Kiev
+P5-titled-coach,Mark Rubery,FM,,argostoli@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/alnilam7,2026-09-07,lichess:alnilam7
+P5-titled-coach,Marko Makaj,FM,,Marko.makaj@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/MarkoMakaj,2026-09-07,lichess:MarkoMakaj
+P5-titled-coach,Martin Chlpík,FM,,trenerchlpik@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/martinez95,2026-09-07,lichess:martinez95
+P5-titled-coach,Marvia Alvarado,WFM,,marvialvarado28@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Marvialvarado,2026-09-07,lichess:Marvialvarado
+P5-titled-coach,Maryana Huda,WGM,,gudachess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Morshynska1,2026-09-07,lichess:Morshynska1
+P5-titled-coach,María Adela Perera Borrego,WIM,,marielapererab@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/mapebo94,2026-09-07,lichess:mapebo94
+P5-titled-coach,Matías Ianovsky.,CM,,chessclases@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/borocotoajua00,2026-09-07,lichess:borocotoajua00
+P5-titled-coach,Mauri Lehtosaari,NM,,nobleronechess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/noggis,2026-09-07,lichess:noggis
+P5-titled-coach,Maurice Gulatz,CM,,paff_morris@mailbox.org,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Paff_Morris_Twitch,2026-09-07,lichess:Paff_Morris_Twitch
+P5-titled-coach,Maurice Schippers,FM,,chess.schippers@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Maurice93,2026-09-07,lichess:Maurice93
+P5-titled-coach,MB Muralidharan,FM,,57muralichess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/kochichess,2026-09-07,lichess:kochichess
+P5-titled-coach,Michal Redzisz,FM,,redzisz.michal@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/michalred,2026-09-07,lichess:michalred
+P5-titled-coach,Michel Coto,FM,,michechess89@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/michel2426,2026-09-07,lichess:michel2426
+P5-titled-coach,Michel Lopez Abreu,FM,,michellopezabreu@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/michellopezabreu,2026-09-07,lichess:michellopezabreu
+P5-titled-coach,Michelle Catherina,WIM,,michellep.chess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ItsCheckMateM8,2026-09-07,lichess:ItsCheckMateM8
+P5-titled-coach,Miguel Orlando Chaviano Espina,FM,,miguelcem53@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Migcha,2026-09-07,lichess:Migcha
+P5-titled-coach,Mihailo Djokic,FM,,mihailodjokic541@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Mikasinskii,2026-09-07,lichess:Mikasinskii
+P5-titled-coach,Mihajlo Matovic,FM,,matovic.mihajlo@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/miksa99,2026-09-07,lichess:miksa99
+P5-titled-coach,Mikkel Loftgaard,CM,,mikk527r@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Mikkel_Vinh,2026-09-07,lichess:Mikkel_Vinh
+P5-titled-coach,Milos Krstic,CM,,miloskrstich@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/LeteciTanjir,2026-09-07,lichess:LeteciTanjir
+P5-titled-coach,Mirko Sajin,FM,,mirkosajin2007@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/mirkosajin,2026-09-07,lichess:mirkosajin
+P5-titled-coach,Miroslav Jirásko,CM,,miroslavjirasko@seznam.cz,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/the_trainer_miroslav,2026-09-07,lichess:the_trainer_miroslav
+P5-titled-coach,Mohammadreza Afshari,FM,,afshari.mohamadreza@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Afshari_M,2026-09-07,lichess:Afshari_M
+P5-titled-coach,Mrudul Dehankar,WIM,,mruduldehankar@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/MeantToWin,2026-09-07,lichess:MeantToWin
+P5-titled-coach,Muhamed Sisic,FM,,muhamed007sisic@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/kralj58,2026-09-07,lichess:kralj58
+P5-titled-coach,Mustafa Yelken,NM,,mustafayelken.my@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Snappppp,2026-09-07,lichess:Snappppp
+P5-titled-coach,Mutailenu Nshikokola,FM,,mutailenu4nshikokola@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/TwentyfirstMozart,2026-09-07,lichess:TwentyfirstMozart
+P5-titled-coach,Myroslava Hrabinska,WGM,,mirayac@ukr.net,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/mirochka,2026-09-07,lichess:mirochka
+P5-titled-coach,Nasrin Babayeva,WFM,,babayevanesrin2005@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/chess_is_wonder,2026-09-07,lichess:chess_is_wonder
+P5-titled-coach,Nawin JJ,FM,,chessdomi10@gamil.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Nawin_JJ,2026-09-07,lichess:Nawin_JJ
+P5-titled-coach,Nayem haque,FM,,nayemhaque32@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Ilostagain2,2026-09-07,lichess:Ilostagain2
+P5-titled-coach,Nazar Laptii,FM,,soleklgabi@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Lgabi,2026-09-07,lichess:Lgabi
+P5-titled-coach,Nebojsa Ristic,FM,,nbristic85@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Rile-Man,2026-09-07,lichess:Rile-Man
+P5-titled-coach,Nemanja Martic,CM,,nemanja.martic.chess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/nemanjamartic1989,2026-09-07,lichess:nemanjamartic1989
+P5-titled-coach,Nenad Robulj,FM,,nenadrobulj@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/dizalica123,2026-09-07,lichess:dizalica123
+P5-titled-coach,Nery Junior,CM,,neryxadrez@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/TreinadorBR,2026-09-07,lichess:TreinadorBR
+P5-titled-coach,Nesa Modric,CM,,misa_19@hotmail.de,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/familijatop71,2026-09-07,lichess:familijatop71
+P5-titled-coach,Nguyen Thi Minh Oanh,WFM,,minhoanh2121999@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/momocatty,2026-09-07,lichess:momocatty
+P5-titled-coach,NIKOLAOS SANDALAKIS,CM,,sandalakisn94@yahoo.gr,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Niksanch22,2026-09-07,lichess:Niksanch22
+P5-titled-coach,Nikolay Maevskiy,FM,,maevskynik@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/nikola1988,2026-09-07,lichess:nikola1988
+P5-titled-coach,Nikoloz Tsomaia,FM,,dark.grey505@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/NikolozTsomaia,2026-09-07,lichess:NikolozTsomaia
+P5-titled-coach,Nima Fendereski,FM,,Nima.fendi2001@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Gladiator-2001,2026-09-07,lichess:Gladiator-2001
+P5-titled-coach,Noemi Špiranec,WFM,,noesis.onlinechesslessons@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/buhtlica,2026-09-07,lichess:buhtlica
+P5-titled-coach,Oguz Kagan Guven,NM,,okguven3323@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/okmnstr,2026-09-07,lichess:okmnstr
+P5-titled-coach,Ojasva Singh,FM,,singhojasva111@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/RobertDowneyJr0111,2026-09-07,lichess:RobertDowneyJr0111
+P5-titled-coach,Oleksandr Prokhorov,NM,,prohorov@chessclub.lviv.ua,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Prohorov_Olexandr123,2026-09-07,lichess:Prohorov_Olexandr123
+P5-titled-coach,Olena Hess,WIM,,olenahess@web.de,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Olenahess,2026-09-07,lichess:Olenahess
+P5-titled-coach,Ollie Willson,CM,,theknightpair@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/KnightPairYoutube,2026-09-07,lichess:KnightPairYoutube
+P5-titled-coach,Omar García Blanco,FM,,margarcolp90@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/AttackSparrow,2026-09-07,lichess:AttackSparrow
+P5-titled-coach,Oniel Revilla,CM,,eniolw@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/milignus,2026-09-07,lichess:milignus
+P5-titled-coach,PAOLO FORMENTO,FM,,formentopaolo97@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Mr_Bobby,2026-09-07,lichess:Mr_Bobby
+P5-titled-coach,Papp Bence,FM,,pappbence1008@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/sakkozo01,2026-09-07,lichess:sakkozo01
+P5-titled-coach,Paulius Juknis,CM,,paulius.juknis@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Witcher86,2026-09-07,lichess:Witcher86
+P5-titled-coach,Pawan Dodeja,CM,,pawandodeja@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/d-pawn,2026-09-07,lichess:d-pawn
+P5-titled-coach,Petar Krstic,FM,,petarkrstic90@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Gimagibi,2026-09-07,lichess:Gimagibi
+P5-titled-coach,Pete Karagianis,NM,,Karagianis@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/kathiyitis,2026-09-07,lichess:kathiyitis
+P5-titled-coach,Philosopherr,FM,,arefvasli@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Philosopherr,2026-09-07,lichess:Philosopherr
+P5-titled-coach,Phúc Nguyễn Đặng Hồng,FM,,ndanghongphuc@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/sebastiano1908,2026-09-07,lichess:sebastiano1908
+P5-titled-coach,Prakhar Bajaj,CM,,prakharbajaj1551@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/prakharbajaj,2026-09-07,lichess:prakharbajaj
+P5-titled-coach,Pranav Shetty,CM,,pranavchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/akiba182,2026-09-07,lichess:akiba182
+P5-titled-coach,Pratik Patil,CM,,pratikpatilchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Ongsw,2026-09-07,lichess:Ongsw
+P5-titled-coach,Putrenko Kirill,FM,,putrenko.kirill11@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Kirill_Putrenko,2026-09-07,lichess:Kirill_Putrenko
+P5-titled-coach,Péczely Sebastian Zsombor,FM,,peczely.sebastian@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Rabbanolol,2026-09-07,lichess:Rabbanolol
+P5-titled-coach,Quang Thai Ngo,FM,,ngoquangthai.chess@aol.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/thaicon2326,2026-09-07,lichess:thaicon2326
+P5-titled-coach,Querencia_19,WGM,,nutakkipriyanka@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Querencia_19,2026-09-07,lichess:Querencia_19
+P5-titled-coach,Rachel Miller,WIM,,chesscoachrachel@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Rachel2070,2026-09-07,lichess:Rachel2070
+P5-titled-coach,Rafał Buraczewski,CM,,checkmatebwoy@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/abraadan,2026-09-07,lichess:abraadan
+P5-titled-coach,Rajesh Nayak,FM,,Slot-rkn.rajesh5555@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/rajesh_1464,2026-09-07,lichess:rajesh_1464
+P5-titled-coach,Ram S Krishnan,FM,,chessram_bsnl@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/chessram2506,2026-09-07,lichess:chessram2506
+P5-titled-coach,Ramón Alberto Hernández Fernández,FM,,ramoncmg1985mf@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Christ_is_alive,2026-09-07,lichess:Christ_is_alive
+P5-titled-coach,Ras Malaku Lorne,FM,,mala10lorne@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Mals,2026-09-07,lichess:Mals
+P5-titled-coach,Reinaldo Rodríguez,CM,,reinaldoarodriguezu@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ReinaldoR,2026-09-07,lichess:ReinaldoR
+P5-titled-coach,Reivis Brizuela,CM,,reivisg@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/BrizuelaR,2026-09-07,lichess:BrizuelaR
+P5-titled-coach,Renzo Gutierrez,FM,,renzogutierrez77@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/renzogm,2026-09-07,lichess:renzogm
+P5-titled-coach,Reynold Fernández,FM,,rfmayola94@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Reynold9402,2026-09-07,lichess:Reynold9402
+P5-titled-coach,Richard Turčan,FM,,risko.turcan@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/richess2,2026-09-07,lichess:richess2
+P5-titled-coach,Roberto Carlos Miramontes,FM,,HOUR...Robertomiramontes1977@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Gatiloco77,2026-09-07,lichess:Gatiloco77
+P5-titled-coach,Roman Herrmann,CM,,ajedrezhermar@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Roman_Herrmann,2026-09-07,lichess:Roman_Herrmann
+P5-titled-coach,Rucha Pujari,WIM,,ruchess27@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Ruchess27,2026-09-07,lichess:Ruchess27
+P5-titled-coach,Rutuja S Bakshi,WIM,,rutujabakshi100@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Knightrider100,2026-09-07,lichess:Knightrider100
+P5-titled-coach,Sabrina Latreche,WIM,,latreche4@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/latrechesabrina,2026-09-07,lichess:latrechesabrina
+P5-titled-coach,Sadiq Mehtiyev,CM,,mehtiyevsadig@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/mmdens33,2026-09-07,lichess:mmdens33
+P5-titled-coach,Sahajasri Cholleti,WIM,,sahajachess5@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/sahajasricholleti,2026-09-07,lichess:sahajasricholleti
+P5-titled-coach,Sakshi Chitlange,WIM,,chitlangesakshi12@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/artistic123,2026-09-07,lichess:artistic123
+P5-titled-coach,Samuel Zenelaj,FM,,samuelz.chess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ArchiStudento,2026-09-07,lichess:ArchiStudento
+P5-titled-coach,Sandro Mikanovic,CM,,msandromarko@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Sandro88,2026-09-07,lichess:Sandro88
+P5-titled-coach,Sandro Šafar,FM,,sandrosafar@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Sandro970,2026-09-07,lichess:Sandro970
+P5-titled-coach,Sarai Sanchez,WGM,,sanchezsarai@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/saraisitave,2026-09-07,lichess:saraisitave
+P5-titled-coach,Sarveshwaran V,CM,,vigneshsarveshwaran@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/sar2007,2026-09-07,lichess:sar2007
+P5-titled-coach,Seidy Pagés Román,WFM,,seidy.pages@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/QueenSey89,2026-09-07,lichess:QueenSey89
+P5-titled-coach,Sergio Trigo Urquijo,FM,,sergiotrigourquijo@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/SergioTrigo,2026-09-07,lichess:SergioTrigo
+P5-titled-coach,Shakhzod Vakhidov,FM,,onlinechessusa@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/VS99,2026-09-07,lichess:VS99
+P5-titled-coach,Shalmali Gagare,WIM,,shalmaligagare@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/TheInfinityStone,2026-09-07,lichess:TheInfinityStone
+P5-titled-coach,Shane Melaugh,CM,,Shanembusiness2001@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Shanem123,2026-09-07,lichess:Shanem123
+P5-titled-coach,Shrayan Majumder,CM,,shrayanm8@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/nomindgetway,2026-09-07,lichess:nomindgetway
+P5-titled-coach,Sigitas Kalvaitis,FM,,jergusss@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/SigitukasK,2026-09-07,lichess:SigitukasK
+P5-titled-coach,Silvia Raluca Sgircea,WIM,,raluca_sgircea@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/raluca_sgircea,2026-09-07,lichess:raluca_sgircea
+P5-titled-coach,Snehal Bhosale,CM,,growinchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/BurninggIce,2026-09-07,lichess:BurninggIce
+P5-titled-coach,Snehal Bhosale,CM,,snehal123bhosale@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/BurninggIce,2026-09-07,lichess:BurninggIce
+P5-titled-coach,Soham Datar,FM,,sohamdatar94@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Sohamchess64,2026-09-07,lichess:Sohamchess64
+P5-titled-coach,Srishti Pandey,WIM,,pandeysrish018@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Trisha18,2026-09-07,lichess:Trisha18
+P5-titled-coach,Stefan Mladenović,FM,,stefanmladenovic@hotmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/stefan_95,2026-09-07,lichess:stefan_95
+P5-titled-coach,Stephanie Amed,WIM,,stefyamed@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Totitos,2026-09-07,lichess:Totitos
+P5-titled-coach,Steven Demmery,NM,,demmerysteve@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/DarthStevious,2026-09-07,lichess:DarthStevious
+P5-titled-coach,Subrota Biswas,FM,,subrotabiswas3333@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Careless_Subroto,2026-09-07,lichess:Careless_Subroto
+P5-titled-coach,Tairu Rovira,WIM,,tairuchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/tairu,2026-09-07,lichess:tairu
+P5-titled-coach,Tamerlan Bekturov,FM,,tamerlan.bekturov.02@mail.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/LagraveSamuell,2026-09-07,lichess:LagraveSamuell
+P5-titled-coach,Tanmay Chopra,FM,,tanmay230804@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Tanmaychopra,2026-09-07,lichess:Tanmaychopra
+P5-titled-coach,Tasic Vladimir,CM,,tasicenator@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/muftakiskv,2026-09-07,lichess:muftakiskv
+P5-titled-coach,Tatiana Dornbusch,WGM,,tanya@echecs-et-strategie.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Tianachess,2026-09-07,lichess:Tianachess
+P5-titled-coach,thecatdoglady,WFM,,yilinchess@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/thecatdoglady,2026-09-07,lichess:thecatdoglady
+P5-titled-coach,TILAHUN ABEL MATHEWOS,CM,,abelmathewos86@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/abelmathewos,2026-09-07,lichess:abelmathewos
+P5-titled-coach,Toni Petrušić,FM,,toni.petrusic@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/toni_1995,2026-09-07,lichess:toni_1995
+P5-titled-coach,Tunahan MAKARACI,FM,,makaracitunahan123@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/MrTarrasch,2026-09-07,lichess:MrTarrasch
+P5-titled-coach,UntilItIsOtherwise,NM,,antonchess2021@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/UntilItIsOtherwise,2026-09-07,lichess:UntilItIsOtherwise
+P5-titled-coach,Usacheva Glafira,WFM,,usacheva.glafira@yandex.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Sweet_Marshmallow0,2026-09-07,lichess:Sweet_Marshmallow0
+P5-titled-coach,Valentina Verbin,WFM,,valentinaverbin2@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/chessvalya,2026-09-07,lichess:chessvalya
+P5-titled-coach,Vedant Pimpalkhare,CM,,pimpalkharevedant@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/ved1703,2026-09-07,lichess:ved1703
+P5-titled-coach,Vidal Rodriguez,FM,,vidalrodriguez21@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/vidalnovich,2026-09-07,lichess:vidalnovich
+P5-titled-coach,Vinod Kumar Sharma,CM,,vinodchess1981@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/blitzchessclub,2026-09-07,lichess:blitzchessclub
+P5-titled-coach,Vishwa Shah,WFM,,shahvishwa98@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Vishwa04,2026-09-07,lichess:Vishwa04
+P5-titled-coach,Vita Kryvoruchko,WGM,,chessvita@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Vitachesscom,2026-09-07,lichess:Vitachesscom
+P5-titled-coach,Vitor Firmo de Souza Rocha,NM,,vitorfirmo123@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/vfsr,2026-09-07,lichess:vfsr
+P5-titled-coach,Vladimir Sevostianov,FM,,vovasev@yandex.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/vovasev,2026-09-07,lichess:vovasev
+P5-titled-coach,Vladislav Kundianok,FM,,vkundyanok@inbox.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/File_Master_2005,2026-09-07,lichess:File_Master_2005
+P5-titled-coach,Vrushali Umesh Deodhar,WFM,,vrushali1310@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/vrush1310,2026-09-07,lichess:vrush1310
+P5-titled-coach,Vuk Savanovic,FM,,vuks2207@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/C0achV,2026-09-07,lichess:C0achV
+P5-titled-coach,Walter Cuevas ID FIDE 3405028,FM,,Ajedrezavanzado@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/waltereador,2026-09-07,lichess:waltereador
+P5-titled-coach,Waseem Akram,CM,,bogol_1942@yahoo.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Waseem_akram,2026-09-07,lichess:Waseem_akram
+P5-titled-coach,Yoana González Ochoa,WIM,,yoadrez@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/yochoa92,2026-09-07,lichess:yochoa92
+P5-titled-coach,Zubin Baliga,NM,,zubincc@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/VoicelessFeather,2026-09-07,lichess:VoicelessFeather
+P5-titled-coach,Артур Дилмухаметов,FM,,chesshome.ru@gmail.com,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/Arteler,2026-09-07,lichess:Arteler
+P5-titled-coach,Владимир Лауц,FM,,lauts@mail.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/lauts,2026-09-07,lichess:lauts
+P5-titled-coach,Владимир Михайловский,CM,,vovachesstrener@mail.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/vovaches,2026-09-07,lichess:vovaches
+P5-titled-coach,Гармаш Алёна,WFM,,alyonagarmash@yandex.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/AlyonaGarmash,2026-09-07,lichess:AlyonaGarmash
+P5-titled-coach,Кирилл Копёнкин,FM,,kirill.kopyonkin@mail.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/kirill_kopyonkin,2026-09-07,lichess:kirill_kopyonkin
+P5-titled-coach,Татьяна Шадрина,WGM,,aries20@mail.ru,direct,verified,Active coach - Lichess coach directory,https://lichess.org/coach/shata197,2026-09-07,lichess:shata197
+P6-fide-trainer-network,(unidentified - FIDE trainer seminar contact),unknown,,azapata64@yahoo.es,business,listed,Organiser/lecturer listed on a FIDE Trainers Commission seminar post,https://trainers.fide.com/2020/04/14/fide-trainer-online-seminar-for-amercias-from-22-24-may-2020/,2026-09-07,Title unverified - may not be a GM
+P6-fide-trainer-network,(unidentified - FIDE trainer seminar contact),unknown,,dina.belenk@gmail.com,business,listed,Organiser/lecturer listed on a FIDE Trainers Commission seminar post,https://trainers.fide.com/2020/06/06/fide-trainer-online-seminar-russian-from-26-28-june-2020/,2026-09-07,Title unverified - may not be a GM
+P6-fide-trainer-network,(unidentified - FIDE trainer seminar contact),unknown,,samiaakhader@yahoo.com,business,listed,Organiser/lecturer listed on a FIDE Trainers Commission seminar post,https://trainers.fide.com/2020/06/06/fide-trainer-online-seminar-russian-from-26-28-june-2020/,2026-09-07,Title unverified - may not be a GM
+P6-fide-trainer-network,(unidentified - FIDE trainer seminar contact),unknown,,philchesstournament@gmail.com,business,listed,Organiser/lecturer listed on a FIDE Trainers Commission seminar post,https://trainers.fide.com/2020/08/18/fide-trainer-seminar-for-asean-east-asia-oceania-from-25-27-september-2020/,2026-09-07,Title unverified - may not be a GM
+P6-fide-trainer-network,(unidentified - FIDE trainer seminar contact),unknown,,ilnytskyy.ivan@ukr.net,business,listed,Organiser/lecturer listed on a FIDE Trainers Commission seminar post,https://trainers.fide.com/2020/10/14/iccd-fide-trainer-seminar-from-28-30-october-2020/,2026-09-07,Title unverified - may not be a GM
+P6-fide-trainer-network,(unidentified - FIDE trainer seminar contact),unknown,,gdyey12@163.com,business,listed,Organiser/lecturer listed on a FIDE Trainers Commission seminar post,https://trainers.fide.com/2021/10/26/fide-trainer-seminar-in-china-8-10-november-2021/,2026-09-07,Title unverified - may not be a GM
+P6-fide-trainer-network,(unidentified - FIDE trainer seminar contact),unknown,,wimcmunoz@gmail.com,business,listed,Organiser/lecturer listed on a FIDE Trainers Commission seminar post,https://trainers.fide.com/2022/03/26/fide-trainers-seminar-for-spanish-americas-from-15-17-april-2022/,2026-09-07,Title unverified - may not be a GM
+P6-fide-trainer-network,(unidentified - FIDE trainer seminar contact),unknown,,judit.sztaray@gmail.com,business,listed,Organiser/lecturer listed on a FIDE Trainers Commission seminar post,https://trainers.fide.com/2023/08/28/fide-trainers-online-seminar-22-24-september-2023-english/,2026-09-07,Title unverified - may not be a GM
+P6-fide-trainer-network,(unidentified - FIDE trainer seminar contact),unknown,,Timpeterwall@gmail.com,business,listed,Organiser/lecturer listed on a FIDE Trainers Commission seminar post,https://trainers.fide.com/2023/11/06/fide-trainers-online-seminar-01-03-december-2023-english/,2026-09-07,Title unverified - may not be a GM
+P6-fide-trainer-network,(unidentified - FIDE trainer seminar contact),unknown,,rob@chesscoachingservices.net,business,listed,Organiser/lecturer listed on a FIDE Trainers Commission seminar post,https://trainers.fide.com/2023/11/06/fide-trainers-online-seminar-01-03-december-2023-english/,2026-09-07,Title unverified - may not be a GM
+P6-fide-trainer-network,(unidentified - FIDE trainer seminar contact),unknown,,ichess7@gmail.com,business,listed,Organiser/lecturer listed on a FIDE Trainers Commission seminar post,https://trainers.fide.com/2023/12/11/fide-trainers-online-seminar-08-10-january-2024-english-south-korea/,2026-09-07,Title unverified - may not be a GM
+P6-fide-trainer-network,(unidentified - FIDE trainer seminar contact),unknown,,mesadepartes@federacionperuanadeajedrez.org,business,listed,Organiser/lecturer listed on a FIDE Trainers Commission seminar post,https://trainers.fide.com/2025/10/10/fide-trainers-online-seminar-10-12-october-2025-spanish/,2026-09-07,Title unverified - may not be a GM

@@ -2,8 +2,8 @@
  * Expert testimonials shown in the landing page's "Expert Testimonials"
  * section (src/pages/index.tsx).
  *
- * Each quote is reproduced verbatim from what the grandmaster said about the
- * project. Do not paraphrase, trim, or polish them: a testimonial is only
+ * Each quote is reproduced verbatim from what the titled player said about
+ * the project. Do not paraphrase, trim, or polish them: a testimonial is only
  * worth showing if it is exactly what the person said. The only editorial
  * touch is a capital letter at the start of a sentence.
  *
@@ -47,6 +47,12 @@ export interface ExpertTestimonial {
   photo?: ExpertTestimonialPhoto;
 }
 
+/**
+ * Array order is display order, in the hero line and in the section:
+ * grandmasters first, then the other titled players. The landing-page copy
+ * ("Two grandmasters and a FIDE Master") is written against this roster, so
+ * update it in the same change when a name is added here.
+ */
 export const EXPERT_TESTIMONIALS: readonly ExpertTestimonial[] = [
   {
     id: "pavel-skatchkov",
@@ -79,6 +85,17 @@ export const EXPERT_TESTIMONIALS: readonly ExpertTestimonial[] = [
           "https://www.newinchess.com/blog/post/nic-podcast-41-gm-alex-colovic",
       },
     },
+  },
+  {
+    id: "aayush-bhattacherjee",
+    quote:
+      "It is truly inspiring to see you using your skills to support and empower other players. It is an impressive platform with great potential, and it could very well represent the future of chess coaching. I wish you all the best with this initiative and hope it achieves great success.",
+    name: "FM Aayush Bhattacherjee",
+    title: "FIDE Master",
+    // Tournament photo supplied by Aayan together with the testimonial
+    // (2026-09-14), square as received at 225 px. Not taken from a public
+    // page, so there is no credit line.
+    photo: { src: "/testimonials/aayush-bhattacherjee.jpg" },
   },
 ];
 

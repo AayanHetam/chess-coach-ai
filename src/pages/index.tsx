@@ -2363,7 +2363,7 @@ function joinNames(names: readonly string[]): string {
 }
 
 /**
- * One-line credibility signal for the hero: the grandmasters' faces and
+ * One-line credibility signal for the hero: the titled players' faces and
  * names, linking to their words in the section below. Deliberately quiet.
  * The endorsement is a selling point, not the product's positioning, so it
  * sits under the CTAs rather than in the headline.
@@ -2558,7 +2558,7 @@ function TestimonialPortrait({
 }
 
 /**
- * Expert Testimonials: grandmasters on the project, quoted verbatim from
+ * Expert Testimonials: titled players on the project, quoted verbatim from
  * src/data/expertTestimonials.ts. Sits directly under the hero so the
  * endorsement is the first thing a visitor reads after the pitch. It is a
  * credibility signal, not the positioning: the headline above it stays about
@@ -2566,8 +2566,15 @@ function TestimonialPortrait({
  *
  * Each card splits one third / two thirds: portrait, name, and credential on
  * the left, the quote on the right. Cards stack to a single column on phones.
+ *
+ * The grid is two columns wide. With an odd roster the last card would sit
+ * alone in the left column with a hole beside it, so it spans the full row
+ * instead and its portrait/quote split widens to one quarter / three
+ * quarters, which suits the longer quote that currently lands there.
  */
 function ExpertTestimonials() {
+  const lastSpansRow =
+    EXPERT_TESTIMONIALS.length % 2 === 1 ? EXPERT_TESTIMONIALS.length - 1 : -1;
   return (
     <Box
       component="section"
@@ -2587,7 +2594,7 @@ function ExpertTestimonials() {
               color: "rgba(255,255,255,0.96)",
             }}
           >
-            What grandmasters say{" "}
+            What titled players say{" "}
             <Box
               component="span"
               sx={{
@@ -2608,7 +2615,8 @@ function ExpertTestimonials() {
               color: "rgba(255,255,255,0.6)",
             }}
           >
-            Two grandmasters who have seen the project, in their own words.
+            Two grandmasters and a FIDE Master who have seen the project, in
+            their own words.
           </Typography>
         </Box>
       </RevealOnScroll>
@@ -2625,7 +2633,10 @@ function ExpertTestimonials() {
           <RevealOnScroll
             key={t.id}
             delay={i * 0.1}
-            style={{ display: "flex" }}
+            style={{
+              display: "flex",
+              gridColumn: i === lastSpansRow ? "1 / -1" : undefined,
+            }}
           >
             <Box
               component="figure"
@@ -2637,6 +2648,10 @@ function ExpertTestimonials() {
                 gridTemplateColumns: {
                   xs: "1fr",
                   sm: "minmax(0, 1fr) minmax(0, 2fr)",
+                  md:
+                    i === lastSpansRow
+                      ? "minmax(0, 1fr) minmax(0, 3fr)"
+                      : "minmax(0, 1fr) minmax(0, 2fr)",
                 },
                 gap: { xs: 3, sm: 3.5 },
                 alignItems: "center",

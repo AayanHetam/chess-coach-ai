@@ -187,3 +187,22 @@ gap documented above applies unchanged.
 - A sent copy (index 201) was pulled back and compared to the queue row: the
   text is identical, and the plain-text part shows the same `google.com/url`
   rewrite of the bare URL as batch 3, with the HTML anchor clean.
+
+## Batch 6 (2026-09-14)
+
+Sent by hand from a live session, one recipient per message, **no BCC**:
+index **234** (the held draft from batch 5, sent as-is) plus **302-375 and
+377-401**, 100 messages, 18:26-18:52 UTC. Again no GMs in this stretch.
+
+- **Index 376 is held out**, not sent. Its address as scraped is
+  `analisis.email.luisenriquevaldesmartin@gmail.com.whatsapp`, label text glued
+  onto both ends by the scraper. Added to `needs-manual-lookup.csv`. The next
+  batch must skip it; it is absent from the sent log on purpose.
+- Index 401 was sent in 376's place so the day totalled 100.
+- Log timestamps for this batch are per-group approximations, accurate to
+  about a minute, for the same reason as batch 5.
+- No bounce or reply from this batch had arrived by 18:55 UTC. Yesterday's
+  index 291 (`danheisman@comcast.net`) has a Gmail "Delivery Status
+  Notification (Delay)"; Gmail is still retrying, so it is not a bounce yet.
+
+**Next batch starts at index 402.** 134 rows remain (402-535).

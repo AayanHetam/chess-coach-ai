@@ -9,7 +9,7 @@ import {
 const root = process.cwd();
 
 describe("expert testimonials", () => {
-  it("carries both grandmaster quotes verbatim", () => {
+  it("carries every quote verbatim, grandmasters first", () => {
     expect(EXPERT_TESTIMONIALS).toEqual([
       expect.objectContaining({
         name: "GM Pavel Skatchkov",
@@ -23,23 +23,48 @@ describe("expert testimonials", () => {
         quote:
           "It's commendable what you have done, providing free coaching to those who cannot afford it.",
       }),
+      expect.objectContaining({
+        name: "FM Aayush Bhattacherjee",
+        title: "FIDE Master",
+        quote:
+          "It is truly inspiring to see you using your skills to support and empower other players. It is an impressive platform with great potential, and it could very well represent the future of chess coaching. I wish you all the best with this initiative and hope it achieves great success.",
+      }),
     ]);
   });
 
-  it("uses unique ids, title-prefixed names, and trimmed quotes", () => {
+  it("uses unique ids, title-prefixed names that match the credential, and trimmed quotes", () => {
+    // The name carries the FIDE title prefix and the caption spells it out.
+    // The two must agree: "FM" under a caption reading "Grandmaster" would
+    // be title inflation on a page whose whole point is credibility.
+    const CREDENTIAL_FOR_PREFIX: Record<string, string> = {
+      GM: "Grandmaster",
+      IM: "International Master",
+      FM: "FIDE Master",
+      WGM: "Woman Grandmaster",
+      WIM: "Woman International Master",
+      CM: "Candidate Master",
+      NM: "National Master",
+    };
     const ids = EXPERT_TESTIMONIALS.map((t) => t.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const t of EXPERT_TESTIMONIALS) {
-      expect(t.name).toMatch(/^GM /);
+      const prefix = t.name.match(/^(GM|IM|FM|WGM|WIM|CM|NM) /)?.[1];
+      expect(
+        prefix,
+        `${t.name}: name must start with a title prefix`
+      ).toBeDefined();
+      expect(t.title, `${t.name}: caption must spell out ${prefix}`).toBe(
+        CREDENTIAL_FOR_PREFIX[prefix as string]
+      );
       expect(t.quote).toBe(t.quote.trim());
       expect(t.quote.length).toBeGreaterThan(0);
     }
   });
 
   it("ships every declared photo as a real file under public/", () => {
-    // Both grandmasters have a portrait on file; a regression that drops one
-    // would silently fall back to initials, so pin the count.
-    expect(EXPERT_TESTIMONIALS.filter((t) => t.photo)).toHaveLength(2);
+    // All three have a portrait on file; a regression that drops one would
+    // silently fall back to initials, so pin the count.
+    expect(EXPERT_TESTIMONIALS.filter((t) => t.photo)).toHaveLength(3);
     for (const t of EXPERT_TESTIMONIALS) {
       if (!t.photo) continue;
       expect(t.photo.src).toMatch(
@@ -61,6 +86,7 @@ describe("expert testimonials", () => {
   it("derives initials for the no-photo fallback", () => {
     expect(testimonialInitials("GM Pavel Skatchkov")).toBe("PS");
     expect(testimonialInitials("GM Alex Colovic")).toBe("AC");
+    expect(testimonialInitials("FM Aayush Bhattacherjee")).toBe("AB");
     expect(testimonialInitials("Magnus")).toBe("M");
   });
 
@@ -82,6 +108,13 @@ describe("expert testimonials", () => {
     // The hero's one-line signal deep-links to the section.
     expect(source).toContain('id="gm-backed"');
     expect(source).toContain('href="#gm-backed"');
+    // The section copy is written against the roster: two grandmasters and
+    // one FIDE Master. A heading that still said "grandmasters" over an FM's
+    // card would overstate his title, so the roster line is pinned here and
+    // must be rewritten in the same change as the data file.
+    // Prettier re-wraps JSX text, so pin the roster phrase, not the whole line.
+    expect(source).toContain("What titled players say");
+    expect(source).toContain("Two grandmasters and a FIDE Master");
     // Photo credits ship in the footer, not under the section.
     expect(source.indexOf("<TestimonialPhotoCredits />")).toBeGreaterThan(
       source.indexOf("function Footer()")

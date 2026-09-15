@@ -84,6 +84,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.8,
     },
+    // Reference — the things a newcomer to organised chess cannot find in one
+    // place: how rated play, time controls, ratings and titles actually work.
+    { path: "/chess-basics", changeFrequency: "monthly", priority: 0.8 },
     { path: "/how-it-works", changeFrequency: "monthly", priority: 0.9 },
     { path: "/architecture", changeFrequency: "monthly", priority: 0.9 },
     { path: "/vs", changeFrequency: "monthly", priority: 0.8 },

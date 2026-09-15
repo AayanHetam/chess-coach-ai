@@ -212,6 +212,7 @@ export default function FaqPage() {
           <CtaButton href="/how-it-works">How the pipeline works</CtaButton>
           <CtaButton href="/architecture">Architecture</CtaButton>
           <CtaButton href="/vs">vs other coaches</CtaButton>
+          <CtaButton href="/chess-basics">Chess basics: ratings, titles, time controls</CtaButton>
           <CtaButton href="/free-ai-chess-coach" primary>
             Try the coach
           </CtaButton>

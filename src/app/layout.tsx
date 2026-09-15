@@ -70,6 +70,7 @@ export default function RootLayout({
         >
           {[
             { href: "/", label: "Home" },
+            { href: "/chess-basics", label: "Chess basics" },
             { href: "/privacy", label: "Privacy" },
             { href: "/terms", label: "Terms" },
             { href: "/accessibility", label: "Accessibility" },

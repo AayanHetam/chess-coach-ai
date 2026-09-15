@@ -11,10 +11,12 @@ import {
   MATE_BASE,
   PREFER_POPULAR_CP,
   buildCourse,
+  canonicalUci,
   chooseOurMove,
   countLines,
   engineAt,
   forSide,
+  mergeEvals,
   playUci,
   positionKey,
   terminationOf,
@@ -352,10 +354,30 @@ describe('system openings', () => {
     expect(pick.loss).toBe(25);
   });
 
-  it('plays the setup move when there is no evaluation at all', () => {
+  it('does NOT play a setup move nobody has evaluated', () => {
+    // The card under a setup move says "engine-checked". With no evaluation at
+    // all that is not true, and the honest label is the corpus one. (The first
+    // version played it anyway; see the next test for what that cost.)
     const pick = chooseOurMove(corpus, evals({}), fen, 'white', setup)!;
-    expect(pick.san).toBe('Bf4');
-    expect(pick.src).toBe('setup');
+    expect(pick.san).toBe('c4');
+    expect(pick.src).toBe('corpus');
+    // …and says which candidate it could not decide on, on THIS path too. The
+    // first version reported unrated candidates only where the position had
+    // an evaluation; here, where it has none, guard C-4 was blind.
+    expect(pick.unrated).toEqual(['Bf4']);
+  });
+
+  it('does not play a setup move the engine evaluated the position for but never scored', () => {
+    // The dump keeps five PVs. A move that hangs a piece is in none of them, so
+    // "unrated" is the signature of the WORST moves here, not of the safe ones.
+    // The shipped 1.b3 course played 5.Be2 with its knight en prise on f3 this
+    // way, labelled engine-checked, and a learner had to report it.
+    const index = evals({ [key(['d4', 'd5'])]: { d: 45, p: [['c2c4', 40], ['g1f3', 30]] } });
+    const pick = chooseOurMove(corpus, index, fen, 'white', setup)!;
+    expect(pick.san).not.toBe('Bf4');
+    expect(pick.src).not.toBe('setup');
+    // …and it names the candidate it could not decide on, so the gap pass can.
+    expect(pick.unrated).toEqual(['Bf4']);
   });
 
   it('refuses a setup move that is an outright blunder', () => {
@@ -369,11 +391,193 @@ describe('system openings', () => {
     expect(pick.src).not.toBe('setup');
   });
 
+  it('passes a rated blunder to the next setup move', () => {
+    // Bf4 is scored and losing; e3 is scored and fine. A system player who
+    // cannot bring the bishop out yet plays the pawn move first, and so do we.
+    const index = evals({
+      [key(['d4', 'd5'])]: { d: 45, p: [['c2c4', 40], ['e2e3', 20], ['c1f4', 40 - 200]] },
+    });
+    const pick = chooseOurMove(corpus, index, fen, 'white', setup)!;
+    expect(pick.san).toBe('e3');
+    expect(pick.src).toBe('setup');
+    expect(pick.loss).toBe(20);
+  });
+
+  it('stops at an unrated candidate rather than skipping past it', () => {
+    // Bf4 vetoed, e3 unrated, Nf3 rated and fine. Playing Nf3 would change the
+    // system's move order on missing data; the honest answer is "not yet".
+    const index = evals({
+      [key(['d4', 'd5'])]: { d: 45, p: [['c2c4', 40], ['g1f3', 30], ['c1f4', 40 - 200]] },
+    });
+    const pick = chooseOurMove(corpus, index, fen, 'white', setup)!;
+    expect(pick.san).not.toBe('e3');
+    expect(pick.san).not.toBe('Nf3');
+    expect(pick.src).not.toBe('setup');
+    expect(pick.unrated).toEqual(['e3']);
+  });
+
   it('skips a setup move that is not legal yet and takes the next one', () => {
     // Bf4 already played, so the next setup move standing is e3.
     const later = fenOf(['d4', 'd5', 'Bf4', 'Nf6']);
-    const laterCorpus = tree({ [key(['d4', 'd5', 'Bf4', 'Nf6'])]: [['e3', 500, 250, 100]] });
-    const pick = chooseOurMove(laterCorpus, evals({}), later, 'white', ['Bf4', 'e3', 'Nf3'])!;
+    const laterKey = key(['d4', 'd5', 'Bf4', 'Nf6']);
+    const laterCorpus = tree({ [laterKey]: [['e3', 500, 250, 100]] });
+    const index = evals({ [laterKey]: { d: 40, p: [['e2e3', 10]] } });
+    const pick = chooseOurMove(laterCorpus, index, later, 'white', ['Bf4', 'e3', 'Nf3'])!;
     expect(pick.san).toBe('e3');
+    expect(pick.src).toBe('setup');
+  });
+});
+
+describe('canonicalUci', () => {
+  it('spells castling the way the dump does, when the key says the king is home', () => {
+    // A K right in the key means the king is on e1 and a rook on h1, so e1g1
+    // there can only be O-O — and the dump writes that e1h1.
+    const k = key(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5']);
+    expect(canonicalUci(k, 'e1g1')).toBe('e1h1');
+    expect(canonicalUci(k, 'e1h1')).toBe('e1h1');
+    expect(canonicalUci(k, 'g1f3')).toBe('g1f3');
+  });
+
+  it('leaves e1g1 alone where it is not castling', () => {
+    // No K right: whatever stands on e1, it is not a king that can castle, and
+    // the move is what it says.
+    expect(canonicalUci('4k3/8/8/8/8/8/8/4R2K w - -', 'e1g1')).toBe('e1g1');
+  });
+
+  it('handles the other three corners', () => {
+    expect(canonicalUci('r3k2r/8/8/8/8/8/8/R3K2R w KQkq -', 'e1c1')).toBe('e1a1');
+    expect(canonicalUci('r3k2r/8/8/8/8/8/8/R3K2R b KQkq -', 'e8g8')).toBe('e8h8');
+    expect(canonicalUci('r3k2r/8/8/8/8/8/8/R3K2R b KQkq -', 'e8c8')).toBe('e8a8');
+  });
+});
+
+describe('mergeEvals', () => {
+  const k = key(['d4', 'd5']);
+  /** An index with provenance, typed so the PV pairs read as tuples. */
+  const source = (
+    name: string,
+    positions: Record<string, { d: number; p: [string, number][] }>
+  ) => ({ source: name, licence: 'CC0', positions });
+
+  it('adds a move the dump never listed, and keeps the dump in front', () => {
+    // The dump's five PVs stay first, at the dump's depth; the gap's score for
+    // the setup move is appended so the veto in chooseOurMove has a number.
+    const index = source('dump', { [k]: { d: 45, p: [['c2c4', 40], ['g1f3', 30]] } });
+    const gaps = source('local', { [k]: { d: 20, p: [['c1f4', -160], ['c2c4', 38]] } });
+    const merged = mergeEvals(index, gaps);
+    expect(merged.positions[k]).toEqual({ d: 45, p: [['c2c4', 40], ['g1f3', 30], ['c1f4', -160]] });
+  });
+
+  it('fills a position the dump does not have', () => {
+    const gaps = source('local', { [k]: { d: 20, p: [['c2c4', 38]] } });
+    expect(mergeEvals(source('dump', {}), gaps).positions[k]).toEqual({ d: 20, p: [['c2c4', 38]] });
+    expect(mergeEvals(null, gaps).positions[k]).toEqual({ d: 20, p: [['c2c4', 38]] });
+  });
+
+  it('lists O-O once, however each source spells it', () => {
+    // The dump writes castling king-takes-rook; our engine writes e1g1. Two
+    // spellings of one move would give the veto two scores and let it take the
+    // kinder one.
+    const castle = key(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5']);
+    const index = source('dump', { [castle]: { d: 45, p: [['e1h1', 10], ['d2d3', 5]] } });
+    const gaps = source('local', { [castle]: { d: 14, p: [['e1g1', 40]] } });
+    expect(mergeEvals(index, gaps).positions[castle]).toEqual({ d: 45, p: [['e1h1', 10], ['d2d3', 5]] });
+  });
+
+  it('is only as deep as the search behind its best move', () => {
+    // A gap-scored move that outranks everything the dump listed makes this a
+    // depth-20 entry, whatever the dump's five were searched to. The tie-break
+    // reads that depth and stops trusting a shallow number over a popular move,
+    // which is what MIN_OVERRIDE_DEPTH exists for.
+    const index = source('dump', { [k]: { d: 45, p: [['c2c4', 40]] } });
+    const gaps = source('local', { [k]: { d: 20, p: [['c1f4', 60]] } });
+    expect(mergeEvals(index, gaps).positions[k]).toEqual({ d: 20, p: [['c2c4', 40], ['c1f4', 60]] });
+  });
+
+  it("reads 'outranks' from Black's side when it is Black to move", () => {
+    // Scores are white-relative; for Black, lower is better.
+    const black = key(['d4']);
+    const index = source('dump', { [black]: { d: 45, p: [['d7d5', 40]] } });
+    const better = source('local', { [black]: { d: 20, p: [['g8f6', 20]] } });
+    const worse = source('local', { [black]: { d: 20, p: [['g8f6', 60]] } });
+    expect(mergeEvals(index, better).positions[black].d).toBe(20);
+    expect(mergeEvals(index, worse).positions[black].d).toBe(45);
+  });
+
+  it('names both sources, once each', () => {
+    const index = source('dump', {});
+    const gaps = source('local', {});
+    expect(mergeEvals(index, gaps).source).toBe('dump + local');
+    expect(mergeEvals(index, gaps).licence).toBe('CC0');
+    expect(mergeEvals(index, null).source).toBe('dump');
+  });
+});
+
+describe('buildCourse says where the engine is silent', () => {
+  const corpus = tree({
+    [key(['d4', 'd5'])]: [
+      ['c4', 900, 450, 200],
+      ['Bf4', 100, 50, 20],
+    ],
+    [key(['d4', 'd5', 'c4'])]: [['e6', 100, 50, 20]],
+  });
+
+  it('lists a setup candidate it could not score, and a position it never saw', () => {
+    // Bf4 is legal and unrated: the position is evaluated, the move is not in
+    // the PV list. The node is built provisionally by the ordinary rule and the
+    // gap is REPORTED, which is what build-eval-gaps.mjs works from and what
+    // guard C-4 in build-courses.mjs refuses to ship.
+    const index = evals({ [key(['d4', 'd5'])]: { d: 40, p: [['c2c4', 30]] } });
+    const course = buildCourse(corpus, index, {
+      id: 'x',
+      name: 'x',
+      root: ['d4', 'd5'],
+      side: 'white',
+      maxPly: 6,
+      minGames: 1,
+      setup: ['Bf4', 'e3'],
+    });
+    expect(course.unrated).toEqual([{ key: key(['d4', 'd5']), fen: fenOf(['d4', 'd5']), moves: ['Bf4'] }]);
+    expect(course.nodes[key(['d4', 'd5'])].us).toBe('c4');
+    expect(course.nodes[key(['d4', 'd5'])].src).not.toBe('setup');
+    const unseen = course.unevaluated.map(u => u.key);
+    expect(unseen).toContain(key(['d4', 'd5', 'c4']));
+    expect(course.unevaluated.find(u => u.key === key(['d4', 'd5', 'c4']))!.ours).toBe(false);
+  });
+
+  it('reports a setup candidate at a position nobody evaluated at all', () => {
+    // The corpus decides provisionally, as before — but the position is on the
+    // unrated list now, so guard C-4 sees it. This is the state a partial gaps
+    // run leaves behind, and the one the first version could not see.
+    const course = buildCourse(corpus, evals({}), {
+      id: 'x',
+      name: 'x',
+      root: ['d4', 'd5'],
+      side: 'white',
+      maxPly: 6,
+      minGames: 1,
+      setup: ['Bf4', 'e3'],
+    });
+    expect(course.nodes[key(['d4', 'd5'])].src).toBe('corpus');
+    expect(course.unrated).toEqual([{ key: key(['d4', 'd5']), fen: fenOf(['d4', 'd5']), moves: ['Bf4'] }]);
+  });
+
+  it('reports nothing when every decision is scored', () => {
+    const index = evals({
+      [key(['d4', 'd5'])]: { d: 40, p: [['c2c4', 30], ['c1f4', 20]] },
+      [key(['d4', 'd5', 'Bf4'])]: { d: 40, p: [['e7e6', 20]] },
+    });
+    const course = buildCourse(corpus, index, {
+      id: 'x',
+      name: 'x',
+      root: ['d4', 'd5'],
+      side: 'white',
+      maxPly: 3,
+      minGames: 1,
+      setup: ['Bf4', 'e3'],
+    });
+    expect(course.unrated).toEqual([]);
+    expect(course.nodes[key(['d4', 'd5'])].src).toBe('setup');
+    expect(course.nodes[key(['d4', 'd5'])].loss).toBe(10);
   });
 });

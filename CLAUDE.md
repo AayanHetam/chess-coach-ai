@@ -80,6 +80,17 @@ Before hitting an endpoint that depends on a service listed as ❌ or ⚠️, sa
 - **Neo4j** — puzzle graph DB for similarity / theme queries. See [src/lib/neo4j.ts](src/lib/neo4j.ts). Optional for some puzzle paths (see table above).
 - **Supabase (Postgres)** — CMIP intern feedback plus consent-controlled product and referee aggregate analytics. Server-side, service-role key, never exposed to browser. Full AI-call capture is permanently disabled; referee rows contain aggregate counts and operational versions, never prompts, responses, FENs, PGNs, spans, or user/anonymous identifiers. See [src/lib/intern/supabase.ts](src/lib/intern/supabase.ts), [src/lib/tracking/](src/lib/tracking/), and [supabase/migrations/](supabase/migrations/).
 
+## Opening courses (`src/data/courses/*.json`)
+
+Generated, never hand-edited: `node scripts/openings/build-courses.mjs` from `src/data/master-tree.json` (the corpus, committed) + `src/data/eval-index.json` (Lichess CC0 evals, **gitignored**, streamed from the ~30 GB dump — see the `.gitignore` comment) + `src/data/eval-gaps.json` (our own Stockfish, **committed**). The model is in [scripts/openings/lib/course.mjs](scripts/openings/lib/course.mjs): their moves come from the corpus, ours from the engine. The three SYSTEM courses (`w-london`, `w-b3`, `w-tromp`) play a fixed setup with an engine veto — and **the veto needs a score**. The dump keeps five PVs, a setup move that hangs a piece is in none of them, and "unrated" used to pass as "fine": the 1.b3 course shipped 5.Be2?? with its knight en prise, labelled "engine-checked", until a learner reported it (2026-09-09). Guard C-4 now fails the build on any unscored setup move. Score them first, then build:
+
+```
+node scripts/openings/build-eval-gaps.mjs --only w-b3,w-london,w-tromp   # local Stockfish, ~1.5 h, resumable
+node scripts/openings/build-courses.mjs --only w-b3,w-london,w-tromp     # leaves the other 40 untouched
+```
+
+Without the eval index only `--only` builds are possible. [src/lib/courses/__tests__/artifacts.test.ts](src/lib/courses/__tests__/artifacts.test.ts) asserts the invariants on the shipped JSON itself, so a stale artifact fails CI even when the builder is right.
+
 ## Things not to do
 
 - Don't mass-edit before planning. Do the read-then-write discipline.

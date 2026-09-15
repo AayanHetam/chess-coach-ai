@@ -89,8 +89,16 @@ export function CourseRoundStrip(props: CourseRoundRailProps & { title: string }
         >
           {props.title}
         </Typography>
-        <Typography sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.5)" }}>
-          {`Round ${props.round} of ${props.rounds} · position ${props.asked} of ${props.size}`}
+        <Typography
+          data-testid="round-position"
+          sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.5)" }}
+        >
+          {/* Against the TIMELINE, not the round size. A miss re-queues the
+              decision at the back, so the timeline grows past `size` and the
+              counter read "position 8 of 5" the moment anything went wrong —
+              a learner sent us the screenshot. The dots beside it still fill
+              per correct answer out of `size`; that is the other number. */}
+          {`Round ${props.round} of ${props.rounds} · position ${props.asked} of ${props.asks}`}
         </Typography>
       </Box>
       <Dots progress={props.progress} size={props.size} compact />

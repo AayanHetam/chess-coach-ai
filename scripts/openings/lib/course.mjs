@@ -76,6 +76,32 @@ export function playUci(board, uci) {
   }
 }
 
+/**
+ * A UCI move in the encoding the eval index uses, so two sources can be compared.
+ *
+ * The dump writes castling KING TAKES ROOK (`e1h1`); Stockfish over plain UCI,
+ * and chess.js, write `e1g1`. playUci reads either, so nothing is illegal —
+ * but a set keyed on the literal string holds O-O twice, once per source, and
+ * the veto in chooseOurMove then sees two scores for one move and takes the
+ * kinder one. Everything that compares moves across sources goes through here.
+ *
+ * The castling field of the key is the witness: a K right means the king IS on
+ * e1 with a rook on h1, so `e1g1` there can only be castling. Without the
+ * right, `e1g1` is some other piece's move and stays as written.
+ */
+export function canonicalUci(key, uci) {
+  if (!uci || uci.length < 4) return uci;
+  const rights = key.split(' ')[2] ?? '-';
+  const from = uci.slice(0, 2);
+  const to = uci.slice(2, 4);
+  const rest = uci.slice(4);
+  if (from === 'e1' && to === 'g1' && rights.includes('K')) return `e1h1${rest}`;
+  if (from === 'e1' && to === 'c1' && rights.includes('Q')) return `e1a1${rest}`;
+  if (from === 'e8' && to === 'g8' && rights.includes('k')) return `e8h8${rest}`;
+  if (from === 'e8' && to === 'c8' && rights.includes('q')) return `e8a8${rest}`;
+  return uci;
+}
+
 /** Rows and true arrivals at a position, for either tree shape. See coverage.mjs. */
 function nodeAt(tree, key) {
   const node = tree.positions?.[key];
@@ -162,7 +188,7 @@ export const DEFAULT_MIN_SHARE = 0.02;
  * came from cannot be audited, and "the engine says so" and "everyone plays it"
  * are very different claims to put in front of a learner.
  */
-export function chooseOurMove(tree, evals, fen, side, setup = null) {
+export function chooseOurMove(tree, evals, fen, side, setup = null, { assumeSetup = false } = {}) {
   const engine = engineAt(evals, fen, side);
   const played = repliesAt(tree, fen);
 
@@ -171,31 +197,91 @@ export function chooseOurMove(tree, evals, fen, side, setup = null) {
   // order here would quietly turn a London course into something else and the
   // learner would never reach the position they signed up for.
   //
-  // The engine still has a veto: a setup move that is a real blunder is not
-  // played, and the build says so rather than drilling it.
+  // The engine still has a veto, and THE VETO NEEDS A NUMBER.
+  //
+  // ───────────────────────────────────────────────────────────────────────────
+  // "UNRATED" USED TO MEAN "FINE", AND IT MEANT THE OPPOSITE
+  //
+  // The first version played the setup move whenever the engine had not scored
+  // it, on the reasoning that no evidence against a move is no reason to refuse
+  // it. But "the engine has not scored it" almost never means the position is
+  // unevaluated. It means the move is not in the position's PV list — and the
+  // dump keeps the top FIVE. A move that hangs a knight is never in the top
+  // five. So the rule passed exactly the moves it existed to stop, and it
+  // labelled them "engine-checked" on the way out.
+  //
+  // Measured on the shipped artifacts (2026-09-09): 209 setup moves across the
+  // three system courses carried no `loss`, every one of them in a position the
+  // engine HAD evaluated. The 1.b3 course played 5.Be2 in
+  // 1.b3 e5 2.Bb2 Nc6 3.e3 Nf6 4.Nf3 e4 — knight en prise on f3, 5...exf3
+  // wins it outright — and the card underneath said "this system's setup,
+  // engine-checked". A learner reported it. Nothing in the build could have.
+  //
+  // So: a setup move is played only when the engine has RATED it and it is not
+  // a blunder. A rated blunder passes to the NEXT setup move, which is what a
+  // system player does at the board ("can't castle yet, so h3 first"). An
+  // unrated candidate stops the search and is REPORTED on the pick, so
+  // build-eval-gaps.mjs can score it with a local engine; until it has, the
+  // ordinary rule below decides, and build-courses.mjs refuses to ship
+  // (guard C-4). The number on the card is then always a number that exists.
+  // ───────────────────────────────────────────────────────────────────────────
+  const unrated = [];
   if (setup && setup.length) {
     const board = new Chess(fen);
     const legal = new Set(board.moves());
-    const wanted = setup.find(san => legal.has(san));
-    if (wanted) {
+    for (const wanted of setup) {
+      if (!legal.has(wanted)) continue;
       const rated = engine?.moves.find(m => m.san === wanted) ?? null;
-      const loss = rated && engine ? Math.round(engine.moves[0].ours - rated.ours) : null;
-      if (loss === null || loss <= MAX_ENGINE_LOSS_CP) {
-        return {
-          san: wanted,
-          src: 'setup',
-          cp: rated?.cp ?? null,
-          loss,
-          depth: engine?.depth ?? 0,
-          share: played.find(r => r.san === wanted)?.share ?? 0,
-        };
+      if (!rated) {
+        // Unrated, whether because the whole position is unevaluated or because
+        // this move is not in the PV list. Either way we cannot say it is safe,
+        // and we cannot skip to a later setup move either: that would change the
+        // system's move order on missing data. Stop here and let the gap pass
+        // fill it in.
+        unrated.push(wanted);
+        // DISCOVERY ONLY. build-eval-gaps.mjs asks for the tree the system
+        // INTENDS so it evaluates those positions and not the corpus tree the
+        // ordinary rule would wander into with no scores yet — measured, that
+        // was 241 positions for a 38-decision course, most of them thrown away
+        // on the second pass. The pick is still reported unrated, and
+        // build-courses.mjs never sets this flag, so nothing provisional ships.
+        if (assumeSetup) {
+          return {
+            san: wanted,
+            src: 'setup',
+            cp: null,
+            loss: null,
+            depth: engine?.depth ?? 0,
+            share: played.find(r => r.san === wanted)?.share ?? 0,
+            unrated,
+          };
+        }
+        break;
       }
+      const loss = Math.round(engine.moves[0].ours - rated.ours);
+      if (loss > MAX_ENGINE_LOSS_CP) continue;
+      return {
+        san: wanted,
+        src: 'setup',
+        cp: rated.cp,
+        loss,
+        depth: engine.depth,
+        share: played.find(r => r.san === wanted)?.share ?? 0,
+      };
     }
   }
 
   if (!engine) {
     // No evaluation. The corpus principal is all we have, and it is labelled as
     // exactly that rather than being passed off as a recommendation.
+    //
+    // A setup candidate is unrated here by definition, and it is REPORTED. The
+    // first version left `unrated` off this return on the reasoning that the
+    // position is already reported as unevaluated, which is the stronger
+    // claim — but nothing downstream reads that list. Guard C-4 reads this
+    // one. So at exactly the positions the gaps pass exists for, a system
+    // course would have shipped the corpus move in the system's place, exit 0,
+    // and never asked for a score.
     if (played.length === 0) return null;
     return {
       san: played[0].san,
@@ -204,6 +290,7 @@ export function chooseOurMove(tree, evals, fen, side, setup = null) {
       loss: null,
       depth: 0,
       share: played[0].share,
+      ...(unrated.length ? { unrated } : {}),
     };
   }
 
@@ -238,6 +325,60 @@ export function chooseOurMove(tree, evals, fen, side, setup = null) {
     depth: engine.depth,
     share: byShare.get(pick.san) ?? 0,
     alternatives: engine.moves.slice(0, 3).map(m => ({ san: m.san, cp: m.cp })),
+    // Setup candidates the engine has no score for, so the caller can say the
+    // decision is provisional rather than shipping it as if it were settled.
+    ...(unrated.length ? { unrated } : {}),
+  };
+}
+
+/**
+ * Two evaluation sources, as one index.
+ *
+ * The dump is the authority wherever it has an opinion: its PVs stay, in front.
+ * The gaps — our own engine, build-eval-gaps.mjs — add two things the dump
+ * structurally cannot hold: positions it never saw, and moves its top-five list
+ * never mentions. A system's setup move is the second kind, and it is the one
+ * move the veto in chooseOurMove most needs a number for.
+ *
+ * Scores from the two sources are compared directly. They come from different
+ * engine versions at different depths, so the comparison is coarse — which is
+ * fine for a 150cp veto and would not be fine for a 15cp tie-break. Hence the
+ * depth rule: the merged entry keeps the dump's depth UNLESS a gap-scored move
+ * now outranks everything the dump listed, in which case the entry is only as
+ * deep as the search that produced its best move, and is labelled so. The
+ * tie-break in chooseOurMove reads that depth and stops trusting the shallow
+ * number over a popular move, which is what MIN_OVERRIDE_DEPTH is for.
+ *
+ * Moves are matched by canonicalUci, because the two sources spell castling
+ * differently and O-O must not be listed twice.
+ */
+export function mergeEvals(index, gaps) {
+  const positions = Object.create(null);
+  for (const [key, e] of Object.entries(index?.positions ?? {})) positions[key] = e;
+  for (const [key, g] of Object.entries(gaps?.positions ?? {})) {
+    const have = positions[key];
+    if (!have || !Array.isArray(have.p) || have.p.length === 0) {
+      positions[key] = g;
+      continue;
+    }
+    const seen = new Set(have.p.map(([uci]) => canonicalUci(key, uci)));
+    const extra = (g.p ?? []).filter(([uci]) => !seen.has(canonicalUci(key, uci)));
+    if (!extra.length) continue;
+    const stm = key.split(' ')[1];
+    const bestFor = list => Math.max(...list.map(([, cp]) => (stm === 'w' ? cp : -cp)));
+    const gapLeads = bestFor(extra) > bestFor(have.p);
+    positions[key] = {
+      ...have,
+      p: [...have.p, ...extra],
+      ...(gapLeads ? { d: g.d ?? have.d } : {}),
+    };
+  }
+  const sources = [index?.source, gaps?.source].filter(Boolean);
+  const licences = [index?.licence, gaps?.licence].filter(Boolean);
+  return {
+    source: sources.length ? Array.from(new Set(sources)).join(' + ') : 'unknown',
+    licence: licences.length ? Array.from(new Set(licences)).join(' + ') : 'unknown',
+    positions,
   };
 }
 
@@ -303,6 +444,7 @@ export function buildCourse(tree, evals, opts) {
     id,
     name,
     setup = null,
+    assumeSetup = false,
   } = opts;
 
   const board = new Chess();
@@ -314,6 +456,13 @@ export function buildCourse(tree, evals, opts) {
 
   const nodes = Object.create(null);
   const problems = [];
+  // Where the engine is silent. Both lists exist so build-eval-gaps.mjs has a
+  // work-list rather than a guess, and so build-courses.mjs can refuse to ship
+  // a system move nobody scored (guard C-4).
+  //   unevaluated  positions with no evaluation at all, either turn
+  //   unrated      our turn, a setup candidate the engine has no score for
+  const unevaluated = [];
+  const unrated = [];
   let expanded = 0;
 
   // Chapters begin at the OPPONENT'S FIRST REAL BRANCH, wherever it falls.
@@ -371,6 +520,8 @@ export function buildCourse(tree, evals, opts) {
     };
     if (engine) {
       node.ev = { cp: engine.moves[0].cp, d: engine.depth };
+    } else {
+      unevaluated.push({ key, fen, ours });
     }
     nodes[key] = node;
 
@@ -381,7 +532,7 @@ export function buildCourse(tree, evals, opts) {
     }
 
     if (ours) {
-      const pick = chooseOurMove(tree, evals, fen, side, setup);
+      const pick = chooseOurMove(tree, evals, fen, side, setup, { assumeSetup });
       if (!pick) {
         node.end = 'wall';
         return;
@@ -391,6 +542,7 @@ export function buildCourse(tree, evals, opts) {
           `${id}: at ${key} our move ${pick.san} is ${pick.loss}cp worse than ${pick.alternatives?.[0]?.san}`
         );
       }
+      if (pick.unrated?.length) unrated.push({ key, fen, moves: pick.unrated });
       node.us = pick.san;
       node.src = pick.src;
       if (pick.loss !== null) node.loss = pick.loss;
@@ -477,6 +629,8 @@ export function buildCourse(tree, evals, opts) {
     nodes,
     chapters,
     problems,
+    unevaluated,
+    unrated,
   };
 }
 

@@ -34,13 +34,22 @@
 //        contained one would make the course a derivative work. Enforced
 //        structurally — the text is never in this process — rather than by
 //        anybody remembering the rule. There is a test that greps for it.
+//
+//   C-4  No system move ships without its engine score. A setup move the
+//        engine never rated is one the veto in chooseOurMove could not see, and
+//        "unrated" is the signature of the moves that hang pieces — the dump
+//        keeps five PVs and a blunder is in none of them. The 1.b3 course
+//        shipped 5.Be2?? with a knight en prise exactly this way, under a card
+//        that said "engine-checked". Over any unrated candidate the build stops
+//        and asks for build-eval-gaps.mjs, which scores it with a local engine.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-import { buildCourse, countLines } from './lib/course.mjs';
+import { buildCourse, countLines, mergeEvals } from './lib/course.mjs';
+import { courseOptionsFor } from './lib/catalogue.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../..');
@@ -55,22 +64,48 @@ const MAX_PLY = Number(flag('max-ply', 24));
 const MIN_SHARE = Number(flag('min-share', 0.02));
 const MIN_GAMES = Number(flag('min-games', 50));
 const EVALS_PATH = flag('evals', path.join(ROOT, 'src/data/eval-index.json'));
+const GAPS_PATH = flag('gaps', path.join(ROOT, 'src/data/eval-gaps.json'));
+/**
+ * Rebuild only these course ids and leave every other artifact byte-identical.
+ *
+ * The full build needs the dump index for all 43. The system courses can be
+ * built from the gaps file alone — build-eval-gaps.mjs evaluates every one of
+ * their positions — so a fix to them does not have to wait for a 30 GB stream.
+ */
+const ONLY = flag('only', '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
 
 const read = f => JSON.parse(fs.readFileSync(f, 'utf8'));
 
 function main() {
   const tree = read(path.join(ROOT, 'src/data/master-tree.json'));
   const catalogue = read(path.join(ROOT, 'scripts/openings/repertoire-catalogue.json'));
-  const evals = fs.existsSync(EVALS_PATH)
-    ? read(EVALS_PATH)
-    : { positions: {} };
+  // A file with no positions in it is no index. build-eval-index.mjs writes its
+  // payload whatever it matched, so a stale --keys file or a truncated stream
+  // leaves a well-formed `{positions:{}}` on disk; taken at face value it would
+  // rebuild every course from popularity and exit clean. Existence is not the
+  // test. Content is.
+  const nonEmpty = f => (f && Object.keys(f.positions ?? {}).length ? f : null);
+  const evalIndex = nonEmpty(fs.existsSync(EVALS_PATH) ? read(EVALS_PATH) : null);
+  const gaps = nonEmpty(fs.existsSync(GAPS_PATH) ? read(GAPS_PATH) : null);
+  const evals = mergeEvals(evalIndex, gaps);
 
-  if (Object.keys(evals.positions).length === 0) {
+  if (!evalIndex && !gaps) {
     console.error(
       'No eval index. Courses would be built from popularity alone, which is the\n' +
         'one thing this is designed not to do. Build it first:\n' +
         '  curl -sL https://database.lichess.org/lichess_db_eval.jsonl.zst | zstd -dc \\\n' +
         '    | node scripts/openings/build-eval-index.mjs --keys keys.txt --out src/data/eval-index.json'
+    );
+    process.exit(1);
+  }
+  if (!evalIndex && ONLY.length === 0) {
+    console.error(
+      'Only the gaps file is present. It covers the system courses, not the other\n' +
+        'forty; building those from it would be building them from popularity.\n' +
+        'Pass --only <ids> for the courses the gaps file was built for.'
     );
     process.exit(1);
   }
@@ -85,12 +120,39 @@ function main() {
     .slice(0, 16);
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
-  for (const f of fs.readdirSync(OUT_DIR)) {
-    if (f.endsWith('.json')) fs.unlinkSync(path.join(OUT_DIR, f));
+  const indexPath = path.join(OUT_DIR, 'index.json');
+  // A partial rebuild keeps the other artifacts, and they must have been built
+  // from THIS corpus: three courses from one tree beside forty from another is
+  // the fully-self-consistent-and-wrong artifact the fingerprint exists to catch.
+  const previous = ONLY.length && fs.existsSync(indexPath) ? read(indexPath) : null;
+  if (ONLY.length && !previous) {
+    // No index means no shipped set to rebuild beside — and no fingerprint to
+    // check against. Writing an index of three would hide the other forty
+    // files from the site (loadCourse rejects an id the index does not list).
+    console.error(
+      '--only rebuilds beside the shipped artifacts, and there is no index.json to\n' +
+        'rebuild beside. Run a full build first.'
+    );
+    process.exit(1);
+  }
+  if (previous && previous.corpusSha !== corpusSha) {
+    console.error(
+      `--only rebuilds beside artifacts built from corpus ${previous.corpusSha}; this tree is ${corpusSha}.\n` +
+        'Rebuild everything, or build against the tree the shipped courses came from.'
+    );
+    process.exit(1);
   }
 
   const problems = [];
-  const index = [];
+  const unrated = [];
+  const unratedIn = new Set();
+  const built = [];
+  // Nothing touches the directory until every guard has passed. A build that
+  // failed C-1 or C-4 used to have already replaced the shipped files with the
+  // provisional course it was refusing — nodes the ordinary rule decided in a
+  // system's place, indistinguishable from a good build on disk and in the
+  // artifact tests, one `git add -A` from shipping.
+  const pending = [];
   let totalBytes = 0;
 
   // Guard C-2, before any work: two courses that are the same course.
@@ -114,20 +176,27 @@ function main() {
     process.exit(1);
   }
 
-  for (const choice of catalogue.choices) {
+  const chosen = catalogue.choices.filter(c => ONLY.length === 0 || ONLY.includes(c.id));
+  for (const id of ONLY) {
+    if (!chosen.some(c => c.id === id)) {
+      console.error(`--only: no course "${id}" in the catalogue`);
+      process.exit(1);
+    }
+  }
+
+  for (const choice of chosen) {
     const root = choice.root;
-    const course = buildCourse(tree, evals, {
-      id: choice.id,
-      name: choice.name,
-      root,
-      side: choice.side,
-      maxPly: MAX_PLY,
-      minShare: MIN_SHARE,
-      minGames: MIN_GAMES,
-      setup: choice.coverage === 'system' ? choice.setup ?? null : null,
-    });
+    const course = buildCourse(
+      tree,
+      evals,
+      courseOptionsFor(choice, { maxPly: MAX_PLY, minShare: MIN_SHARE, minGames: MIN_GAMES })
+    );
 
     problems.push(...course.problems);
+    for (const u of course.unrated) {
+      unrated.push(`${choice.id}: at ${u.key} setup move ${u.moves.join('/')} has no engine score`);
+      unratedIn.add(choice.id);
+    }
 
     const lines = countLines(course);
     const payload = {
@@ -157,12 +226,12 @@ function main() {
       nodes: course.nodes,
     };
 
-    const file = path.join(OUT_DIR, `${choice.id}.json`);
-    fs.writeFileSync(file, JSON.stringify(payload));
-    const bytes = fs.statSync(file).size;
+    const json = JSON.stringify(payload);
+    const bytes = Buffer.byteLength(json);
     totalBytes += bytes;
+    pending.push({ file: path.join(OUT_DIR, `${choice.id}.json`), json });
 
-    index.push({
+    built.push({
       id: choice.id,
       name: choice.name,
       side: choice.side,
@@ -186,8 +255,40 @@ function main() {
     );
   }
 
+  // The catalogue's order, whether this run built all of it or three of it.
+  const index = previous
+    ? previous.courses.map(entry => built.find(c => c.id === entry.id) ?? entry)
+    : built;
+  for (const entry of built) if (!index.includes(entry)) index.push(entry);
+
+  if (problems.length) {
+    console.error(`\nGuard C-1: ${problems.length} move(s) far worse than the engine's own choice:\n`);
+    for (const p of problems.slice(0, 20)) console.error(`  ${p}`);
+    process.exit(1);
+  }
+  if (unrated.length) {
+    console.error(`\nGuard C-4: ${unrated.length} system move(s) the engine never scored:\n`);
+    for (const u of unrated.slice(0, 20)) console.error(`  ${u}`);
+    // Only the courses that actually have an unscored move. Naming the whole
+    // catalogue here would send a full build's user into the gaps pass over
+    // forty courses that cannot have one — days of engine time for nothing.
+    console.error(
+      '\nA setup move without a score cannot be vetoed, and the card would still say\n' +
+        '"engine-checked". Score them first:\n' +
+        `  node scripts/openings/build-eval-gaps.mjs --only ${Array.from(unratedIn).join(',')}`
+    );
+    process.exit(1);
+  }
+
+  // Every guard passed. Now, and only now, the directory changes.
+  if (ONLY.length === 0) {
+    for (const f of fs.readdirSync(OUT_DIR)) {
+      if (f.endsWith('.json')) fs.unlinkSync(path.join(OUT_DIR, f));
+    }
+  }
+  for (const { file, json } of pending) fs.writeFileSync(file, json);
   fs.writeFileSync(
-    path.join(OUT_DIR, 'index.json'),
+    indexPath,
     JSON.stringify({
       builtAt: new Date().toISOString().slice(0, 10),
       corpusSha,
@@ -198,16 +299,10 @@ function main() {
     })
   );
 
-  if (problems.length) {
-    console.error(`\nGuard C-1: ${problems.length} move(s) far worse than the engine's own choice:\n`);
-    for (const p of problems.slice(0, 20)) console.error(`  ${p}`);
-    process.exit(1);
-  }
-
   const totalNodes = index.reduce((s, c) => s + c.nodes, 0);
   const totalLines = index.reduce((s, c) => s + c.lines, 0);
   const evaluated = index.reduce((s, c) => s + c.evaluated, 0);
-  console.log(`\ncourses     ${index.length}`);
+  console.log(`\ncourses     ${index.length}${ONLY.length ? ` (${built.length} rebuilt)` : ''}`);
   console.log(`nodes       ${totalNodes.toLocaleString()}`);
   console.log(`lines       ${totalLines.toLocaleString()}`);
   console.log(`evaluated   ${((evaluated / totalNodes) * 100).toFixed(1)}%`);

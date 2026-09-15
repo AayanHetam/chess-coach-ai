@@ -131,6 +131,25 @@ test.describe("the probe loop", () => {
     await expect(dots).toHaveAttribute("aria-label", /^0 of \d+ answered$/);
   });
 
+  test("the position counter follows the timeline, which a miss lengthens", async ({ page, isMobile }) => {
+    // The counter lives on the strip, which is the mobile layout; the desktop
+    // rail shows the dots only. A learner's screenshot read "position 8 of 5":
+    // a miss re-queues the decision at the back, the timeline grows past the
+    // round size, and the strip was counting against the wrong number.
+    test.skip(!isMobile, "the strip with the counter is the mobile layout");
+    await openRound(page);
+    const counter = control(page, "round-position");
+    await expect(counter).toHaveText(/position 1 of (\d+)$/);
+    const before = Number((await counter.innerText()).match(/of (\d+)$/)![1]);
+
+    await play(page, "a2", "a3");
+    await page.getByTestId("teach-continue").click();
+    await expect(page.getByText("Your move")).toBeVisible();
+    // One asked, one appended: the denominator grew with the miss and the
+    // numerator can never pass it.
+    await expect(counter).toHaveText(new RegExp(`position 2 of ${before + 1}$`));
+  });
+
   test("does not ask what it already knows", async ({ page }) => {
     // THE BUG THIS PINS: effects run in declaration order within one commit, so
     // the round was built in the same pass that READ the stored records — from

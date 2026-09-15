@@ -390,7 +390,7 @@ function evalNote(cp: number | undefined, side: "white" | "black"): string | nul
 
 /** Our move, and everything that is true about it. */
 function OurMove({ node, side }: { node: CourseNode; side: "white" | "black" }) {
-  const source = node.src ? sourceWords(node.src) : null;
+  const source = node.src ? sourceWords(node.src, node.loss) : null;
   const words = evalNote(node.ev?.cp, side);
   return (
     <Box data-testid="reader-our-move">

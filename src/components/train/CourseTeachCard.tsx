@@ -50,7 +50,7 @@ export function CourseTeachCard({ probe, played, side, theory, onContinue }: Cou
   const ev = probe.ev;
   const words = evalWords(ev?.cp ?? null, side);
   const replies = probe.next?.them ?? [];
-  const source = sourceWords(probe.src);
+  const source = sourceWords(probe.src, probe.loss);
 
   return (
     <Box data-testid="teach-card" sx={{ display: "grid", gap: 2.5 }}>

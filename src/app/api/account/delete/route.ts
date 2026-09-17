@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession, clearSessionCookieOnResponse } from "@/lib/auth/session";
 import { executeUserDeletion } from "@/lib/ops/deleteUserData";
 import { AdminConfigError } from "@/lib/server/firebaseAdmin";
+import { DELETE_CONFIRM_PHRASE } from "@/lib/account/deleteConfirmation";
 
 /**
  * POST /api/account/delete — the user deletes their OWN account.
@@ -32,9 +33,6 @@ import { AdminConfigError } from "@/lib/server/firebaseAdmin";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-/** Must match the phrase the settings dialog asks the user to type. */
-export const CONFIRM_PHRASE = "DELETE";
-
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) {
@@ -53,9 +51,9 @@ export async function POST(request: Request) {
       ? (body as { confirm?: unknown }).confirm
       : undefined;
 
-  if (confirm !== CONFIRM_PHRASE) {
+  if (confirm !== DELETE_CONFIRM_PHRASE) {
     return NextResponse.json(
-      { error: `Type ${CONFIRM_PHRASE} to confirm.` },
+      { error: `Type ${DELETE_CONFIRM_PHRASE} to confirm.` },
       { status: 400 }
     );
   }

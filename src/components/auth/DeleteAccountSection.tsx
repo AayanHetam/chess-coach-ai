@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogActions,
 } from "@mui/material";
+import { DELETE_CONFIRM_PHRASE as CONFIRM_PHRASE } from "@/lib/account/deleteConfirmation";
 
 /**
  * "Delete my account" — the in-app half of the right to erasure.
@@ -30,8 +31,6 @@ import {
  * correct next move is a hard navigation — any client state still in memory
  * belongs to a uid that no longer exists.
  */
-
-const CONFIRM_PHRASE = "DELETE";
 
 export default function DeleteAccountSection() {
   const [open, setOpen] = useState(false);
@@ -100,7 +99,32 @@ export default function DeleteAccountSection() {
         Delete my account
       </Button>
 
-      <Dialog open={open} onClose={close} maxWidth="xs" fullWidth>
+      {/*
+        Opaque paper, deliberately. The theme's background.paper is
+        rgba(20,22,28,0.6) — glass, tuned for a panel sitting over the PAGE.
+        This dialog sits over another dialog, so at 60% the settings form
+        behind it showed straight through and the confirmation text and
+        button were barely readable. On the most destructive control in the
+        app, "you can sort of read it" is not good enough.
+      */}
+      <Dialog
+        open={open}
+        onClose={close}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: "#12141A",
+            backgroundImage: "none",
+            border: "1px solid rgba(255,255,255,0.10)",
+            boxShadow: "0 24px 60px rgba(0,0,0,0.65)",
+          },
+        }}
+        slotProps={{
+          backdrop: { sx: { backgroundColor: "rgba(0,0,0,0.6)" } },
+        }}
+      >
         <DialogContent>
           <Stack spacing={2}>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>

@@ -50,7 +50,7 @@ export default function PrivacyPage() {
             <p className="cm-lede">
               Plain English. Covers <strong>chessmasti.com</strong> (the
               website) and <strong>Analyze with Chess Masti</strong> (the Chrome
-              extension). Last updated August 29, 2026.
+              extension). Last updated September 16, 2026.
             </p>
           </header>
 
@@ -115,8 +115,12 @@ export default function PrivacyPage() {
                 connect your Lichess account to play live games through us.
               </li>
               <li>
-                <strong>Resend</strong> sends the password-reset email when you
-                request one.
+                <strong>Resend</strong> is our email provider and receives
+                your email address, plus the contents of the message, for every
+                email we send you: the password-reset email when you request
+                one, the training-reminder emails if you have turned reminders
+                on, and the confirmation email if you apply to the internship
+                programme. Reminder emails carry a one-click unsubscribe link.
               </li>
               <li>
                 <strong>Google Firebase Analytics</strong> and{" "}
@@ -266,11 +270,37 @@ export default function PrivacyPage() {
 
             <h3>Deleting your data</h3>
             <p>
-              Email{" "}
+              You can delete your account yourself, at any time, without asking
+              us. Open <strong>Settings &rarr; Account</strong> and use{" "}
+              <strong>Delete my account</strong>. You will be asked to type
+              DELETE to confirm. It happens immediately and cannot be undone.
+            </p>
+            <p>This removes, across both of our databases:</p>
+            <ul>
+              <li>your account record, including your password and any linked
+                Google sign-in;</li>
+              <li>your saved games, coach conversations and their messages;</li>
+              <li>your puzzle sessions, course progress, trainer progress and
+                opening repertoire;</li>
+              <li>any games, scout reports or insights you shared;</li>
+              <li>your entry on the public Puzzle Rush leaderboard;</li>
+              <li>your handle reservation &mdash; the name is released for
+                anyone else to claim;</li>
+              <li>your product-analytics rows (events, AI-call records, puzzle
+                attempts, analysis sessions).</li>
+            </ul>
+            <p>
+              Two things deliberately survive, because neither is keyed to your
+              account: analytics collected before you ever signed in cannot be
+              linked to you and so cannot be singled out &mdash; it ages out
+              under the retention limit above; and if you applied to the
+              internship programme, that application is filed under your email
+              rather than your account. To have an application removed, or if
+              anything above fails, email{" "}
               <a href="mailto:aayanhetamsaria4@gmail.com">
                 aayanhetamsaria4@gmail.com
               </a>{" "}
-              and we'll delete your account and saved games within seven days.
+              and we will delete it within seven days.
             </p>
           </section>
 

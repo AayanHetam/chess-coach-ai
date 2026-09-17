@@ -49,7 +49,7 @@ test.describe("the course hub", () => {
     await expect(page.getByTestId("chapter-0-drill")).toBeVisible();
 
     // The London's first chapter is big enough to split, so it has studies.
-    await expect(page.getByTestId("study-0-d5")).toBeVisible();
+    await expect(page.getByTestId("study-0-c5")).toBeVisible();
   });
 
   test("continue goes to the reader, not to the trainer", async ({ page }) => {
@@ -74,9 +74,12 @@ test.describe("the reader", () => {
   });
 
   test("shows our move face up, with what is measured about it", async ({ page }, testInfo) => {
-    // Everything is face up here. Asking is the trainer's job.
+    // The reader opens on the chapter's own root, which is 1.d4 d5 2.Bf4 Nf6
+    // for this course now — the London's catalogue root is 1.d4 d5 2.Bf4, and
+    // Nf6 is chapter 0's own branch. Everything is face up here. Asking is
+    // the trainer's job.
     await expect(page.getByTestId("reader-our-move")).toBeVisible();
-    await expect(page.getByTestId("reader-line")).toHaveText("1.d4 Nf6");
+    await expect(page.getByTestId("reader-line")).toHaveText("1.d4 d5 2.Bf4 Nf6");
 
     await testInfo.attach(`reader-${testInfo.project.name}.png`, {
       body: await page.screenshot({ fullPage: true }),
@@ -88,18 +91,22 @@ test.describe("the reader", () => {
     const line = page.getByTestId("reader-line");
     // The PIECE, not the square's text: a square also renders its coordinate
     // label, so `toHaveText` on an empty square matches "c" and the assertion
-    // passes on a board that never moved.
-    const bishop = (square: string) => page.locator(`[data-square="${square}"] [data-piece="wB"]`);
-    await expect(bishop("c1")).toHaveCount(1);
+    // passes on a board that never moved. The chapter root already has the
+    // bishop on f4 (the London's own root is 1.d4 d5 2.Bf4), so the move that
+    // separates the floor from one ply forward is our next setup move, e3 —
+    // watch the e-pawn instead.
+    const pawn = (square: string) => page.locator(`[data-square="${square}"] [data-piece="wP"]`);
+    await expect(pawn("e2")).toHaveCount(1);
+    await expect(pawn("e3")).toHaveCount(0);
 
     await page.getByTestId("reader-forward").click();
-    await expect(line).toHaveText("1.d4 Nf6 2.Bf4");
-    await expect(bishop("f4")).toHaveCount(1);
-    await expect(bishop("c1")).toHaveCount(0);
+    await expect(line).toHaveText("1.d4 d5 2.Bf4 Nf6 3.e3");
+    await expect(pawn("e3")).toHaveCount(1);
+    await expect(pawn("e2")).toHaveCount(0);
 
     await page.getByTestId("reader-back-move").click();
-    await expect(line).toHaveText("1.d4 Nf6");
-    await expect(bishop("c1")).toHaveCount(1);
+    await expect(line).toHaveText("1.d4 d5 2.Bf4 Nf6");
+    await expect(pawn("e2")).toHaveCount(1);
   });
 
   test("their replies are choosable, and carry what people play", async ({ page }) => {
@@ -108,8 +115,8 @@ test.describe("the reader", () => {
     await expect(replies).toBeVisible();
     await expect(replies).toContainText("%");
 
-    await page.getByTestId("reader-reply-d5").click();
-    await expect(page.getByTestId("reader-line")).toHaveText("1.d4 Nf6 2.Bf4 d5");
+    await page.getByTestId("reader-reply-c5").click();
+    await expect(page.getByTestId("reader-line")).toHaveText("1.d4 d5 2.Bf4 Nf6 3.e3 c5");
   });
 
   test("hands off to the trainer", async ({ page }) => {

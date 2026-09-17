@@ -1,9 +1,28 @@
 import { Resend } from "resend";
 import { getAuthEnv } from "@/env";
+import { isEmailSuppressed } from "@/lib/server/emailSuppression";
 
 /**
  * Thin wrapper around Resend so we can swap providers later without
  * rewriting every callsite. Server-only.
+ *
+ * Every send declares a `kind`, and the two kinds are not interchangeable:
+ *
+ *   "transactional" — a reply to something the person just did (password
+ *     reset). CAN-SPAM exempts these, and they must go out even to a
+ *     suppressed address, or an unsubscribed user can never recover their
+ *     account.
+ *
+ *   "bulk" — anything whose primary purpose is not that. The type REQUIRES an
+ *     `unsubscribeUrl`, so a bulk sender that forgets the footer does not
+ *     compile. That is deliberate: `sendWelcomeEmail` sat in this file for
+ *     months with no unsubscribe link and no caller, one wire-up away from
+ *     being a violation, and no test would have caught it. Making the compiler
+ *     the check means the next person cannot make the same omission.
+ *
+ * Bulk sends are also checked against the suppression list immediately before
+ * handing anything to Resend. Checking at the callsite would mean every future
+ * callsite has to remember; checking here means none of them can forget.
  */
 
 let cachedClient: Resend | null = null;
@@ -15,14 +34,27 @@ function getClient(): Resend {
   return cachedClient;
 }
 
-type SendArgs = {
+interface BaseSendArgs {
   to: string;
   subject: string;
   html: string;
   text: string;
-};
+}
 
-async function send({ to, subject, html, text }: SendArgs): Promise<void> {
+type SendArgs =
+  | ({ kind: "transactional" } & BaseSendArgs)
+  | ({ kind: "bulk"; unsubscribeUrl: string } & BaseSendArgs);
+
+/** What a send did. "suppressed" is a success, not a failure. */
+export type SendOutcome = "sent" | "suppressed";
+
+async function send(args: SendArgs): Promise<SendOutcome> {
+  const { to, subject, html, text } = args;
+
+  if (args.kind === "bulk" && (await isEmailSuppressed(to))) {
+    return "suppressed";
+  }
+
   const from = getAuthEnv().email.fromAddress;
   const result = await getClient().emails.send({
     from: `Chess Masti <${from}>`,
@@ -30,10 +62,24 @@ async function send({ to, subject, html, text }: SendArgs): Promise<void> {
     subject,
     html,
     text,
+    // RFC 8058 one-click unsubscribe. The visible footer link is what the law
+    // asks for; these headers are what Gmail and Yahoo ask for from bulk
+    // senders, and they let the mail client offer Unsubscribe in its own UI.
+    // List-Unsubscribe-Post is what makes it ONE click rather than a
+    // round-trip through a browser and a confirmation page.
+    ...(args.kind === "bulk"
+      ? {
+          headers: {
+            "List-Unsubscribe": `<${args.unsubscribeUrl}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
+        }
+      : {}),
   });
   if (result.error) {
     throw new Error(`Resend rejected email: ${result.error.message}`);
   }
+  return "sent";
 }
 
 const BRAND_GRADIENT = "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)";
@@ -102,6 +148,7 @@ export async function sendPasswordResetEmail(args: {
     `${args.resetUrl}\n\n` +
     "If this wasn't you, ignore this email — your password is unchanged.\n";
   await send({
+    kind: "transactional",
     to: args.to,
     subject: "Reset your Chess Masti password",
     html,
@@ -116,7 +163,7 @@ export async function sendDailyReminderEmail(args: {
   streak?: number;
   /** Link that turns reminders off (CAN-SPAM unsubscribe). */
   unsubscribeUrl: string;
-}): Promise<void> {
+}): Promise<SendOutcome> {
   const name = args.displayName ? `, ${args.displayName}` : "";
   const streakLine =
     args.streak && args.streak > 0
@@ -141,7 +188,9 @@ export async function sendDailyReminderEmail(args: {
       : "") +
     "Start today's session: https://chessmasti.com/learn\n\n" +
     `Turn off reminders: ${args.unsubscribeUrl}\n`;
-  await send({
+  return send({
+    kind: "bulk",
+    unsubscribeUrl: args.unsubscribeUrl,
     to: args.to,
     subject: "Your chess training is ready",
     html,
@@ -149,19 +198,10 @@ export async function sendDailyReminderEmail(args: {
   });
 }
 
-export async function sendWelcomeEmail(args: {
-  to: string;
-  displayName?: string;
-}): Promise<void> {
-  const greeting = args.displayName
-    ? `Welcome, ${args.displayName}!`
-    : "Welcome to Chess Masti!";
-  const html = wrapHtml(
-    greeting,
-    `<p>Your account is ready. Sign in any time at
-      <a href="https://chessmasti.com" style="color:#FF6B35;">chessmasti.com</a>
-      to analyze games, train tactics, and get coaching tailored to your style.</p>`
-  );
-  const text = `${greeting}\n\nYour Chess Masti account is ready. Sign in at https://chessmasti.com.\n`;
-  await send({ to: args.to, subject: "Welcome to Chess Masti", html, text });
-}
+/*
+ * `sendWelcomeEmail` was removed on 2026-09-16. It had no caller anywhere in
+ * the repo and no unsubscribe link, so it was a CAN-SPAM violation waiting for
+ * somebody to wire it up. If a welcome email is wanted, write it as
+ * kind: "transactional" (an account-confirmation message is a relationship
+ * message) — the old body is in git history at 57471bb5~1.
+ */

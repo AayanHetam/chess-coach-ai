@@ -31,10 +31,30 @@ const USER_SUBCOLLECTIONS: Array<{ name: string; nested?: string[] }> = [
   { name: "games" },
   { name: "chats", nested: ["messages"] },
   { name: "puzzleSessions" },
+  // Added 2026-09-16. These three were written by stores that landed after
+  // this module and were never added here, so every deletion until now left
+  // a user's course progress, trainer progress and repertoire behind while
+  // reporting success. Grep for `.collection(SUB)` under src/lib/server when
+  // adding a store — a new subcollection is invisible to this list.
+  { name: "courseProgress" }, // src/lib/server/courseProgress.ts
+  { name: "trainer" }, // src/lib/server/trainerStore.ts  (doc: progress)
+  { name: "repertoire" }, // src/lib/server/bracketStore.ts (doc: bracket)
 ];
 
 /** Top-level collections carrying a `sharerUid` back-reference. */
 const SHARED_ARTIFACT_COLLECTIONS = ["gameShares", "scouts", "insights"];
+
+/**
+ * Top-level collections whose DOCUMENT ID is the uid. Distinct from the
+ * `sharerUid` collections above, which are queried by field.
+ *
+ * `puzzleRushLeaderboard` is the one that mattered: the row carries the
+ * player's `handle` and the board is world-readable, so before this was
+ * added a deleted account kept a public, named entry forever. "Deleted" has
+ * to mean gone from the surfaces strangers can see, not just from the ones
+ * the owner can.
+ */
+const UID_DOC_COLLECTIONS = ["puzzleRushLeaderboard"];
 
 /**
  * Data this tool does NOT remove. Printed on every run — see the module note.
@@ -65,6 +85,31 @@ export interface DeletionResult extends DeletionPlan {
   deleted: SurfaceCount[];
   supabase: Awaited<ReturnType<typeof purgeUserData>> | null;
   errors: string[];
+}
+
+/**
+ * The `handles/{canonical}` reservation doc for this account, or null.
+ *
+ * Uniqueness is enforced by a reservation document whose ID *is* the handle
+ * (see src/lib/server/handles.ts), so nothing links uid -> handle except the
+ * account doc's own `handleLower`. Leaving the reservation behind is not
+ * cosmetic: a handle is a sign-in identifier here, so an orphan both leaks the
+ * name the person chose and permanently blocks anyone else from claiming it.
+ *
+ * Guarded by a uid check so a reservation that has since been re-claimed by
+ * somebody else is never deleted out from under them.
+ */
+async function handleReservationRef(
+  db: FirebaseFirestore.Firestore,
+  userSnap: FirebaseFirestore.DocumentSnapshot
+): Promise<FirebaseFirestore.DocumentReference | null> {
+  if (!userSnap.exists) return null;
+  const canonical = userSnap.data()?.handleLower as string | undefined;
+  if (!canonical) return null;
+  const ref = db.collection("handles").doc(canonical);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  return snap.data()?.uid === userSnap.id ? ref : null;
 }
 
 /** Resolve an email to a uid using the same field the auth code writes. */
@@ -109,6 +154,17 @@ export async function planUserDeletion(uid: string): Promise<DeletionPlan> {
     const snap = await db.collection(coll).where("sharerUid", "==", uid).get();
     surfaces.push({ surface: `${coll} (sharerUid)`, count: snap.size });
   }
+
+  for (const coll of UID_DOC_COLLECTIONS) {
+    const snap = await db.collection(coll).doc(uid).get();
+    surfaces.push({ surface: `${coll}/{uid}`, count: snap.exists ? 1 : 0 });
+  }
+
+  // The handle reservation is keyed by the CANONICAL HANDLE, not the uid, so
+  // it can only be found through the account doc — which is why it survived
+  // every deletion until now. Read it before the account doc goes.
+  const handleRef = await handleReservationRef(db, userSnap);
+  surfaces.push({ surface: "handles/{canonical}", count: handleRef ? 1 : 0 });
 
   const email =
     (userSnap.exists ? (userSnap.data()?.email as string | undefined) : null) ??
@@ -160,6 +216,17 @@ export async function executeUserDeletion(
       snap.docs.map((d) => d.ref)
     );
   }
+
+  for (const coll of UID_DOC_COLLECTIONS) {
+    const ref = db.collection(coll).doc(uid);
+    const snap = await ref.get();
+    await delDocs(`${coll}/{uid}`, snap.exists ? [ref] : []);
+  }
+
+  // Before the account doc — it is the only thing that knows the handle.
+  const userSnapForHandle = await userRef.get();
+  const handleRef = await handleReservationRef(db, userSnapForHandle);
+  await delDocs("handles/{canonical}", handleRef ? [handleRef] : []);
 
   for (const sub of USER_SUBCOLLECTIONS) {
     const docs = await userRef.collection(sub.name).get();

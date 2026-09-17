@@ -84,7 +84,7 @@ test.describe("drill", () => {
     await expect(page.getByRole("heading", { name: "Drill" })).toBeVisible();
     const first = page.getByTestId("drill-chapter-0");
     await expect(first).toContainText(/\d+ decisions · \d+ rounds of 5/);
-    await expect(page.getByTestId("drill-go-0-d5")).toBeVisible();
+    await expect(page.getByTestId("drill-go-0-c5")).toBeVisible();
   });
 
   test("asks a player who knows everything — the whole point of the mode", async ({ page }) => {
@@ -115,9 +115,11 @@ test.describe("drill", () => {
   });
 
   test("a study drill is scoped to the study", async ({ page }) => {
-    await page.goto("/train/course/w-london/0?drill=1&study=d5");
+    // The London's root already plays 1.d4 d5 2.Bf4, so chapter 0's own
+    // studies split on Black's THIRD move, not the second.
+    await page.goto("/train/course/w-london/0?drill=1&study=c5");
     await dismissChrome(page);
-    await expect(page.getByTestId("drill-scope")).toContainText("Black plays 2...d5");
+    await expect(page.getByTestId("drill-scope")).toContainText("Black plays 3...c5");
 
     const scoped = await page.evaluate(() => {
       const data = JSON.parse(document.getElementById("__NEXT_DATA__")!.textContent!);

@@ -261,15 +261,24 @@ export function toTrainerLine(probe: CourseProbe, side: 'white' | 'black'): Trai
  *
  * The strings are the ones `lineNotes` already ships, so the two surfaces
  * cannot drift into describing the same fact two ways.
+ *
+ * "ENGINE-CHECKED" IS A CLAIM, AND `loss` IS THE EVIDENCE. A setup move whose
+ * score the builder never had shipped under that label once — 5.Be2 with a
+ * knight hanging, in the 1.b3 course — and the card was wrong in the one row
+ * that told the learner how much to trust it. The build now refuses to emit a
+ * setup node without `loss` (guard C-4), and this function refuses to say
+ * "checked" without it, so the two cannot disagree again.
  */
-export function sourceWords(src: MoveSource): string | null {
+export function sourceWords(src: MoveSource, loss?: number): string | null {
   switch (src) {
     case 'corpus-confirmed':
       return null;
     case 'engine':
       return "the engine's choice over the popular move";
     case 'setup':
-      return "this system's setup, engine-checked";
+      return loss === undefined
+        ? "this system's setup, not engine-checked"
+        : "this system's setup, engine-checked";
     case 'corpus':
       return 'most played, not engine-checked';
   }

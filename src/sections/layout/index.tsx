@@ -184,6 +184,7 @@ export default function Layout({ children }: PropsWithChildren) {
                 { href: "/scout", label: "Opponent scout" },
                 { href: "/learn", label: "Openings" },
                 { href: "/courses", label: "Courses" },
+                { href: "/chess-basics", label: "Chess basics" },
                 { href: "/terms", label: "Terms" },
                 { href: "/privacy", label: "Privacy" },
                 { href: "/accessibility", label: "Accessibility" },

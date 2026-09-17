@@ -48,6 +48,12 @@ export interface Pick {
   depth: number;
   share: number;
   alternatives?: Array<{ san: string; cp: number }>;
+  /**
+   * Setup candidates the engine has no score for. Present only when a system's
+   * move could not be vetted, so the pick is provisional: the ordinary rule
+   * decided instead, and build-courses.mjs will not ship it (guard C-4).
+   */
+  unrated?: string[];
 }
 
 export interface CourseNodeJs {
@@ -85,6 +91,10 @@ export interface BuiltCourse {
   chapters: CourseChapterJs[];
   nodes: Record<string, CourseNodeJs>;
   problems: string[];
+  /** Positions with no evaluation at all, either turn. Work-list for build-eval-gaps.mjs. */
+  unevaluated: Array<{ key: string; fen: string; ours: boolean }>;
+  /** Our turn, and a setup candidate the engine never scored. Guard C-4 fails on any. */
+  unrated: Array<{ key: string; fen: string; moves: string[] }>;
 }
 
 export interface BuildOptions {
@@ -97,6 +107,12 @@ export interface BuildOptions {
   minGames?: number;
   /** A system's fixed move list. Engine vets it; engine does not choose it. */
   setup?: string[] | null;
+  /**
+   * Discovery mode for build-eval-gaps.mjs ONLY: play an unrated setup move so
+   * the walk reaches the positions the system intends. Still reported as
+   * unrated. build-courses.mjs never sets it.
+   */
+  assumeSetup?: boolean;
 }
 
 export declare const MATE_BASE: number;
@@ -110,15 +126,22 @@ export declare function positionKey(fen: string): string;
 export declare function isMate(cp: number): boolean;
 export declare function forSide(cp: number, side: Side): number;
 export declare function playUci(board: unknown, uci: string): { san: string } | null;
+/** A UCI move in the eval index's castling encoding (king takes rook), decided from the key's castling field. */
+export declare function canonicalUci(key: string, uci: string): string;
 export declare function repliesAt(tree: StoredTree, fen: string): Reply[];
 export declare function gamesAt(tree: StoredTree, fen: string): number;
 export declare function engineAt(evals: EvalIndex, fen: string, side: Side): EngineView | null;
+export declare function mergeEvals(
+  index: EvalIndex | null | undefined,
+  gaps: EvalIndex | null | undefined
+): EvalIndex & { source: string; licence: string };
 export declare function chooseOurMove(
   tree: StoredTree,
   evals: EvalIndex,
   fen: string,
   side: Side,
-  setup?: string[] | null
+  setup?: string[] | null,
+  mode?: { assumeSetup?: boolean }
 ): Pick | null;
 export declare function theirReplies(
   tree: StoredTree,

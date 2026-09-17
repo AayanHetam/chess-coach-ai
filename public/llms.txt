@@ -49,6 +49,7 @@
 - [Architecture](https://chessmasti.com/architecture): technical deep-dive.
 - [Compare](https://chessmasti.com/vs): comparison against Sensei Chess, Noctie, Chessvia, DecodeChess, Chess.com Coach.
 - [FAQ](https://chessmasti.com/faq): common questions about the pipeline, validator, Maia-2, and why the service is free.
+- [Chess basics](https://chessmasti.com/chess-basics): how organised chess works — tournament rules in brief, time controls, how FIDE and national ratings are earned, and what FM/IM/GM titles require — checked against the FIDE Handbook.
 
 ## What we don't do
 

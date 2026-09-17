@@ -365,7 +365,16 @@ describe('sourceWords', () => {
   it('speaks up only where the move deviates', () => {
     expect(sourceWords('engine')).toBe("the engine's choice over the popular move");
     expect(sourceWords('corpus')).toBe('most played, not engine-checked');
-    expect(sourceWords('setup')).toBe("this system's setup, engine-checked");
+    expect(sourceWords('setup', 0)).toBe("this system's setup, engine-checked");
+    expect(sourceWords('setup', 25)).toBe("this system's setup, engine-checked");
+  });
+
+  it('will not say "engine-checked" about a setup move with no score', () => {
+    // The 1.b3 course shipped 5.Be2?? — knight en prise — under exactly this
+    // label, because the builder had no score for the move and the card did
+    // not look. The build now refuses such a node; the card refuses the claim.
+    expect(sourceWords('setup')).toBe("this system's setup, not engine-checked");
+    expect(sourceWords('setup', undefined)).toBe("this system's setup, not engine-checked");
   });
 });
 

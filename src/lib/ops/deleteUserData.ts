@@ -1,11 +1,17 @@
 /**
  * Account deletion — the tooling behind the privacy promise.
  *
- * `/privacy` says: "Email chessmastiprivacy@gmail.com and we'll delete your
- * account and saved games within seven days." That promise was satisfiable
- * only by hand, from memory, against two different databases — so the real
- * risk was never refusing to delete, it was deleting INCOMPLETELY and
- * believing the job was done.
+ * `/privacy` used to say: "Email us and we'll delete your account and saved
+ * games within seven days." That promise was satisfiable only by hand, from
+ * memory, against two different databases — so the real risk was never
+ * refusing to delete, it was deleting INCOMPLETELY and believing the job was
+ * done.
+ *
+ * Since 2026-09-16 the same functions also back `POST /api/account/delete`,
+ * the in-app "Delete my account" control, which is now the route almost
+ * everyone will take. That raises the stakes on the surface lists below: they
+ * are no longer reviewed by an operator reading a printed plan before typing
+ * --confirm. Nobody reads anything now. The lists ARE the policy.
  *
  * This module therefore does two things in a deliberate order:
  *

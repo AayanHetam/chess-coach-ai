@@ -206,3 +206,20 @@ index **234** (the held draft from batch 5, sent as-is) plus **302-375 and
   Notification (Delay)"; Gmail is still retrying, so it is not a bounce yet.
 
 **Next batch starts at index 402.** 134 rows remain (402-535).
+
+## Batch 7 (2026-09-16) — Aayan's side of the queue complete
+
+Sent by hand from a local Claude Code session, one recipient per message, **no BCC**:
+indices **502-535**, 34 messages. This clears every row that was reserved for Aayan.
+
+- Index 376 remains the only intentional gap (scraper-mangled address, see
+  `needs-manual-lookup.csv`).
+- Indices 402-501 were handed off in full on 2026-09-14 to Aaryaman Choppa, who is
+  sending them from his own Gmail account (aaryamanchopra@gmail.com) with a BCC to
+  aayanhetamsaria4@gmail.com. Those 100 do **not** appear in this file — his sends are
+  tracked in his own Sent folder, not here, so `sent-log-remaining.tsv` is not the
+  complete picture for 402-501 specifically.
+- With this batch, `sent-log-remaining.tsv` holds 434 of the 435 rows Aayan owns
+  (401 from batches 3-6, 34 from batch 7, 376 the deliberate gap). Combined with
+  batches 1-2 (90) and Aaryaman's 100 once he sends them, the full 643-contact file
+  is fully worked.

@@ -51,6 +51,14 @@ const SELF_CHROMED_ROUTES = new Set([
   "/puzzles/sessions",
   "/repetit-training",
   "/scout",
+  // The ChessUSA placement preview (a sales asset, noindex, not linked from
+  // anywhere on the site). /live mounts its own GradientBackdrop + NavPill
+  // because the whole point is to render the real chrome with the ad slot in
+  // its real position under it — a Layout-provided pill would stack a second
+  // one above the banner. The shell covers the viewport with its own fixed
+  // panels, so it wants no Layout chrome either.
+  "/partners/chessusa",
+  "/partners/chessusa/live",
 ]);
 
 // Deliberately chrome-free. /auth/age is the COPPA interstitial — offering

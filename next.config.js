@@ -94,7 +94,18 @@ const nextConfig = {
    */
   headers: async () => [
     {
-      source: "/:path*",
+      /**
+       * Everything EXCEPT the partner placement preview, which is the one
+       * route with a legitimate embedder: its own shell at
+       * /partners/chessusa frames it to show an advertiser their creative at
+       * real viewport widths.
+       *
+       * Written as an exclusion rather than a second, narrower rule on
+       * purpose. Next applies every matching rule, so a narrower rule would
+       * leave TWO X-Frame-Options values on the response and make the
+       * outcome depend on merge order. One rule, one value, per response.
+       */
+      source: "/((?!partners/chessusa/live).*)",
       headers: [
         // Clickjacking. The app has no legitimate embedder.
         { key: "X-Frame-Options", value: "DENY" },
@@ -110,6 +121,33 @@ const nextConfig = {
         },
         // Two years, subdomains included, preload-eligible. Vercel already
         // sends a bare max-age; this is the stricter form.
+        {
+          key: "Strict-Transport-Security",
+          value: "max-age=63072000; includeSubDomains; preload",
+        },
+      ],
+    },
+    {
+      /**
+       * The one framable route. SAMEORIGIN, not ALLOWALL: the preview shell
+       * is served from this same origin, so nothing outside chessmasti.com
+       * gains the ability to frame the site. frame-ancestors 'self' says the
+       * same thing to browsers that have dropped X-Frame-Options, and is the
+       * directive that actually governs where X-Frame-Options is ignored.
+       *
+       * The rest of the hardening is repeated here because this route is
+       * excluded from the rule above, and a security header you drop by
+       * accident is worse than one you never had.
+       */
+      source: "/partners/chessusa/live",
+      headers: [
+        { key: "X-Frame-Options", value: "SAMEORIGIN" },
+        { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        {
+          key: "Referrer-Policy",
+          value: "strict-origin-when-cross-origin",
+        },
         {
           key: "Strict-Transport-Security",
           value: "max-age=63072000; includeSubDomains; preload",

@@ -1,7 +1,7 @@
 "use client";
 
 import { resolveHref } from "next/dist/client/resolve-href";
-import { useRouter, type NextRouter } from "next/router";
+import Router, { useRouter, type NextRouter } from "next/router";
 import { useEffect } from "react";
 
 import {
@@ -47,6 +47,13 @@ const patched = new WeakSet<object>();
  * both. The href — the page Next loads — is left alone: the rewrite in
  * next.config maps the prefixed `as` back onto it on the client exactly as it
  * does on the server. Returns the undo.
+ *
+ * Patch the underlying Router INSTANCE (`Router.router`), not the object
+ * useRouter() returns. That object is a fresh public copy on every render of
+ * Next's AppContainer, and its methods delegate to the instance at call
+ * time — so a patch on the instance reaches useRouter(), next/link and the
+ * singleton `Router.push` alike, and survives every re-render. A patch on
+ * the copy reached none of the programmatic callers and was silently lost.
  */
 export function patchPagesRouter(
   router: NextRouter,
@@ -100,13 +107,14 @@ export function PartnerSlotPages() {
   const pathname = router.asPath.split("?")[0].split("#")[0];
   const prefix = partnerPrefixOf(pathname);
   useEffect(() => {
-    if (!prefix) return;
-    const unpatch = patchPagesRouter(router, prefix, window.location.origin);
+    const instance = Router.router;
+    if (!prefix || !instance) return;
+    const unpatch = patchPagesRouter(instance, prefix, window.location.origin);
     const uninstall = installAnchorRewriter(prefix);
     return () => {
       unpatch();
       uninstall();
     };
-  }, [router, prefix]);
+  }, [prefix]);
   return <PartnerSlot pathname={pathname} />;
 }

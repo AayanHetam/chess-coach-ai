@@ -1,7 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { LABEL_COLOUR, SLOT_HEIGHT, SWAP_PX } from "../PartnerBanner";
+import {
+  LABEL_COLOUR,
+  SLOT_HEIGHT,
+  SLOT_MAX_WIDTH,
+  SWAP_PX,
+} from "../PartnerBanner";
 import {
   LABEL_BLOCK_PX,
   PARTNER_ATTR,
@@ -75,7 +80,7 @@ describe("the reserve matches what it reserves for", () => {
     );
   });
 
-  it("puts both heights into the pre-paint CSS, swapping at the same 640px", () => {
+  it("puts both heights into the pre-paint CSS, swapping at the same point", () => {
     expect(partnerSlotCss).toContain(`min-height:${SLOT_RESERVE.narrow}px`);
     expect(partnerSlotCss).toContain(`min-height:${SLOT_RESERVE.wide}px`);
     expect(partnerSlotCss).toContain(`@media (min-width:${SWAP_PX}px)`);
@@ -124,6 +129,45 @@ describe("which URLs activate the slot", () => {
     "/partnersXchessusa/1",
   ])("%s shows nothing", (path) => {
     expect(optionForPath(path)).toBeNull();
+  });
+});
+
+describe("the wide unit is only served where it fits", () => {
+  /**
+   * The wide creative is a fixed 728px IAB leaderboard inside a link whose
+   * overflow is hidden, so a slot narrower than 728 does not shrink it — it
+   * CUTS IT OFF, silently. At a 640px swap point that hid 120px of the unit
+   * on tablet widths, which on 2a is the entire call to action.
+   *
+   * The swap point therefore has to clear 728 plus the narrowest side padding
+   * any page puts around the slot (1rem each side).
+   */
+  const MIN_PAGE_PADDING = 32;
+
+  it("swaps no earlier than the wide unit's width plus page padding", () => {
+    expect(SWAP_PX).toBeGreaterThanOrEqual(SLOT_MAX_WIDTH + MIN_PAGE_PADDING);
+  });
+
+  it("uses that one swap point for the reserve as well", () => {
+    // Reserve and creative must change size at the same width or the page
+    // shifts by the 10px difference between the two unit heights.
+    expect(partnerSlotCss).toContain(`@media (min-width:${SWAP_PX}px)`);
+  });
+
+  it("uses it for the creatives too, which is where it last drifted", () => {
+    /**
+     * The creatives carried their own literal 640 while PartnerBanner moved to
+     * 760, so they swapped at a width the rest of the slot disagreed with.
+     * Rendering them and reading the emitted media queries is the only check
+     * that catches that, since nothing else links the two numbers.
+     */
+    const html = renderToStaticMarkup(<>{turnTwoCreative("1")}</>);
+    const re = /@media \(min-width:\s*(\d+)px\)/g;
+    const widths: number[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(html)) !== null) widths.push(Number(m[1]));
+    expect(widths.length).toBeGreaterThan(0);
+    for (const w of widths) expect(w).toBe(SWAP_PX);
   });
 });
 

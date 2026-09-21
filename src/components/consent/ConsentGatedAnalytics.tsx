@@ -75,7 +75,14 @@ export default function ConsentGatedAnalytics() {
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
               gtag('config', '${GA_MEASUREMENT_ID}', {
-                send_page_view: true
+                // GA4 sends an automatic page view from this config call, for
+                // whatever URL the script loads on. That is a SECOND path into
+                // GA4 alongside the manual event AnalyticsProvider fires, and
+                // guarding only the manual one left advertiser reloads of
+                // /partners/... inflating GA4 anyway. Suppress the automatic
+                // one under the preview prefix; AnalyticsProvider sends the
+                // real page views and carries the matching guard.
+                send_page_view: !location.pathname.startsWith('/partners/')
               });
             `}
           </Script>

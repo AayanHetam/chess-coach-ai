@@ -19,6 +19,7 @@ import { EmployeeChrome } from "@/components/intern/EmployeeChrome";
 import { GlobalAuthDialog } from "@/contexts/AuthDialogContext";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
+import { PartnerSlot } from "@/components/ads/PartnerSlot";
 
 // Routes that mount their own <GradientBackdrop /> + <NavPill /> inside the
 // page component. Layout must NOT add a second set, or they double-stack.
@@ -167,6 +168,15 @@ export default function Layout({ children }: PropsWithChildren) {
               </Box>
             </>
           )}
+
+          {/* The BARE_ROUTES render no NavPill, so the partner slot cannot
+              ride along with it the way it does everywhere else. /auth/age is
+              excluded deliberately and permanently: it is the COPPA age gate,
+              and an advertisement on a children's age-verification screen is
+              not something we serve even to an advertiser previewing it.
+              Renders nothing unless one of the three preview links was
+              opened. */}
+          {bare && router.pathname !== "/auth/age" && <PartnerSlot />}
 
           {children}
 

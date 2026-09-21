@@ -20,6 +20,7 @@ import { Menu as MenuIcon, Heart, LogOut, User, Settings } from "lucide-react";
 import { Logo } from "./Logo";
 import { surfaceAccent } from "./accents";
 import { AppDrawer, type NavId } from "./AppDrawer";
+import { PartnerSlot } from "@/components/ads/PartnerSlot";
 import { useAuth } from "@/contexts/AuthContext";
 import ProfileDialog from "@/components/auth/ProfileDialog";
 import { useAuthDialog } from "@/contexts/AuthDialogContext";
@@ -521,6 +522,16 @@ export function NavPill({
           </Box>
         )}
       </Box>
+
+      {/* ChessUSA partner slot, directly below the nav on every surface that
+          renders one — which is both the self-chromed product pages and the
+          ones Layout chromes. It lives HERE rather than in Layout because
+          SELF_CHROMED_ROUTES (/, /analysis, /play, /practice, /plan, /profile,
+          /puzzles, /scout, /courses, /database) mount their own NavPill inside
+          the page, so Layout has no hook below the nav for any of them.
+          Renders nothing at all unless the viewer opened one of the three
+          /partners/chessusa/N links. See PartnerSlot.tsx. */}
+      <PartnerSlot />
 
       <AppDrawer
         open={drawerOpen}

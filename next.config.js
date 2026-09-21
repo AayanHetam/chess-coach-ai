@@ -92,6 +92,30 @@ const nextConfig = {
    * a CSP loose enough to be safe by inspection would not be worth having.
    * That needs its own change with report-only telemetry first.
    */
+  /**
+   * The ChessUSA links go out in email written as /partners/ChessUSA/1. Page
+   * routing is filesystem-based and therefore case-SENSITIVE, so that exact
+   * string 404s on the one audience it was written for, and a dead link in a
+   * pitch is not something you get to fix after they have clicked it.
+   *
+   * A rewrite, NOT a redirect. `source` patterns here are matched
+   * case-INSENSITIVELY, so a redirect from the capitalised spelling also
+   * matches the canonical lowercase one and sends it to itself — an infinite
+   * loop that 307s every /partners/* route, including ones that worked
+   * before. Measured, not theorised: that is exactly what the first version of
+   * this did.
+   *
+   * Rewrites returned as a plain array run in `afterFiles`, i.e. only when no
+   * page matched. So the lowercase path resolves to its page and never reaches
+   * this rule, and only the capitalised spellings fall through to be rewritten
+   * onto the canonical one. Canonical path stays lowercase.
+   */
+  rewrites: async () => [
+    {
+      source: "/partners/chessusa/:rest*",
+      destination: "/partners/chessusa/:rest*",
+    },
+  ],
   headers: async () => [
     {
       /**

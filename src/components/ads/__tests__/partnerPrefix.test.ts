@@ -1,3 +1,7 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import type { NextRouter } from "next/router";
 import { describe, expect, it, vi } from "vitest";
 
@@ -14,6 +18,7 @@ import {
 } from "../PartnerSlot";
 import { patchAppRouter } from "../PartnerSlotApp";
 import { patchPagesRouter, prefixedAs } from "../PartnerSlotPages";
+import { PARTNERS, PARTNER_SLUGS } from "../partners";
 
 const ORIGIN = "https://www.chessmasti.com";
 const PREFIX = "/partners/ChessUSA/2";
@@ -24,6 +29,10 @@ describe("partnerPrefixOf keeps the visitor's own spelling", () => {
     ["/partners/chessusa/3", "/partners/chessusa/3"],
     ["/partners/chessusa/3/", "/partners/chessusa/3"],
     ["/PARTNERS/CHESSUSA/1/learn/abc", "/PARTNERS/CHESSUSA/1"],
+    ["/partners/ChessHouse/1/puzzles", "/partners/ChessHouse/1"],
+    ["/partners/chesshouse/2", "/partners/chesshouse/2"],
+    ["/partners/chesshouse/2/", "/partners/chesshouse/2"],
+    ["/PARTNERS/CHESSHOUSE/3/learn/abc", "/PARTNERS/CHESSHOUSE/3"],
   ])("%s → %s", (path, prefix) => {
     expect(partnerPrefixOf(path)).toBe(prefix);
   });
@@ -36,6 +45,11 @@ describe("partnerPrefixOf keeps the visitor's own spelling", () => {
     "/partners/chessusa/12",
     "/partners/chessusa/1x",
     "/x/partners/chessusa/1",
+    "/partners/chesshouse",
+    "/partners/chesshouse/12",
+    "/partners/chesshouse/1x",
+    "/x/partners/chesshouse/1",
+    "/partners/chessworld/1",
   ])("%s is not under a prefix", (path) => {
     expect(partnerPrefixOf(path)).toBeNull();
   });
@@ -74,6 +88,9 @@ describe("prefixPath", () => {
     "/partners/chessusa",
     "/partners/chessusa/1/puzzles", // already carries a prefix
     "/partners/ChessUSA/2/puzzles",
+    "/partners/chesshouse/1/puzzles", // another advertiser's prefix
+    "/partners/ChessHouse/3",
+    "https://www.chesshouse.com/", // the other advertiser's own link
   ])("leaves %s alone", (target) => {
     expect(p(target)).toBe(target);
   });
@@ -373,5 +390,68 @@ describe("sign-in affordances hide under the prefix, and only there", () => {
   it("uses a different marker from the viewport lock, so hiding one cannot hide the other", () => {
     expect(SIGN_IN_ATTR).not.toBe(VIEWPORT_LOCK_ATTR);
     expect(SIGN_IN_ATTR).toMatch(/^data-cm-/);
+  });
+});
+
+describe("every registered advertiser has a route that serves it", () => {
+  /**
+   * next.config.js is CommonJS and cannot import the registry, so the
+   * advertiser allowlist is written down twice. That is a deliberate trade —
+   * a wildcard :partner would serve the whole site under any
+   * /partners/<anything>/1 URL — but a slug added to the registry and not to
+   * the config is a link that 404s on the one audience it was mailed to,
+   * which is the failure this test exists to make impossible.
+   *
+   * Read as TEXT rather than required: executing the config pulls in the
+   * whole Next plugin chain for an assertion about two strings.
+   */
+  const config = readFileSync(
+    join(
+      fileURLToPath(new URL(".", import.meta.url)),
+      "../../../../next.config.js"
+    ),
+    "utf8"
+  );
+
+  /** The one rule that turns a prefixed URL into a real page. */
+  const optionRule =
+    /source:\s*"\/partners\/:partner\(([^)]+)\)\/:option\(1\|2\|3\)/;
+
+  it("spells the option rewrite as an allowlist, not a wildcard", () => {
+    // A bare :partner would make every /partners/<anything>/1 URL serve the
+    // site under a noindex prefix.
+    expect(config).toMatch(optionRule);
+    expect(config).not.toMatch(/source:\s*"\/partners\/:partner\/:option/);
+  });
+
+  it.each([...PARTNER_SLUGS])("%s is in that allowlist", (slug) => {
+    const allowed = optionRule.exec(config)?.[1].split("|") ?? [];
+    expect(allowed).toContain(slug);
+  });
+
+  it("allows no slug the registry does not define", () => {
+    const allowed = optionRule.exec(config)?.[1].split("|") ?? [];
+    expect(allowed.length).toBeGreaterThan(0);
+    for (const slug of allowed) expect(PARTNER_SLUGS).toContain(slug);
+  });
+
+  it("keeps the whole /partners tree out of the index", () => {
+    // Every preview URL is a byte-for-byte duplicate of a canonical page, so
+    // the noindex header has to cover the prefix rather than one advertiser.
+    expect(config).toContain('source: "/partners/:path*"');
+    expect(config).toContain('value: "noindex, nofollow"');
+  });
+
+  it("gives each advertiser a destination and a campaign of its own", () => {
+    // A copy-pasted entry that still points at the previous advertiser sends
+    // their traffic — and their attribution — to a competitor.
+    const hrefs = PARTNER_SLUGS.map((s) => PARTNERS[s].href);
+    const campaigns = PARTNER_SLUGS.map((s) => PARTNERS[s].campaign);
+    expect(new Set(hrefs).size).toBe(hrefs.length);
+    expect(new Set(campaigns).size).toBe(campaigns.length);
+    for (const slug of PARTNER_SLUGS) {
+      expect(() => new URL(PARTNERS[slug].href)).not.toThrow();
+      expect(PARTNERS[slug].linkSegment.toLowerCase()).toBe(slug);
+    }
   });
 });

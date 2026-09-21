@@ -4,6 +4,12 @@ import { Box } from "@mui/material";
 import type { ReactNode } from "react";
 
 import { SWAP_PX } from "./PartnerBanner";
+import {
+  PARTNER_OPTION_IDS,
+  PARTNERS,
+  isPartnerOptionId,
+  type PartnerOptionId,
+} from "./partners";
 
 /**
  * ChessUSA Turn-2 creative, built from the design doc's three directions.
@@ -951,34 +957,20 @@ function NeonNarrow() {
 
 /* ── the three options, as the links name them ──────────────────────────── */
 
-export type TurnTwoId = "1" | "2" | "3";
+/**
+ * The ids, the guard and the per-option metadata now live in ./partners, the
+ * registry every advertiser on this surface shares. They are re-exported here
+ * under their original names because the shell, the framed route and the
+ * tests all import them from this module — and because a second hand-written
+ * copy of "1" | "2" | "3" is exactly the drift the registry exists to stop.
+ */
+export type TurnTwoId = PartnerOptionId;
 
-export const TURN_TWO_IDS: readonly TurnTwoId[] = ["1", "2", "3"] as const;
+export const TURN_TWO_IDS: readonly TurnTwoId[] = PARTNER_OPTION_IDS;
 
-export function isTurnTwoId(value: unknown): value is TurnTwoId {
-  return typeof value === "string" && TURN_TWO_IDS.includes(value as TurnTwoId);
-}
+export const isTurnTwoId = isPartnerOptionId;
 
-export const TURN_TWO_META: Record<
-  TurnTwoId,
-  { code: string; name: string; alt: string }
-> = {
-  "1": {
-    code: "2a",
-    name: "Board Party",
-    alt: "ChessUSA — America's Largest Chess Store. 5% off with code CHESSMASTI. It's your move.",
-  },
-  "2": {
-    code: "2b",
-    name: "Sticker",
-    alt: "ChessUSA — America's Largest Chess Store. 5% off with code CHESSMASTI. Shop now.",
-  },
-  "3": {
-    code: "2c",
-    name: "Neon Board",
-    alt: "ChessUSA — America's Largest Chess Store. 5% off with code CHESSMASTI. Shop now.",
-  },
-};
+export const TURN_TWO_META = PARTNERS.chessusa.options;
 
 export function turnTwoCreative(id: TurnTwoId): ReactNode {
   switch (id) {

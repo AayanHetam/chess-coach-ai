@@ -1,3 +1,7 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -10,15 +14,16 @@ import {
 import {
   LABEL_BLOCK_PX,
   PARTNER_ATTR,
+  PARTNER_CREATIVES,
   PARTNER_SLOT_CLASS,
   PartnerSlot,
   PARTNER_PREVIEW_PATH_JS,
   SLOT_MARGIN_PX,
   SLOT_RESERVE,
   isPartnerPreviewPath,
-  optionForPath,
   partnerBootScript,
   partnerSlotCss,
+  previewForPath,
 } from "../PartnerSlot";
 import {
   TURN_TWO_IDS,
@@ -26,6 +31,22 @@ import {
   isTurnTwoId,
   turnTwoCreative,
 } from "../chessusaTurn2";
+import {
+  PARTNERS,
+  PARTNER_OPTION_IDS,
+  PARTNER_SLUGS,
+  partnerAttrValue,
+} from "../partners";
+import { BARCODE_BAR_WIDTHS } from "../chesshouseTurn2";
+
+/**
+ * Every unit the surface can serve: each advertiser's three creatives. New
+ * advertisers join these checks by existing in the registry, which is the
+ * point — the invariants below are properties of the SLOT, not of ChessUSA.
+ */
+const EVERY_UNIT = PARTNER_SLUGS.flatMap((slug) =>
+  PARTNER_OPTION_IDS.map((option) => [slug, option] as const)
+);
 
 describe("the slot is invisible to everyone who did not open a preview link", () => {
   /**
@@ -39,7 +60,10 @@ describe("the slot is invisible to everyone who did not open a preview link", ()
     expect(ssr).toContain(PARTNER_SLOT_CLASS);
     expect(ssr).not.toContain("Advertisement");
     expect(ssr).not.toContain("CHESSMASTI");
-    expect(ssr).not.toContain("chessusa.com");
+    for (const partner of Object.values(PARTNERS)) {
+      expect(ssr).not.toContain(new URL(partner.href).hostname);
+      expect(ssr).not.toContain(partner.displayName);
+    }
   });
 
   it("ships no artwork reference a browser could prefetch", () => {
@@ -97,17 +121,23 @@ describe("which URLs activate the slot", () => {
    * case where a real visitor would otherwise see the banner.
    */
   it.each([
-    ["/partners/chessusa/1", "1"],
-    ["/partners/chessusa/2", "2"],
-    ["/partners/chessusa/3", "3"],
-    ["/partners/chessusa/1/", "1"],
-    ["/partners/chessusa/1/puzzles", "1"],
-    ["/partners/chessusa/3/learn/w-london", "3"],
+    ["/partners/chessusa/1", "chessusa", "1"],
+    ["/partners/chessusa/2", "chessusa", "2"],
+    ["/partners/chessusa/3", "chessusa", "3"],
+    ["/partners/chessusa/1/", "chessusa", "1"],
+    ["/partners/chessusa/1/puzzles", "chessusa", "1"],
+    ["/partners/chessusa/3/learn/w-london", "chessusa", "3"],
     // The spelling the links actually go out as.
-    ["/partners/ChessUSA/1/puzzles", "1"],
-    ["/PARTNERS/CHESSUSA/2", "2"],
-  ])("%s activates option %s", (path, expected) => {
-    expect(optionForPath(path)).toBe(expected);
+    ["/partners/ChessUSA/1/puzzles", "chessusa", "1"],
+    ["/PARTNERS/CHESSUSA/2", "chessusa", "2"],
+    // The second advertiser, same rules, no extra machinery.
+    ["/partners/chesshouse/1", "chesshouse", "1"],
+    ["/partners/chesshouse/2/puzzles", "chesshouse", "2"],
+    ["/partners/ChessHouse/3", "chesshouse", "3"],
+    ["/partners/ChessHouse/1/learn/w-london", "chesshouse", "1"],
+    ["/PARTNERS/CHESSHOUSE/2", "chesshouse", "2"],
+  ])("%s activates %s option %s", (path, slug, option) => {
+    expect(previewForPath(path)).toEqual({ slug, option });
   });
 
   it.each([
@@ -125,12 +155,26 @@ describe("which URLs activate the slot", () => {
     "/partners/chessusa/0",
     "/partners/chessusa/4",
     "/partners/chessusa/off",
+    "/partners/chesshouse/12",
+    "/partners/chesshouse/1x",
+    "/partners/chesshouse/0",
+    "/partners/chesshouse/4",
+    // Chess House has no shell page, so the bare slug is nothing at all.
+    "/partners/chesshouse",
+    "/partners/chesshouse/live",
+    // An advertiser not in the registry never renders, even with a
+    // well-formed option: the surface is an allowlist, not a pattern.
+    "/partners/chessworld/1",
+    "/partners/chess/1",
+    "/partners/chesshouses/1",
+    "/partners/xchesshouse/1",
     // Anchoring: the prefix has to BE the route, not appear inside one.
     "/foo/partners/chessusa/1",
     "/blog/partners/chessusa/1/puzzles",
     "/partnersXchessusa/1",
+    "/foo/partners/chesshouse/1",
   ])("%s shows nothing", (path) => {
-    expect(optionForPath(path)).toBeNull();
+    expect(previewForPath(path)).toBeNull();
   });
 });
 
@@ -280,7 +324,7 @@ describe("boot script", () => {
     expect(returnAt).toBeLessThan(partnerBootScript.indexOf("createElement"));
   });
 
-  it("agrees with optionForPath on every URL, when actually executed", () => {
+  it("agrees with previewForPath on every URL, when actually executed", () => {
     /**
      * The rule exists twice — once as a string of JS for the document head,
      * once as TS for the component. Drift between them is a real failure
@@ -312,17 +356,33 @@ describe("boot script", () => {
       "/partners/chessusa/1/puzzles",
       "/partners/ChessUSA/2",
       "/partners/chessusa/3",
+      "/partners/chesshouse/1/puzzles",
+      "/partners/ChessHouse/2",
+      "/partners/chesshouse/3",
       "/puzzles",
       "/",
       "/partners/chessusa",
       "/partners/chessusa/live",
       "/partners/chessusa/12",
+      "/partners/chesshouse",
+      "/partners/chesshouse/12",
+      "/partners/chessworld/1",
       "/foo/partners/chessusa/1",
+      "/foo/partners/chesshouse/1",
     ]) {
       const { attr, appended } = runBoot(p);
-      expect(attr).toBe(optionForPath(p));
-      // The webfont must be requested on exactly the pages that show a banner.
-      expect(appended.length).toBe(optionForPath(p) ? 1 : 0);
+      const preview = previewForPath(p);
+      expect(attr).toBe(preview ? partnerAttrValue(preview) : null);
+      /**
+       * The webfont must be requested on exactly the pages that show a
+       * banner, and it must be THAT advertiser's. One shared stylesheet would
+       * make every advertiser download every other advertiser's faces, and
+       * the wrong one would silently fall back to a system face in the
+       * creative the buyer is being asked to choose.
+       */
+      expect(appended).toEqual(
+        preview ? [PARTNERS[preview.slug].fontHref] : []
+      );
     }
   });
 
@@ -336,55 +396,132 @@ describe("boot script", () => {
   });
 });
 
-describe("the three creatives", () => {
-  it.each([...TURN_TWO_IDS])(
-    "option %s draws its logo with CSS, never an <img>",
-    (id) => {
+describe("every advertiser's three creatives", () => {
+  /**
+   * These are properties of the slot rather than of one advertiser, so they
+   * run across the whole registry: a second partner that broke any of them
+   * would be a second partner that costs real visitors bandwidth, or that
+   * ships a unit with no offer on it.
+   */
+  const render = (slug: (typeof PARTNER_SLUGS)[number], option: string) =>
+    renderToStaticMarkup(
+      <>
+        {PARTNER_CREATIVES[slug](option as (typeof PARTNER_OPTION_IDS)[number])}
+      </>
+    );
+
+  it.each(EVERY_UNIT)(
+    "%s option %s draws its logo with CSS, never an <img>",
+    (slug, option) => {
       /**
-       * Load-bearing, not stylistic. All three creatives are in the tree so
-       * the active one can be chosen without a hydration mismatch. Browsers
-       * FETCH a hidden <img>; they do not fetch a hidden background-image.
-       * Swap these for <img> and every real visitor downloads ~230KB of
-       * ChessUSA artwork on every page view to render nothing.
+       * Load-bearing, not stylistic. All creatives are in the tree so the
+       * active one can be chosen without a hydration mismatch. Browsers FETCH
+       * a hidden <img>; they do not fetch a hidden background-image. Swap
+       * these for <img> and every real visitor downloads every advertiser's
+       * artwork on every page view in order to render none of it.
        */
-      const html = renderToStaticMarkup(<>{turnTwoCreative(id)}</>);
-      // No <img> element, and the path never appears as a src attribute.
+      const html = render(slug, option);
       expect(html).not.toContain("<img");
       expect(html).not.toMatch(/src=["']\/img\/p\//);
-      // It DOES appear, as a CSS background, which is the whole point.
       expect(html).toContain("background-image:url(/img/p/");
     }
   );
 
-  it.each([...TURN_TWO_IDS])(
-    "option %s carries the offer and the code",
-    (id) => {
-      const html = renderToStaticMarkup(<>{turnTwoCreative(id)}</>);
+  it.each(EVERY_UNIT)(
+    "%s option %s serves artwork only from paths no filter list matches",
+    (slug, option) => {
+      /**
+       * Common ad-blocker filter lists match these substrings in a request
+       * path, and artwork served from one of them simply does not render for
+       * a chunk of real users — as a broken image, not a blocked one.
+       * Renaming the assets "helpfully" is what this catches.
+       */
+      const bait = [
+        "/ads/",
+        "/ad/",
+        "advert",
+        "banner",
+        "sponsor",
+        "promo",
+        "doubleclick",
+        "728x90",
+        "320x100",
+      ];
+      const html = render(slug, option);
+      const seen: string[] = [];
+      const re = /url\(([^)]+)\)/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(html)) !== null) seen.push(m[1].replace(/["']/g, ""));
+      expect(seen.length).toBeGreaterThan(0);
+      for (const path of seen) {
+        expect(path.startsWith("/img/p/")).toBe(true);
+        for (const needle of bait) {
+          expect(path.toLowerCase()).not.toContain(needle);
+        }
+      }
+    }
+  );
+
+  it.each(EVERY_UNIT)(
+    "%s option %s carries the offer and the code",
+    (slug, option) => {
+      const html = render(slug, option);
       expect(html).toContain("CHESSMASTI");
       expect(html).toMatch(/5%/);
     }
   );
 
-  it.each([...TURN_TWO_IDS])(
-    "option %s renders a wide unit and a narrow unit",
-    (id) => {
+  it.each(EVERY_UNIT)(
+    "%s option %s renders a wide unit and a narrow unit",
+    (slug, option) => {
       // Both sizes ship and CSS picks one, so there is no resize flash.
-      const html = renderToStaticMarkup(<>{turnTwoCreative(id)}</>);
+      const html = render(slug, option);
       expect(html.match(/<div/g)?.length ?? 0).toBeGreaterThan(4);
     }
   );
 
-  it("names the advertiser in every accessible label", () => {
-    for (const id of TURN_TWO_IDS) {
-      expect(TURN_TWO_META[id].alt).toContain("ChessUSA");
-      expect(TURN_TWO_META[id].alt).toContain("CHESSMASTI");
+  it.each(EVERY_UNIT)(
+    "%s option %s swaps at the slot's own breakpoint",
+    (slug, option) => {
+      /**
+       * ChessUSA's creatives once carried a literal 640 while PartnerBanner
+       * moved to 760, so they swapped at a width the rest of the slot
+       * disagreed with. Rendering them and reading the emitted media queries
+       * is the only check that catches that, since nothing else links the
+       * two numbers — and it has to run for every advertiser, because each
+       * one writes its own.
+       */
+      const html = render(slug, option);
+      const re = /@media \(min-width:\s*(\d+)px\)/g;
+      const widths: number[] = [];
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(html)) !== null) widths.push(Number(m[1]));
+      expect(widths.length).toBeGreaterThan(0);
+      for (const w of widths) expect(w).toBe(SWAP_PX);
+    }
+  );
+
+  it("names the advertiser and the code in every accessible label", () => {
+    for (const [slug, option] of EVERY_UNIT) {
+      const meta = PARTNERS[slug].options[option];
+      expect(meta.alt).toContain(PARTNERS[slug].displayName);
+      expect(meta.alt).toContain("CHESSMASTI");
     }
   });
 
-  it("maps the link numbers to the design doc's own names", () => {
-    expect(TURN_TWO_META["1"].code).toBe("2a");
-    expect(TURN_TWO_META["2"].code).toBe("2b");
-    expect(TURN_TWO_META["3"].code).toBe("2c");
+  it("maps every advertiser's link numbers to the design doc's own codes", () => {
+    for (const slug of PARTNER_SLUGS) {
+      expect(PARTNERS[slug].options["1"].code).toBe("2a");
+      expect(PARTNERS[slug].options["2"].code).toBe("2b");
+      expect(PARTNERS[slug].options["3"].code).toBe("2c");
+    }
+  });
+
+  it("keeps the ChessUSA module's own exports pointing at the registry", () => {
+    // The shell and the framed route still import these names.
+    expect(TURN_TWO_META).toBe(PARTNERS.chessusa.options);
+    expect([...TURN_TWO_IDS]).toEqual([...PARTNER_OPTION_IDS]);
+    expect(PARTNER_CREATIVES.chessusa).toBe(turnTwoCreative);
   });
 });
 
@@ -396,5 +533,66 @@ describe("option guard", () => {
     for (const bad of ["0", "4", "2a", "", "off", undefined, null, 1, {}]) {
       expect(isTurnTwoId(bad)).toBe(false);
     }
+  });
+});
+
+describe("no creative sizes an element with a bare fraction", () => {
+  /**
+   * MUI's sizing transform reads a bare `width`/`height` of 1 or less as a
+   * FRACTION and emits `100%`. The Chess House barcode is drawn from 1-to-4px
+   * bars, so its six 1px bars each rendered at the full width of the rule and
+   * the barcode shipped as a solid black slab. It type-checked, passed every
+   * other test in this file, and was wrong only in a browser.
+   *
+   * SCOPE, honestly: this catches the LITERAL spelling (`width: 1`) only. The
+   * bug as actually written was `width: w` from an array, which no source
+   * regex can see, and which the rendered output cannot distinguish from a
+   * deliberate `width: "100%"` because both emit the same rule. The bar widths
+   * are therefore pinned at the data level instead — see BARCODE_BAR_WIDTHS
+   * below — and a browser on a production build remains the real check.
+   *
+   * Every creative module is covered, found by glob, so a new advertiser's
+   * file is checked the day it lands rather than the day someone remembers.
+   */
+  const dir = join(fileURLToPath(new URL(".", import.meta.url)), "..");
+  const modules = readdirSync(dir).filter((f) => f.endsWith("Turn2.tsx"));
+
+  it("finds the creative modules to check", () => {
+    // A rename that empties this list would make every case below vacuous.
+    expect(modules.length).toBeGreaterThanOrEqual(PARTNER_SLUGS.length);
+  });
+
+  it.each(modules)("%s", (file) => {
+    const src = readFileSync(join(dir, file), "utf8");
+    const offenders: string[] = [];
+    // A bare number 0 < n <= 1 as a sizing value. `width: "1px"` (a string),
+    // `width: 0` (untransformed) and `width: markWidth(h)` are all fine.
+    const re =
+      /\b(width|height|minWidth|maxWidth|minHeight|maxHeight):\s*(1|0?\.\d+)\s*[,}]/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(src)) !== null) offenders.push(`${m[1]}: ${m[2]}`);
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe("the packing slip's barcode is drawn in pixels", () => {
+  /**
+   * The exact contract the MUI fraction bug broke. Kept at the data level
+   * because that is where the conversion happens and where a regression would
+   * reintroduce it: hand `sx` a bare 1 and the bar becomes the whole rule.
+   */
+  it("is twenty bars, each a px string", () => {
+    expect(BARCODE_BAR_WIDTHS).toHaveLength(20);
+    for (const w of BARCODE_BAR_WIDTHS) expect(w).toMatch(/^\d+px$/);
+  });
+
+  it("keeps every bar inside the spec's 1-4px range", () => {
+    const px = BARCODE_BAR_WIDTHS.map((w) => Number(w.replace("px", "")));
+    for (const w of px) {
+      expect(w).toBeGreaterThanOrEqual(1);
+      expect(w).toBeLessThanOrEqual(4);
+    }
+    // 45px of bars plus 19 gaps of 2px = 83px, inside the 270px promo field.
+    expect(px.reduce((a, b) => a + b, 0)).toBe(45);
   });
 });

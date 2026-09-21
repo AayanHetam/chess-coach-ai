@@ -1,7 +1,7 @@
 "use client";
 
 import { Box } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import {
   PartnerBanner,
@@ -9,13 +9,18 @@ import {
   SWAP_PX,
   type SlotTone,
 } from "./PartnerBanner";
-import { CHESSUSA_HREF } from "./chessusaCreative";
+import { chesshouseCreative } from "./chesshouseTurn2";
+import { turnTwoCreative } from "./chessusaTurn2";
 import {
-  TURN_TWO_META,
-  isTurnTwoId,
-  turnTwoCreative,
-  type TurnTwoId,
-} from "./chessusaTurn2";
+  PARTNERS,
+  PARTNER_PATH_RE_SOURCE,
+  isPartnerOptionId,
+  isPartnerSlug,
+  partnerAttrValue,
+  type PartnerOptionId,
+  type PartnerPreview,
+  type PartnerSlug,
+} from "./partners";
 
 /**
  * The ChessUSA slot, mounted below the nav on every surface.
@@ -68,15 +73,18 @@ import {
  *    stored state: leave the prefix by typing a URL and the banner is gone.
  */
 
-/** URL prefix that activates the slot. Matched case-insensitively. */
-export const PARTNER_PREFIX = "/partners/chessusa";
-
 /**
- * Pulls the option out of a pathname. Anchored at the start, so the prefix has
- * to be the route rather than a substring somewhere in the middle, and the
- * trailing (?:/|$) stops /partners/chessusa/12 or .../1x matching option 1.
+ * Pulls the advertiser and the option out of a pathname. The source is built
+ * from the registry (see partners.ts) rather than written here, so adding an
+ * advertiser cannot leave this regex behind. Anchored at the start, so the
+ * prefix has to BE the route rather than a substring somewhere in the middle,
+ * and the trailing (?:/|$) stops /partners/chessusa/12 or .../1x matching
+ * option 1.
+ *
+ * Case-insensitive, because the rewrites are: the links go out capitalised as
+ * /partners/ChessHouse/1 and must resolve to the same preview.
  */
-export const PARTNER_PATH_RE = /^\/partners\/chessusa\/([123])(?:\/|$)/i;
+export const PARTNER_PATH_RE = new RegExp(PARTNER_PATH_RE_SOURCE, "i");
 
 /** Class on the always-rendered wrapper. Styled by partnerSlotCss below. */
 export const PARTNER_SLOT_CLASS = "cm-partner-slot";
@@ -139,13 +147,18 @@ html[${PARTNER_ATTR}] [${SIGN_IN_ATTR}]{display:none}
 `.trim();
 
 /**
- * Archivo + IBM Plex Mono, the two faces the Turn-2 creative is set in. The
- * boot script appends this under the /partners/chessusa/N prefix; the older
- * iframe route at /partners/chessusa/live links it from its own <Head>, since
- * it renders the same units but is not a numeric-option path.
+ * ChessUSA's webfonts — Archivo + IBM Plex Mono, the two faces their Turn-2
+ * creative is set in. Kept as a named export because the older iframe route at
+ * /partners/chessusa/live links it from its own <Head>: that page renders the
+ * same units but is not a numeric-option path, so the boot script never runs
+ * there.
+ *
+ * Under a numeric-option prefix the boot script appends the font href of
+ * WHICHEVER advertiser the URL names, from the registry. Chess House needs
+ * Source Serif 4 and a second Plex Mono weight that ChessUSA does not, and
+ * neither should pay for the other's faces.
  */
-export const FONT_HREF =
-  "https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@700&display=swap";
+export const FONT_HREF = PARTNERS.chessusa.fontHref;
 
 /**
  * Is this path any part of the partner preview surface? Case-INsensitive,
@@ -168,25 +181,46 @@ export const PARTNER_PREVIEW_PATH_JS =
 
 /**
  * Runs in <head>, before first paint. Sets the attribute that un-hides and
- * sizes the slot, and pulls the two webfonts the creative needs. Both happen
- * only under the preview prefix, so on every normal URL this executes two
- * statements, appends nothing and requests nothing.
+ * sizes the slot, and pulls the webfonts THAT ADVERTISER's creative needs.
+ * Both happen only under a preview prefix, so on every normal URL this
+ * executes two statements, appends nothing and requests nothing.
+ *
+ * The font map is inlined from the registry rather than fetched or guessed:
+ * this script runs before any module has loaded, so it cannot import, and a
+ * script that appended one shared stylesheet would make every advertiser
+ * download every other advertiser's faces.
  *
  * Wrapped in try/catch because it runs before the app's own error handling
  * exists, where an uncaught throw is both invisible and fatal to the page.
  */
+const PARTNER_FONTS_JSON = JSON.stringify(
+  Object.fromEntries(Object.values(PARTNERS).map((p) => [p.slug, p.fontHref]))
+);
+
 export const partnerBootScript = `(function(){try{
-var m=location.pathname.match(/^\\/partners\\/chessusa\\/([123])(?:\\/|$)/i);
+var m=location.pathname.match(/${PARTNER_PATH_RE_SOURCE}/i);
 if(!m)return;
-document.documentElement.setAttribute('${PARTNER_ATTR}',m[1]);
-var l=document.createElement('link');l.rel='stylesheet';l.href='${FONT_HREF}';
+var s=m[1].toLowerCase(),h=(${PARTNER_FONTS_JSON})[s];
+if(!h)return;
+document.documentElement.setAttribute('${PARTNER_ATTR}',s+':'+m[2]);
+var l=document.createElement('link');l.rel='stylesheet';l.href=h;
 document.head.appendChild(l);
 }catch(e){}})();`;
 
-/** The option a URL activates, or null — which is every normal URL. */
-export function optionForPath(pathname: string): TurnTwoId | null {
+/**
+ * The advertiser and option a URL activates, or null — which is every normal
+ * URL. The single most important function here: it is the line between "an
+ * advertiser sees a mock-up" and "we put an unapproved ad on the live site".
+ *
+ * The slug is lowercased because the regex is case-insensitive and the links
+ * go out capitalised; the registry is keyed on the canonical lowercase form.
+ */
+export function previewForPath(pathname: string): PartnerPreview | null {
   const m = PARTNER_PATH_RE.exec(pathname);
-  return m && isTurnTwoId(m[1]) ? m[1] : null;
+  if (!m) return null;
+  const slug = m[1].toLowerCase();
+  if (!isPartnerSlug(slug) || !isPartnerOptionId(m[2])) return null;
+  return { slug: slug as PartnerSlug, option: m[2] as PartnerOptionId };
 }
 
 /**
@@ -196,7 +230,7 @@ export function optionForPath(pathname: string): TurnTwoId | null {
  */
 export function partnerPrefixOf(pathname: string): string | null {
   const m = PARTNER_PATH_RE.exec(pathname);
-  return m && isTurnTwoId(m[1]) ? m[0].replace(/\/$/, "") : null;
+  return previewForPath(pathname) ? m![0].replace(/\/$/, "") : null;
 }
 
 /**
@@ -328,6 +362,27 @@ export function installAnchorRewriter(
  *   app/layout.tsx           the App Router SEO pages, which are a separate
  *                            tree with its own root
  */
+/**
+ * Which module draws which advertiser's units. The registry stays React-free
+ * so that anything can import a slug; this is where the slugs meet the
+ * components, and the Record type means a new partner fails to compile until
+ * its creatives exist.
+ *
+ * Both modules are imported statically rather than lazily. The slot only
+ * renders after mount, so a dynamic import would work — but it would put the
+ * creative behind a second chunk fetch for the one audience that is looking
+ * straight at it, to save real visitors a few KB of a bundle they already
+ * download. If this list grows past a handful of advertisers, revisit that
+ * trade; at two it is not worth the machinery.
+ */
+export const PARTNER_CREATIVES: Record<
+  PartnerSlug,
+  (option: PartnerOptionId) => ReactNode
+> = {
+  chessusa: turnTwoCreative,
+  chesshouse: chesshouseCreative,
+};
+
 export function PartnerSlot({
   pathname,
   tone = "dark",
@@ -346,7 +401,7 @@ export function PartnerSlot({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const option = mounted ? optionForPath(pathname ?? "") : null;
+  const preview = mounted ? previewForPath(pathname ?? "") : null;
 
   /**
    * Keep <html data-cm-partner> in step with the URL.
@@ -365,30 +420,32 @@ export function PartnerSlot({
   useEffect(() => {
     if (!mounted) return;
     const el = document.documentElement;
-    if (option) el.setAttribute(PARTNER_ATTR, option);
+    if (preview) el.setAttribute(PARTNER_ATTR, partnerAttrValue(preview));
     else el.removeAttribute(PARTNER_ATTR);
-  }, [mounted, option]);
+  }, [mounted, preview]);
+
+  const partner = preview ? PARTNERS[preview.slug] : null;
 
   return (
     <Box
       className={PARTNER_SLOT_CLASS}
       sx={{ width: "100%", maxWidth: 1680, mx: "auto" }}
     >
-      {option && (
+      {preview && partner && (
         <PartnerBanner
           creative={{
             kind: "html",
-            alt: TURN_TWO_META[option].alt,
-            node: turnTwoCreative(option),
+            alt: partner.options[preview.option].alt,
+            node: PARTNER_CREATIVES[preview.slug](preview.option),
           }}
-          href={CHESSUSA_HREF}
+          href={partner.href}
           utm={{
             source: "chessmasti",
             medium: "display",
-            campaign: "chessusa_2026q3",
-            content: TURN_TWO_META[option].code,
+            campaign: partner.campaign,
+            content: partner.options[preview.option].code,
           }}
-          advertiser="ChessUSA"
+          advertiser={partner.displayName}
           tone={tone}
         />
       )}

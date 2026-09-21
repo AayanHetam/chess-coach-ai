@@ -6,10 +6,16 @@
 (plain array, so `afterFiles`) map:
 
 ```
-/partners/chessusa/:option(1|2|3)/:path*   →  /:path*
-/partners/chessusa/:option(1|2|3)          →  /
-/partners/chessusa/:rest*                  →  /partners/chessusa/:rest*   (casing no-op)
+/partners/:partner(chessusa|chesshouse)/:option(1|2|3)/:path*  →  /:path*
+/partners/:partner(chessusa|chesshouse)/:option(1|2|3)         →  /
+/partners/chessusa/:rest*  →  /partners/chessusa/:rest*   (casing no-op, ChessUSA only)
 ```
+
+The advertiser alternation is an allowlist, duplicated from
+`src/components/ads/partners.ts` because this config is CommonJS and cannot
+import it; `partnerPrefix.test.ts` reads the file as text and fails if a
+registered slug has no rule. The casing no-op exists only for the two real
+ChessUSA shell PAGES, so `/partners/chesshouse` with no option is a 404.
 
 `source` patterns match case-insensitively; page routing does not. That is
 why a redirect for the prefix looped and a rewrite is used instead, and why
@@ -30,20 +36,27 @@ Headers on the same config: `X-Robots-Tag: noindex, nofollow` for
 - `<style>{partnerSlotCss}</style>`: the slot wrapper is `display:none`;
   under `html[data-cm-partner]` it becomes `display:block` with the exact
   final height of the banner (`SLOT_RESERVE`: 142px narrow, 132px at and
-  above `SWAP_PX`), plus the attribute-scoped page rules (below).
+  above `SWAP_PX`), plus the attribute-scoped page rules (below). The CSS keys
+  on the attribute's PRESENCE only, so it is advertiser-agnostic and both
+  units reserve the same box.
 - `<script>{partnerBootScript}</script>`: matches `location.pathname` against
-  the prefix regex, sets `data-cm-partner="N"` on `<html>`, appends the
-  `FONT_HREF` stylesheet (Archivo + IBM Plex Mono). On every normal URL it
-  returns after two statements. Wrapped in try/catch because nothing else is
-  loaded yet to catch an error.
+  the prefix regex (built from `PARTNER_PATH_RE_SOURCE`, so it cannot drift
+  from the TS resolver), sets `data-cm-partner="<slug>:<option>"` on `<html>`,
+  and appends **that advertiser's** `fontHref` from a map inlined from the
+  registry — ChessUSA gets Archivo + IBM Plex Mono, Chess House additionally
+  gets Source Serif 4 and a second Mono weight, and neither pays for the
+  other's faces. On every normal URL it returns after two statements. Wrapped
+  in try/catch because nothing else is loaded yet to catch an error.
 
 ## 3. After mount
 
 `PartnerSlot` (`PartnerSlot.tsx`) renders the wrapper with a `mounted` flag
-that flips in an effect; only then does `optionForPath(pathname)` decide the
-option and render `PartnerBanner` with `turnTwoCreative(option)`. A second
-effect keeps `data-cm-partner` in step with client-side navigation, so a
-next/link move out of the prefix removes the attribute and the banner.
+that flips in an effect; only then does `previewForPath(pathname)` decide the
+advertiser and option and render `PartnerBanner` with
+`PARTNER_CREATIVES[slug](option)` and that partner's `href`, `campaign` and
+`displayName` from the registry. A second effect keeps `data-cm-partner` in
+step with client-side navigation, so a next/link move out of the prefix
+removes the attribute and the banner.
 
 The `pathname` prop comes from the binding:
 
@@ -65,7 +78,7 @@ advertiser); `app/layout.tsx` renders `<PartnerSlotApp />` inside
 
 ## 4. The banner
 
-`PartnerBanner` renders `<aside aria-label="Advertisement — ChessUSA">` with
+`PartnerBanner` renders `<aside aria-label="Advertisement from {displayName}">` with
 the small uppercase "Advertisement" label (FTC), a min-height box of
 `SLOT_HEIGHT`, and `<a target="_blank" rel="sponsored noopener noreferrer">`
 whose href gets the UTM query through `withUtm`. `SWAP_PX = 760` is the one
@@ -75,14 +88,23 @@ only where 728 plus 16px of padding each side fits; below that the 320×100
 unit. `LABEL_COLOUR` has a dark and a light tone; the contrast of each on its
 ground is asserted arithmetically in the tests.
 
-The three creatives (`chessusaTurn2.tsx`) are CSS-built units with codes
-`2a`, `2b`, `2c` (`TURN_TWO_META`), logos as `background-image` from
-`public/img/p/cu-*.png` (neutral names; ad blockers key on "ad" and
-"banner"). UTM: `source=chessmasti`, `medium=display`,
-`campaign=chessusa_2026q3`, `content=<code>`. The shell's `?v=editorial|bold|three`
-map onto the same three units (`chessusaCreative.tsx`,
-`SHELL_TO_TURN_TWO`), so shell clicks and link clicks reconcile in ChessUSA's
-analytics.
+Each advertiser's three creatives live in their own module —
+`chessusaTurn2.tsx`, `chesshouseTurn2.tsx` — as CSS-built units with codes
+`2a`, `2b`, `2c`, logos as `background-image` from `public/img/p/cu-*.png`
+and `ch-*.png` (neutral names; ad blockers key on "ad" and "banner"). One
+file per advertiser is deliberate: editing one buyer's units can never alter
+another's while theirs are live in a pitch. UTM: `source=chessmasti`,
+`medium=display`, `campaign=<the partner's own>`, `content=<code>`.
+
+Chess House's three are "Threshold" (`2a`, the swoosh re-cast as light under a
+door on a `#0B0D11` ground), "Swoosh" (`2b`, the full `#285888` field with the
+ribbon enlarged, wordmark in Source Serif 4) and "Packing Slip" (`2c`, a
+shipping label on `#E8E6E0` stock with courier tape, perforations and a
+barcode rule — mail order since 1972, so the code is the hero by structure).
+
+The ChessUSA shell's `?v=editorial|bold|three` map onto the same three
+ChessUSA units (`chessusaCreative.tsx`, `SHELL_TO_TURN_TWO`), so shell clicks
+and link clicks reconcile in their analytics.
 
 ## 5. The shell
 
@@ -146,9 +168,15 @@ error text, both of which need an action first.
 ## 8. Tests
 
 - `partnerSlot.test.tsx`: the slot server-renders empty on every path,
-  reserve arithmetic, which URLs activate, the swap point, label contrast,
-  analytics predicate parity, the boot script executed against a fake
-  document, the scoped-rule invariants.
+  reserve arithmetic, which URLs activate (including that an unregistered
+  slug never does), the swap point, label contrast, analytics predicate
+  parity, the boot script executed against a fake document — asserting both
+  the attribute and that the appended stylesheet is that advertiser's — and
+  the scoped-rule invariants. `EVERY_UNIT` runs the per-creative invariants
+  across the whole registry, so a new advertiser inherits them.
+- `partnerPrefix.test.ts` additionally reads `next.config.js` as text and
+  fails when a registered slug has no rewrite, or a rewrite names a slug the
+  registry does not define.
 - `partnerBanner.test.ts`: `withUtm`, option guards, the shell serving the
   real creatives (every `url(...)` in rendered CSS is under `/img/p/` with no
   bait substrings), UTM content codes.

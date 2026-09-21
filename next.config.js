@@ -93,10 +93,11 @@ const nextConfig = {
    * That needs its own change with report-only telemetry first.
    */
   /**
-   * The ChessUSA links go out in email written as /partners/ChessUSA/1. Page
-   * routing is filesystem-based and therefore case-SENSITIVE, so that exact
-   * string 404s on the one audience it was written for, and a dead link in a
-   * pitch is not something you get to fix after they have clicked it.
+   * The partner preview links go out in email written as /partners/ChessUSA/1
+   * and /partners/ChessHouse/1. Page routing is filesystem-based and
+   * therefore case-SENSITIVE, so those exact strings 404 on the one audience
+   * they were written for, and a dead link in a pitch is not something you
+   * get to fix after they have clicked it.
    *
    * A rewrite, NOT a redirect. `source` patterns here are matched
    * case-INSENSITIVELY, so a redirect from the capitalised spelling also
@@ -111,34 +112,47 @@ const nextConfig = {
    * onto the canonical one. Canonical path stays lowercase.
    */
   rewrites: async () => [
-    // ── ChessUSA placement preview ──────────────────────────────────────────
-    // /partners/ChessUSA/1/puzzles serves the REAL /puzzles page with creative
-    // 2a in the slot below the nav. Any site path works, and the option is in
-    // the URL rather than in a cookie, which is what makes the placement
-    // impossible to leak: a normal visitor on /puzzles cannot end up in a
-    // state where the banner appears, because there is no state.
+    // ── Partner placement previews ──────────────────────────────────────────
+    // /partners/ChessUSA/1/puzzles serves the REAL /puzzles page with that
+    // advertiser's creative 2a in the slot below the nav. Any site path works,
+    // and the advertiser and option are in the URL rather than in a cookie,
+    // which is what makes the placement impossible to leak: a normal visitor
+    // on /puzzles cannot end up in a state where the banner appears, because
+    // there is no state.
     //
-    // Order matters — first match wins, and the catch-all below would swallow
-    // these. The option rule is first.
+    // The advertiser list is an ALLOWLIST, spelled out here rather than left
+    // as a wildcard :partner. A wildcard would make every /partners/<anything>
+    // /1 URL serve the whole site under a noindex prefix, which is a large
+    // open surface for the sake of saving one edit per sale. It is duplicated
+    // from src/components/ads/partners.ts because this file is CommonJS and
+    // cannot import it; partnerPrefix.test.ts reads this file as text and
+    // fails if a registered advertiser has no rule here.
+    //
+    // Order matters — first match wins, and the ChessUSA catch-all below would
+    // swallow these. The option rule is first.
     //
     // Casing is free: `source` patterns are matched case-INSENSITIVELY, so the
-    // /partners/ChessUSA/... spelling the links go out as resolves here
-    // without a rule of its own. (Page routing, by contrast, is
-    // filesystem-based and case-sensitive, which is why these need a rewrite
-    // at all. Do NOT turn them into redirects: a redirect from the capitalised
-    // form also matches the lowercase one and 307-loops it onto itself.)
+    // /partners/ChessUSA/... and /partners/ChessHouse/... spellings the links
+    // go out as resolve here without rules of their own. (Page routing, by
+    // contrast, is filesystem-based and case-sensitive, which is why these
+    // need a rewrite at all. Do NOT turn them into redirects: a redirect from
+    // the capitalised form also matches the lowercase one and 307-loops it
+    // onto itself.)
     {
-      source: "/partners/chessusa/:option(1|2|3)/:path*",
+      source: "/partners/:partner(chessusa|chesshouse)/:option(1|2|3)/:path*",
       destination: "/:path*",
     },
     {
-      source: "/partners/chessusa/:option(1|2|3)",
+      source: "/partners/:partner(chessusa|chesshouse)/:option(1|2|3)",
       destination: "/",
     },
-    // Casing no-op for the two real pages under this prefix, /partners/chessusa
-    // and /partners/chessusa/live, so their capitalised spellings resolve too.
-    // Runs in afterFiles, i.e. only when no page matched, so the canonical
-    // lowercase paths reach their own pages and never touch this.
+    // Casing no-op for the two real PAGES under this prefix,
+    // /partners/chessusa and /partners/chessusa/live, so their capitalised
+    // spellings resolve too. Runs in afterFiles, i.e. only when no page
+    // matched, so the canonical lowercase paths reach their own pages and
+    // never touch this. ChessUSA-only on purpose: it is the only advertiser
+    // with an iframe shell. Chess House has the three links and nothing else,
+    // so /partners/chesshouse with no option is a 404, as it should be.
     {
       source: "/partners/chessusa/:rest*",
       destination: "/partners/chessusa/:rest*",

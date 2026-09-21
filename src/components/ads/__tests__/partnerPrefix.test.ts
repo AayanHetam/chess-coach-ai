@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   PARTNER_ATTR,
+  SIGN_IN_ATTR,
+  SIGN_IN_PROPS,
   VIEWPORT_LOCK_ATTR,
   VIEWPORT_LOCK_PROPS,
   anchorRewriteHandler,
@@ -346,5 +348,30 @@ describe("the viewport-locked layouts scroll under the prefix, and only there", 
 
   it("is what the two locked roots spread onto their box", () => {
     expect(VIEWPORT_LOCK_PROPS).toEqual({ [VIEWPORT_LOCK_ATTR]: "" });
+  });
+});
+
+describe("sign-in affordances hide under the prefix, and only there", () => {
+  it("ships one display:none rule, scoped to the html attribute", () => {
+    expect(partnerSlotCss).toContain(
+      `html[${PARTNER_ATTR}] [${SIGN_IN_ATTR}]{display:none}`
+    );
+    // No unscoped rule: a real visitor must keep every way to sign in.
+    const unscoped = partnerSlotCss
+      .split("\n")
+      .filter(
+        (line) =>
+          line.includes(SIGN_IN_ATTR) && !line.includes(`html[${PARTNER_ATTR}]`)
+      );
+    expect(unscoped).toEqual([]);
+  });
+
+  it("is what the affordances spread", () => {
+    expect(SIGN_IN_PROPS).toEqual({ [SIGN_IN_ATTR]: "" });
+  });
+
+  it("uses a different marker from the viewport lock, so hiding one cannot hide the other", () => {
+    expect(SIGN_IN_ATTR).not.toBe(VIEWPORT_LOCK_ATTR);
+    expect(SIGN_IN_ATTR).toMatch(/^data-cm-/);
   });
 });

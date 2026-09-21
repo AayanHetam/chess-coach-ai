@@ -19,6 +19,7 @@ import { SERIF_DISPLAY } from "@/theme/fonts";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import ProfileDialog from "@/components/auth/ProfileDialog";
+import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
 import { PanelCard } from "@/components/performance/PanelCard";
 import { PuzzlePerformanceCard } from "@/components/performance/PuzzlePerformanceCard";
 import { RatingTrendCard } from "@/components/performance/RatingTrendCard";
@@ -377,24 +378,29 @@ export default function Profile() {
           )}
 
           {!user && !authLoading && (
-            <PanelCard>
-              <Typography
-                sx={{
-                  fontSize: "0.85rem",
-                  color: "rgba(255,255,255,0.8)",
-                  mb: 0.5,
-                }}
-              >
-                Sign in to sync this dashboard across devices.
-              </Typography>
-              <Typography
-                sx={{ fontSize: "0.76rem", color: "rgba(255,255,255,0.45)" }}
-              >
-                Your puzzle history is saved locally on this device either way.
-                Signing in also lets us pull your chess.com and Lichess games in
-                automatically.
-              </Typography>
-            </PanelCard>
+            // PanelCard forwards no attributes, so the sign-in ask is wrapped
+            // in a layout-neutral element that carries the marker. Hidden
+            // under the ChessUSA preview prefix. See SIGN_IN_ATTR.
+            <div {...SIGN_IN_PROPS} style={{ display: "contents" }}>
+              <PanelCard>
+                <Typography
+                  sx={{
+                    fontSize: "0.85rem",
+                    color: "rgba(255,255,255,0.8)",
+                    mb: 0.5,
+                  }}
+                >
+                  Sign in to sync this dashboard across devices.
+                </Typography>
+                <Typography
+                  sx={{ fontSize: "0.76rem", color: "rgba(255,255,255,0.45)" }}
+                >
+                  Your puzzle history is saved locally on this device either
+                  way. Signing in also lets us pull your chess.com and Lichess
+                  games in automatically.
+                </Typography>
+              </PanelCard>
+            </div>
           )}
 
           {/* Personalisation — moved to the bottom. It configures the coach

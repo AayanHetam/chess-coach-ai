@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Box, Button, Chip, Typography } from "@mui/material";
+import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
 import {
   QuizAnswers,
   bandLabel,
@@ -199,6 +200,10 @@ export default function QuizResult({
       </Box>
 
       <Button
+        // Signed out, this button and the caption below it are the "create
+        // an account" ask, hidden under the ChessUSA preview prefix. See
+        // SIGN_IN_ATTR.
+        {...(authed ? {} : SIGN_IN_PROPS)}
         fullWidth
         onClick={onUnlock}
         disabled={submitting}
@@ -222,6 +227,7 @@ export default function QuizResult({
           : "Unlock your full plan + first puzzles"}
       </Button>
       <Typography
+        {...(authed ? {} : SIGN_IN_PROPS)}
         sx={{
           color: "rgba(255,255,255,0.4)",
           fontSize: "0.76rem",

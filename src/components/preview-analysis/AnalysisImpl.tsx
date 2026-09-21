@@ -95,7 +95,10 @@ import {
 } from "react";
 import { BorderBeam } from "@/components/ui/BorderBeam";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
-import { VIEWPORT_LOCK_PROPS } from "@/components/ads/PartnerSlot";
+import {
+  SIGN_IN_PROPS,
+  VIEWPORT_LOCK_PROPS,
+} from "@/components/ads/PartnerSlot";
 import { NavPill as SharedNavPill } from "@/components/ui/NavPill";
 import { Lc0DownloadBanner } from "@/components/Lc0DownloadBanner";
 import { OpeningExplorer } from "@/components/ui/OpeningExplorer";
@@ -4882,8 +4885,11 @@ function CoachPanel({
         </Stack>
       </Box>
 
-      {/* Suggestion pills */}
+      {/* Suggestion pills. Signed out, every pill is a sign-in ask (see
+          onClick below), so the row is hidden under the ChessUSA preview
+          prefix along with the gate and the composer. See SIGN_IN_ATTR. */}
       <Box
+        {...(signedOut ? SIGN_IN_PROPS : {})}
         sx={{
           px: 3,
           pt: 1.5,
@@ -4999,6 +5005,7 @@ function CoachPanel({
         )}
         {!AI_DISABLED && signedOut && (
           <Box
+            {...SIGN_IN_PROPS}
             sx={{
               mb: 1.5,
               px: 1.5,
@@ -5044,7 +5051,12 @@ function CoachPanel({
             </Button>
           </Box>
         )}
-        <Stack direction="row" spacing={1.5} alignItems="center">
+        <Stack
+          {...(signedOut ? SIGN_IN_PROPS : {})}
+          direction="row"
+          spacing={1.5}
+          alignItems="center"
+        >
           <TextField
             value={input}
             onChange={(e) => onChangeInput(e.target.value)}

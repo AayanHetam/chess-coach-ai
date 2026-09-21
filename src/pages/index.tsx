@@ -40,6 +40,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
+import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 import { DEFAULT_PUZZLE_THEME } from "@/components/puzzle/boardTheme";
 import { surfaceAccent, type Accent } from "@/components/ui/accents";
@@ -551,8 +552,10 @@ export function Hero() {
             }}
           >
             <Box>Engine-grounded AI coaching</Box>
-            <Box>·</Box>
-            <Box>Free account, no card</Box>
+            {/* The account line and its separator drop out under the
+                ChessUSA preview prefix. See SIGN_IN_ATTR. */}
+            <Box {...SIGN_IN_PROPS}>·</Box>
+            <Box {...SIGN_IN_PROPS}>Free account, no card</Box>
             <Box>·</Box>
             <Box>Lichess sync</Box>
           </Stack>

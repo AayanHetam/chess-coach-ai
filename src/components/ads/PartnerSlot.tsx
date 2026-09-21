@@ -98,6 +98,18 @@ export const VIEWPORT_LOCK_ATTR = "data-cm-viewport-lock";
 export const VIEWPORT_LOCK_PROPS = { [VIEWPORT_LOCK_ATTR]: "" } as const;
 
 /**
+ * Attribute on every sign-in affordance: the nav's Sign in button, the
+ * coach's account gate, the signed-out identity chip on the puzzle rail, the
+ * "free account" captions. Under a preview prefix the rule in partnerSlotCss
+ * hides them, so the advertiser walks a product with no sign-up asks in it.
+ * Inert for everyone else. An element that is only a sign-in ask while
+ * signed OUT spreads the props conditionally, so a signed-in demo keeps its
+ * account controls.
+ */
+export const SIGN_IN_ATTR = "data-cm-sign-in";
+export const SIGN_IN_PROPS = { [SIGN_IN_ATTR]: "" } as const;
+
+/**
  * Exact rendered height of PartnerBanner, so the reserve cannot drift from
  * the thing it reserves for:
  *
@@ -123,6 +135,7 @@ export const partnerSlotCss = `
 html[${PARTNER_ATTR}] .${PARTNER_SLOT_CLASS}{display:block;min-height:${SLOT_RESERVE.narrow}px}
 @media (min-width:${SWAP_PX}px){html[${PARTNER_ATTR}] .${PARTNER_SLOT_CLASS}{min-height:${SLOT_RESERVE.wide}px}}
 html[${PARTNER_ATTR}] [${VIEWPORT_LOCK_ATTR}]{height:auto;min-height:100dvh;overflow:visible}
+html[${PARTNER_ATTR}] [${SIGN_IN_ATTR}]{display:none}
 `.trim();
 
 /**

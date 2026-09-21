@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { surfaceAccent } from "./accents";
+import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
 import ChatHistoryList from "@/components/chat/ChatHistoryList";
 import { EmployeePill } from "@/components/intern/EmployeePill";
 import { useViewer } from "@/hooks/useViewer";
@@ -537,6 +538,8 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                       component="button"
                       type="button"
                       onClick={handleSignIn}
+                      // Hidden under the ChessUSA preview prefix. See SIGN_IN_ATTR.
+                      {...SIGN_IN_PROPS}
                       sx={{
                         display: "flex",
                         alignItems: "center",

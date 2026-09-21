@@ -20,6 +20,7 @@ import { Menu as MenuIcon, Heart, LogOut, User, Settings } from "lucide-react";
 import { Logo } from "./Logo";
 import { surfaceAccent } from "./accents";
 import { AppDrawer, type NavId } from "./AppDrawer";
+import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
 import { PartnerSlotPages } from "@/components/ads/PartnerSlotPages";
 import { useAuth } from "@/contexts/AuthContext";
 import ProfileDialog from "@/components/auth/ProfileDialog";
@@ -491,6 +492,8 @@ export function NavPill({
                 component="button"
                 type="button"
                 aria-label="Sign in"
+                // Hidden under the ChessUSA preview prefix. See SIGN_IN_ATTR.
+                {...SIGN_IN_PROPS}
                 onClick={() => openAuthDialog()}
                 direction="row"
                 spacing={0.75}

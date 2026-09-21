@@ -10,11 +10,18 @@ import {
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import SchoolIcon from "@mui/icons-material/School";
+import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
 import type { ChessPuzzle } from "@/lib/chessPuzzlesService";
 import {
   PUZZLE_EXPLANATION_SYSTEM_PROMPT,
   buildPuzzleExplanationPrompt,
 } from "@/lib/prompts/puzzleExplanation";
+
+/**
+ * The one error line that is a sign-in ask rather than a status. Hidden
+ * under the ChessUSA preview prefix; the other errors stay. See SIGN_IN_ATTR.
+ */
+const SIGN_IN_ERROR = "Sign in for the live AI coach explanation.";
 
 /**
  * Inline coach-explainer card for a puzzle just solved or failed inside
@@ -172,7 +179,7 @@ export default function InlinePuzzleCoach({
         // All of them get the same UX — degrade gracefully to offline.
         setError(
           res.status === 401 || res.status === 403
-            ? "Sign in for the live AI coach explanation."
+            ? SIGN_IN_ERROR
             : "Live coach unavailable — showing offline explanation.",
         );
         setExplanation(generateFallbackExplanation(puzzle));
@@ -281,6 +288,7 @@ export default function InlinePuzzleCoach({
 
           {error && (
             <Typography
+              {...(error === SIGN_IN_ERROR ? SIGN_IN_PROPS : {})}
               variant="caption"
               sx={{ color: "grey.500", display: "block", mb: 0.5 }}
             >

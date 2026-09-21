@@ -1,5 +1,6 @@
 "use client";
 
+import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
 import { addressAs } from "@/lib/auth/displayIdentity";
 import { useRouter } from "next/router";
 import {
@@ -289,6 +290,10 @@ export function PuzzleSessionRail({
 
       <Box sx={{ p: 1.25, pt: 0 }}>
         <Stack
+          // Signed out this chip reads "Not signed in" with a Sign in
+          // button, which is hidden under the ChessUSA preview prefix. A
+          // signed-in chip keeps its profile control. See SIGN_IN_ATTR.
+          {...(user || authLoading ? {} : SIGN_IN_PROPS)}
           direction="row"
           alignItems="center"
           spacing={1.25}

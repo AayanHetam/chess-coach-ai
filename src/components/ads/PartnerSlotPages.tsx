@@ -44,9 +44,12 @@ const patched = new WeakSet<object>();
  * Makes every push and replace on this router keep the prefix. next/link
  * navigates through these two methods and so do the fifty-odd programmatic
  * router.push("/plan") calls across the product, so this one seam covers
- * both. The href — the page Next loads — is left alone: the rewrite in
- * next.config maps the prefixed `as` back onto it on the client exactly as it
- * does on the server. Returns the undo.
+ * both. The prefixed path goes in as BOTH url and as: Next resolves rewrites
+ * on the client only when the two agree (that is how it tells a pre-resolved
+ * href from a display path), and that resolution is what maps the prefixed
+ * path back onto the page, dynamic routes included. Leaving the href bare
+ * broke those: /learn/w-london is not a page, only /learn/[courseId] is, so
+ * Next gave up and did a full load. Returns the undo.
  *
  * Patch the underlying Router INSTANCE (`Router.router`), not the object
  * useRouter() returns. That object is a fresh public copy on every render of
@@ -63,20 +66,14 @@ export function patchPagesRouter(
   if (patched.has(router)) return () => {};
   patched.add(router);
   const original = { push: router.push, replace: router.replace };
-  router.push = (url, as, options) =>
-    original.push.call(
-      router,
-      url,
-      prefixedAs(router, prefix, origin, url, as),
-      options
-    );
-  router.replace = (url, as, options) =>
-    original.replace.call(
-      router,
-      url,
-      prefixedAs(router, prefix, origin, url, as),
-      options
-    );
+  router.push = (url, as, options) => {
+    const target = prefixedAs(router, prefix, origin, url, as);
+    return original.push.call(router, target, target, options);
+  };
+  router.replace = (url, as, options) => {
+    const target = prefixedAs(router, prefix, origin, url, as);
+    return original.replace.call(router, target, target, options);
+  };
   return () => {
     router.push = original.push;
     router.replace = original.replace;

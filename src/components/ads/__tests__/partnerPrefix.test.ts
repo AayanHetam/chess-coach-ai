@@ -136,30 +136,33 @@ describe("prefixedAs resolves every argument shape the way Next does", () => {
 });
 
 describe("patchPagesRouter", () => {
-  it("prefixes the as of push and replace and passes the rest through", async () => {
+  it("sends the prefixed path as url AND as, and passes the options through", async () => {
     const router = fakePagesRouter("/puzzles", `${PREFIX}/puzzles`);
     const original = { push: router.push, replace: router.replace };
     const undo = patchPagesRouter(router, PREFIX, ORIGIN);
 
     await router.push("/plan");
     expect(original.push).toHaveBeenCalledWith(
-      "/plan",
+      `${PREFIX}/plan`,
       `${PREFIX}/plan`,
       undefined
     );
 
     await router.replace("/puzzles", undefined, { shallow: true });
     expect(original.replace).toHaveBeenCalledWith(
-      "/puzzles",
+      `${PREFIX}/puzzles`,
       `${PREFIX}/puzzles`,
       { shallow: true }
     );
 
+    // A pre-resolved pattern plus `as`: Next only resolves rewrites when url
+    // and as agree, so the pattern is dropped in favour of the prefixed path,
+    // which the rewrite maps back onto /learn/[courseId] client-side.
     await router.push("/learn/[courseId]", "/learn/w-london", {
       scroll: false,
     });
     expect(original.push).toHaveBeenLastCalledWith(
-      "/learn/[courseId]",
+      `${PREFIX}/learn/w-london`,
       `${PREFIX}/learn/w-london`,
       { scroll: false }
     );

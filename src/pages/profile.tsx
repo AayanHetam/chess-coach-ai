@@ -379,9 +379,10 @@ export default function Profile() {
 
           {!user && !authLoading && (
             // PanelCard forwards no attributes, so the sign-in ask is wrapped
-            // in a layout-neutral element that carries the marker. Hidden
-            // under the ChessUSA preview prefix. See SIGN_IN_ATTR.
-            <div {...SIGN_IN_PROPS} style={{ display: "contents" }}>
+            // in a plain block that carries the marker. No inline style on
+            // it: an inline display would outrank the stylesheet rule that
+            // hides it under the ChessUSA preview prefix. See SIGN_IN_ATTR.
+            <div {...SIGN_IN_PROPS}>
               <PanelCard>
                 <Typography
                   sx={{

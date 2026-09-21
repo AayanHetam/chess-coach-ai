@@ -95,6 +95,7 @@ import {
 } from "react";
 import { BorderBeam } from "@/components/ui/BorderBeam";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
+import { VIEWPORT_LOCK_PROPS } from "@/components/ads/PartnerSlot";
 import { NavPill as SharedNavPill } from "@/components/ui/NavPill";
 import { Lc0DownloadBanner } from "@/components/Lc0DownloadBanner";
 import { OpeningExplorer } from "@/components/ui/OpeningExplorer";
@@ -10503,6 +10504,11 @@ export default function AnalysisPage() {
         one screen, so the layout falls back to ordinary document flow.
       */}
       <Box
+        // Lets the partner preview (/partners/chessusa/N) turn this locked
+        // screen into a scrolling one, since its banner sits inside the box
+        // and would otherwise push the bottom of the board out of reach.
+        // Inert everywhere else. See VIEWPORT_LOCK_ATTR.
+        {...VIEWPORT_LOCK_PROPS}
         sx={{
           height: { lg: "100dvh" },
           minHeight: { xs: "100vh", lg: 0 },

@@ -7,6 +7,7 @@ import { app } from "@/lib/firebase";
 import { recordVisit } from "@/lib/visitorTracker";
 import { track } from "@/lib/tracking/client";
 import { clientHasConsent } from "@/lib/tracking/consent";
+import { isPartnerPreviewPath } from "@/components/ads/PartnerSlot";
 
 declare global {
   interface Window {
@@ -44,7 +45,7 @@ export default function AnalyticsProvider() {
      * App Router /faq page and lands right here. Vercel Analytics is filtered
      * separately in ConsentGatedAnalytics.
      */
-    if (pathname.startsWith("/partners/")) return;
+    if (isPartnerPreviewPath(pathname)) return;
 
     const url =
       pathname +

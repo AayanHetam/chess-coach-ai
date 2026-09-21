@@ -12,8 +12,10 @@ import {
   PARTNER_ATTR,
   PARTNER_SLOT_CLASS,
   PartnerSlot,
+  PARTNER_PREVIEW_PATH_JS,
   SLOT_MARGIN_PX,
   SLOT_RESERVE,
+  isPartnerPreviewPath,
   optionForPath,
   partnerBootScript,
   partnerSlotCss,
@@ -225,6 +227,39 @@ describe("the Advertisement disclosure stays legible on both grounds", () => {
     expect(ratio(over(l.rgb, l.alpha, DARK_GROUND), DARK_GROUND)).toBeLessThan(
       4.5
     );
+  });
+});
+
+describe("the analytics exclusion matches every spelling the routes accept", () => {
+  /**
+   * The rewrites and PARTNER_PATH_RE are case-insensitive, so
+   * /PARTNERS/CHESSUSA/1/puzzles renders the preview. A guard that only knew
+   * the lowercase spelling sent that traffic to GA4 anyway. Every exclusion
+   * now goes through isPartnerPreviewPath, and the inline gtag config uses
+   * the same rule as a JS string — executed here so the two cannot drift.
+   */
+  const cases: [string, boolean][] = [
+    ["/partners/chessusa/1", true],
+    ["/partners/chessusa/1/puzzles", true],
+    ["/PARTNERS/CHESSUSA/1/puzzles", true],
+    ["/Partners/ChessUSA/3", true],
+    ["/partners/chessusa", true], // the shell is preview surface too
+    ["/partners/chessusa/live", true],
+    ["/puzzles", false],
+    ["/", false],
+    ["/partnership", false],
+    ["/blog/partners/chessusa/1", false],
+  ];
+
+  it.each(cases)("isPartnerPreviewPath(%s) is %s", (path, want) => {
+    expect(isPartnerPreviewPath(path)).toBe(want);
+  });
+
+  it.each(cases)("the inline gtag rule agrees on %s", (path, want) => {
+    const got = new Function("location", `return ${PARTNER_PREVIEW_PATH_JS};`)({
+      pathname: path,
+    });
+    expect(got).toBe(want);
   });
 });
 

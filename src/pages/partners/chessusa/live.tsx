@@ -30,6 +30,7 @@ import { ThemeProvider } from "@mui/material/styles";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import { PartnerBanner } from "@/components/ads/PartnerBanner";
+import { FONT_HREF } from "@/components/ads/PartnerSlot";
 import {
   CHESSUSA_HREF,
   chessusaCreative,
@@ -307,6 +308,12 @@ export default function PartnerPreviewLive({ variant, page }: LiveProps) {
             directive survives even where the meta tag is never parsed. */}
         <meta name="robots" content="noindex, nofollow" />
         <title>ChessUSA placement preview — Chess Masti</title>
+        {/* The Turn-2 units are set in Archivo and IBM Plex Mono. Under the
+            /partners/chessusa/N prefix the boot script appends this link; this
+            route is not a numeric-option path, so it links the faces itself.
+            Without it the shell fell back to system fonts and stopped being a
+            faithful preview of the production creative. */}
+        <link rel="stylesheet" href={FONT_HREF} />
       </Head>
       {page === "home" && <HomeSurface banner={banner} />}
       {page === "learn" && <LearnSurface banner={banner} />}

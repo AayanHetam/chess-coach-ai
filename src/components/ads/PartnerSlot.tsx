@@ -57,6 +57,15 @@ import {
  *    A hidden <img> is still fetched; a hidden background-image is not.
  *    The Archivo / IBM Plex Mono webfonts are likewise appended by the boot
  *    script only under the preview prefix.
+ *
+ * 4. THE PREFIX TRAVELS. Every link on the site points at the bare path, so
+ *    the first click used to land on /puzzles, where the banner correctly
+ *    disappeared — which made each link a one-page demo. The router bindings
+ *    (PartnerSlotPages / PartnerSlotApp) keep the prefix on every navigation
+ *    instead: router.push and router.replace are wrapped to prefix their
+ *    destination, and anchor hrefs are rewritten as they are clicked. See
+ *    partnerPrefixOf, prefixPath and anchorRewriteHandler below. Still no
+ *    stored state: leave the prefix by typing a URL and the banner is gone.
  */
 
 /** URL prefix that activates the slot. Matched case-insensitively. */
@@ -72,8 +81,21 @@ export const PARTNER_PATH_RE = /^\/partners\/chessusa\/([123])(?:\/|$)/i;
 /** Class on the always-rendered wrapper. Styled by partnerSlotCss below. */
 export const PARTNER_SLOT_CLASS = "cm-partner-slot";
 
-/** Attribute the boot script puts on <html> when the cookie is present. */
+/** Attribute the boot script puts on <html> under a preview prefix. */
 export const PARTNER_ATTR = "data-cm-partner";
+
+/**
+ * Attribute the two viewport-locked layouts (/analysis and /puzzles at lg)
+ * carry on their root box. Those pages are exactly one screen tall with
+ * overflow hidden — by design, so the session never scrolls — and the slot
+ * sits INSIDE that box, so the banner's height pushed the bottom of the board
+ * out of the box and out of reach with no way to scroll to it. Under the
+ * prefix, the rule in partnerSlotCss lets the box grow and the page scroll.
+ * Without the html attribute the rule does not apply, so real visitors keep
+ * the locked layout exactly as it was.
+ */
+export const VIEWPORT_LOCK_ATTR = "data-cm-viewport-lock";
+export const VIEWPORT_LOCK_PROPS = { [VIEWPORT_LOCK_ATTR]: "" } as const;
 
 /**
  * Exact rendered height of PartnerBanner, so the reserve cannot drift from
@@ -100,6 +122,7 @@ export const partnerSlotCss = `
 .${PARTNER_SLOT_CLASS}{display:none}
 html[${PARTNER_ATTR}] .${PARTNER_SLOT_CLASS}{display:block;min-height:${SLOT_RESERVE.narrow}px}
 @media (min-width:${SWAP_PX}px){html[${PARTNER_ATTR}] .${PARTNER_SLOT_CLASS}{min-height:${SLOT_RESERVE.wide}px}}
+html[${PARTNER_ATTR}] [${VIEWPORT_LOCK_ATTR}]{height:auto;min-height:100dvh;overflow:visible}
 `.trim();
 
 /**
@@ -151,6 +174,127 @@ document.head.appendChild(l);
 export function optionForPath(pathname: string): TurnTwoId | null {
   const m = PARTNER_PATH_RE.exec(pathname);
   return m && isTurnTwoId(m[1]) ? m[1] : null;
+}
+
+/**
+ * The prefix as spelled in the current URL, so a visitor who opened
+ * /partners/ChessUSA/2 keeps "/partners/ChessUSA/2" in front of every page
+ * they move to. Null on a normal URL.
+ */
+export function partnerPrefixOf(pathname: string): string | null {
+  const m = PARTNER_PATH_RE.exec(pathname);
+  return m && isTurnTwoId(m[1]) ? m[0].replace(/\/$/, "") : null;
+}
+
+/**
+ * Never prefixed: API routes, Next internals, and the partner surface itself,
+ * which also covers a path that already carries the prefix.
+ */
+const NEVER_PREFIXED = /^\/(api|_next|partners)(\/|$)/i;
+
+/**
+ * Where a link to `target` goes while under `prefix`. Same-origin absolute
+ * paths get the prefix. Everything else — other origins, relative paths,
+ * protocol-relative URLs, mailto: — comes back untouched.
+ */
+export function prefixPath(
+  prefix: string,
+  target: string,
+  origin: string
+): string {
+  let path = target;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(path)) {
+    let url: URL;
+    try {
+      url = new URL(path);
+    } catch {
+      return target;
+    }
+    if (url.origin !== origin) return target;
+    path = url.pathname + url.search + url.hash;
+  }
+  if (!path.startsWith("/") || path.startsWith("//")) return target;
+  if (NEVER_PREFIXED.test(path)) return target;
+  if (path === "/") return prefix;
+  if (path.startsWith("/?") || path.startsWith("/#")) {
+    return prefix + path.slice(1);
+  }
+  return prefix + path;
+}
+
+/** Fired before the browser or React acts on a link, in this order. */
+const REWRITE_EVENTS = ["mousedown", "click", "contextmenu"] as const;
+
+/**
+ * Keeps the prefix on every link. The site has two kinds:
+ *
+ *   next/link      navigates through router.push, which the bindings wrap to
+ *                  prefix the destination. The href attribute is ALSO
+ *                  rewritten here, so a cmd-click, a middle-click or
+ *                  "copy link address" gets the prefixed URL as well.
+ *   plain <a href> (MUI Button href=, prose links) do a full load of whatever
+ *                  the attribute says, so rewriting the attribute before the
+ *                  browser reads it is the whole fix.
+ *
+ * `navigate`, when given, takes over plain left-clicks entirely. The App
+ * Router binding needs that because its Link dispatches the navigation
+ * directly and never calls router.push.
+ *
+ * Runs in the capture phase on window, ahead of React's own listeners, so it
+ * sees every click first. Pure apart from the attribute write, and typed
+ * loosely on purpose: the unit tests drive it with plain objects, there being
+ * no DOM in the test environment.
+ */
+export function anchorRewriteHandler(
+  prefix: string,
+  origin: string,
+  navigate?: (href: string) => void
+): (event: Event) => void {
+  return (event) => {
+    const anchor =
+      (event.target as Element | null)?.closest?.("a[href]") ?? null;
+    if (!anchor) return;
+    const explicitTarget = anchor.getAttribute("target");
+    if (explicitTarget && explicitTarget !== "_self") return;
+    if (anchor.hasAttribute("download")) return;
+    const href = anchor.getAttribute("href");
+    if (!href) return;
+    const next = prefixPath(prefix, href, origin);
+    if (next !== href) anchor.setAttribute("href", next);
+    if (!navigate || event.type !== "click") return;
+    // Only a plain left-click on a link that now carries the prefix. Modified
+    // clicks open a new tab (the rewritten attribute takes care of that) and
+    // links elsewhere keep their own behaviour.
+    const mouse = event as MouseEvent;
+    if (mouse.defaultPrevented || mouse.button !== 0) return;
+    if (mouse.metaKey || mouse.ctrlKey || mouse.shiftKey || mouse.altKey) {
+      return;
+    }
+    if (!PARTNER_PATH_RE.test(next)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    navigate(next);
+  };
+}
+
+/** Wires anchorRewriteHandler to the window. Returns the undo. */
+export function installAnchorRewriter(
+  prefix: string,
+  navigate?: (href: string) => void
+): () => void {
+  const handler = anchorRewriteHandler(
+    prefix,
+    window.location.origin,
+    navigate
+  );
+  for (const type of REWRITE_EVENTS) {
+    window.addEventListener(type, handler, true);
+  }
+  return () => {
+    for (const type of REWRITE_EVENTS) {
+      window.removeEventListener(type, handler, true);
+    }
+  };
 }
 
 /**

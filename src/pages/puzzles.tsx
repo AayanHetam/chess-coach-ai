@@ -34,6 +34,7 @@ import {
   X,
 } from "lucide-react";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
+import { VIEWPORT_LOCK_PROPS } from "@/components/ads/PartnerSlot";
 import { NavPill } from "@/components/ui/NavPill";
 import { ACCENTS, themeAccent, type Accent } from "@/components/ui/accents";
 import { PuzzleCoachPanel } from "@/components/puzzle/PuzzleCoachPanel";
@@ -1758,6 +1759,11 @@ export default function PreviewPuzzlesPage() {
         flow rather than trapping a phone inside a 100dvh box.
       */}
       <Box
+        // Lets the partner preview (/partners/chessusa/N) turn this locked
+        // screen into a scrolling one, since its banner sits inside the box
+        // and would otherwise push the bottom of the board out of reach.
+        // Inert everywhere else. See VIEWPORT_LOCK_ATTR.
+        {...VIEWPORT_LOCK_PROPS}
         sx={{
           // Minus whatever the fixed cookie banner occupies, published by
           // ConsentBanner as `--cm-consent-h` and 0 once dismissed. Without

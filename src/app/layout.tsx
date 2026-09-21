@@ -7,10 +7,10 @@ import ConsentBanner from "@/components/consent/ConsentBanner";
 import ConsentGatedAnalytics from "@/components/consent/ConsentGatedAnalytics";
 import { SiteJsonLd } from "@/app/_seo/JsonLd";
 import {
-  PartnerSlot,
   partnerBootScript,
   partnerSlotCss,
 } from "@/components/ads/PartnerSlot";
+import { PartnerSlotApp } from "@/components/ads/PartnerSlotApp";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -70,7 +70,7 @@ export default function RootLayout({
               NavPill, so the partner slot needs its own mount here to make the
               placement genuinely sitewide. Renders nothing unless the viewer
               opened one of the three /partners/chessusa/N links. */}
-          <PartnerSlot />
+          <PartnerSlotApp />
           {children}
         </ThemeRegistry>
         {/* App Router pages don't pass through the Pages Router <Layout>, so

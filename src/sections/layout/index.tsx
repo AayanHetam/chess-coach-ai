@@ -19,7 +19,7 @@ import { EmployeeChrome } from "@/components/intern/EmployeeChrome";
 import { GlobalAuthDialog } from "@/contexts/AuthDialogContext";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
-import { PartnerSlot } from "@/components/ads/PartnerSlot";
+import { PartnerSlotPages } from "@/components/ads/PartnerSlotPages";
 
 // Routes that mount their own <GradientBackdrop /> + <NavPill /> inside the
 // page component. Layout must NOT add a second set, or they double-stack.
@@ -176,7 +176,7 @@ export default function Layout({ children }: PropsWithChildren) {
               not something we serve even to an advertiser previewing it.
               Renders nothing unless one of the three preview links was
               opened. */}
-          {bare && router.pathname !== "/auth/age" && <PartnerSlot />}
+          {bare && router.pathname !== "/auth/age" && <PartnerSlotPages />}
 
           {children}
 

@@ -39,10 +39,12 @@ const GA_MEASUREMENT_ID =
  * reload them repeatedly. Counting that traffic would both burn the
  * allowance and inflate the very numbers we quote to the advertiser.
  *
- * Only Vercel Analytics needs the filter. GA4, the Firestore visit log and
- * the Supabase tracker all fire from AnalyticsProvider, which is mounted only
- * by src/app/layout.tsx — and the preview routes are Pages Router, so they
- * never reach it.
+ * This filter covers Vercel Analytics only. GA4, the Firestore visit log and
+ * the Supabase tracker fire from AnalyticsProvider, which carries its own
+ * matching guard — it needs one, because the previews are a URL prefix over
+ * the whole site and a prefixed URL onto an App Router page reaches that
+ * mount. An earlier version of this comment claimed they could not; that was
+ * true only while the previews were Pages-Router-only routes.
  */
 function dropPartnerPreview<T extends { url: string }>(event: T): T | null {
   try {

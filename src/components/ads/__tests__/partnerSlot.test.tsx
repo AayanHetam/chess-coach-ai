@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { SLOT_HEIGHT, SWAP_PX } from "../PartnerBanner";
+import { LABEL_COLOUR, SLOT_HEIGHT, SWAP_PX } from "../PartnerBanner";
 import {
   LABEL_BLOCK_PX,
   PARTNER_ATTR,
@@ -26,7 +26,7 @@ describe("the slot is invisible to everyone who did not open a preview link", ()
    * sends and what a normal visitor's browser parses. If the banner ever shows
    * up here, it is shipping to real users.
    */
-  const ssr = renderToStaticMarkup(<PartnerSlot />);
+  const ssr = renderToStaticMarkup(<PartnerSlot pathname="/puzzles" />);
 
   it("server-renders an empty wrapper, not a banner", () => {
     expect(ssr).toContain(PARTNER_SLOT_CLASS);
@@ -38,6 +38,20 @@ describe("the slot is invisible to everyone who did not open a preview link", ()
   it("ships no artwork reference a browser could prefetch", () => {
     expect(ssr).not.toContain("/img/p/");
     expect(ssr).not.toContain("<img");
+  });
+
+  it("renders nothing on the server even ON a preview path", () => {
+    /**
+     * Two-phase by design. A statically optimised page is rendered once at
+     * build time and reused for every URL that rewrites onto it, so its HTML
+     * must not depend on the request path — and the client's first render has
+     * to match that HTML or React tears the tree down. The banner therefore
+     * appears only after mount, into a box the head CSS has already sized.
+     */
+    const onPrefix = renderToStaticMarkup(
+      <PartnerSlot pathname="/partners/chessusa/1/puzzles" />
+    );
+    expect(onPrefix).toBe(ssr);
   });
 
   it("hides the wrapper by default and only reveals it under the attribute", () => {
@@ -110,6 +124,63 @@ describe("which URLs activate the slot", () => {
     "/partnersXchessusa/1",
   ])("%s shows nothing", (path) => {
     expect(optionForPath(path)).toBeNull();
+  });
+});
+
+describe("the Advertisement disclosure stays legible on both grounds", () => {
+  /**
+   * "Advertisement" is the FTC disclosure. A disclosure nobody can read is not
+   * a disclosure, and this is not hypothetical: the first version hardcoded
+   * white-at-55% because every surface it was tested on was dark, and it
+   * measured 1.00:1 — invisible — on the white App Router pages. Contrast is
+   * therefore asserted arithmetically rather than eyeballed.
+   */
+  const channel = (v: number) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  const luminance = ([r, g, b]: number[]) =>
+    0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+  /** Flatten an rgba() label colour onto its opaque ground. */
+  const over = (fg: number[], alpha: number, bg: number[]) =>
+    fg.map((c, i) => alpha * c + (1 - alpha) * bg[i]);
+  const ratio = (a: number[], b: number[]) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+
+  const DARK_GROUND = [8, 9, 12]; // #08090C, the product surfaces
+  const LIGHT_GROUND = [255, 255, 255]; // the App Router SEO pages
+
+  const parse = (css: string) => {
+    const n = css.match(/[\d.]+/g)!.map(Number);
+    return { rgb: n.slice(0, 3), alpha: n.length > 3 ? n[3] : 1 };
+  };
+
+  it("dark tone clears 4.5:1 on the product surfaces", () => {
+    const { rgb, alpha } = parse(LABEL_COLOUR.dark);
+    expect(
+      ratio(over(rgb, alpha, DARK_GROUND), DARK_GROUND)
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("light tone clears 4.5:1 on the SEO pages", () => {
+    const { rgb, alpha } = parse(LABEL_COLOUR.light);
+    expect(
+      ratio(over(rgb, alpha, LIGHT_GROUND), LIGHT_GROUND)
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("neither tone would survive on the other's ground", () => {
+    // Documents WHY the prop exists: one colour cannot serve both.
+    const d = parse(LABEL_COLOUR.dark);
+    const l = parse(LABEL_COLOUR.light);
+    expect(
+      ratio(over(d.rgb, d.alpha, LIGHT_GROUND), LIGHT_GROUND)
+    ).toBeLessThan(4.5);
+    expect(ratio(over(l.rgb, l.alpha, DARK_GROUND), DARK_GROUND)).toBeLessThan(
+      4.5
+    );
   });
 });
 

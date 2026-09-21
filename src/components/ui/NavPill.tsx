@@ -20,7 +20,7 @@ import { Menu as MenuIcon, Heart, LogOut, User, Settings } from "lucide-react";
 import { Logo } from "./Logo";
 import { surfaceAccent } from "./accents";
 import { AppDrawer, type NavId } from "./AppDrawer";
-import { PartnerSlot } from "@/components/ads/PartnerSlot";
+import { PartnerSlotPages } from "@/components/ads/PartnerSlotPages";
 import { useAuth } from "@/contexts/AuthContext";
 import ProfileDialog from "@/components/auth/ProfileDialog";
 import { useAuthDialog } from "@/contexts/AuthDialogContext";
@@ -531,7 +531,7 @@ export function NavPill({
           the page, so Layout has no hook below the nav for any of them.
           Renders nothing at all unless the viewer opened one of the three
           /partners/chessusa/N links. See PartnerSlot.tsx. */}
-      <PartnerSlot />
+      <PartnerSlotPages />
 
       <AppDrawer
         open={drawerOpen}

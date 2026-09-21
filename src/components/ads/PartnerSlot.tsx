@@ -3,7 +3,12 @@
 import { Box } from "@mui/material";
 import { useEffect, useState } from "react";
 
-import { PartnerBanner, SLOT_HEIGHT, SWAP_PX } from "./PartnerBanner";
+import {
+  PartnerBanner,
+  SLOT_HEIGHT,
+  SWAP_PX,
+  type SlotTone,
+} from "./PartnerBanner";
 import { CHESSUSA_HREF } from "./chessusaCreative";
 import {
   TURN_TWO_META,
@@ -124,6 +129,13 @@ export function optionForPath(pathname: string): TurnTwoId | null {
 }
 
 /**
+ * The two router bindings live in their own files — PartnerSlotPages.tsx and
+ * PartnerSlotApp.tsx — so that neither router's hooks are ever imported into
+ * the other's bundle. This module stays router-free and therefore safe for
+ * both trees to import.
+ */
+
+/**
  * Mounted directly below the nav on every surface. Three mount points cover
  * the whole site, because the site has three kinds of page:
  *
@@ -134,14 +146,46 @@ export function optionForPath(pathname: string): TurnTwoId | null {
  *   app/layout.tsx           the App Router SEO pages, which are a separate
  *                            tree with its own root
  */
-export function PartnerSlot() {
-  const [option, setOption] = useState<TurnTwoId | null>(null);
+export function PartnerSlot({
+  pathname,
+  tone = "dark",
+}: {
+  pathname: string | null;
+  /** Ground this mount sits on; drives the disclosure contrast. */
+  tone?: SlotTone;
+}) {
+  /**
+   * Two-phase on purpose. `pathname` comes from a router hook, and for a
+   * statically optimised page its server-side value is the route PATTERN
+   * while the client sees the real URL — rendering from it directly would be
+   * a hydration mismatch. So the first render is null on both sides and the
+   * content appears once mounted.
+   */
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
+  const option = mounted ? optionForPath(pathname ?? "") : null;
+
+  /**
+   * Keep <html data-cm-partner> in step with the URL.
+   *
+   * The boot script sets it once per DOCUMENT load, which is not enough: a
+   * next/link click is a client-side navigation, so the document — and the
+   * attribute — survives while the URL changes underneath it. Without this
+   * effect, clicking any in-app link from /partners/chessusa/2/learn lands on
+   * /learn/<course> with the attribute still set and the banner still on
+   * screen. That is an unapproved advertisement on a real URL, which is the
+   * exact thing this design exists to make impossible.
+   *
+   * Found by clicking a link rather than by calling goto(), which is why the
+   * navigation case now has its own test.
+   */
   useEffect(() => {
-    // Read once on mount. The prefix cannot change without a navigation, and
-    // a navigation across the prefix boundary is a full document load.
-    setOption(optionForPath(window.location.pathname));
-  }, []);
+    if (!mounted) return;
+    const el = document.documentElement;
+    if (option) el.setAttribute(PARTNER_ATTR, option);
+    else el.removeAttribute(PARTNER_ATTR);
+  }, [mounted, option]);
 
   return (
     <Box
@@ -163,6 +207,7 @@ export function PartnerSlot() {
             content: TURN_TWO_META[option].code,
           }}
           advertiser="ChessUSA"
+          tone={tone}
         />
       )}
     </Box>

@@ -75,6 +75,24 @@ export interface PartnerUtm {
   term?: string;
 }
 
+/**
+ * Which ground the slot is sitting on. It decides the disclosure's colour and
+ * nothing else — the creatives all paint their own ground.
+ *
+ * Not cosmetic: "Advertisement" is the FTC disclosure, and the first version
+ * of this hardcoded it to white-at-55% because every surface it was tested on
+ * was dark. The App Router SEO pages (/faq, /privacy, /chess-basics …) have a
+ * WHITE background, where that measured 1.00:1 — an invisible disclosure,
+ * which is the same as no disclosure.
+ */
+export type SlotTone = "dark" | "light";
+
+/** Measured against the grounds they actually sit on: 5.8:1 and 5.6:1. */
+const LABEL_COLOUR: Record<SlotTone, string> = {
+  dark: "rgba(255,255,255,0.55)",
+  light: "rgba(0,0,0,0.60)",
+};
+
 export interface PartnerBannerProps {
   creative: PartnerCreative;
   /**
@@ -85,6 +103,8 @@ export interface PartnerBannerProps {
   utm: PartnerUtm;
   /** Advertiser name, used in the disclosure's accessible text. */
   advertiser: string;
+  /** Ground the slot sits on. Drives the disclosure's contrast. */
+  tone?: SlotTone;
 }
 
 /**
@@ -154,6 +174,7 @@ export function PartnerBanner({
   href,
   utm,
   advertiser,
+  tone = "dark",
 }: PartnerBannerProps) {
   const destination = withUtm(href, utm);
 
@@ -178,9 +199,9 @@ export function PartnerBanner({
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.12em",
-          // 0.55 alpha on #08090C measures ~5.8:1. Quieter than this reads as
-          // chrome and stops being a disclosure. See the header note.
-          color: "rgba(255,255,255,0.55)",
+          // Quieter than this reads as chrome and stops being a disclosure.
+          // See SlotTone for why it is not a single hardcoded colour.
+          color: LABEL_COLOUR[tone],
         }}
       >
         Advertisement
@@ -223,4 +244,4 @@ export function PartnerBanner({
   );
 }
 
-export { SLOT_HEIGHT, SLOT_MAX_WIDTH, SWAP_PX };
+export { SLOT_HEIGHT, SLOT_MAX_WIDTH, SWAP_PX, LABEL_COLOUR };

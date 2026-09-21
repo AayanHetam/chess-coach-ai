@@ -120,7 +120,7 @@ function AccentHairline({ a }: { a: Accent }) {
   );
 }
 
-const launchTheme = createTheme({
+export const launchTheme = createTheme({
   palette: {
     mode: "dark",
     primary: { main: "#F97316" },
@@ -418,7 +418,7 @@ function GlassChatPreview() {
   );
 }
 
-function Hero() {
+export function Hero() {
   return (
     <Box
       sx={{
@@ -566,7 +566,7 @@ function Hero() {
   );
 }
 
-function MarqueeStrip() {
+export function MarqueeStrip() {
   const items = [
     "Stockfish 17",
     "Engine-grounded AI coach",
@@ -619,7 +619,7 @@ function MarqueeStrip() {
   );
 }
 
-function HowItWorks() {
+export function HowItWorks() {
   const steps = [
     {
       number: "01",
@@ -774,7 +774,7 @@ function HowItWorks() {
   );
 }
 
-function BentoSection() {
+export function BentoSection() {
   return (
     <Box sx={{ py: { xs: 4, md: 6 } }}>
       <RevealOnScroll>

@@ -19,6 +19,7 @@ import { EmployeeChrome } from "@/components/intern/EmployeeChrome";
 import { GlobalAuthDialog } from "@/contexts/AuthDialogContext";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
+import { PartnerSlotPages } from "@/components/ads/PartnerSlotPages";
 
 // Routes that mount their own <GradientBackdrop /> + <NavPill /> inside the
 // page component. Layout must NOT add a second set, or they double-stack.
@@ -51,6 +52,14 @@ const SELF_CHROMED_ROUTES = new Set([
   "/puzzles/sessions",
   "/repetit-training",
   "/scout",
+  // The ChessUSA placement preview (a sales asset, noindex, not linked from
+  // anywhere on the site). /live mounts its own GradientBackdrop + NavPill
+  // because the whole point is to render the real chrome with the ad slot in
+  // its real position under it — a Layout-provided pill would stack a second
+  // one above the banner. The shell covers the viewport with its own fixed
+  // panels, so it wants no Layout chrome either.
+  "/partners/chessusa",
+  "/partners/chessusa/live",
 ]);
 
 // Deliberately chrome-free. /auth/age is the COPPA interstitial — offering
@@ -159,6 +168,15 @@ export default function Layout({ children }: PropsWithChildren) {
               </Box>
             </>
           )}
+
+          {/* The BARE_ROUTES render no NavPill, so the partner slot cannot
+              ride along with it the way it does everywhere else. /auth/age is
+              excluded deliberately and permanently: it is the COPPA age gate,
+              and an advertisement on a children's age-verification screen is
+              not something we serve even to an advertiser previewing it.
+              Renders nothing unless one of the three preview links was
+              opened. */}
+          {bare && router.pathname !== "/auth/age" && <PartnerSlotPages />}
 
           {children}
 

@@ -92,9 +92,72 @@ const nextConfig = {
    * a CSP loose enough to be safe by inspection would not be worth having.
    * That needs its own change with report-only telemetry first.
    */
+  /**
+   * The ChessUSA links go out in email written as /partners/ChessUSA/1. Page
+   * routing is filesystem-based and therefore case-SENSITIVE, so that exact
+   * string 404s on the one audience it was written for, and a dead link in a
+   * pitch is not something you get to fix after they have clicked it.
+   *
+   * A rewrite, NOT a redirect. `source` patterns here are matched
+   * case-INSENSITIVELY, so a redirect from the capitalised spelling also
+   * matches the canonical lowercase one and sends it to itself — an infinite
+   * loop that 307s every /partners/* route, including ones that worked
+   * before. Measured, not theorised: that is exactly what the first version of
+   * this did.
+   *
+   * Rewrites returned as a plain array run in `afterFiles`, i.e. only when no
+   * page matched. So the lowercase path resolves to its page and never reaches
+   * this rule, and only the capitalised spellings fall through to be rewritten
+   * onto the canonical one. Canonical path stays lowercase.
+   */
+  rewrites: async () => [
+    // ── ChessUSA placement preview ──────────────────────────────────────────
+    // /partners/ChessUSA/1/puzzles serves the REAL /puzzles page with creative
+    // 2a in the slot below the nav. Any site path works, and the option is in
+    // the URL rather than in a cookie, which is what makes the placement
+    // impossible to leak: a normal visitor on /puzzles cannot end up in a
+    // state where the banner appears, because there is no state.
+    //
+    // Order matters — first match wins, and the catch-all below would swallow
+    // these. The option rule is first.
+    //
+    // Casing is free: `source` patterns are matched case-INSENSITIVELY, so the
+    // /partners/ChessUSA/... spelling the links go out as resolves here
+    // without a rule of its own. (Page routing, by contrast, is
+    // filesystem-based and case-sensitive, which is why these need a rewrite
+    // at all. Do NOT turn them into redirects: a redirect from the capitalised
+    // form also matches the lowercase one and 307-loops it onto itself.)
+    {
+      source: "/partners/chessusa/:option(1|2|3)/:path*",
+      destination: "/:path*",
+    },
+    {
+      source: "/partners/chessusa/:option(1|2|3)",
+      destination: "/",
+    },
+    // Casing no-op for the two real pages under this prefix, /partners/chessusa
+    // and /partners/chessusa/live, so their capitalised spellings resolve too.
+    // Runs in afterFiles, i.e. only when no page matched, so the canonical
+    // lowercase paths reach their own pages and never touch this.
+    {
+      source: "/partners/chessusa/:rest*",
+      destination: "/partners/chessusa/:rest*",
+    },
+  ],
   headers: async () => [
     {
-      source: "/:path*",
+      /**
+       * Everything EXCEPT the partner placement preview, which is the one
+       * route with a legitimate embedder: its own shell at
+       * /partners/chessusa frames it to show an advertiser their creative at
+       * real viewport widths.
+       *
+       * Written as an exclusion rather than a second, narrower rule on
+       * purpose. Next applies every matching rule, so a narrower rule would
+       * leave TWO X-Frame-Options values on the response and make the
+       * outcome depend on merge order. One rule, one value, per response.
+       */
+      source: "/((?!partners/chessusa/live).*)",
       headers: [
         // Clickjacking. The app has no legitimate embedder.
         { key: "X-Frame-Options", value: "DENY" },
@@ -110,6 +173,51 @@ const nextConfig = {
         },
         // Two years, subdomains included, preload-eligible. Vercel already
         // sends a bare max-age; this is the stricter form.
+        {
+          key: "Strict-Transport-Security",
+          value: "max-age=63072000; includeSubDomains; preload",
+        },
+      ],
+    },
+    {
+      /**
+       * Every URL under the preview prefix serves a REAL page of the site, so
+       * /partners/ChessUSA/1/puzzles is a byte-for-byte duplicate of /puzzles
+       * with one extra element. Three prefixes times every page on the site is
+       * a large duplicate-content surface pointed straight at our own
+       * canonical URLs, and it ships to production.
+       *
+       * noindex, not a robots.txt Disallow: a disallowed URL is never fetched,
+       * so the crawler never sees the directive and the URL can still be
+       * indexed from an inbound link — which is exactly what a link mailed to
+       * an advertiser is. Let it crawl, and tell it no.
+       *
+       * Covers the shell and /live too, which are equally not for search.
+       */
+      source: "/partners/:path*",
+      headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+    },
+    {
+      /**
+       * The one framable route. SAMEORIGIN, not ALLOWALL: the preview shell
+       * is served from this same origin, so nothing outside chessmasti.com
+       * gains the ability to frame the site. frame-ancestors 'self' says the
+       * same thing to browsers that have dropped X-Frame-Options, and is the
+       * directive that actually governs where X-Frame-Options is ignored.
+       *
+       * The rest of the hardening is repeated here because this route is
+       * excluded from the rule above, and a security header you drop by
+       * accident is worse than one you never had.
+       */
+      source: "/partners/chessusa/live",
+      headers: [
+        { key: "X-Frame-Options", value: "SAMEORIGIN" },
+        { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        {
+          key: "Referrer-Policy",
+          value: "strict-origin-when-cross-origin",
+        },
         {
           key: "Strict-Transport-Security",
           value: "max-age=63072000; includeSubDomains; preload",

@@ -29,6 +29,32 @@ const GA_MEASUREMENT_ID =
  * which is why this imports @vercel/analytics/react rather than the /next
  * flavor — the react build tracks history changes and works in either.
  */
+/**
+ * Drops Vercel Analytics events fired from the partner placement previews
+ * under /partners/. Returning null means the event is never sent, so it costs
+ * nothing against the plan's event allowance.
+ *
+ * Two reasons this matters rather than being tidiness: the project is close
+ * to its event cap, and these previews are sent to advertisers, who will
+ * reload them repeatedly. Counting that traffic would both burn the
+ * allowance and inflate the very numbers we quote to the advertiser.
+ *
+ * This filter covers Vercel Analytics only. GA4, the Firestore visit log and
+ * the Supabase tracker fire from AnalyticsProvider, which carries its own
+ * matching guard — it needs one, because the previews are a URL prefix over
+ * the whole site and a prefixed URL onto an App Router page reaches that
+ * mount. An earlier version of this comment claimed they could not; that was
+ * true only while the previews were Pages-Router-only routes.
+ */
+function dropPartnerPreview<T extends { url: string }>(event: T): T | null {
+  try {
+    if (new URL(event.url).pathname.startsWith("/partners/")) return null;
+  } catch {
+    // An unparseable URL is not a reason to drop a real page view.
+  }
+  return event;
+}
+
 export default function ConsentGatedAnalytics() {
   const consented = useTrackingConsent();
 
@@ -36,7 +62,7 @@ export default function ConsentGatedAnalytics() {
 
   return (
     <>
-      <Analytics />
+      <Analytics beforeSend={dropPartnerPreview} />
       {GA_MEASUREMENT_ID && (
         <>
           <Script

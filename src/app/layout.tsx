@@ -6,6 +6,11 @@ import AnalyticsProvider from "@/components/AnalyticsProvider";
 import ConsentBanner from "@/components/consent/ConsentBanner";
 import ConsentGatedAnalytics from "@/components/consent/ConsentGatedAnalytics";
 import { SiteJsonLd } from "@/app/_seo/JsonLd";
+import {
+  partnerBootScript,
+  partnerSlotCss,
+} from "@/components/ads/PartnerSlot";
+import { PartnerSlotApp } from "@/components/ads/PartnerSlotApp";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -51,9 +56,23 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <SiteJsonLd />
+        {/* Partner slot: reserve + un-hide, both before first paint. The CSS
+            is plain rather than MUI so it exists at paint time, and the script
+            is inline and head-blocking for the same reason — together they are
+            what stop the banner shifting the page when it mounts. A visitor
+            without the cookie runs four statements and loads nothing. */}
+        <style dangerouslySetInnerHTML={{ __html: partnerSlotCss }} />
+        <script dangerouslySetInnerHTML={{ __html: partnerBootScript }} />
       </head>
       <body className={inter.className}>
-        <ThemeRegistry>{children}</ThemeRegistry>
+        <ThemeRegistry>
+          {/* The App Router tree is the ~25 SEO landing pages. They render no
+              NavPill, so the partner slot needs its own mount here to make the
+              placement genuinely sitewide. Renders nothing unless the viewer
+              opened one of the three /partners/chessusa/N links. */}
+          <PartnerSlotApp />
+          {children}
+        </ThemeRegistry>
         {/* App Router pages don't pass through the Pages Router <Layout>, so
             without this the legal pages are reachable only by typing the URL.
             Light palette to match the .cm-content pages in _seo/styles.ts. */}

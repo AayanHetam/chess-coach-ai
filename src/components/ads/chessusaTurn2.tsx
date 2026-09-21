@@ -3,6 +3,8 @@
 import { Box } from "@mui/material";
 import type { ReactNode } from "react";
 
+import { SWAP_PX } from "./PartnerBanner";
+
 /**
  * ChessUSA Turn-2 creative, built from the design doc's three directions.
  *
@@ -45,8 +47,15 @@ const LOCKUP_H = 45;
 const MARK_W = 20;
 const MARK_H = 28;
 
-const WIDE = "@media (min-width: 640px)";
-const NARROW = "@media (max-width: 639.98px)";
+/**
+ * Derived from SWAP_PX, never hardcoded. These were literal 640s while
+ * PartnerBanner's <picture> and the reserved height moved to 760, so the
+ * creatives kept swapping at a width the rest of the slot no longer agreed
+ * with — precisely the drift PartnerBanner's header warns about. A test now
+ * asserts the two stay equal.
+ */
+const WIDE = `@media (min-width: ${SWAP_PX}px)`;
+const NARROW = `@media (max-width: ${SWAP_PX - 0.02}px)`;
 
 /** Shows only at >= 640px. */
 function Wide({ children, sx }: { children: ReactNode; sx?: object }) {
@@ -175,12 +184,16 @@ function BoardPartyWide() {
     <Wide
       sx={{
         width: 728,
+        // Guard, not layout: the swap point already reserves 728 of room. If a
+        // future padding change narrows the slot, the rank compresses evenly
+        // instead of having its last squares silently clipped away.
+        maxWidth: "100%",
         height: 90,
         boxSizing: "border-box",
         display: "none",
         [WIDE]: {
           display: "grid",
-          gridTemplateColumns: "repeat(8, 91px)",
+          gridTemplateColumns: "repeat(8, 1fr)",
         },
         overflow: "hidden",
       }}
@@ -295,6 +308,7 @@ function BoardPartyNarrow() {
     <Narrow
       sx={{
         width: 320,
+        maxWidth: "100%",
         height: 100,
         boxSizing: "border-box",
         display: "grid",
@@ -454,6 +468,7 @@ function StickerWide() {
     <Wide
       sx={{
         width: 728,
+        maxWidth: "100%",
         height: 90,
         boxSizing: "border-box",
         borderRadius: "16px",
@@ -564,6 +579,7 @@ function StickerNarrow() {
     <Narrow
       sx={{
         width: 320,
+        maxWidth: "100%",
         height: 100,
         boxSizing: "border-box",
         borderRadius: "14px",
@@ -694,6 +710,7 @@ function NeonWide() {
     <Wide
       sx={{
         width: 728,
+        maxWidth: "100%",
         height: 90,
         boxSizing: "border-box",
         borderRadius: "10px",
@@ -811,6 +828,7 @@ function NeonNarrow() {
     <Narrow
       sx={{
         width: 320,
+        maxWidth: "100%",
         height: 100,
         boxSizing: "border-box",
         borderRadius: "10px",

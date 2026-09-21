@@ -102,8 +102,33 @@ html[${PARTNER_ATTR}] .${PARTNER_SLOT_CLASS}{display:block;min-height:${SLOT_RES
 @media (min-width:${SWAP_PX}px){html[${PARTNER_ATTR}] .${PARTNER_SLOT_CLASS}{min-height:${SLOT_RESERVE.wide}px}}
 `.trim();
 
-const FONT_HREF =
+/**
+ * Archivo + IBM Plex Mono, the two faces the Turn-2 creative is set in. The
+ * boot script appends this under the /partners/chessusa/N prefix; the older
+ * iframe route at /partners/chessusa/live links it from its own <Head>, since
+ * it renders the same units but is not a numeric-option path.
+ */
+export const FONT_HREF =
   "https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@700&display=swap";
+
+/**
+ * Is this path any part of the partner preview surface? Case-INsensitive,
+ * because the rewrites match case-insensitively and PARTNER_PATH_RE carries
+ * /i, so /PARTNERS/CHESSUSA/1/puzzles renders the preview just as well — and
+ * an analytics guard that only knew the lowercase spelling let exactly that
+ * traffic through. Every analytics exclusion goes through this one predicate.
+ */
+export function isPartnerPreviewPath(pathname: string): boolean {
+  return /^\/partners\//i.test(pathname);
+}
+
+/**
+ * The same predicate as a JavaScript expression, for inline scripts that
+ * cannot import (the gtag config in ConsentGatedAnalytics). Tested by
+ * execution against the TS version so the two cannot disagree.
+ */
+export const PARTNER_PREVIEW_PATH_JS =
+  "/^\\/partners\\//i.test(location.pathname)";
 
 /**
  * Runs in <head>, before first paint. Sets the attribute that un-hides and

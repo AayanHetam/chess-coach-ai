@@ -28,8 +28,23 @@ import type { ReactNode } from "react";
  * reserved for the wrong creative across one breakpoint's width.
  */
 
-/** Where the desktop/mobile creative swap happens. */
-const SWAP_PX = 640;
+/**
+ * Where the desktop/mobile creative swap happens.
+ *
+ * 760, not 640. The wide unit is a fixed 728px IAB leaderboard, and a viewport
+ * has to clear 728 PLUS the page's own side padding to show one. At 640 it
+ * did not: the unit rendered at its full 728 inside a 608px link whose
+ * overflow is hidden, so 120px of it was silently cut off — on 2a that is the
+ * whole "IT'S YOUR MOVE" call to action and part of the discount code.
+ * Measured, per viewport: 640 hid 120px, 660 hid 100px, 700 hid 60px, 728 hid
+ * 32px, and only 760 and up were clean.
+ *
+ * Serving the unit that FITS is also what a real ad server does, so 640-759
+ * now gets the 320x100 narrow unit. Changing this one constant moves the
+ * <picture> media query, the reserved height and the creatives together,
+ * which is the point of there being one constant.
+ */
+const SWAP_PX = 760;
 
 /**
  * Rendered slot height per breakpoint, matching the IAB units the creative

@@ -25,9 +25,10 @@ export function isVariantId(value: unknown): value is VariantId {
 /** Names the rendering path, not just the look, so the reviewer knows which
  *  variant is exercising <picture> and which is live DOM. */
 export const VARIANT_LABELS: Record<VariantId, string> = {
-  editorial: "Editorial (HTML)",
-  bold: "Bold (HTML)",
-  three: "Image pair (PNG)",
+  // The ids are historical; the creative behind each is the production one.
+  editorial: "1 · 2a Board Party",
+  bold: "2 · 2b Sticker",
+  three: "3 · 2c Neon Board",
 };
 
 /* ── page contexts (?page=) ──────────────────────────────────────────────── */

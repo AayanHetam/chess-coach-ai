@@ -1,3 +1,4 @@
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { withUtm } from "../PartnerBanner";
@@ -64,34 +65,33 @@ describe("option guards", () => {
   });
 });
 
-describe("chessusa image creative", () => {
-  const creative = chessusaCreative("three");
-
-  it("is the variant that exercises the <picture> path", () => {
-    expect(creative.kind).toBe("image");
-  });
-
-  it("carries intrinsic dimensions, without which the slot cannot reserve space", () => {
-    if (creative.kind !== "image") throw new Error("expected image creative");
-    expect(creative.wide).toMatchObject({ width: 728, height: 90 });
-    expect(creative.narrow).toMatchObject({ width: 320, height: 100 });
+describe("the shell serves the production creatives, not stand-ins", () => {
+  /**
+   * The older iframe preview and the /partners/ChessUSA/N links must show the
+   * SAME three units. A shell that showed placeholders, or an image pair whose
+   * files were never added, showed the advertiser one thing while the links
+   * showed another — and the third option was a broken image on the live
+   * domain until this mapping existed.
+   */
+  it.each([
+    ["editorial", "2a"],
+    ["bold", "2b"],
+    ["three", "2c"],
+  ] as const)("shell option %s is Turn-2 creative %s", (variant, code) => {
+    const creative = chessusaCreative(variant);
+    expect(creative.kind).toBe("html");
+    expect(chessusaUtm(variant).content).toBe(code);
   });
 
   /**
    * Guards a requirement that is invisible until it silently breaks: common
    * ad-blocker filter lists match on these substrings in a request path, and
-   * a creative served from one of them simply does not render for a chunk of
+   * artwork served from one of them simply does not render for a chunk of
    * real users. Renaming the assets "helpfully" is exactly the change this
-   * test exists to catch.
+   * test exists to catch. The logos are CSS backgrounds, so the paths are
+   * read out of the rendered stylesheet rather than off an <img>.
    */
-  it("serves from neutral paths no filter list matches", () => {
-    if (creative.kind !== "image") throw new Error("expected image creative");
-    const paths = [
-      creative.wide.src,
-      creative.wide.src2x,
-      creative.narrow.src,
-      creative.narrow.src2x,
-    ];
+  it("references artwork only from neutral paths no filter list matches", () => {
     const bait = [
       "/ads/",
       "/ad/",
@@ -103,7 +103,17 @@ describe("chessusa image creative", () => {
       "728x90",
       "320x100",
     ];
-    for (const path of paths) {
+    const seen: string[] = [];
+    for (const variant of ["editorial", "bold", "three"] as const) {
+      const creative = chessusaCreative(variant);
+      if (creative.kind !== "html") throw new Error("expected html creative");
+      const html = renderToStaticMarkup(creative.node);
+      const re = /url\(([^)]+)\)/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(html)) !== null) seen.push(m[1].replace(/["']/g, ""));
+    }
+    expect(seen.length).toBeGreaterThan(0);
+    for (const path of seen) {
       expect(path.startsWith("/img/p/")).toBe(true);
       for (const needle of bait) {
         expect(path.toLowerCase()).not.toContain(needle);
@@ -113,8 +123,11 @@ describe("chessusa image creative", () => {
 });
 
 describe("chessusaUtm", () => {
-  it("tags the creative variant so placements are attributable", () => {
-    expect(chessusaUtm("bold").content).toBe("bold");
-    expect(chessusaUtm("three").content).toBe("three");
+  it("tags clicks with the creative code the production links use", () => {
+    // The shell and /partners/ChessUSA/N must reconcile in analytics, so both
+    // send 2a/2b/2c rather than the shell's own historical option ids.
+    expect(chessusaUtm("editorial").content).toBe("2a");
+    expect(chessusaUtm("bold").content).toBe("2b");
+    expect(chessusaUtm("three").content).toBe("2c");
   });
 });

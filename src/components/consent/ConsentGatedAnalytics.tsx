@@ -3,6 +3,10 @@
 import { Analytics } from "@vercel/analytics/react";
 import Script from "next/script";
 import { useTrackingConsent } from "./useTrackingConsent";
+import {
+  PARTNER_PREVIEW_PATH_JS,
+  isPartnerPreviewPath,
+} from "@/components/ads/PartnerSlot";
 
 // NEXT_PUBLIC_ vars are inlined at build time, so reading them in a client
 // component is fine. The literal fallback is chessmasti.com's GA4 stream —
@@ -48,7 +52,7 @@ const GA_MEASUREMENT_ID =
  */
 function dropPartnerPreview<T extends { url: string }>(event: T): T | null {
   try {
-    if (new URL(event.url).pathname.startsWith("/partners/")) return null;
+    if (isPartnerPreviewPath(new URL(event.url).pathname)) return null;
   } catch {
     // An unparseable URL is not a reason to drop a real page view.
   }
@@ -75,7 +79,14 @@ export default function ConsentGatedAnalytics() {
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
               gtag('config', '${GA_MEASUREMENT_ID}', {
-                send_page_view: true
+                // GA4 sends an automatic page view from this config call, for
+                // whatever URL the script loads on. That is a SECOND path into
+                // GA4 alongside the manual event AnalyticsProvider fires, and
+                // guarding only the manual one left advertiser reloads of
+                // /partners/... inflating GA4 anyway. Suppress the automatic
+                // one under the preview prefix; AnalyticsProvider sends the
+                // real page views and carries the matching guard.
+                send_page_view: !(${PARTNER_PREVIEW_PATH_JS})
               });
             `}
           </Script>

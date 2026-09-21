@@ -6,29 +6,13 @@ Served at `/img/p/*`. Not deployed itself — `.vercelignore` excludes `*.md`.
 
 Neutral on purpose. Common ad-blocker filter lists (EasyList and friends)
 match request paths on substrings like `/ads/`, `banner`, `advert`, `sponsor`,
-`promo` and dimension strings like `728x90`. A creative served from a path
+`promo` and dimension strings like `728x90`. Artwork served from a path
 containing any of those silently fails to render for a large share of real
 users, and the failure looks like a broken image rather than a blocked one.
 
-`src/components/ads/__tests__/partnerBanner.test.ts` asserts this, so renaming
-these files "more descriptively" fails CI rather than failing in production.
-
-## Contract
-
-`src/components/ads/chessusaCreative.tsx` references exactly these four files
-at exactly these intrinsic sizes. The sizes are the reserved slot height in
-`PartnerBanner.tsx`, so changing one means changing both.
-
-| File          | Intrinsic | Used           |
-| ------------- | --------- | -------------- |
-| `cu-w.png`    | 728x90    | `>= 640px`, 1x |
-| `cu-w@2x.png` | 1456x180  | `>= 640px`, 2x |
-| `cu-n.png`    | 320x100   | `< 640px`, 1x  |
-| `cu-n@2x.png` | 640x200   | `< 640px`, 2x  |
-
-The ChessUSA pair is interim creative. The reproducible `next/og` render of
-the final Design creative lands on its own branch — see the TODO at the top
-of `chessusaCreative.tsx` for why it is not here.
+`src/components/ads/__tests__/partnerBanner.test.ts` asserts this against the
+paths the creatives actually emit, so renaming these files "more
+descriptively" fails CI rather than failing in production.
 
 ## ChessUSA brand assets (Turn 2)
 
@@ -49,3 +33,9 @@ mismatch; browsers fetch a hidden `<img>` but do not fetch a hidden
 background-image. Switching to `<img>` would make every real visitor download
 this artwork on every page view in order to display none of it.
 `src/components/ads/__tests__/partnerSlot.test.tsx` asserts it.
+
+There is no separate banner-sized image pair. The three units are HTML/CSS
+built around these logos (`src/components/ads/chessusaTurn2.tsx`), and both
+the production links and the older iframe shell serve the same three.
+`PartnerBanner`'s `<picture>` path remains typed and supported should the
+advertiser ever supply a finished PNG; nothing currently uses it.

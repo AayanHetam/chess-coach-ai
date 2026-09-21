@@ -111,6 +111,34 @@ const nextConfig = {
    * onto the canonical one. Canonical path stays lowercase.
    */
   rewrites: async () => [
+    // ── ChessUSA placement preview ──────────────────────────────────────────
+    // /partners/ChessUSA/1/puzzles serves the REAL /puzzles page with creative
+    // 2a in the slot below the nav. Any site path works, and the option is in
+    // the URL rather than in a cookie, which is what makes the placement
+    // impossible to leak: a normal visitor on /puzzles cannot end up in a
+    // state where the banner appears, because there is no state.
+    //
+    // Order matters — first match wins, and the catch-all below would swallow
+    // these. The option rule is first.
+    //
+    // Casing is free: `source` patterns are matched case-INSENSITIVELY, so the
+    // /partners/ChessUSA/... spelling the links go out as resolves here
+    // without a rule of its own. (Page routing, by contrast, is
+    // filesystem-based and case-sensitive, which is why these need a rewrite
+    // at all. Do NOT turn them into redirects: a redirect from the capitalised
+    // form also matches the lowercase one and 307-loops it onto itself.)
+    {
+      source: "/partners/chessusa/:option(1|2|3)/:path*",
+      destination: "/:path*",
+    },
+    {
+      source: "/partners/chessusa/:option(1|2|3)",
+      destination: "/",
+    },
+    // Casing no-op for the two real pages under this prefix, /partners/chessusa
+    // and /partners/chessusa/live, so their capitalised spellings resolve too.
+    // Runs in afterFiles, i.e. only when no page matched, so the canonical
+    // lowercase paths reach their own pages and never touch this.
     {
       source: "/partners/chessusa/:rest*",
       destination: "/partners/chessusa/:rest*",
@@ -150,6 +178,24 @@ const nextConfig = {
           value: "max-age=63072000; includeSubDomains; preload",
         },
       ],
+    },
+    {
+      /**
+       * Every URL under the preview prefix serves a REAL page of the site, so
+       * /partners/ChessUSA/1/puzzles is a byte-for-byte duplicate of /puzzles
+       * with one extra element. Three prefixes times every page on the site is
+       * a large duplicate-content surface pointed straight at our own
+       * canonical URLs, and it ships to production.
+       *
+       * noindex, not a robots.txt Disallow: a disallowed URL is never fetched,
+       * so the crawler never sees the directive and the URL can still be
+       * indexed from an inbound link — which is exactly what a link mailed to
+       * an advertiser is. Let it crawl, and tell it no.
+       *
+       * Covers the shell and /live too, which are equally not for search.
+       */
+      source: "/partners/:path*",
+      headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
     },
     {
       /**

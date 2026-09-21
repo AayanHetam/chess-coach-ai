@@ -5,11 +5,11 @@ import { SLOT_HEIGHT, SWAP_PX } from "../PartnerBanner";
 import {
   LABEL_BLOCK_PX,
   PARTNER_ATTR,
-  PARTNER_COOKIE,
   PARTNER_SLOT_CLASS,
   PartnerSlot,
   SLOT_MARGIN_PX,
   SLOT_RESERVE,
+  optionForPath,
   partnerBootScript,
   partnerSlotCss,
 } from "../PartnerSlot";
@@ -68,17 +68,112 @@ describe("the reserve matches what it reserves for", () => {
   });
 });
 
+describe("which URLs activate the slot", () => {
+  /**
+   * The single most important function here. Everything else is layout; this
+   * is the line between "an advertiser sees a mock-up" and "we put an
+   * unapproved ad on the live site". Every case that must return null is a
+   * case where a real visitor would otherwise see the banner.
+   */
+  it.each([
+    ["/partners/chessusa/1", "1"],
+    ["/partners/chessusa/2", "2"],
+    ["/partners/chessusa/3", "3"],
+    ["/partners/chessusa/1/", "1"],
+    ["/partners/chessusa/1/puzzles", "1"],
+    ["/partners/chessusa/3/learn/w-london", "3"],
+    // The spelling the links actually go out as.
+    ["/partners/ChessUSA/1/puzzles", "1"],
+    ["/PARTNERS/CHESSUSA/2", "2"],
+  ])("%s activates option %s", (path, expected) => {
+    expect(optionForPath(path)).toBe(expected);
+  });
+
+  it.each([
+    "/",
+    "/puzzles",
+    "/analysis",
+    "/learn",
+    "/auth/age",
+    // The shell and the framed route are pages, not options.
+    "/partners/chessusa",
+    "/partners/chessusa/live",
+    // Adjacent numbers must not bleed into an option.
+    "/partners/chessusa/12",
+    "/partners/chessusa/1x",
+    "/partners/chessusa/0",
+    "/partners/chessusa/4",
+    "/partners/chessusa/off",
+    // Anchoring: the prefix has to BE the route, not appear inside one.
+    "/foo/partners/chessusa/1",
+    "/blog/partners/chessusa/1/puzzles",
+    "/partnersXchessusa/1",
+  ])("%s shows nothing", (path) => {
+    expect(optionForPath(path)).toBeNull();
+  });
+});
+
 describe("boot script", () => {
-  it("reads only the option cookie and only accepts the three ids", () => {
-    expect(partnerBootScript).toContain(PARTNER_COOKIE);
+  it("keys off the path, not off any stored state", () => {
+    // A cookie or localStorage flag could outlive the preview URL and follow a
+    // viewer onto real pages. The path cannot.
+    expect(partnerBootScript).toContain("location.pathname");
+    expect(partnerBootScript).not.toContain("cookie");
+    expect(partnerBootScript).not.toContain("localStorage");
     expect(partnerBootScript).toContain("([123])");
   });
 
-  it("returns before touching the document when the cookie is absent", () => {
+  it("returns before touching the document on a normal URL", () => {
     // The early return is what keeps a normal page load free of the webfont.
     expect(partnerBootScript).toContain("if(!m)return;");
     const returnAt = partnerBootScript.indexOf("if(!m)return;");
     expect(returnAt).toBeLessThan(partnerBootScript.indexOf("createElement"));
+  });
+
+  it("agrees with optionForPath on every URL, when actually executed", () => {
+    /**
+     * The rule exists twice — once as a string of JS for the document head,
+     * once as TS for the component. Drift between them is a real failure
+     * mode: the head would reserve height on a page the component then
+     * refuses to fill, or the component would fill a box the head never
+     * sized. So run the shipped script for real against a fake document and
+     * compare what it decides to what the component decides.
+     */
+    const runBoot = (pathname: string) => {
+      let attr: string | null = null;
+      const appended: string[] = [];
+      const doc = {
+        documentElement: {
+          setAttribute: (k: string, v: string) => {
+            if (k === PARTNER_ATTR) attr = v;
+          },
+        },
+        createElement: () => ({ rel: "", href: "" }),
+        head: { appendChild: (el: { href: string }) => appended.push(el.href) },
+      };
+      new Function("location", "document", partnerBootScript)(
+        { pathname },
+        doc
+      );
+      return { attr, appended };
+    };
+
+    for (const p of [
+      "/partners/chessusa/1/puzzles",
+      "/partners/ChessUSA/2",
+      "/partners/chessusa/3",
+      "/puzzles",
+      "/",
+      "/partners/chessusa",
+      "/partners/chessusa/live",
+      "/partners/chessusa/12",
+      "/foo/partners/chessusa/1",
+    ]) {
+      const { attr, appended } = runBoot(p);
+      expect(attr).toBe(optionForPath(p));
+      // The webfont must be requested on exactly the pages that show a banner.
+      expect(appended.length).toBe(optionForPath(p) ? 1 : 0);
+    }
   });
 
   it("cannot throw into a page that has no error handling yet", () => {

@@ -48,4 +48,4 @@ every page so the active one can be chosen by CSS without a hydration
 mismatch; browsers fetch a hidden `<img>` but do not fetch a hidden
 background-image. Switching to `<img>` would make every real visitor download
 this artwork on every page view in order to display none of it.
-`src/components/ads/__tests__/partnerSlot.test.ts` asserts it.
+`src/components/ads/__tests__/partnerSlot.test.tsx` asserts it.

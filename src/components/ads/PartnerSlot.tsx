@@ -13,25 +13,31 @@ import {
 } from "./chessusaTurn2";
 
 /**
- * The sitewide ChessUSA slot.
+ * The ChessUSA slot, mounted below the nav on every surface.
  *
  * ─── WHO SEES THIS ────────────────────────────────────────────────────────
- * Nobody, unless they opened /partners/chessusa/1, /2 or /3. Those routes set
- * the `cm_partner` cookie and redirect home; from then on the banner rides
- * below the nav on every page for that browser until /partners/chessusa/off
- * clears it. It is a sales asset shown to one advertiser, NOT a live
- * placement. Real visitors get `display:none` and zero bytes of ChessUSA
- * artwork or webfont.
+ * Only someone on a URL under /partners/chessusa/1, /2 or /3. Those prefixes
+ * serve the real site — /partners/ChessUSA/1/puzzles IS /puzzles, rewritten,
+ * with one of the three creatives in this slot. It is a sales asset shown to
+ * one advertiser, NOT a live placement.
+ *
+ * The option lives in the URL and nowhere else, and that is the safety
+ * property rather than a style choice. With no stored state there is no
+ * sequence of clicks that can put a visitor on a normal URL into a state
+ * where the banner appears: on /puzzles it cannot render, full stop. This is
+ * why it is not a cookie. Real visitors get `display:none` and zero bytes of
+ * ChessUSA artwork or webfont.
  *
  * ─── WHY IT IS BUILT THIS WAY ─────────────────────────────────────────────
  * Three constraints pull against each other and this is the shape that
  * satisfies all three. Read before simplifying.
  *
- * 1. NO HYDRATION MISMATCH. The server cannot know the cookie: most routes are
- *    statically optimised, so there is no request at render time. Reading
- *    document.cookie during render would make the client's first render from
- *    the server's and React would blow up the tree. So the component renders
- *    the SAME empty wrapper on both sides and fills it in an effect.
+ * 1. NO HYDRATION MISMATCH. The server cannot know the prefix: most routes are
+ *    statically optimised, so the HTML is built once at build time and reused
+ *    for every URL that rewrites onto it. Reading location during render would
+ *    make the client's first render differ from the server's and React would
+ *    blow up the tree. So the component renders the SAME empty wrapper on both
+ *    sides and fills it in an effect.
  *
  * 2. NO LAYOUT SHIFT. Filling in an effect normally means the page jumps when
  *    the banner appears. It does not here, because the wrapper is already the
@@ -45,11 +51,18 @@ import {
  *    creatives draw their logo with CSS background-image rather than <img>.
  *    A hidden <img> is still fetched; a hidden background-image is not.
  *    The Archivo / IBM Plex Mono webfonts are likewise appended by the boot
- *    script only when the cookie is present.
+ *    script only under the preview prefix.
  */
 
-/** Cookie the three links set. Value is the option id: "1" | "2" | "3". */
-export const PARTNER_COOKIE = "cm_partner";
+/** URL prefix that activates the slot. Matched case-insensitively. */
+export const PARTNER_PREFIX = "/partners/chessusa";
+
+/**
+ * Pulls the option out of a pathname. Anchored at the start, so the prefix has
+ * to be the route rather than a substring somewhere in the middle, and the
+ * trailing (?:/|$) stops /partners/chessusa/12 or .../1x matching option 1.
+ */
+export const PARTNER_PATH_RE = /^\/partners\/chessusa\/([123])(?:\/|$)/i;
 
 /** Class on the always-rendered wrapper. Styled by partnerSlotCss below. */
 export const PARTNER_SLOT_CLASS = "cm-partner-slot";
@@ -90,31 +103,24 @@ const FONT_HREF =
 /**
  * Runs in <head>, before first paint. Sets the attribute that un-hides and
  * sizes the slot, and pulls the two webfonts the creative needs. Both happen
- * only when the cookie is present, so a normal visitor executes four
- * statements and appends nothing.
+ * only under the preview prefix, so on every normal URL this executes two
+ * statements, appends nothing and requests nothing.
  *
- * Wrapped in try/catch because a cookie read throws in some embedded and
- * privacy-locked contexts, and an exception here would run before the app's
- * own error handling exists.
+ * Wrapped in try/catch because it runs before the app's own error handling
+ * exists, where an uncaught throw is both invisible and fatal to the page.
  */
 export const partnerBootScript = `(function(){try{
-var m=document.cookie.match(/(?:^|;\\s*)${PARTNER_COOKIE}=([123])(?:;|$)/);
+var m=location.pathname.match(/^\\/partners\\/chessusa\\/([123])(?:\\/|$)/i);
 if(!m)return;
 document.documentElement.setAttribute('${PARTNER_ATTR}',m[1]);
 var l=document.createElement('link');l.rel='stylesheet';l.href='${FONT_HREF}';
 document.head.appendChild(l);
 }catch(e){}})();`;
 
-function readCookie(): TurnTwoId | null {
-  try {
-    const m = document.cookie.match(
-      new RegExp(`(?:^|;\\s*)${PARTNER_COOKIE}=([^;]*)`)
-    );
-    const v = m ? decodeURIComponent(m[1]) : null;
-    return isTurnTwoId(v) ? v : null;
-  } catch {
-    return null;
-  }
+/** The option a URL activates, or null — which is every normal URL. */
+export function optionForPath(pathname: string): TurnTwoId | null {
+  const m = PARTNER_PATH_RE.exec(pathname);
+  return m && isTurnTwoId(m[1]) ? m[1] : null;
 }
 
 /**
@@ -132,7 +138,9 @@ export function PartnerSlot() {
   const [option, setOption] = useState<TurnTwoId | null>(null);
 
   useEffect(() => {
-    setOption(readCookie());
+    // Read once on mount. The prefix cannot change without a navigation, and
+    // a navigation across the prefix boundary is a full document load.
+    setOption(optionForPath(window.location.pathname));
   }, []);
 
   return (

@@ -20,22 +20,14 @@ export default function LandingAnnouncementBar() {
         justifyContent: "center",
         px: 2,
         textDecoration: "none",
-        background:
-          "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
+        background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
         borderBottom: "1px solid rgba(255,140,66,0.25)",
         cursor: "pointer",
         transition: "filter 0.2s",
         "&:hover": { filter: "brightness(1.15)" },
       }}
     >
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 1.25,
-          whiteSpace: "nowrap",
-        }}
-      >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, whiteSpace: "nowrap" }}>
         <Box
           sx={{
             display: { xs: "none", sm: "inline-flex" },
@@ -68,14 +60,7 @@ export default function LandingAnnouncementBar() {
             lineHeight: 1.2,
           }}
         >
-          <Box
-            component="span"
-            sx={{
-              display: { xs: "inline", sm: "none" },
-              fontWeight: 800,
-              color: "#FF8C42",
-            }}
-          >
+          <Box component="span" sx={{ display: { xs: "inline", sm: "none" }, fontWeight: 800, color: "#FF8C42" }}>
             HIRING ·{" "}
           </Box>
           <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>

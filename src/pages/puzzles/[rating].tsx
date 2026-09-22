@@ -5,6 +5,7 @@ import NextLink from "next/link";
 import { Box, Button, Chip, Link as MuiLink, Typography } from "@mui/material";
 import { getPuzzleCorpus } from "@/lib/puzzle-feed/loadPuzzles";
 import {
+  BOARD_CAPTION_SX,
   InteractivePuzzleBoard,
   StaticBoardDiagram,
   toLandingPuzzle,
@@ -168,15 +169,10 @@ function PuzzleCard({
             label={`Chess puzzle rated ${puzzle.rating}, ${sideLabel} to move`}
             eager={index === 0}
           />
-          <Typography
-            sx={{
-              mt: 1,
-              textAlign: "center",
-              fontSize: "0.82rem",
-              fontWeight: 600,
-              color: "rgba(255,255,255,0.6)",
-            }}
-          >
+          {/* BOARD_CAPTION_SX, not a local copy: this caption and the
+              interactive one it is swapped for after mount have to occupy
+              the same line box, or every card below this one moves. */}
+          <Typography sx={{ ...BOARD_CAPTION_SX, color: "rgba(255,255,255,0.6)" }}>
             {sideLabel} to move
           </Typography>
         </>

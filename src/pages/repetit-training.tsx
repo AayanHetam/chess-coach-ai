@@ -32,6 +32,20 @@ import {
   practiceThemeAtom,
 } from "@/sections/practice/states";
 
+/**
+ * Until the localStorage read in the mount effect lands, every stat is
+ * unknown. An em-dash is what "unknown" looks like; the point is that it
+ * occupies a line box of exactly the same height as a number, so the card
+ * is its final size from the server HTML onward.
+ */
+const PENDING = "\u2014";
+const pct = (v: number | undefined) => (v === undefined ? PENDING : `${v}%`);
+// Wording preserved exactly, including the "1 days" this says at a streak of
+// one. That is a real nit and not this change's business: a copy edit inside
+// a layout-stability diff is a thing a reviewer has to stop and think about.
+const days = (v: number | undefined) =>
+  v === undefined ? PENDING : `${v} days`;
+
 export default function RepetitTrainingPage() {
   const router = useRouter();
   const [trainingSets, setTrainingSets] = useState<RepetitTrainingSet[]>([]);
@@ -113,7 +127,12 @@ export default function RepetitTrainingPage() {
             >
               Spaced Repetition
             </Typography>
-            <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 0.75 }}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={1.5}
+              sx={{ mb: 0.75 }}
+            >
               <Target size={28} color="#FB923C" />
               <Typography
                 variant="h3"
@@ -122,38 +141,52 @@ export default function RepetitTrainingPage() {
                 Repetit Training
               </Typography>
             </Stack>
-            <Typography sx={{ color: "rgba(255,255,255,0.62)", fontSize: "1.1rem" }}>
+            <Typography
+              sx={{ color: "rgba(255,255,255,0.62)", fontSize: "1.1rem" }}
+            >
               AI-suggested puzzle sets to strengthen your tactical vision
             </Typography>
           </Box>
 
-          {/* User Stats Card — single ember-tinted hero surface */}
-          {userStats && (
-            <Box
-              sx={{
-                borderRadius: "2rem",
-                background:
-                  "linear-gradient(135deg, rgba(249,115,22,0.08), rgba(20,22,28,0.6))",
-                backdropFilter: "blur(14px) saturate(140%)",
-                WebkitBackdropFilter: "blur(14px) saturate(140%)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                boxShadow:
-                  "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
-                overflow: "hidden",
-                p: 3,
-                mb: 4,
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-                gap: 3,
-              }}
-            >
-              <StatCard label="Total Solved" value={userStats.totalSolved} />
-              <StatCard label="Accuracy" value={`${userStats.accuracy}%`} />
-              <StatCard label="XP" value={userStats.xp} />
-              <StatCard label="Current Streak" value={`${userStats.currentStreak} days`} />
-              <StatCard label="Longest Streak" value={`${userStats.longestStreak} days`} />
-            </Box>
-          )}
+          {/* User Stats Card — single ember-tinted hero surface.
+              Rendered unconditionally, and that is the point: getUserStats()
+              never returns null (no stored stats gives you a zeroed record),
+              so this card appears on every single load. Gating it on
+              `userStats` meant it was absent from the server HTML and the
+              first paint, then inserted ~250px of card above the training
+              sets the moment the effect ran — 0.26 of CLS, every visit,
+              measured on production. Placeholder dashes hold the exact final
+              height until the numbers arrive, so nothing below ever moves. */}
+          <Box
+            sx={{
+              borderRadius: "2rem",
+              background:
+                "linear-gradient(135deg, rgba(249,115,22,0.08), rgba(20,22,28,0.6))",
+              backdropFilter: "blur(14px) saturate(140%)",
+              WebkitBackdropFilter: "blur(14px) saturate(140%)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow:
+                "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+              overflow: "hidden",
+              p: 3,
+              mb: 4,
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+              gap: 3,
+            }}
+          >
+            <StatCard label="Total Solved" value={userStats?.totalSolved} />
+            <StatCard label="Accuracy" value={pct(userStats?.accuracy)} />
+            <StatCard label="XP" value={userStats?.xp} />
+            <StatCard
+              label="Current Streak"
+              value={days(userStats?.currentStreak)}
+            />
+            <StatCard
+              label="Longest Streak"
+              value={days(userStats?.longestStreak)}
+            />
+          </Box>
 
           {/* Training Sets Grid */}
           {trainingSets.length === 0 ? (
@@ -175,11 +208,18 @@ export default function RepetitTrainingPage() {
               <Box sx={{ mb: 2, display: "flex", justifyContent: "center" }}>
                 <Inbox size={40} color="rgba(255,255,255,0.4)" />
               </Box>
-              <Typography sx={{ fontSize: "1.2rem", color: "rgba(255,255,255,0.62)", mb: 2 }}>
+              <Typography
+                sx={{
+                  fontSize: "1.2rem",
+                  color: "rgba(255,255,255,0.62)",
+                  mb: 2,
+                }}
+              >
                 No training sets yet
               </Typography>
               <Typography sx={{ color: "rgba(255,255,255,0.5)" }}>
-                Ask the AI coach to suggest practice puzzles, and they'll appear here!
+                Ask the AI coach to suggest practice puzzles, and they'll appear
+                here!
               </Typography>
               <Button
                 onClick={() => router.push("/")}
@@ -228,7 +268,14 @@ export default function RepetitTrainingPage() {
 
 // ── Components ────────────────────────────────────────────────────────────────
 
-function StatCard({ label, value }: { label: string; value: string | number }) {
+function StatCard({
+  label,
+  value,
+}: {
+  label: string;
+  /** undefined while the stats are still being read — renders as an em-dash. */
+  value: string | number | undefined;
+}) {
   return (
     <Box sx={{ textAlign: "center" }}>
       <Typography
@@ -241,7 +288,7 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
           mb: 0.25,
         }}
       >
-        {value}
+        {value ?? PENDING}
       </Typography>
       <Typography sx={{ fontSize: "0.9rem", color: "rgba(255,255,255,0.62)" }}>
         {label}
@@ -324,7 +371,9 @@ function TrainingSetCard({
       </Typography>
 
       {/* Meta info */}
-      <Typography sx={{ color: "rgba(255,255,255,0.62)", fontSize: "0.85rem", mb: 2 }}>
+      <Typography
+        sx={{ color: "rgba(255,255,255,0.62)", fontSize: "0.85rem", mb: 2 }}
+      >
         {new Date(set.createdAt).toLocaleDateString()} • {totalCount} puzzles
         {set.difficulty && ` • ${set.difficulty}`}
       </Typography>

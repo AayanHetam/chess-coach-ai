@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Chess } from "chess.js";
 import { Box, Typography } from "@mui/material";
@@ -22,6 +22,52 @@ import type { FeedPuzzle } from "@/lib/puzzle-feed/loadPuzzles";
  */
 
 export const LANDING_PIECE_SET = "cburnett";
+
+const BOARD_MIN_WIDTH = 220;
+const BOARD_MAX_WIDTH = 420;
+
+/**
+ * The square the board lives in, used by BOTH the prerendered
+ * StaticBoardDiagram and the interactive board that replaces it after mount.
+ *
+ * They have to agree, because on /puzzles/[rating] each card swaps one for
+ * the other and there are eight cards down the page. They did not agree: the
+ * static diagram was fluid (100%, capped at 420) while the interactive board
+ * was a fixed 320px guess that a ResizeObserver corrected a frame later. Both
+ * the guess and the correction moved every card below — 0.18 of CLS on the
+ * seventeen rating pages, which are landing pages, which means it was CrUX's
+ * number too.
+ *
+ * Holding the aspect ratio here also covers the gap while the
+ * PuzzleBoardSurface chunk is still in flight: next/dynamic renders nothing
+ * until it lands, and nothing in a box with a reserved square is still a
+ * square.
+ */
+export const BOARD_FRAME_SX = {
+  width: "100%",
+  maxWidth: BOARD_MAX_WIDTH,
+  mx: "auto",
+  aspectRatio: "1 / 1",
+} as const;
+
+/**
+ * The caption under the board, likewise shared by both branches.
+ *
+ * The interactive caption carries a 22px MastiAvatar and the static one is
+ * plain text, so the two line boxes differed by ~6px per card and the swap
+ * paid that eight times over. A flex row with a floor makes them identical
+ * whether or not there is a face in it.
+ */
+export const BOARD_CAPTION_SX = {
+  mt: 1,
+  minHeight: 26,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  textAlign: "center",
+  fontSize: "0.82rem",
+  fontWeight: 600,
+} as const;
 
 export interface LandingPuzzle {
   id: string;
@@ -114,7 +160,7 @@ function pieceAlt(code: string): string {
  *  "" for empty), ordered top-left → bottom-right from the given POV. */
 function fenToGrid(
   displayFen: string,
-  orientation: "white" | "black",
+  orientation: "white" | "black"
 ): string[] {
   const placement = displayFen.split(" ")[0] ?? "";
   const rows = placement
@@ -127,7 +173,9 @@ function fenToGrid(
         if (Number.isInteger(n) && n > 0) {
           for (let k = 0; k < n && cells.length < 8; k++) cells.push("");
         } else if (cells.length < 8) {
-          cells.push(`${ch === ch.toUpperCase() ? "w" : "b"}${ch.toUpperCase()}`);
+          cells.push(
+            `${ch === ch.toUpperCase() ? "w" : "b"}${ch.toUpperCase()}`
+          );
         }
       }
       while (cells.length < 8) cells.push("");
@@ -161,12 +209,9 @@ export function StaticBoardDiagram({
       role="img"
       aria-label={label}
       sx={{
+        ...BOARD_FRAME_SX,
         display: "grid",
         gridTemplateColumns: "repeat(8, 1fr)",
-        width: "100%",
-        maxWidth: 420,
-        mx: "auto",
-        aspectRatio: "1 / 1",
         borderRadius: DEFAULT_PUZZLE_THEME.radius,
         overflow: "hidden",
       }}
@@ -211,27 +256,41 @@ export function StaticBoardDiagram({
 const PuzzleBoardSurface = dynamic(
   () =>
     import("@/components/puzzle/PuzzleBoardSurface").then(
-      (m) => m.PuzzleBoardSurface,
+      (m) => m.PuzzleBoardSurface
     ),
-  { ssr: false },
+  { ssr: false }
 );
 
-const BOARD_MIN_WIDTH = 220;
-const BOARD_MAX_WIDTH = 420;
+/**
+ * Measure before the browser paints, never after.
+ *
+ * This component only ever renders on the client (the pages gate it behind
+ * `mounted`), but the guard keeps the SSR warning away if that ever changes.
+ */
+const useMeasureBeforePaint =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 export function InteractivePuzzleBoard({ puzzle }: { puzzle: LandingPuzzle }) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [boardWidth, setBoardWidth] = useState(320);
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  // Undefined means "not measured yet", which PuzzleBoardSurface reads as
+  // fluid — the frame's own width. A numeric guess here instead (it used to
+  // be 320) is a wrong board painted for one frame and then corrected.
+  const [boardWidth, setBoardWidth] = useState<number | undefined>(undefined);
 
-  useEffect(() => {
-    const el = containerRef.current;
+  // Layout effect, not effect: this runs after the DOM is in place but
+  // BEFORE the browser paints, so the measured width is the first width the
+  // board is ever drawn at. With a plain useEffect the guess reaches the
+  // screen and the correction is a visible resize — which is to say a
+  // layout shift, in the middle of a column of eight cards.
+  useMeasureBeforePaint(() => {
+    const el = frameRef.current;
     if (!el) return;
     const compute = () => {
       const w = Math.max(
         BOARD_MIN_WIDTH,
-        Math.min(BOARD_MAX_WIDTH, Math.floor(el.clientWidth)),
+        Math.min(BOARD_MAX_WIDTH, Math.floor(el.clientWidth))
       );
-      setBoardWidth(w);
+      setBoardWidth((prev) => (prev === w ? prev : w));
     };
     compute();
     if (typeof ResizeObserver === "undefined") return;
@@ -273,8 +332,11 @@ export function InteractivePuzzleBoard({ puzzle }: { puzzle: LandingPuzzle }) {
           : "idea";
 
   return (
-    <Box ref={containerRef}>
-      <Box sx={{ display: "flex", justifyContent: "center" }}>
+    <Box>
+      {/* Same square as StaticBoardDiagram, so the swap from one to the
+          other after mount costs nothing. It also holds the space while the
+          PuzzleBoardSurface chunk is still downloading. */}
+      <Box ref={frameRef} sx={BOARD_FRAME_SX}>
         <PuzzleBoardSurface
           boardId={`PuzzleLanding-${puzzle.id}`}
           fen={board.game.fen()}
@@ -289,15 +351,7 @@ export function InteractivePuzzleBoard({ puzzle }: { puzzle: LandingPuzzle }) {
           animationMs={200}
         />
       </Box>
-      <Typography
-        sx={{
-          mt: 1,
-          textAlign: "center",
-          fontSize: "0.82rem",
-          fontWeight: 600,
-          color: statusColor,
-        }}
-      >
+      <Typography sx={{ ...BOARD_CAPTION_SX, color: statusColor }}>
         <MastiAvatar
           mood={statusMood}
           size={22}

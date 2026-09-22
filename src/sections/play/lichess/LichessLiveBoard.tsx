@@ -32,6 +32,7 @@ import type {
 } from 'react-chessboard/dist/chessboard/types';
 import { useAtomValue } from 'jotai';
 import { pieceSetAtom, boardHueAtom } from '@/components/board/states';
+import { useLostDragRecovery } from '@/hooks/useLostDragRecovery';
 import LiveClock from '@/components/play/LiveClock';
 import {
   LichessGameFull,
@@ -97,6 +98,9 @@ export default function LichessLiveBoard({
   onOfferDraw,
   onExit,
 }: LichessLiveBoardProps) {
+  // A drag the browser never finishes leaves the lifted square empty and a
+  // phantom piece frozen over the board, until this puts it back.
+  useLostDragRecovery();
   const pieceSet = useAtomValue(pieceSetAtom);
   const boardHue = useAtomValue(boardHueAtom);
   const [busy, setBusy] = useState<'resign' | 'abort' | 'draw' | null>(null);

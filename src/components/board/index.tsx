@@ -11,6 +11,7 @@ import {
   Square,
 } from "react-chessboard/dist/chessboard/types";
 import { useChessActions } from "@/hooks/useChessActions";
+import { useLostDragRecovery } from "@/hooks/useLostDragRecovery";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Color, MoveClassification } from "@/types/enums";
 import { Chess } from "chess.js";
@@ -188,6 +189,10 @@ export default function Board({
   const handlePieceDragEnd = useCallback(() => {
     resetMoveClick();
   }, [resetMoveClick]);
+
+  // A drag the browser never finishes leaves the lifted square empty and a
+  // phantom piece frozen over the board, until this puts it back.
+  useLostDragRecovery();
 
   const onPromotionPieceSelect = useCallback(
     (piece?: PromotionPieceOption, from?: Square, to?: Square) => {

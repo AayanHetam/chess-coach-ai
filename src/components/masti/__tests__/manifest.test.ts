@@ -124,8 +124,10 @@ describe("Masti asset manifest", () => {
   it("keeps the animations under the weight budget so no page ships a megabyte of monkey", () => {
     for (const mood of MASTI_MOODS) {
       const s = built.states[mood];
-      expect(s.anim.lg.bytes).toBeLessThan(650_000);
-      expect(s.anim.sm.bytes).toBeLessThan(260_000);
+      // Transparent animations (keyed from the pack's opaque GIFs) cost an
+      // alpha plane; these are the measured ceilings plus headroom.
+      expect(s.anim.lg.bytes).toBeLessThan(720_000);
+      expect(s.anim.sm.bytes).toBeLessThan(320_000);
       expect(s.still.webp.bytes).toBeLessThan(120_000);
       expect(s.still.sm.webp.bytes).toBeLessThan(40_000);
     }

@@ -32,9 +32,10 @@ speech bubble next to it).
   first frame, not an intro. `masti-overlay.js` draws frame 0 synchronously on
   load; a title card with Masti alone is the intro we cut for an 87% skip rate.
 - **Never over the board.** Bottom-left, under the board, inside the left half.
-  Default: `left: 48px; bottom: 300px; height 320px` on 1080x1920. That keeps
-  him clear of the Instagram caption band (bottom ~260px) and the action rail
-  (right ~120px).
+  Default: `left: 48px; bottom: 272px; height 220px` on 1080x1920, which is the
+  band between a 1000px board ending at y=1420 and the Instagram caption area
+  (bottom ~260px); the action rail (right ~120px) stays clear too. Shrink him
+  before you ever move him onto the board.
 - **One Masti per frame.** Two on screen is a crowd, not a mascot.
 - **The answer never appears in the video.** Masti reacts, he does not point at
   squares. No arrows, no highlighted destination, whatever the mood.
@@ -82,6 +83,7 @@ reel uses; each sheet is 220-370 KB.
 
 ## Sizes
 
-Sheets are 24 frames (idea 22, thinking 20) at 300x375, 220-370 KB each as
-lossy WebP with alpha. At 320px rendered height that is a 0.85x downscale, so
-they stay sharp at 1080x1920. For anything taller than 375px use the stills.
+Sheets are 24 frames (idea 22, thinking 20) at 300x375, 260-400 KB each as
+lossy WebP with alpha. At the default 220px rendered height that is a 0.6x
+downscale, so they stay sharp at 1080x1920. For anything taller than 375px use
+the stills.

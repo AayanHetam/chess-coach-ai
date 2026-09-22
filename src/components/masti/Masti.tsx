@@ -119,10 +119,15 @@ export function Masti({
     // and burns the loop timer on nothing; a warmed cache makes the swap
     // instant and the timer honest.
     let cancelled = false;
+    let started = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const pre = new Image();
     const start = () => {
-      if (cancelled) return;
+      // A cached image is `complete` synchronously AND still fires `load`;
+      // without this guard the burst starts twice and the first timer is
+      // orphaned, cutting the next replay short.
+      if (cancelled || started) return;
+      started = true;
       setPlaying(true);
       setRound((r) => r + 1);
       if (!loops || !Number.isFinite(loops) || loops <= 0) return;

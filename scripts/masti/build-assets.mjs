@@ -24,6 +24,11 @@
  * every browser Chess Masti supports plays animated WebP. Browsers that do not
  * fall through <picture> to the still.
  *
+ * The pack's GIFs are painted on opaque black; every frame is keyed through
+ * lib/keyFrames.mjs before encoding so the animation is transparent like the
+ * stills. Without that, a black box appears behind Masti the moment a loop
+ * starts on the site's near-black chrome.
+ *
  * The directory is versioned so /masti/:path* can be cached immutable in
  * next.config.js. A new pack is a new version directory, never overwritten
  * files.
@@ -32,6 +37,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
+import { animatedFromRoll, keyedFrames } from "./lib/keyFrames.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "..");
@@ -87,21 +93,37 @@ for (const [key, base] of Object.entries(STATES)) {
     }
   }
 
-  const animMeta = await sharp(gifIn, { animated: true }).metadata();
-  const frames = animMeta.pages ?? 1;
-  const loopMs = (animMeta.delay ?? []).reduce((a, d) => a + d, 0);
-  const srcW = animMeta.width;
-  const srcH = animMeta.pageHeight ?? animMeta.height;
+  const keyed = await keyedFrames(gifIn);
+  const { frames, loopMs } = keyed;
+  const srcW = keyed.width;
+  const srcH = keyed.height;
 
+  // alphaQuality below 100 is what keeps a transparent animation near the
+  // size of the opaque one; the edge softness it costs is invisible at these
+  // sizes on dark chrome.
   const animLg = path.join(out, "anim", `${key}.webp`);
-  await sharp(gifIn, { animated: true })
+  await animatedFromRoll(keyed)
     .resize({ width: ANIM_LG })
-    .webp({ quality: 66, effort: 6, smartSubsample: true })
+    .webp({
+      quality: 58,
+      alphaQuality: 55,
+      effort: 6,
+      smartSubsample: true,
+      delay: keyed.delay,
+      loop: 0,
+    })
     .toFile(animLg);
   const animSm = path.join(out, "anim", `${key}-sm.webp`);
-  await sharp(gifIn, { animated: true })
+  await animatedFromRoll(keyed)
     .resize({ width: ANIM_SM })
-    .webp({ quality: 66, effort: 6, smartSubsample: true })
+    .webp({
+      quality: 58,
+      alphaQuality: 55,
+      effort: 6,
+      smartSubsample: true,
+      delay: keyed.delay,
+      loop: 0,
+    })
     .toFile(animSm);
 
   const stillMeta = await sharp(pngIn).metadata();

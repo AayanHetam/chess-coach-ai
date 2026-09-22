@@ -11,13 +11,13 @@
           "path": "/masti/v4/anim/wave.webp",
           "width": 480,
           "height": 600,
-          "bytes": 371616
+          "bytes": 530754
         },
         "sm": {
           "path": "/masti/v4/anim/wave-sm.webp",
           "width": 240,
           "height": 300,
-          "bytes": 138884
+          "bytes": 229102
         }
       },
       "still": {
@@ -62,13 +62,13 @@
           "path": "/masti/v4/anim/excited.webp",
           "width": 480,
           "height": 600,
-          "bytes": 470218
+          "bytes": 637602
         },
         "sm": {
           "path": "/masti/v4/anim/excited-sm.webp",
           "width": 240,
           "height": 300,
-          "bytes": 172072
+          "bytes": 261644
         }
       },
       "still": {
@@ -113,13 +113,13 @@
           "path": "/masti/v4/anim/idea.webp",
           "width": 480,
           "height": 600,
-          "bytes": 538020
+          "bytes": 629810
         },
         "sm": {
           "path": "/masti/v4/anim/idea-sm.webp",
           "width": 240,
           "height": 300,
-          "bytes": 202140
+          "bytes": 265072
         }
       },
       "still": {
@@ -164,13 +164,13 @@
           "path": "/masti/v4/anim/nervous.webp",
           "width": 480,
           "height": 600,
-          "bytes": 372054
+          "bytes": 495542
         },
         "sm": {
           "path": "/masti/v4/anim/nervous-sm.webp",
           "width": 240,
           "height": 300,
-          "bytes": 134742
+          "bytes": 212428
         }
       },
       "still": {
@@ -215,13 +215,13 @@
           "path": "/masti/v4/anim/defeated.webp",
           "width": 480,
           "height": 600,
-          "bytes": 459998
+          "bytes": 554162
         },
         "sm": {
           "path": "/masti/v4/anim/defeated-sm.webp",
           "width": 240,
           "height": 300,
-          "bytes": 168748
+          "bytes": 229892
         }
       },
       "still": {
@@ -266,13 +266,13 @@
           "path": "/masti/v4/anim/thinking.webp",
           "width": 480,
           "height": 600,
-          "bytes": 583286
+          "bytes": 650558
         },
         "sm": {
           "path": "/masti/v4/anim/thinking-sm.webp",
           "width": 240,
           "height": 300,
-          "bytes": 226010
+          "bytes": 269374
         }
       },
       "still": {

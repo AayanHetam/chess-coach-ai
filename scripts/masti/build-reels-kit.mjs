@@ -25,6 +25,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
+import { frameFromRoll, keyedFrames } from "./lib/keyFrames.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "..");
@@ -60,15 +61,17 @@ const index = { version, frameWidth: FRAME_W, frameHeight: FRAME_H, moods: {} };
 for (const [key, base] of Object.entries(STATES)) {
   const gifIn = path.join(src, `masti-${version}-${base}-smooth-24f.gif`);
   const pngIn = path.join(src, `masti-${version}-${base}-still.png`);
-  const meta = await sharp(gifIn, { animated: true }).metadata();
-  const frames = meta.pages ?? 1;
-  const delays = meta.delay ?? [];
+  // Keyed first: the pack's GIFs are painted on opaque black, and a sprite
+  // over a reel's navy ground would carry a black box otherwise.
+  const keyed = await keyedFrames(gifIn);
+  const frames = keyed.frames;
+  const delays = keyed.delay;
   const delayMs = Math.round(delays.reduce((a, d) => a + d, 0) / Math.max(1, delays.length));
 
   const frameBufs = [];
   for (let i = 0; i < frames; i++) {
     frameBufs.push(
-      await sharp(gifIn, { page: i, pages: 1 })
+      await frameFromRoll(keyed, i)
         .resize({ width: FRAME_W, height: FRAME_H, fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
         .png()
         .toBuffer(),

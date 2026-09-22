@@ -32,7 +32,12 @@ const nextConfig = {
    * they had never taken effect. See the header above.
    */
   outputFileTracingIncludes: {
-    "/api/opening-explorer": ["./src/data/master-tree.json"],
+    // The tree, and the opening library that names the position at the top of
+    // the Masters panel (src/lib/master/openingName.ts reads it with fs).
+    "/api/opening-explorer": [
+      "./src/data/master-tree.json",
+      "./src/data/openings.json",
+    ],
     "/api/opening-theory": ["./src/data/wikibooks-theory.json"],
     // The default map plus one per rating band. Named as a glob because the
     // band is only known at request time, and a map the tracer did not copy

@@ -20,11 +20,12 @@ import {
 import { ThemeProvider, createTheme, useTheme } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  MasterGamesTakeover,
+  MasterGamesPanel,
   buildCandidatesFromApi,
+  masterLineInsight,
   replayPreviewMove,
   type MasterCandidate,
-} from "@/components/ui/MasterGamesTakeover";
+} from "@/components/ui/MasterGamesPanel";
 import {
   findAllMoveRefs,
   resolveMoveRef,
@@ -9084,13 +9085,25 @@ export default function AnalysisPage() {
       });
     }
 
-    // Engine best (green) — straight off the Stockfish pass for THIS ply.
+    // The four toggles describe the position ON THE BOARD. While exploring
+    // (a master line, a coach recommendation, a drill) that is not the
+    // mainline position `currentPly` points at, and these used to draw the
+    // mainline's arrows over it anyway — "Game played" from a square the
+    // piece had already left, "Most common" for a position no longer shown.
+    // Same defect the Lines tab had with enginePositions[currentPly], same
+    // fix: key everything off displayFen.
+    const exploring = displayFen !== currentFen;
+
+    // Engine best (green) — straight off the Stockfish pass for THIS ply, or
+    // the FEN-keyed evaluation of the displayed position while exploring.
     // Previously a hardcoded 15-entry ply→UCI table written against the
     // Kasparov demo, which drew an arbitrary arrow on the first 15 plies of
     // whatever game the user actually loaded. Nothing to draw until the
     // engine has reported, which is the honest state.
     if (arrowToggles.best) {
-      const pos = enginePositions?.[currentPly];
+      const pos = exploring
+        ? displayPositionEval
+        : enginePositions?.[currentPly];
       const best = pos?.bestMove ?? pos?.lines?.[0]?.pv?.[0];
       if (best && best.length >= 4) {
         shapes.push(uciToShape(best, ARROW_PALETTE.best.brush));
@@ -9099,12 +9112,13 @@ export default function AnalysisPage() {
 
     // Most common from master DB (blue) — live data, see commonCache below.
     if (arrowToggles.common) {
-      const top = commonCache[currentFen]?.[0];
+      const top = commonCache[displayFen]?.[0];
       if (top) shapes.push(uciToShape(top.uci, ARROW_PALETTE.common.brush));
     }
 
-    // Game played — the move that was actually played at currentPly+1
-    if (arrowToggles.game) {
+    // Game played — the move that was actually played at currentPly+1. Only
+    // on the mainline: off it, nothing was played.
+    if (arrowToggles.game && !exploring) {
       const nextMove = allMoves[currentPly];
       if (nextMove) {
         shapes.push({
@@ -9116,17 +9130,17 @@ export default function AnalysisPage() {
     }
 
     // Maia at the selected ELO (purple) — live /api/maia-predict for the
-    // current FEN+ELO. The old ply-indexed hand-table fallback went with the
-    // demo; nothing renders while the fetch is in flight or when
+    // displayed FEN+ELO. The old ply-indexed hand-table fallback went with
+    // the demo; nothing renders while the fetch is in flight or when
     // MAIA_API_URL is unconfigured.
     if (arrowToggles.maia) {
-      const maia = maiaCache[`${currentFen}|${arrowToggles.maiaElo}`];
+      const maia = maiaCache[`${displayFen}|${arrowToggles.maiaElo}`];
       // maiaCache holds SAN ("Nc4"), not UCI — /api/maia-predict's
       // response is SAN. uciToShape's slice(0,2)/slice(2,4) on a SAN
       // string produces nonsense square keys, which chessground renders
       // as an arrow shooting off the board instead of a legal move.
       if (maia) {
-        const shape = sanToShape(currentFen, maia, ARROW_PALETTE.maia.brush);
+        const shape = sanToShape(displayFen, maia, ARROW_PALETTE.maia.brush);
         if (shape) shapes.push(shape);
       }
     }
@@ -9140,6 +9154,8 @@ export default function AnalysisPage() {
     currentPly,
     allMoves,
     currentFen,
+    displayFen,
+    displayPositionEval,
     maiaCache,
     commonCache,
     enginePositions,
@@ -9150,7 +9166,7 @@ export default function AnalysisPage() {
   // — the displayShapes memo falls back to the cold-start table.
   useEffect(() => {
     if (!arrowToggles.maia) return;
-    const cacheKey = `${currentFen}|${arrowToggles.maiaElo}`;
+    const cacheKey = `${displayFen}|${arrowToggles.maiaElo}`;
     if (maiaCache[cacheKey]) return;
     if (maiaInFlightRef.current.has(cacheKey)) return;
     maiaInFlightRef.current.add(cacheKey);
@@ -9159,7 +9175,7 @@ export default function AnalysisPage() {
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({
-        fen: currentFen,
+        fen: displayFen,
         rating: arrowToggles.maiaElo,
         opponent_rating: arrowToggles.maiaElo,
       }),
@@ -9176,33 +9192,35 @@ export default function AnalysisPage() {
       .finally(() => {
         maiaInFlightRef.current.delete(cacheKey);
       });
-  }, [currentFen, arrowToggles.maia, arrowToggles.maiaElo, maiaCache]);
+  }, [displayFen, arrowToggles.maia, arrowToggles.maiaElo, maiaCache]);
 
   // "Most common" fetch effect — mirrors the Maia one above. Silent on
   // error: the arrow just doesn't render, same graceful-degradation
   // philosophy as everywhere else in this toolbar.
   useEffect(() => {
     if (!arrowToggles.common) return;
-    if (commonCache[currentFen]) return;
-    if (commonInFlightRef.current.has(currentFen)) return;
-    commonInFlightRef.current.add(currentFen);
+    if (commonCache[displayFen]) return;
+    if (commonInFlightRef.current.has(displayFen)) return;
+    commonInFlightRef.current.add(displayFen);
     fetch(
-      `/api/opening-explorer?fen=${encodeURIComponent(currentFen)}&moves=10`
+      `/api/opening-explorer?fen=${encodeURIComponent(displayFen)}&moves=10`
     )
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data) {
-          const candidates = buildCandidatesFromApi(data, currentFen);
-          setCommonCache((c) => ({ ...c, [currentFen]: candidates }));
+          // Out of book is an empty list, cached like any other answer so the
+          // position is not re-asked on every render.
+          const candidates = buildCandidatesFromApi(data, displayFen);
+          setCommonCache((c) => ({ ...c, [displayFen]: candidates }));
         }
       })
       .catch(() => {
         /* silent — no arrow for this position */
       })
       .finally(() => {
-        commonInFlightRef.current.delete(currentFen);
+        commonInFlightRef.current.delete(displayFen);
       });
-  }, [currentFen, arrowToggles.common, commonCache]);
+  }, [displayFen, arrowToggles.common, commonCache]);
 
   const handleTabChange = useCallback((next: RightTab) => {
     setRightTab(next);
@@ -9374,6 +9392,12 @@ export default function AnalysisPage() {
 
   const handleTakeoverSendToCoach = useCallback(
     async (message: string, candidate?: MasterCandidate) => {
+      // The reply streams into the Coach tab, so show it. This used to leave
+      // the Masters tab up and the coach answered into a panel that was not
+      // on screen: the send button visibly did nothing. The board keeps the
+      // explored position, which is what the question is about — the Moves
+      // tab's "ask about this move" already switches the same way.
+      handleTabChange("coach");
       const prevForApi = messages;
       setMessages((prev) => [
         ...prev,
@@ -9386,27 +9410,7 @@ export default function AnalysisPage() {
 
       // Build a rich insight card we'll attach to the coach's response —
       // structured data the LLM doesn't have direct access to.
-      const insight = candidate
-        ? {
-            tag: `${candidate.san} — Master line`,
-            eval:
-              typeof candidate.eval === "number"
-                ? `${candidate.eval >= 0 ? "+" : ""}${(candidate.eval / 100).toFixed(2)}`
-                : candidate.count > 0
-                  ? `${(candidate.count / 1_000_000).toFixed(1)}M games`
-                  : undefined,
-            classification:
-              candidate.rank === 2
-                ? "Best move (engine)"
-                : candidate.rank === 1
-                  ? "Sound continuation"
-                  : candidate.rank === 0
-                    ? "Neutral"
-                    : candidate.topPlayer
-                      ? `Played by ${candidate.topPlayer.name}`
-                      : undefined,
-          }
-        : undefined;
+      const insight = candidate ? masterLineInsight(candidate) : undefined;
 
       // Add placeholder coach message (with insight already attached) that
       // streamCoachReply will fill in delta-by-delta.
@@ -9505,7 +9509,7 @@ export default function AnalysisPage() {
         setCoachPhase("idle");
       }
     },
-    [messages, currentPly, displayFen, allMoves]
+    [messages, currentPly, displayFen, allMoves, handleTabChange]
   );
 
   // Played SAN — what was played at the CURRENT canonical position (for the
@@ -11051,13 +11055,12 @@ export default function AnalysisPage() {
                         }}
                         style={{ position: "absolute", inset: 0 }}
                       >
-                        <MasterGamesTakeover
+                        <MasterGamesPanel
                           fen={displayFen}
                           ply={currentPly}
                           playedSan={playedSanAtPly}
                           onPreviewMove={handleTakeoverPreviewMove}
                           onSendToCoach={handleTakeoverSendToCoach}
-                          onRevert={() => handleTabChange("coach")}
                           onCandidatesUpdate={setTakeoverCandidates}
                           moves={allMoves}
                           onJumpToPly={setCurrentPly}

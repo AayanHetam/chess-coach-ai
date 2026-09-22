@@ -7,10 +7,12 @@ import {
   MASTI_MOODS,
   MASTI_STILL_2X_DIMS,
   MASTI_STILL_DIMS,
+  MASTI_STILL_SM_DIMS,
   MASTI_VERSION,
   isMastiMood,
   mastiAnimSrc,
   mastiStillPng,
+  mastiStillSmSrc,
   mastiStillSrc,
   mastiStillSrcSet,
 } from "../manifest";
@@ -45,6 +47,12 @@ interface Built {
         webp: { path: string; width: number; height: number; bytes: number };
         webp2x: { path: string; width: number; height: number; bytes: number };
         png: { path: string; width: number; height: number; bytes: number };
+        sm: {
+          width: number;
+          height: number;
+          webp: { path: string; bytes: number };
+          png: { path: string; bytes: number };
+        };
       };
     }
   >;
@@ -69,12 +77,16 @@ describe("Masti asset manifest", () => {
       expect(s.still.webp.path).toBe(mastiStillSrc(mood, 1));
       expect(s.still.webp2x.path).toBe(mastiStillSrc(mood, 2));
       expect(s.still.png.path).toBe(mastiStillPng(mood));
+      expect(s.still.sm.webp.path).toBe(mastiStillSmSrc(mood, "webp"));
+      expect(s.still.sm.png.path).toBe(mastiStillSmSrc(mood, "png"));
       for (const p of [
         s.anim.lg.path,
         s.anim.sm.path,
         s.still.webp.path,
         s.still.webp2x.path,
         s.still.png.path,
+        s.still.sm.webp.path,
+        s.still.sm.png.path,
       ]) {
         expect(fs.existsSync(publicFile(p)), `${p} missing under public/`).toBe(
           true
@@ -103,6 +115,9 @@ describe("Masti asset manifest", () => {
         width: s.still.webp2x.width,
         height: s.still.webp2x.height,
       }).toEqual(MASTI_STILL_2X_DIMS);
+      expect({ width: s.still.sm.width, height: s.still.sm.height }).toEqual(
+        MASTI_STILL_SM_DIMS
+      );
     }
   );
 
@@ -112,6 +127,7 @@ describe("Masti asset manifest", () => {
       expect(s.anim.lg.bytes).toBeLessThan(650_000);
       expect(s.anim.sm.bytes).toBeLessThan(260_000);
       expect(s.still.webp.bytes).toBeLessThan(120_000);
+      expect(s.still.sm.webp.bytes).toBeLessThan(40_000);
     }
   });
 

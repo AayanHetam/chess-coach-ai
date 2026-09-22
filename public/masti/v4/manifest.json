@@ -38,6 +38,18 @@
           "width": 640,
           "height": 800,
           "bytes": 96910
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v4/still/wave-sm.webp",
+            "bytes": 23582
+          },
+          "png": {
+            "path": "/masti/v4/still/wave-sm.png",
+            "bytes": 31623
+          }
         }
       }
     },
@@ -77,6 +89,18 @@
           "width": 640,
           "height": 800,
           "bytes": 111659
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v4/still/excited-sm.webp",
+            "bytes": 26856
+          },
+          "png": {
+            "path": "/masti/v4/still/excited-sm.png",
+            "bytes": 36855
+          }
         }
       }
     },
@@ -116,6 +140,18 @@
           "width": 640,
           "height": 800,
           "bytes": 90728
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v4/still/idea-sm.webp",
+            "bytes": 31866
+          },
+          "png": {
+            "path": "/masti/v4/still/idea-sm.png",
+            "bytes": 31620
+          }
         }
       }
     },
@@ -155,6 +191,18 @@
           "width": 640,
           "height": 800,
           "bytes": 94327
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v4/still/nervous-sm.webp",
+            "bytes": 22074
+          },
+          "png": {
+            "path": "/masti/v4/still/nervous-sm.png",
+            "bytes": 30202
+          }
         }
       }
     },
@@ -194,6 +242,18 @@
           "width": 640,
           "height": 800,
           "bytes": 85767
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v4/still/defeated-sm.webp",
+            "bytes": 26082
+          },
+          "png": {
+            "path": "/masti/v4/still/defeated-sm.png",
+            "bytes": 28195
+          }
         }
       }
     },
@@ -233,6 +293,18 @@
           "width": 640,
           "height": 800,
           "bytes": 149745
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v4/still/thinking-sm.webp",
+            "bytes": 33070
+          },
+          "png": {
+            "path": "/masti/v4/still/thinking-sm.png",
+            "bytes": 48266
+          }
         }
       }
     }

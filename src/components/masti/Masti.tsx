@@ -15,6 +15,7 @@ import {
   MASTI_SM_MAX_CSS_PX,
   mastiAnimSrc,
   mastiStillPng,
+  mastiStillSmSrc,
   mastiStillSrcSet,
   type MastiAnimSize,
   type MastiMood,
@@ -45,6 +46,11 @@ export interface MastiProps {
   priority?: boolean;
   /** Force the 240px or 480px animation instead of picking by size. */
   variant?: "auto" | MastiAnimSize;
+  /**
+   * Use the 320px still instead of the 640/1122 pair. For face crops and
+   * anything drawn under ~120px, where the big still is wasted bytes.
+   */
+  thumb?: boolean;
   /**
    * Fill the parent's width instead of a fixed pixel size (the box keeps the
    * 4:5 ratio via aspect-ratio). `size` then only picks the animation variant
@@ -77,6 +83,7 @@ export function Masti({
   decorative = false,
   priority = false,
   variant = "auto",
+  thumb = false,
   fluid = false,
   style,
   className,
@@ -116,6 +123,10 @@ export function Masti({
   const animSize: MastiAnimSize =
     variant === "auto" ? (size <= MASTI_SM_MAX_CSS_PX ? "sm" : "lg") : variant;
   const alt = decorative ? "" : (label ?? MASTI_ALT[mood]);
+  const stillSrcSet = thumb
+    ? mastiStillSmSrc(mood, "webp")
+    : mastiStillSrcSet(mood);
+  const stillPng = thumb ? mastiStillSmSrc(mood, "png") : mastiStillPng(mood);
   const imgStyle: CSSProperties = {
     display: "block",
     width: "100%",
@@ -152,7 +163,7 @@ export function Masti({
               mascot art from /public; next/image has nothing to optimise
               here and would strip the animation. */}
           <img
-            src={mastiStillPng(mood)}
+            src={stillPng}
             alt={alt}
             width={size}
             height={height}
@@ -163,10 +174,10 @@ export function Masti({
         </picture>
       ) : (
         <picture>
-          <source type="image/webp" srcSet={mastiStillSrcSet(mood)} />
+          <source type="image/webp" srcSet={stillSrcSet} />
           {/* eslint-disable-next-line @next/next/no-img-element -- see above */}
           <img
-            src={mastiStillPng(mood)}
+            src={stillPng}
             alt={alt}
             width={size}
             height={height}

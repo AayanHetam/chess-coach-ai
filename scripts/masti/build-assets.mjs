@@ -15,6 +15,8 @@
  *   still/<state>.webp     640-wide still           (poster / reduced-motion)
  *   still/<state>@2x.webp  1122-wide still          (hero at retina)
  *   still/<state>.png      640-wide PNG             (last-resort <img> fallback, OG/email safe)
+ *   still/<state>-sm.webp  320-wide still           (avatars: a 26-44px face crop needs no 640)
+ *   still/<state>-sm.png   320-wide PNG             (its fallback)
  *   manifest.json          dimensions + bytes; src/components/masti/manifest.ts mirrors it
  *
  * Why no GIF output: the frames carry per-frame paint texture, so GIF is no
@@ -60,6 +62,7 @@ const STATES = {
 const ANIM_LG = 480;
 const ANIM_SM = 240;
 const STILL_1X = 640;
+const STILL_SM = 320;
 
 const out = path.join(root, "public", "masti", version);
 fs.rmSync(out, { recursive: true, force: true });
@@ -114,6 +117,16 @@ for (const [key, base] of Object.entries(STATES)) {
     .resize({ width: STILL_1X })
     .png({ compressionLevel: 9, palette: true, quality: 90, effort: 8 })
     .toFile(stillPng);
+  const stillSm = path.join(out, "still", `${key}-sm.webp`);
+  await sharp(pngIn)
+    .resize({ width: STILL_SM })
+    .webp({ quality: 84, effort: 5 })
+    .toFile(stillSm);
+  const stillSmPng = path.join(out, "still", `${key}-sm.png`);
+  await sharp(pngIn)
+    .resize({ width: STILL_SM })
+    .png({ compressionLevel: 9, palette: true, quality: 90, effort: 8 })
+    .toFile(stillSmPng);
 
   const still1xH = Math.round((STILL_1X * stillMeta.height) / stillMeta.width);
   manifest.states[key] = {
@@ -153,10 +166,16 @@ for (const [key, base] of Object.entries(STATES)) {
         height: still1xH,
         bytes: bytes(stillPng),
       },
+      sm: {
+        width: STILL_SM,
+        height: Math.round((STILL_SM * stillMeta.height) / stillMeta.width),
+        webp: { path: `/masti/${version}/still/${key}-sm.webp`, bytes: bytes(stillSm) },
+        png: { path: `/masti/${version}/still/${key}-sm.png`, bytes: bytes(stillSmPng) },
+      },
     },
   };
   console.log(
-    `${key.padEnd(9)} ${frames}f ${loopMs}ms  anim lg=${kb(animLg)} sm=${kb(animSm)}  still webp=${kb(still1x)} @2x=${kb(still2x)} png=${kb(stillPng)}`,
+    `${key.padEnd(9)} ${frames}f ${loopMs}ms  anim lg=${kb(animLg)} sm=${kb(animSm)}  still webp=${kb(still1x)} @2x=${kb(still2x)} png=${kb(stillPng)} sm=${kb(stillSm)}`,
   );
 }
 

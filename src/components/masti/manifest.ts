@@ -64,6 +64,8 @@ export const MASTI_ANIM_DIMS: Record<
   sm: { width: 240, height: 300 },
 };
 export const MASTI_STILL_DIMS = { width: 640, height: 800 } as const;
+/** The avatar-sized still: a 26-44px face crop draws a 60-100px figure. */
+export const MASTI_STILL_SM_DIMS = { width: 320, height: 400 } as const;
 export const MASTI_STILL_2X_DIMS = { width: 1122, height: 1402 } as const;
 
 /**
@@ -85,6 +87,12 @@ export function mastiStillSrc(mood: MastiMood, scale: 1 | 2 = 1): string {
 }
 export function mastiStillPng(mood: MastiMood): string {
   return `${base}/still/${mood}.png`;
+}
+export function mastiStillSmSrc(
+  mood: MastiMood,
+  format: "webp" | "png"
+): string {
+  return `${base}/still/${mood}-sm.${format}`;
 }
 /** The srcset a <source type="image/webp"> wants for a still. */
 export function mastiStillSrcSet(mood: MastiMood): string {

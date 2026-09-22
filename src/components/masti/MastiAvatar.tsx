@@ -75,6 +75,7 @@ export function MastiAvatar({
         label={label}
         decorative={decorative}
         variant="sm"
+        thumb
         style={{
           position: "absolute",
           left: Math.round(size / 2 - face.x * figureWidth),

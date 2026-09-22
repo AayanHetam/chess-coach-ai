@@ -63,6 +63,14 @@ describe("Masti", () => {
 });
 
 describe("MastiAvatar", () => {
+  it("uses the small still, never the 640px one, for a face crop", () => {
+    const html = render(createElement(MastiAvatar, { mood: "idea", size: 26 }));
+    expect(html).toContain(`/masti/${MASTI_VERSION}/still/idea-sm.webp`);
+    expect(html).toContain(`src="/masti/${MASTI_VERSION}/still/idea-sm.png"`);
+    expect(html).not.toContain("still/idea.webp");
+    expect(html).not.toContain("still/idea@2x.webp");
+  });
+
   it("crops the figure into a round window bigger than the circle", () => {
     const html = render(createElement(MastiAvatar, { mood: "wave", size: 40 }));
     expect(html).toContain('data-masti-avatar="wave"');

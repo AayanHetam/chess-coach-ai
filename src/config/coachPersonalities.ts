@@ -120,7 +120,7 @@ export const coachPersonalities: CoachPersonality[] = [
     title: "The Beginner's Best Friend",
     description:
       "Super simple, visual, and fun. Masti at his friendliest, perfect for newcomers just starting their chess journey.",
-    mood: "wave",
+    mood: "laughing",
     color: "#00BCD4",
     greeting:
       "Hi! I'm Buddy Masti! I'm here to help you learn chess in the most fun way possible. Don't worry about being perfect, everyone starts somewhere. Let's look at your game together!",
@@ -144,7 +144,7 @@ export const coachPersonalities: CoachPersonality[] = [
     title: "The Competitive Rival",
     description:
       "Witty, sarcastic, and competitive. Masti challenges you to do better through playful trash talk and banter.",
-    mood: "excited",
+    mood: "smug",
     color: "#FF5722",
     greeting:
       "Well well well... Rival Masti here. Let's see what we're working with. I hope this game is better than the last one. Show me what you've got, and try not to blunder on move 5 this time!",
@@ -168,7 +168,7 @@ export const coachPersonalities: CoachPersonality[] = [
     title: "The Broadcast Commentator",
     description:
       "Narrates your game like a live broadcast: the drama and the momentum swings, not a lesson plan.",
-    mood: "nervous",
+    mood: "pointing",
     color: "#22C55E",
     greeting:
       "And we're live! Commentator Masti in the booth. I'm going to call this game shot for shot: every swing, every close call, every moment the position turned. Let's see what you brought to the board today.",

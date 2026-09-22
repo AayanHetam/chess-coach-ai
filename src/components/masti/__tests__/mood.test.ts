@@ -23,9 +23,9 @@ describe("puzzleMood", () => {
       puzzleMood({ status: "solved", wrongAttempts: 0, solutionRevealed: true })
     ).toBe("idea");
   });
-  it("is nervous on a miss, dizzy on the third, and stays worried through the retry", () => {
+  it("is nervous on a miss, loses his mind on the third, and stays worried through the retry", () => {
     expect(puzzleMood({ status: "wrong", wrongAttempts: 1 })).toBe("nervous");
-    expect(puzzleMood({ status: "wrong", wrongAttempts: 3 })).toBe("defeated");
+    expect(puzzleMood({ status: "wrong", wrongAttempts: 3 })).toBe("panic");
     expect(puzzleMood({ status: "playing", wrongAttempts: 2 })).toBe("nervous");
   });
   it("the coach working beats everything", () => {
@@ -36,10 +36,10 @@ describe("puzzleMood", () => {
       puzzleMood({ status: "wrong", wrongAttempts: 1, demoRunning: true })
     ).toBe("thinking");
   });
-  it("a hint or a revealed answer is an idea, never a cheer", () => {
+  it("a hint points at the answer and a revealed answer is an idea, never a cheer", () => {
     expect(
       puzzleMood({ status: "playing", wrongAttempts: 0, hintStage: "hint" })
-    ).toBe("idea");
+    ).toBe("pointing");
     // A miss after the hint is still a miss.
     expect(
       puzzleMood({ status: "wrong", wrongAttempts: 1, hintStage: "hint" })
@@ -60,14 +60,14 @@ describe("puzzleMood", () => {
 describe("classificationMood", () => {
   it("reads a move from the player's side of the board", () => {
     expect(classificationMood("brilliant", "player")).toBe("excited");
-    expect(classificationMood("brilliant", "opponent")).toBe("nervous");
+    expect(classificationMood("brilliant", "opponent")).toBe("shocked");
     expect(classificationMood("blunder", "player")).toBe("defeated");
-    expect(classificationMood("blunder", "opponent")).toBe("idea");
+    expect(classificationMood("blunder", "opponent")).toBe("pointing");
     expect(classificationMood("mistake", "player")).toBe("nervous");
     expect(classificationMood("inaccuracy", "opponent")).toBe("idea");
   });
   it("is cautious when the side is unknown and neutral on quiet moves", () => {
-    expect(classificationMood("blunder")).toBe("nervous");
+    expect(classificationMood("blunder")).toBe("shocked");
     expect(classificationMood("Brilliant")).toBe("excited");
     expect(classificationMood("best")).toBe("wave");
     expect(classificationMood("book")).toBe("wave");
@@ -129,7 +129,7 @@ describe("analysisMood", () => {
 
 describe("recap, score and result moods", () => {
   it("maps trends", () => {
-    expect(trendMood("gain")).toBe("excited");
+    expect(trendMood("gain")).toBe("banana");
     expect(trendMood("loss")).toBe("defeated");
     expect(trendMood("neutral")).toBe("wave");
   });

@@ -26,10 +26,11 @@ export interface PuzzleMoodInput {
 
 /**
  * Puzzles. "wrong" is a 1.4 s flash while wrongAttempts is sticky, so a
- * retry keeps a worried face until it is solved; the third miss is a dizzy
- * one. A solve after a miss is an idea (you got there), a clean solve is the
- * celebration, and a revealed solution ends as an idea rather than a
- * celebration so the mascot never cheers for an answer the user was shown.
+ * retry keeps a worried face until it is solved; the third miss is Masti
+ * losing his mind. A hint points at the answer. A solve after a miss is an
+ * idea (you got there), a clean solve is the celebration, and a revealed
+ * solution ends as an idea rather than a celebration so the mascot never
+ * cheers for an answer the user was shown.
  */
 export function puzzleMood(i: PuzzleMoodInput): MastiMood {
   if (i.thinking) return "thinking";
@@ -42,10 +43,10 @@ export function puzzleMood(i: PuzzleMoodInput): MastiMood {
   if (i.solutionRevealed) return "idea";
   // A miss beats a hint that is still open: the face answers the move just
   // played, not the button pressed a minute ago.
-  if (i.status === "wrong")
-    return i.wrongAttempts >= 3 ? "defeated" : "nervous";
+  if (i.status === "wrong") return i.wrongAttempts >= 3 ? "panic" : "nervous";
   if (i.wrongAttempts > 0) return "nervous";
-  if (i.hintStage === "hint" || i.hintStage === "deeper_dive") return "idea";
+  if (i.hintStage === "hint" || i.hintStage === "deeper_dive")
+    return "pointing";
   return "wave";
 }
 
@@ -78,7 +79,13 @@ export type MoveLabel =
  */
 export type Mover = "player" | "opponent" | "unknown";
 
-/** The face for a single move, seen from the reader's side of the board. */
+/**
+ * The face for a single move, seen from the reader's side of the board. The
+ * reader's own blunder is a facepalm and their brilliancy a celebration; an
+ * opponent's blunder is Masti pointing at the chance and an opponent's
+ * brilliancy a jaw drop. With no side known a blunder is only a jaw drop,
+ * never a cheer or a facepalm for the wrong colour.
+ */
 export function classificationMood(
   cls: MoveLabel | null | undefined,
   mover: Mover = "unknown"
@@ -87,12 +94,12 @@ export function classificationMood(
   switch (c) {
     case "brilliant":
     case "great":
-      return mover === "opponent" ? "nervous" : "excited";
+      return mover === "opponent" ? "shocked" : "excited";
     case "blunder":
     case "miss":
       if (mover === "player") return "defeated";
-      if (mover === "opponent") return "idea";
-      return "nervous";
+      if (mover === "opponent") return "pointing";
+      return "shocked";
     case "mistake":
     case "inaccuracy":
       return mover === "opponent" ? "idea" : "nervous";
@@ -154,9 +161,9 @@ export function analysisMood(i: AnalysisMoodInput): MastiMood {
 
 export type Trend = "gain" | "loss" | "neutral";
 
-/** Session recaps: rating went up, down, or sideways. */
+/** Session recaps: rating went up (the banana rating), down, or sideways. */
 export function trendMood(trend: Trend): MastiMood {
-  if (trend === "gain") return "excited";
+  if (trend === "gain") return "banana";
   if (trend === "loss") return "defeated";
   return "wave";
 }

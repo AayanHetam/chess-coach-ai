@@ -26,6 +26,7 @@ import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import OpeningDiagram from "@/components/learn/OpeningDiagram";
 import ChapterRow, { MiniBar, Pill } from "@/components/courses/ChapterRow";
 import { CourseExplorer } from "@/components/courses/CourseExplorer";
+import { MastiSays, type MastiMood } from "@/components/masti";
 import { useAuth } from "@/contexts/AuthContext";
 import { numbered } from "@/lib/courses/lines";
 import { hubFor, type CourseHub } from "@/lib/courses/hub";
@@ -81,6 +82,29 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
   const next = mastery ? nextChapter(chapters, mastery) : (chapters.find(c => c.asked > 0)?.i ?? null);
   const done = mastery !== null && next === null && hub.asked > 0;
 
+  // Masti fronts the course as its teacher, and his face is the course's own
+  // state read back: the whole thing known is the celebration, cards owed is
+  // a worry, a course under way is the next idea, and a fresh one is hello.
+  // `mastery` is null on the server and until the effect above has run, so
+  // the first paint is always the greeting. Nothing here is a new source of
+  // truth; these are the same numbers the progress card prints.
+  const due = mastery?.due ?? 0;
+  const mood: MastiMood = done
+    ? "excited"
+    : due > 0
+      ? "nervous"
+      : mastery !== null && mastery.started > 0 && next !== null
+        ? "idea"
+        : "wave";
+  const mastiLine =
+    mood === "excited"
+      ? "You know every decision in here at your level. Drill it cold now and then, so it stays that way."
+      : mood === "nervous"
+        ? `${due === 1 ? "One decision" : `${due} decisions`} you missed before ${due === 1 ? "is" : "are"} due back. I'd start there.`
+        : mood === "idea"
+          ? `Chapter ${(next ?? 0) + 1} is up next. Read it through, then I ask you the moves before I teach a thing.`
+          : "I show you every line first. Then I ask, and I only teach the moves you miss.";
+
   const toggle = useCallback((i: number) => setOpen(prev => (prev === i ? null : i)), []);
 
   return (
@@ -113,11 +137,20 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
         </Box>
 
         {/* ── The course ─────────────────────────────────────────────────── */}
-        <Box sx={{ display: "flex", gap: { xs: 2, md: 2.5 }, alignItems: "flex-start" }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: { xs: 2, md: 2.5 },
+            alignItems: "flex-start",
+            // Masti's bubble wraps under the title on phones and sits at the
+            // right end of the row from md up.
+            flexWrap: { xs: "wrap", md: "nowrap" },
+          }}
+        >
           <Box sx={{ flexShrink: 0 }}>
             <OpeningDiagram moves={hub.meta.root} side={hub.meta.side} px={104} />
           </Box>
-          <Box sx={{ minWidth: 0 }}>
+          <Box sx={{ minWidth: 0, flex: "1 1 0" }}>
             <Typography
               component="h1"
               sx={{
@@ -145,6 +178,27 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
             >
               {hub.verdict}
             </Typography>
+          </Box>
+
+          {/* Masti, the teacher, with one line on where this course stands. */}
+          <Box
+            data-testid="hub-masti"
+            sx={{
+              flex: { xs: "1 1 100%", md: "0 0 auto" },
+              display: "flex",
+              justifyContent: { xs: "flex-start", md: "flex-end" },
+              minWidth: 0,
+            }}
+          >
+            <MastiSays
+              mood={mood}
+              size={88}
+              side="right"
+              maxWidth={260}
+              loops={2}
+            >
+              {mastiLine}
+            </MastiSays>
           </Box>
         </Box>
 

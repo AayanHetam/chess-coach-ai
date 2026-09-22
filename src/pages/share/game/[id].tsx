@@ -12,6 +12,7 @@ import { Chessboard } from "react-chessboard";
 import { Box, Container, Typography, Button, IconButton } from "@mui/material";
 import { Icon } from "@iconify/react";
 import { getGameShare } from "@/lib/gameShares";
+import { Masti, MastiAvatar, MastiSays, resultMood, type MastiMood } from "@/components/masti";
 import type { GameShareRecord } from "@/types/gameShare";
 import type { SavedCoachMessage } from "@/types/game";
 
@@ -44,6 +45,14 @@ function buildMoveList(pgn: string): { sans: string[]; fens: string[] } {
   }
 }
 
+// The share records the result but not which side the reader played, so a
+// decisive result is never cheered: it could be the wrong colour. A draw has
+// no side and gets its own face; anything else is a hello.
+function shareMood(result: string | null): MastiMood {
+  const r = (result ?? "").trim();
+  return resultMood(r === "1/2-1/2" || r === "½-½" ? "draw" : null);
+}
+
 export default function ShareGamePage({ share }: ShareGameProps) {
   // All-hooks-first; conditional rendering after.
   const { sans, fens } = useMemo(
@@ -59,6 +68,7 @@ export default function ShareGamePage({ share }: ShareGameProps) {
     return (
       <Box sx={{ background: BG, minHeight: "100vh", color: "#fff", py: 8 }}>
         <Container maxWidth="md">
+          <Masti mood="defeated" size={140} loops={2} decorative style={{ marginBottom: 16 }} />
           <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
             Game share not found
           </Typography>
@@ -71,7 +81,7 @@ export default function ShareGamePage({ share }: ShareGameProps) {
             variant="contained"
             sx={{ background: EMBER, "&:hover": { background: "#ff8050" } }}
           >
-            Try the free AI chess coach
+            Meet Masti, the free AI chess coach
           </Button>
         </Container>
       </Box>
@@ -87,6 +97,13 @@ export default function ShareGamePage({ share }: ShareGameProps) {
   ]
     .filter(Boolean)
     .join(" · ");
+  const mood = shareMood(share.result);
+  const hasTranscript = !!share.coachTranscript && share.coachTranscript.length > 0;
+  const mastiLine =
+    (mood === "idea" ? "Half a point each. " : "") +
+    (hasTranscript
+      ? "I went through this one move by move. Step through the game and read my notes as you go."
+      : "Step through the game at your own pace. For your own games, I am one PGN away.");
 
   return (
     <>
@@ -162,6 +179,13 @@ export default function ShareGamePage({ share }: ShareGameProps) {
                 &ldquo;{share.note}&rdquo;
               </Box>
             )}
+            {/* Masti greets above the board, never on it. Still on the
+                server, one bounded burst after mount. */}
+            <Box sx={{ display: "flex", justifyContent: "center", mt: 3, textAlign: "left" }}>
+              <MastiSays mood={mood} size={88} priority maxWidth={440} data-testid="share-game-masti">
+                {mastiLine}
+              </MastiSays>
+            </Box>
           </Box>
 
           {/* Two-column layout */}
@@ -320,8 +344,8 @@ export default function ShareGamePage({ share }: ShareGameProps) {
               Want this for your own games?
             </Typography>
             <Typography sx={{ color: "rgba(255,255,255,0.65)", mb: 3 }}>
-              Paste a PGN. The free AI chess coach explains every critical move and turns your
-              mistakes into puzzles.
+              Paste a PGN. Masti, the free AI chess coach, explains every critical move and turns
+              your mistakes into puzzles.
             </Typography>
             <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
               <Button
@@ -338,7 +362,7 @@ export default function ShareGamePage({ share }: ShareGameProps) {
                   "&:hover": { background: "#ff8050" },
                 }}
               >
-                Try the free coach
+                Try Masti for free
               </Button>
               <Button
                 component={Link}
@@ -389,18 +413,20 @@ function CoachTranscript({ transcript }: { transcript: SavedCoachMessage[] }) {
               border: `1px solid ${msg.role === "user" ? BORDER : `${EMBER}22`}`,
             }}
           >
-            <Typography
-              sx={{
-                fontSize: "0.7rem",
-                fontWeight: 700,
-                letterSpacing: 1.2,
-                color: msg.role === "user" ? "rgba(255,255,255,0.5)" : EMBER,
-                textTransform: "uppercase",
-                mb: 0.75,
-              }}
-            >
-              {msg.role === "user" ? "You" : "Coach"}
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.75 }}>
+              {msg.role !== "user" && <MastiAvatar mood="idea" size={18} ring={false} />}
+              <Typography
+                sx={{
+                  fontSize: "0.7rem",
+                  fontWeight: 700,
+                  letterSpacing: 1.2,
+                  color: msg.role === "user" ? "rgba(255,255,255,0.5)" : EMBER,
+                  textTransform: "uppercase",
+                }}
+              >
+                {msg.role === "user" ? "You" : "Masti"}
+              </Typography>
+            </Box>
             <Typography
               sx={{
                 color: "rgba(255,255,255,0.8)",

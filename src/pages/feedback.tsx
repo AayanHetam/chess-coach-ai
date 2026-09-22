@@ -1,6 +1,7 @@
 import { Grid, Typography, Box, Button, Paper } from "@mui/material";
 import { useRouter } from "next/router";
 import { PageTitle } from "@/components/pageTitle";
+import { MastiSays } from "@/components/masti";
 
 export default function PlayerFeedback() {
   const router = useRouter();
@@ -15,6 +16,21 @@ export default function PlayerFeedback() {
         sx={{ minHeight: "80vh", p: 3 }}
       >
         <Paper sx={{ p: 6, maxWidth: 600, textAlign: "center" }}>
+          {/* Masti fronts the page. Left-aligned inside the centered card so
+              the bubble reads as speech, not a caption. */}
+          <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+            <MastiSays
+              mood="wave"
+              size={96}
+              maxWidth={340}
+              priority
+              style={{ textAlign: "left" }}
+              data-testid="feedback-masti"
+            >
+              This one is still in my workshop. Until it lands, bring me a game
+              and I&apos;ll show you where it turned.
+            </MastiSays>
+          </Box>
           <Typography variant="h3" sx={{ mb: 3, fontWeight: 700, color: "primary.main" }}>
             🚀 COMING SOON
           </Typography>
@@ -62,7 +78,7 @@ export default function PlayerFeedback() {
               onClick={() => router.push("/analysis")}
               sx={{ px: 4 }}
             >
-              Talk to AI Coach
+              Talk to Masti
             </Button>
           </Box>
         </Paper>

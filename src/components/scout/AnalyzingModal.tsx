@@ -7,7 +7,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { Loader } from "@/components/ui/Loader";
+import { Masti } from '@/components/masti';
 import { Icon } from '@iconify/react';
 
 export type AnalyzingStage = 'connect' | 'download' | 'analyze';
@@ -202,8 +202,12 @@ export default function AnalyzingModal({
             {detail}
           </Typography>
 
+          {/* Masti reads while the archive downloads: the still until the
+              modal opens, the loop while it is open, the still again once it
+              closes. The thinking art carries its own "give me a minute"
+              bubble, so nothing else is said next to him. */}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', my: 1.5 }}>
-            <Loader size={48} showLabel={false} />
+            <Masti mood="thinking" size={96} animated={open} loops={0} decorative />
           </Box>
 
           <LinearProgress

@@ -89,8 +89,8 @@ describe("getCoachChatSystemPrompt — negative invariants (no unresolved interp
 });
 
 describe("PROMPT_VERSION", () => {
-  it("is bumped to 3.6", () => {
-    expect(PROMPT_VERSION).toBe("3.6");
+  it("is bumped to 3.7", () => {
+    expect(PROMPT_VERSION).toBe("3.7");
   });
 });
 

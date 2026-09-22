@@ -5,7 +5,7 @@ import { horizontalOverflow, waitForStableFen } from "../helpers";
  * Masti the Monkey, the mascot, on the surfaces where he matters most.
  *
  * What these guard: he is on the first screen of the landing without pushing
- * the primary CTA under the fold (the mini on phones exists for exactly that),
+ * the primary CTA under the fold (the stage is sized for a phone's first screen),
  * he never adds sideways scroll, he rests on a still (the animation is a
  * bounded burst, never a forever loop), reduced-motion visitors never see the
  * animation at all, and the coach surfaces wear his face.
@@ -14,18 +14,14 @@ import { horizontalOverflow, waitForStableFen } from "../helpers";
 test.describe("Masti on the landing", () => {
   test("is on the first screen and the primary CTA stays above the fold", async ({
     page,
-    isMobile,
   }) => {
     await page.goto("/");
-    const hero = page.getByTestId(isMobile ? "hero-masti-mini" : "hero-masti");
+    // One stage on every viewport: he is the first thing on the first screen
+    // of a phone as much as of a desktop.
+    const hero = page.getByTestId("hero-masti");
     await expect(hero).toBeVisible();
     const img = hero.locator("img").first();
-    // The phone mini draws from the 320px still, the desktop greeting from
-    // the full one.
-    await expect(img).toHaveAttribute(
-      "src",
-      /\/masti\/v4\/still\/wave(-sm)?\.png$/
-    );
+    await expect(img).toHaveAttribute("src", /\/masti\/v4\/still\/wave\.png$/);
     await expect
       .poll(() =>
         img.evaluate((el) => {

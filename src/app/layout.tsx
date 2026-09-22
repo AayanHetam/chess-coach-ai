@@ -32,10 +32,10 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
     images: [
       {
-        url: "/social-networks-1200x630.png",
+        url: "/og/home",
         width: 1200,
         height: 630,
-        alt: "Chess Masti AI — Free AI Chess Coach",
+        alt: "Meet Masti, the Chess Masti coach",
       },
     ],
   },
@@ -43,7 +43,18 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Chess Masti AI — Free AI Chess Coach",
     description: DESCRIPTION,
-    images: ["/social-networks-1200x630.png"],
+    images: ["/og/home"],
+  },
+  // App Router pages render no _document, so the favicon links live here
+  // too. Same files as src/pages/_document.tsx: Masti's face, built by
+  // scripts/masti/build-brand-icons.mjs.
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
 };
 

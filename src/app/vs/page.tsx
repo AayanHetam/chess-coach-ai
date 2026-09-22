@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     siteName: "Chess Masti AI",
     images: [
       {
-        url: "https://chessmasti.com/social-networks-1200x630.png",
+        url: "https://chessmasti.com/og/home",
         width: 1200,
         height: 630,
         alt: "Chess Masti AI",
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     creator: "@ChessMastiAI",
     title: "Chess Masti AI vs the alternatives",
     description: "Honest comparison across 5 AI chess coaches.",
-    images: ["https://chessmasti.com/social-networks-1200x630.png"],
+    images: ["https://chessmasti.com/og/home"],
   },
 };
 
@@ -75,7 +75,7 @@ const webPageJsonLd = {
   about: { "@id": "https://chessmasti.com/#software-app" },
   primaryImageOfPage: {
     "@type": "ImageObject",
-    url: "https://chessmasti.com/social-networks-1200x630.png",
+    url: "https://chessmasti.com/og/home",
     width: 1200,
     height: 630,
   },

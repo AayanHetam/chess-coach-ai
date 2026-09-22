@@ -17,10 +17,10 @@ import { useRouter } from "next/router";
 import { useState, type MouseEvent, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { Menu as MenuIcon, Heart, LogOut, User, Settings } from "lucide-react";
-import { Logo } from "./Logo";
 import { surfaceAccent } from "./accents";
 import { AppDrawer, type NavId } from "./AppDrawer";
 import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
+import { MastiAvatar } from "@/components/masti";
 import { PartnerSlotPages } from "@/components/ads/PartnerSlotPages";
 import { useAuth } from "@/contexts/AuthContext";
 import ProfileDialog from "@/components/auth/ProfileDialog";
@@ -177,6 +177,7 @@ export function NavPill({
         <Box
           component={Link}
           href="/"
+          aria-label="Chess Masti"
           sx={{
             display: "flex",
             alignItems: "center",
@@ -189,21 +190,11 @@ export function NavPill({
             pr: { xs: 0, md: 1 },
           }}
         >
-          <Box
-            sx={{
-              width: 26,
-              height: 26,
-              borderRadius: "8px",
-              background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 0 16px rgba(249,115,22,0.4)",
-              flexShrink: 0,
-            }}
-          >
-            <Logo variant="bold" size={16} color="#0A0A0A" />
-          </Box>
+          {/* Masti is the brand mark: the same face crop the coach header and
+              the favicon use, resting (avatars do not animate, and 28px is
+              under the animation floor anyway). The link carries the
+              accessible name because the wordmark is hidden on phones. */}
+          <MastiAvatar mood="wave" size={28} decorative />
           <Box
             sx={{
               display: hasSlots

@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     siteName: "Chess Masti AI",
     images: [
       {
-        url: "https://chessmasti.com/social-networks-1200x630.png",
+        url: "https://chessmasti.com/og/home",
         width: 1200,
         height: 630,
         alt: "Chess Masti AI",
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     title: "How Chess Masti AI Works",
     description:
       "Engine-first chess coaching: Stockfish → Claude → validator → puzzles.",
-    images: ["https://chessmasti.com/social-networks-1200x630.png"],
+    images: ["https://chessmasti.com/og/home"],
   },
 };
 

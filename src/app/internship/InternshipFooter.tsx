@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, Container, Typography } from "@mui/material";
+import { MastiAvatar } from "@/components/masti";
 
 export default function InternshipFooter() {
   return (
@@ -24,7 +25,7 @@ export default function InternshipFooter() {
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <img src="/logo.svg" width={28} height={28} alt="Chess Masti" />
+            <MastiAvatar mood="wave" size={28} decorative />
             <Typography
               variant="body1"
               sx={{

@@ -3,7 +3,7 @@ import Head from "next/head";
 const SITE_NAME = "Chess Masti AI";
 const DEFAULT_DESCRIPTION =
   "Chess Masti AI — engine-grounded chess coaching. Stockfish 17 evaluates first, Claude explains, a hallucination validator checks every claim. 100,000+ Lichess puzzles in a Neo4j graph. Free.";
-const DEFAULT_OG_IMAGE = "https://chessmasti.com/social-networks-1200x630.png";
+const DEFAULT_OG_IMAGE = "https://chessmasti.com/og/home";
 const TWITTER_HANDLE = "@ChessMastiAI";
 
 interface PageTitleProps {

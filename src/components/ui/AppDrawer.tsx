@@ -19,9 +19,9 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { Logo } from "./Logo";
 import { surfaceAccent } from "./accents";
 import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
+import { MastiAvatar } from "@/components/masti";
 import ChatHistoryList from "@/components/chat/ChatHistoryList";
 import { EmployeePill } from "@/components/intern/EmployeePill";
 import { useViewer } from "@/hooks/useViewer";
@@ -176,20 +176,7 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                 gap: 1.5,
               }}
             >
-              <Box
-                sx={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: "10px",
-                  background: "linear-gradient(135deg, #F97316, #EA580C)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 0 16px rgba(249,115,22,0.4)",
-                }}
-              >
-                <Logo variant="bold" size={20} color="#0A0A0A" />
-              </Box>
+              <MastiAvatar mood="wave" size={36} decorative />
               <Box>
                 <Typography
                   sx={{

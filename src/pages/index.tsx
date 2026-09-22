@@ -22,7 +22,6 @@ import { HeroMastiStage } from "@/components/landing/HeroMasti";
 import { BorderBeam } from "@/components/ui/BorderBeam";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
-import { NumberTicker } from "@/components/ui/NumberTicker";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 import { InternalHomeCard } from "@/components/intern/InternalHomeCard";
 import { useAuth } from "@/contexts/AuthContext";
@@ -891,82 +890,6 @@ function ChromeExtension() {
   );
 }
 
-function StatsStrip() {
-  const stats = [
-    {
-      value: 3500,
-      prefix: "",
-      suffix: "+",
-      label: "Engine Elo behind every verdict",
-    },
-    // Measured, not rounded: public/data/lichess_puzzles_100k.csv has exactly
-    // 100,000 rows and the Neo4j graph reports 99,850, so there is no "+".
-    { value: 100000, prefix: "", suffix: "", label: "Puzzles indexed" },
-    { value: 100, prefix: "", suffix: "%", label: "Claims fact-checked" },
-  ];
-
-  return (
-    <RevealOnScroll>
-      <Box
-        sx={{
-          my: { xs: 6, md: 10 },
-          py: 5,
-          px: { xs: 3, md: 5 },
-          borderRadius: "1.5rem",
-          background: "rgba(20,22,28,0.4)",
-          border: "1px solid rgba(255,255,255,0.06)",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
-        }}
-      >
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
-            gap: { xs: 4, md: 2 },
-          }}
-        >
-          {stats.map((s) => (
-            <Box key={s.label}>
-              <Typography
-                sx={{
-                  fontSize: { xs: "2.2rem", md: "2.8rem" },
-                  fontWeight: 800,
-                  letterSpacing: "-0.03em",
-                  lineHeight: 1,
-                  background:
-                    "linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,255,255,0.6))",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                }}
-              >
-                <NumberTicker
-                  value={s.value}
-                  prefix={s.prefix}
-                  suffix={s.suffix}
-                />
-              </Typography>
-              <Typography
-                sx={{
-                  mt: 1.5,
-                  fontSize: "0.84rem",
-                  color: "rgba(255,255,255,0.5)",
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  fontWeight: 600,
-                }}
-              >
-                {s.label}
-              </Typography>
-            </Box>
-          ))}
-        </Box>
-      </Box>
-    </RevealOnScroll>
-  );
-}
-
 /** "A and B", or "A, B and C" for longer lists. */
 function joinNames(names: readonly string[]): string {
   if (names.length <= 1) return names.join("");
@@ -1564,7 +1487,6 @@ export default function LandingPage() {
           <ExpertTestimonials />
           <MarqueeStrip />
           <ChromeExtension />
-          <StatsStrip />
           <FinalCTA />
           <Footer />
         </Box>

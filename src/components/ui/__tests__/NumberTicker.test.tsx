@@ -4,10 +4,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { NumberTicker, formatTickerValue } from "@/components/ui/NumberTicker";
 
 /**
- * The homepage stat strip ("3,500+ Engine Elo", "100,000 puzzles indexed",
- * "100% claims fact-checked") is rendered by NumberTicker. The count-up is
- * decoration; what the server sends — and what a crawler, a hidden tab or a
- * reduced-motion user sees — has to be the real figure. It used to be "0".
+ * NumberTicker renders headline figures: the /plan stats today, and the
+ * homepage stat strip ("3,500+ Engine Elo", "100,000 puzzles indexed",
+ * "100% claims fact-checked") until the 2026-09-22 home page cleanup removed
+ * it. The count-up is decoration; what the server sends — and what a crawler,
+ * a hidden tab or a reduced-motion user sees — has to be the real figure. It
+ * used to be "0".
  */
 describe("NumberTicker", () => {
   it("server-renders the real figure, not the count-up's starting zero", () => {

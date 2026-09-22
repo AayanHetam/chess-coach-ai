@@ -344,6 +344,17 @@ export class UciEngine {
     this.isReady = false;
     setEvaluationProgress?.(1);
 
+    // The sweep owns the engine from here on, so stop whatever is already
+    // searching. A live single-position search (the eval bar and Lines tab
+    // start one the moment the previous sweep lands) does not clear
+    // `isReady`, and the handshake below talks to each worker directly, past
+    // its busy flag: without this stop the first position's `go` queued
+    // behind the running search, the wrapper took THAT search's `bestmove`
+    // as the first position's answer, and every position after it read the
+    // reply meant for the one before, until a 30 s timeout parked the sweep
+    // partway. Seen live loading a second game right after a first one.
+    await this.stopAllCurrentJobs();
+
     // ONE `ucinewgame`, HERE — not per position. Every ply below is then
     // searched on a transposition table warmed by the plies before it, which is
     // deliberate: consecutive positions in a game genuinely share structure.

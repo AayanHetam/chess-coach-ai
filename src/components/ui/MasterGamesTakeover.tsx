@@ -116,23 +116,29 @@ export interface MasterCandidate {
   source?: MasterSource;
 }
 
-// Offline fallback for when the Lichess masters API is unreachable, keyed by
-// ply. Only ply 0 is here: the start position is the same in every game, so
-// these five first moves are true no matter what is loaded.
+// Offline fallback for when the explorer cannot be reached, for the start
+// position ONLY: it is the same in every game, so these five first moves are
+// true no matter what is loaded.
 //
-// The ply-1 entry (e5/c5/e6/c6/d6) was removed alongside the /analysis demo
-// game. It is Black's reply set after 1.e4, and it was correct only because
-// the demo opened 1.e4 — on any d4/Nf3/c4 game it listed replies to a move
-// that was never played, as master statistics.
-const HARDCODED_FALLBACK_BY_PLY: Record<number, MasterCandidate[]> = {
-  0: [
-    { san: "e4", uci: "e2e4", count: 8400000, topPlayer: TOP_PLAYERS.carlsen },
-    { san: "d4", uci: "d2d4", count: 6100000, topPlayer: TOP_PLAYERS.caruana },
-    { san: "Nf3", uci: "g1f3", count: 2300000, topPlayer: TOP_PLAYERS.nakamura },
-    { san: "c4", uci: "c2c4", count: 1700000, topPlayer: TOP_PLAYERS.giri },
-    { san: "g3", uci: "g2g3", count: 240000 },
-  ],
-};
+// Keyed by the position, not by "ply 0". Ply 0 of a game loaded from a FEN,
+// or the board mid-exploration from ply 0, is not the start position, and
+// listing 1.e4 there as master statistics was wrong — and, with Black to
+// move, illegal. (The ply-1 entry, Black's replies to 1.e4, went earlier for
+// the same reason: it was right only for a game that opened 1.e4.)
+const START_POSITION_FALLBACK: MasterCandidate[] = [
+  { san: "e4", uci: "e2e4", count: 8400000, topPlayer: TOP_PLAYERS.carlsen },
+  { san: "d4", uci: "d2d4", count: 6100000, topPlayer: TOP_PLAYERS.caruana },
+  { san: "Nf3", uci: "g1f3", count: 2300000, topPlayer: TOP_PLAYERS.nakamura },
+  { san: "c4", uci: "c2c4", count: 1700000, topPlayer: TOP_PLAYERS.giri },
+  { san: "g3", uci: "g2g3", count: 240000 },
+];
+
+const START_POSITION = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
+
+/** The standard start position, whatever its move counters say. */
+export function isStartPosition(fen: string): boolean {
+  return fen.split(" ").slice(0, 4).join(" ") === START_POSITION;
+}
 
 // ───────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -142,12 +148,6 @@ export function formatCount(n: number): string {
   if (n >= 1_000_000) return `${Math.round(n / 1_000_000)}M`;
   if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
   return String(n);
-}
-
-// Public helper still used by analysis.tsx's "Most common arrow" toggle.
-// Best-effort: returns the highest-count hardcoded candidate when available.
-export function getMasterCandidates(ply: number): MasterCandidate[] {
-  return HARDCODED_FALLBACK_BY_PLY[ply] ?? [];
 }
 
 /**
@@ -222,7 +222,7 @@ interface ApiTopGame {
   winner?: "white" | "black" | "draws";
 }
 
-interface ApiData {
+export interface ApiData {
   white?: number;
   draws?: number;
   black?: number;
@@ -261,7 +261,7 @@ export function buildCandidatesFromApi(
     topByUci.set(g.uci, arr);
   });
 
-  return data.moves.map((m): MasterCandidate => {
+  return (data.moves ?? []).map((m): MasterCandidate => {
     // chessdb doesn't return SAN — compute from FEN + UCI on the fly.
     let san = m.san ?? "";
     if (!san) {
@@ -327,6 +327,79 @@ export function buildCandidatesFromApi(
       source: data.source,
     };
   });
+}
+
+/**
+ * What the explorer last answered, and for which position.
+ *
+ * One value keyed by FEN rather than separate data / error / loading states,
+ * because the position under the panel changes faster than the network
+ * answers. With separate states the previous position's rows stayed on
+ * screen — and on the board as arrows, via onCandidatesUpdate — until the new
+ * response landed: click e4 and the list still read e4 / d4 / Nf3 for a beat,
+ * one of them marked PLAYED against the new ply. From an engine-only position
+ * it was worse, since the stale UCIs were re-resolved against the new board
+ * and rendered as raw "e2e4" strings.
+ */
+export interface ExplorerResult {
+  fen: string;
+  data: ApiData | null;
+  /** The request failed (network, timeout, 5xx). Not "no rows". */
+  error: boolean;
+}
+
+/**
+ * The rows for the position on the board, and only that position.
+ *
+ * Nothing until a result for THIS fen exists (loading); the API's rows when
+ * it answered (an empty list is a real answer: out of book); the offline
+ * fallback only when the request failed AND the board shows the start
+ * position, the one position whose top moves are known without asking.
+ */
+export function candidatesForPosition(
+  result: ExplorerResult | null,
+  fen: string
+): MasterCandidate[] {
+  if (!result || result.fen !== fen) return [];
+  if (result.data) return buildCandidatesFromApi(result.data, fen);
+  if (result.error && isStartPosition(fen)) return START_POSITION_FALLBACK;
+  return [];
+}
+
+/**
+ * The insight card attached to the coach's reply when a line is sent from
+ * this panel — structured evidence the model does not see for itself.
+ *
+ * The game count used to be rendered as `(count / 1_000_000).toFixed(1)`M,
+ * which on a 3.4M-game corpus read "0.0M games" for every move past the
+ * first few. formatCount is what the rows themselves use.
+ */
+export function masterLineInsight(candidate: MasterCandidate): {
+  tag: string;
+  eval?: string;
+  classification?: string;
+} {
+  const evidence =
+    typeof candidate.eval === "number"
+      ? `${candidate.eval >= 0 ? "+" : ""}${(candidate.eval / 100).toFixed(2)}`
+      : candidate.count > 0
+        ? `${formatCount(candidate.count)} games`
+        : undefined;
+  const classification =
+    candidate.rank === 2
+      ? "Best move (engine)"
+      : candidate.rank === 1
+        ? "Sound continuation"
+        : candidate.rank === 0
+          ? "Neutral"
+          : candidate.topPlayer
+            ? `Played by ${candidate.topPlayer.name}`
+            : undefined;
+  return {
+    tag: `${candidate.san} — Master line`,
+    eval: evidence,
+    classification,
+  };
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -508,7 +581,7 @@ const stripCellSx = (isCurrent: boolean) =>
 interface MasterGamesTakeoverProps {
   /** Current board position to look up in master DB. */
   fen: string;
-  /** Canonical ply (for hardcoded fallback + offline mode). */
+  /** Canonical ply — the header's move number and the history strip. */
   ply: number;
   /** Move played in the canonical game at this ply (for highlighting). */
   playedSan?: string;
@@ -541,9 +614,9 @@ export function MasterGamesTakeover({
   moves,
   onJumpToPly,
 }: MasterGamesTakeoverProps) {
-  const [apiData, setApiData] = useState<ApiData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [apiError, setApiError] = useState(false);
+  // The explorer's last answer, tagged with the position it answers for —
+  // see ExplorerResult for why it is one value and not three states.
+  const [result, setResult] = useState<ExplorerResult | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [filterPlayer, setFilterPlayer] = useState<TopPlayer | null>(null);
 
@@ -553,7 +626,7 @@ export function MasterGamesTakeover({
     setFilterPlayer(null);
   }, [fen]);
 
-  // Fetch candidates from Lichess masters via /api/opening-explorer proxy
+  // Fetch candidates for the position on the board via /api/opening-explorer.
   useEffect(() => {
     if (!fen) return;
     abortRef.current?.abort();
@@ -561,21 +634,16 @@ export function MasterGamesTakeover({
     abortRef.current = ctrl;
 
     const handle = setTimeout(async () => {
-      setLoading(true);
-      setApiError(false);
       try {
         const url = `/api/opening-explorer?fen=${encodeURIComponent(fen)}&moves=10`;
         const res = await fetch(url, { signal: ctrl.signal });
         if (!res.ok) throw new Error(String(res.status));
         const data = (await res.json()) as ApiData;
-        if (!ctrl.signal.aborted) setApiData(data);
+        if (!ctrl.signal.aborted) setResult({ fen, data, error: false });
       } catch (e) {
-        if ((e as Error).name !== "AbortError") {
-          setApiError(true);
-          setApiData(null);
+        if ((e as Error).name !== "AbortError" && !ctrl.signal.aborted) {
+          setResult({ fen, data: null, error: true });
         }
-      } finally {
-        if (!ctrl.signal.aborted) setLoading(false);
       }
     }, 200);
 
@@ -585,12 +653,18 @@ export function MasterGamesTakeover({
     };
   }, [fen]);
 
-  // Build the candidate list. Use API data if available, fall back to
-  // hardcoded for the start position, otherwise empty (out of book).
-  const candidates = useMemo<MasterCandidate[]>(() => {
-    if (apiData) return buildCandidatesFromApi(apiData, fen);
-    return HARDCODED_FALLBACK_BY_PLY[ply] ?? [];
-  }, [apiData, fen, ply]);
+  // Everything below reads the answer for the position on the board and
+  // nothing else. Until one exists the panel is loading, whatever the
+  // previous position had.
+  const current = result?.fen === fen ? result : null;
+  const apiData = current?.data ?? null;
+  const apiError = current?.error ?? false;
+  const loading = current === null;
+
+  const candidates = useMemo<MasterCandidate[]>(
+    () => candidatesForPosition(result, fen),
+    [result, fen]
+  );
 
   // Surface candidates to the parent so it can overlay arrows on the board
   useEffect(() => {
@@ -672,12 +746,15 @@ export function MasterGamesTakeover({
   }, [ply, moves]);
 
   const totalPlies = moves?.length ?? 0;
+  // The move about to be played: ply 0 and 1 are move 1, ply 2 and 3 move 2.
+  const moveNumber = Math.floor(ply / 2) + 1;
   const canPrev = !!onJumpToPly && ply > 0;
   const canNext = !!onJumpToPly && ply < totalPlies;
 
   return (
     <motion.div
       key="takeover"
+      data-testid="master-games-panel"
       initial={{ opacity: 0, x: 60, scale: 0.96 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 60, scale: 0.96 }}
@@ -785,9 +862,9 @@ export function MasterGamesTakeover({
               ) : hasRealCounts ? (
                 <>{formatCount(totalGames)} games at this position</>
               ) : apiData?.source === "chessdb" ? (
-                <>Engine analysis · Move {Math.ceil(ply / 2) || 1}</>
+                <>Engine analysis · Move {moveNumber}</>
               ) : (
-                <>Move {Math.ceil(ply / 2) || 1}</>
+                <>Move {moveNumber}</>
               )}
             </Typography>
           </Box>
@@ -999,10 +1076,10 @@ export function MasterGamesTakeover({
               >
                 {filterPlayer
                   ? `${filterPlayer.name} hasn't reached this exact position in our database.`
-                  : apiError
-                  ? "Master DB unavailable on this network — falls back to live data in production."
                   : loading
                   ? "Querying master database…"
+                  : apiError
+                  ? "Couldn't reach the master database right now — try again in a moment."
                   : "Out of master-game book — you're in original territory."}
               </Typography>
             </Box>
@@ -1055,6 +1132,7 @@ export function MasterGamesTakeover({
                 return (
                   <Box
                     key={c.san}
+                    data-testid="master-candidate"
                     data-kb-selected={isKbSelected || undefined}
                     ref={(el: HTMLDivElement | null) => {
                       if (el && isKbSelected) {
@@ -1342,7 +1420,9 @@ export function MasterGamesTakeover({
                   month of a 2300+ online pool ended up presented as the
                   historical master record. */}
               {apiError
-                ? "Offline · fallback only"
+                ? candidates.length > 0
+                  ? "Offline · fallback only"
+                  : "Master database unreachable"
                 : apiData
                 ? apiData.source === "chessdb"
                   ? "chessdb.cn engine · no game statistics"

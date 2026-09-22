@@ -9,24 +9,39 @@ import {
  * Server-side proxy for "what do the masters / top engines play here?" data.
  *
  * Source order:
- * 1. chessdb.cn — primary. 7B+ positions, deep engine analysis, free,
- *    no auth, returns reliably from any network. Pipe-separated text;
- *    we parse and normalize below.
- * 2. Lichess masters — fallback. Currently 401-blocked from many IPs
- *    (their nginx layer), but kept here in case it ever comes back.
+ * 1. The generated master tree (src/data/master-tree.json) — real game
+ *    counts from one corpus, see @/data/master-openings.
+ * 2. Lichess masters — real counts + player attribution, but 401-blocked
+ *    from every network tried. Off unless MASTERS_TRY_LICHESS=1.
+ * 3. chessdb.cn — engine analysis, no game statistics. 7B+ positions, free,
+ *    no auth. Pipe-separated text; parsed and normalized below.
+ *
+ * Three answers, and the client has to be able to tell them apart:
+ *
+ *   200 with rows         one of the sources knows the position
+ *   200 with `moves: []`  none of them does — OUT OF BOOK, which is the
+ *                         normal state of most of every real game past the
+ *                         opening, and an answer rather than a failure
+ *   502                   a source that should have answered could not be
+ *                         reached — an outage
+ *
+ * The middle case used to be a 502 too, indistinguishable from chessdb being
+ * down, so the Masters tab told every user in a middlegame that the master
+ * database was "unavailable on this network".
  *
  * Normalized response shape (Lichess-compatible so the client can stay
  * single-codepath):
  *
  *   {
- *     "white": N, "draws": N, "black": N,
  *     "moves": [
- *       { "uci": "e2e4", "san": "e4", "white": N, "draws": N, "black": N,
- *         "averageRating"?: N, "eval"?: cp, "rank"?: 0..3, "winrate"?: pct }
+ *       { "uci": "e2e4", "san": "e4", "count": N, "white": N, "draws": N,
+ *         "black": N, "eval"?: cp, "rank"?: 0..3, "winrate"?: pct }
  *     ],
  *     "topGames": [{ uci, white: {name,rating}, black: {name,rating}, year, winner }],
  *     "opening"?: { eco, name },
- *     "source": "chessdb" | "lichess"
+ *     "source"?: "tree" | "lichess" | "chessdb",   // absent when out of book
+ *     "hasGameCounts": boolean,
+ *     "indexedPositions"?: N, "corpus"?: {...}
  *   }
  */
 
@@ -76,6 +91,12 @@ function parseChessdb(text: string): ChessdbMove[] {
 // synthesizing color splits; both invented game statistics out of engine
 // metadata. chessdb rows are now labelled as engine analysis instead.
 
+/**
+ * chessdb's answer for a position: rows when it has analysis, null when it
+ * answers "unknown" (it has none, and queues the position). Throws when it
+ * could not be asked at all — a non-2xx, a timeout, a network error — so the
+ * caller can tell "no data" from "no answer".
+ */
 async function queryChessdb(fen: string, limit: number) {
   const url = new URL("https://www.chessdb.cn/cdb.php");
   url.searchParams.set("action", "queryall");
@@ -143,12 +164,18 @@ async function queryLichess(fen: string, limit: number) {
   return { ...json, source: "lichess" as const };
 }
 
+const DEFAULT_LIMIT = 8;
+const MAX_LIMIT = 50;
+
 export async function GET(req: NextRequest) {
   const fen = req.nextUrl.searchParams.get("fen");
-  const limit = parseInt(
-    req.nextUrl.searchParams.get("moves") ?? "8",
-    10
-  );
+  // A non-numeric `moves` used to parse to NaN, and `slice(0, NaN)` is an
+  // empty list — which now reads as "out of book". Default it instead.
+  const requested = parseInt(req.nextUrl.searchParams.get("moves") ?? "", 10);
+  const limit =
+    Number.isFinite(requested) && requested > 0
+      ? Math.min(requested, MAX_LIMIT)
+      : DEFAULT_LIMIT;
 
   if (!fen) return Response.json({ error: "Missing fen" }, { status: 400 });
 
@@ -195,19 +222,35 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // 3. chessdb — engine analysis for the positions the tree does not cover.
+  let engine: Awaited<ReturnType<typeof queryChessdb>>;
   try {
-    const data = await queryChessdb(fen, limit);
-    if (data) {
-      return Response.json(data, {
-        headers: { "cache-control": "public, max-age=300, s-maxage=300" },
-      });
-    }
+    engine = await queryChessdb(fen, limit);
   } catch {
-    // Off the tree AND chessdb unreachable — nothing to show.
+    // Off the tree AND chessdb could not be reached. That is an outage and
+    // is reported as one; the client shows it as one.
+    return Response.json(
+      { error: "All upstream master-DB sources unavailable" },
+      { status: 502 }
+    );
+  }
+  if (engine) {
+    return Response.json(engine, {
+      headers: { "cache-control": "public, max-age=300, s-maxage=300" },
+    });
   }
 
+  // 4. Nobody knows this position: not the tree, not chessdb. Out of book is
+  //    an answer, not an error, and it is where most of every real game ends
+  //    up. `corpus` still travels so the footer can say what was searched.
   return Response.json(
-    { error: "All upstream master-DB sources unavailable" },
-    { status: 502 }
+    {
+      moves: [],
+      topGames: [],
+      hasGameCounts: false,
+      indexedPositions: curatedPositionCount(),
+      corpus: masterCorpusMeta(),
+    },
+    { headers: { "cache-control": "public, max-age=300, s-maxage=300" } }
   );
 }

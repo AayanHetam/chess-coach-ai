@@ -79,7 +79,7 @@ export function HeroMastiStage() {
             fluid
             loops={3}
             replayOnHover
-            label="Masti the Monkey, the Chess Masti coach, waving hello"
+            label="Masti the Monkey, the Chess Masti coach, saying hello"
           />
         </Box>
         <Box

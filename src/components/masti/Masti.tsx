@@ -93,7 +93,14 @@ export function Masti({
   // Below-the-fold placements wait until they scroll into view, so a page
   // full of monkeys does not decode six animations nobody is looking at.
   const inView = useInView(ref, { once: true, margin: "80px" });
-  const motionOk = useMastiMotion(animated) && inView;
+  const height = Math.round(size / MASTI_ASPECT);
+  const animSize: MastiAnimSize =
+    variant === "auto" ? (size <= MASTI_SM_MAX_CSS_PX ? "sm" : "lg") : variant;
+  // A pack without an animation for this mood (v5 is stills only) never
+  // leaves the still: no warm-up fetch, no timer, no swap.
+  const animSrc = mastiAnimSrc(mood, animSize);
+  const loopMs = MASTI_LOOP_MS[mood] ?? 0;
+  const motionOk = useMastiMotion(animated) && inView && animSrc !== null;
   const [playing, setPlaying] = useState(false);
   // Bumped on every replay so the <img> remounts and the WebP restarts at
   // frame 0 (the same trick FlashOverlay uses to restart a CSS animation).
@@ -104,12 +111,8 @@ export function Masti({
   const burstKey = `${mood}|${String(replayKey)}|${hoverKey}`;
   const doneBurst = useRef<string | null>(null);
 
-  const height = Math.round(size / MASTI_ASPECT);
-  const animSize: MastiAnimSize =
-    variant === "auto" ? (size <= MASTI_SM_MAX_CSS_PX ? "sm" : "lg") : variant;
-
   useEffect(() => {
-    if (!motionOk) {
+    if (!motionOk || !animSrc) {
       setPlaying(false);
       return;
     }
@@ -136,13 +139,13 @@ export function Masti({
           doneBurst.current = burstKey;
           setPlaying(false);
         },
-        loops * MASTI_LOOP_MS[mood] + 80
+        loops * loopMs + 80
       );
     };
     pre.onload = start;
     // A failed fetch keeps the still; nothing to do.
     pre.onerror = () => undefined;
-    pre.src = mastiAnimSrc(mood, animSize);
+    pre.src = animSrc;
     if (pre.complete && pre.naturalWidth > 0) start();
     return () => {
       cancelled = true;
@@ -152,7 +155,7 @@ export function Masti({
       pre.src = "";
       if (timer) clearTimeout(timer);
     };
-  }, [motionOk, mood, loops, burstKey, animSize]);
+  }, [motionOk, mood, loops, burstKey, animSrc, loopMs]);
 
   const onMouseEnter = useCallback(() => {
     if (replayOnHover) setHoverKey((k) => k + 1);
@@ -198,9 +201,9 @@ export function Masti({
         ...style,
       }}
     >
-      {playing ? (
+      {playing && animSrc ? (
         <picture key={`anim-${round}`}>
-          <source type="image/webp" srcSet={mastiAnimSrc(mood, animSize)} />
+          <source type="image/webp" srcSet={animSrc} />
           {/* eslint-disable-next-line @next/next/no-img-element -- static
               mascot art from /public; next/image has nothing to optimise
               here and would strip the animation. */}

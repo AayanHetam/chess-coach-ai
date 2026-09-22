@@ -44,7 +44,7 @@ export default function NotFound() {
         mood="defeated"
         size={180}
         loops={2}
-        label="Masti the Monkey, dizzy after walking into a missing page"
+        label="Masti the Monkey, facepalming after walking into a missing page"
       />
       <h1
         style={{

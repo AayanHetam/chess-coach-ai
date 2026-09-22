@@ -202,10 +202,10 @@ export default function AnalyzingModal({
             {detail}
           </Typography>
 
-          {/* Masti reads while the archive downloads: the still until the
-              modal opens, the loop while it is open, the still again once it
-              closes. The thinking art carries its own "give me a minute"
-              bubble, so nothing else is said next to him. */}
+          {/* Masti thinks while the archive downloads: the still until the
+              modal opens, the loop while it is open (when the pack has one),
+              the still again once it closes. The figure stands alone; the
+              modal copy above him already says what is happening. */}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', my: 1.5 }}>
             <Masti mood="thinking" size={96} animated={open} loops={0} decorative />
           </Box>

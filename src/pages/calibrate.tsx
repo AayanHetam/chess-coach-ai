@@ -282,8 +282,8 @@ export default function CalibratePage() {
               py: 8,
             }}
           >
-            {/* The thinking art carries its own "give me a minute" bubble and
-                plays until the packet lands. */}
+            {/* Masti thinks until the packet lands (the loop plays only when
+                the pack has one; v5 rests on the still). */}
             <Masti
               mood="thinking"
               size={120}

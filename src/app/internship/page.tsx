@@ -143,7 +143,7 @@ export default function InternshipPage() {
               size={150}
               loops={3}
               priority
-              label="Masti the Monkey, the Chess Masti coach, waving hello"
+              label="Masti the Monkey, the Chess Masti coach, saying hello"
             />
           </Box>
           <Typography

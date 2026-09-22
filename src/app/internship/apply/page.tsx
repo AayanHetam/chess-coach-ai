@@ -34,7 +34,7 @@ export default function ApplyPage() {
               size={80}
               loops={2}
               priority
-              label="Masti the Monkey, the Chess Masti coach, waving hello"
+              label="Masti the Monkey, the Chess Masti coach, saying hello"
             />
           </Box>
           <Typography

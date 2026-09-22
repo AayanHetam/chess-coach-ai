@@ -21,7 +21,10 @@ test.describe("Masti on the landing", () => {
     const hero = page.getByTestId("hero-masti");
     await expect(hero).toBeVisible();
     const img = hero.locator("img").first();
-    await expect(img).toHaveAttribute("src", /\/masti\/v4\/still\/wave\.png$/);
+    await expect(img).toHaveAttribute(
+      "src",
+      /\/masti\/v\d+\/still\/wave\.png$/
+    );
     await expect
       .poll(() =>
         img.evaluate((el) => {
@@ -40,27 +43,23 @@ test.describe("Masti on the landing", () => {
     expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
   });
 
-  test("plays a bounded burst after mount and rests on the still", async ({
+  test("rests on the still: the current pack has no animation", async ({
     page,
     isMobile,
   }) => {
-    test.skip(isMobile, "the desktop hero is the animated one");
+    test.skip(isMobile, "the desktop hero is the placement that would animate");
     await page.goto("/");
     const figure = page.getByTestId("hero-masti").locator("[data-masti-mood]");
-    await expect(figure).toHaveAttribute("data-masti-playing", "", {
-      timeout: 8_000,
-    });
+    await expect(figure).toBeVisible();
+    // v5 is stills only, so no burst starts after mount and no animation
+    // source is ever swapped in. When an animated pack lands, this test
+    // flips back to asserting the bounded burst.
+    await page.waitForTimeout(2500);
+    await expect(figure).not.toHaveAttribute("data-masti-playing", "");
+    expect(await figure.locator('source[srcset*="/anim/"]').count()).toBe(0);
     await expect(figure.locator("source")).toHaveAttribute(
       "srcset",
-      /\/masti\/v4\/anim\/wave\.webp$/
-    );
-    // 3 loops of 1.2 s, then back to the still.
-    await expect(figure).not.toHaveAttribute("data-masti-playing", "", {
-      timeout: 10_000,
-    });
-    await expect(figure.locator("source")).toHaveAttribute(
-      "srcset",
-      /\/masti\/v4\/still\/wave\.webp 1x/
+      /\/masti\/v\d+\/still\/wave\.webp 1x/
     );
   });
 
@@ -71,9 +70,7 @@ test.describe("Masti on the landing", () => {
     const figures = page.locator("[data-masti-mood]");
     expect(await figures.count()).toBeGreaterThan(0);
     expect(await page.locator("[data-masti-playing]").count()).toBe(0);
-    expect(
-      await page.locator('source[srcset*="/masti/v4/anim/"]').count()
-    ).toBe(0);
+    expect(await page.locator('source[srcset*="/anim/"]').count()).toBe(0);
   });
 });
 

@@ -6,7 +6,10 @@ Masti the Monkey for the Instagram reels and carousels built by
 
 Rebuild from a new animation pack with
 `node scripts/masti/build-reels-kit.mjs --src <unzipped pack> --version v5`
-(this repo); never edit the sprite sheets by hand.
+(this repo); never edit the sprite sheets by hand. The rebuild also rewrites
+the `data-frames` / `data-delay` attributes in `overlay/masti-overlay.html`
+and `demo/reel-1080x1920.html` from the new pack, so the partial and the
+sheets cannot drift apart.
 
 ## What is in it
 
@@ -79,11 +82,12 @@ node overlay/inline.mjs thinking excited > /tmp/masti.css
 ```
 
 and put that CSS in a `<style>` in the template. Only inline the moods the
-reel uses; each sheet is 220-370 KB.
+reel uses; each sheet is 340-490 KB (the exact bytes are in
+`sprites/index.json`).
 
 ## Sizes
 
-Sheets are 24 frames (idea 22, thinking 20) at 300x375, 260-400 KB each as
+Sheets are 24 frames (idea 22, thinking 20) at 300x375, 340-490 KB each as
 lossy WebP with alpha. At the default 220px rendered height that is a 0.6x
 downscale, so they stay sharp at 1080x1920. For anything taller than 375px use
 the stills.

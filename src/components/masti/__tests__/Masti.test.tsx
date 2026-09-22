@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Masti } from "../Masti";
-import { MastiAvatar } from "../MastiAvatar";
+import { MASTI_AVATAR_ANIMATE_MIN_PX, MastiAvatar } from "../MastiAvatar";
 import { MastiSays } from "../MastiSays";
 import { MASTI_MOODS, MASTI_VERSION } from "../manifest";
 
@@ -80,6 +80,12 @@ describe("Masti", () => {
 });
 
 describe("MastiAvatar", () => {
+  it("exports the size below which avatars never animate", () => {
+    // The e2e and the docs rely on this number; the SSR markup cannot show
+    // the effect (animation is client-only), so pin the constant itself.
+    expect(MASTI_AVATAR_ANIMATE_MIN_PX).toBe(32);
+  });
+
   it("uses the small still, never the 640px one, for a face crop", () => {
     const html = render(createElement(MastiAvatar, { mood: "idea", size: 26 }));
     expect(html).toContain(`/masti/${MASTI_VERSION}/still/idea-sm.webp`);

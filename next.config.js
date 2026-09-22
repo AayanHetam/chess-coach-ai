@@ -221,7 +221,7 @@ const nextConfig = {
        * Masti the Monkey's art. The directory is versioned (/masti/v4/...)
        * and a new pack is a new directory, so every file under it is
        * immutable and can be cached for a year. The six animations are
-       * 350-580 KB each; without this, every visit to /analysis would
+       * 480-640 KB each; without this, every visit to /analysis would
        * re-download the coach's face. Built by scripts/masti/build-assets.mjs,
        * never hand-edited.
        */

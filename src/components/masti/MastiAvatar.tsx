@@ -4,6 +4,9 @@ import type { CSSProperties } from "react";
 import { Masti } from "./Masti";
 import { MASTI_ASPECT, MASTI_FACE, type MastiMood } from "./manifest";
 
+/** Avatars smaller than this never animate, whatever the caller asks. */
+export const MASTI_AVATAR_ANIMATE_MIN_PX = 32;
+
 export interface MastiAvatarProps {
   mood: MastiMood;
   /** Diameter in px. */
@@ -42,6 +45,9 @@ export function MastiAvatar({
   "data-testid": testId,
 }: MastiAvatarProps) {
   const face = MASTI_FACE[mood];
+  // Below this a burst is a 200 KB download for a glyph nobody can read as
+  // motion; verdict pills and status glyphs stay stills.
+  const canAnimate = animated && size >= MASTI_AVATAR_ANIMATE_MIN_PX;
   const figureWidth = Math.round(size * face.scale);
   const figureHeight = Math.round(figureWidth / MASTI_ASPECT);
   return (
@@ -69,7 +75,7 @@ export function MastiAvatar({
       <Masti
         mood={mood}
         size={figureWidth}
-        animated={animated}
+        animated={canAnimate}
         loops={loops}
         replayKey={replayKey}
         label={label}

@@ -7,13 +7,17 @@
  *
  *   node scripts/masti/build-reels-kit.mjs --src /path/to/unzipped-pack [--version v4]
  *
- * Output:
+ * Output (generated):
  *   sprites/<mood>.webp   horizontal sprite sheet, every frame side by side
  *   sprites/<mood>.json   { frames, frameWidth, frameHeight, delayMs, loopMs }
+ *   sprites/index.json    all of the above in one file
  *   stills/<mood>.png     640-wide still with alpha (poster / carousel slides)
- *   overlay/              masti-overlay.css + .js + the HTML partial
- *   demo/                 a reel frame and a carousel slide to eyeball
- *   README.md             placement rules and the frame-zero contract
+ *
+ * Hand-written, kept in sync by this script: the data-frames / data-frame-w /
+ * data-frame-h / data-delay attributes on every [data-masti] element in
+ * overlay/masti-overlay.html and demo/reel-1080x1920.html are rewritten from
+ * the pack just built, so a new pack cannot leave the partial stepping the
+ * wrong number of frames. overlay/*.css|js and README.md are not generated.
  *
  * Why sprite sheets and not the animated WebP the site uses: a renderer that
  * captures frame by frame (Playwright screenshot per tick) cannot pause a
@@ -97,4 +101,21 @@ for (const [key, base] of Object.entries(STATES)) {
   console.log(`${key.padEnd(9)} ${frames} frames @ ${delayMs}ms  sheet=${kb(sheet)} still=${kb(still)}`);
 }
 fs.writeFileSync(path.join(out, "sprites", "index.json"), JSON.stringify(index, null, 2) + "\n");
+
+// Keep the hand-written partial and demo stepping the frames this pack has.
+const ATTR_RE =
+  /(data-masti="(\w+)"[^>]*?)data-frames="\d+" data-frame-w="\d+" data-frame-h="\d+" data-delay="\d+"/g;
+for (const rel of ["overlay/masti-overlay.html", "demo/reel-1080x1920.html"]) {
+  const file = path.join(out, rel);
+  if (!fs.existsSync(file)) continue;
+  let touched = 0;
+  const html = fs.readFileSync(file, "utf8").replace(ATTR_RE, (m, head, mood) => {
+    const info = index.moods[mood];
+    if (!info) return m;
+    touched++;
+    return `${head}data-frames="${info.frames}" data-frame-w="${info.frameWidth}" data-frame-h="${info.frameHeight}" data-delay="${info.delayMs}"`;
+  });
+  fs.writeFileSync(file, html);
+  console.log(`synced ${touched} data-* block(s) in ${rel}`);
+}
 console.log(`wrote ${path.relative(root, out)}`);

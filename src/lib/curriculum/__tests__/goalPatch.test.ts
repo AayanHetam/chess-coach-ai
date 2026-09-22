@@ -4,6 +4,7 @@ import {
   buildPerfGoalPatch,
   hasCompleteGoal,
 } from "../goalPatch";
+import { emptyPerfDrafts } from "../perfGoalDrafts";
 import { normalizeRating } from "@/lib/rating/platformRatings";
 import { projectToGoal } from "../improvementModel";
 import {
@@ -13,8 +14,8 @@ import {
 
 /**
  * The goal fields are written by two callers — the onboarding quiz and the
- * /plan setter — and read by one (GoalProgressCard). Every bug in this area so
- * far has been a disagreement between two copies of the same rule, so these
+ * /profile setter — and read by one (GoalProgressCard). Every bug in this area
+ * so far has been a disagreement between two copies of the same rule, so these
  * tests are mostly about agreement rather than arithmetic.
  */
 
@@ -302,14 +303,15 @@ describe("hasCompleteGoal", () => {
   });
 });
 
-describe("the quiz and the /plan setter agree", () => {
+describe("the quiz and the /profile setter agree", () => {
   afterEach(() => {
     vi.useRealTimers();
   });
 
   it("write identical goal fields for identical inputs", () => {
     // Same user, same answers, two doors into the same state. If these ever
-    // diverge, a goal set on /plan behaves differently from one set at signup.
+    // diverge, a goal set on /profile behaves differently from one set at
+    // signup.
     const answers: QuizAnswers = {
       playStyle: "lichess",
       username: "someone",
@@ -319,6 +321,7 @@ describe("the quiz and the /plan setter agree", () => {
       goalRating: 1700,
       daysPerWeek: 4,
       dailyReminder: true,
+      perfDrafts: emptyPerfDrafts(),
     };
 
     // Freeze the clock. Both doors stamp their own Date.now() inside

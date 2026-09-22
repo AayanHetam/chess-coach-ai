@@ -17,6 +17,11 @@ import {
   QuizFocusThemeId,
   QUIZ_GOAL_OPTIONS,
 } from "./quizThemes";
+import { GOAL_PERFS } from "@/lib/curriculum/goalPatch";
+import {
+  PERF_LABEL,
+  parseRatingField,
+} from "@/lib/curriculum/perfGoalDrafts";
 
 const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
 const ORANGE_HOVER = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
@@ -91,6 +96,16 @@ export default function QuizResult({
     const time = TIME_OPTIONS.find((t) => t.key === answers.time);
     if (time)
       lines.push(`Sessions sized for your "${time.label.toLowerCase()}" goal.`);
+    // Read the targets back to them. They typed these a screen ago, and a
+    // signup that never acknowledges them reads as a form that went nowhere.
+    const targets = GOAL_PERFS.filter(
+      (perf) => parseRatingField(answers.perfDrafts[perf].goal) !== undefined
+    ).map((perf) => `${PERF_LABEL[perf]} ${answers.perfDrafts[perf].goal}`);
+    if (targets.length > 0) {
+      lines.push(`Progress tracked against ${targets.join(", ")}.`);
+    } else if (typeof answers.goalRating === "number") {
+      lines.push(`Progress tracked against your ${answers.goalRating} goal.`);
+    }
     return lines;
   }, [answers, band, platformName, weaknessLabels]);
 

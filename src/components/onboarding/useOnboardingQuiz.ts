@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DRAFT_STORAGE_KEY,
   emptyAnswers,
+  isQuizHandleValid,
   QuizAnswers,
   PlayStyle,
   SelfAssessKey,
@@ -9,6 +10,14 @@ import {
   TimeCommitment,
   usesPlatformPath,
 } from "./quizConfig";
+import type { GoalPerf } from "@/lib/curriculum/goalPatch";
+import {
+  emptyPerfDrafts,
+  perfDraftsClean,
+  prefillCurrents,
+  sanitizeRatingInput,
+  type PerfDraftFields,
+} from "@/lib/curriculum/perfGoalDrafts";
 
 /**
  * Quiz state machine. One question per screen with a branch after step 1
@@ -25,6 +34,8 @@ export type StepId =
   | "sa-tournaments"
   | "goals"
   | "goal-rating"
+  | "perf-goals"
+  | "handle"
   | "time"
   | "frequency";
 
@@ -45,12 +56,24 @@ export function resolveSteps(answers: QuizAnswers): StepId[] {
   } else {
     steps.push("sa-years", "sa-spot", "sa-tournaments");
   }
-  // Goal-rating is LAST on purpose. It draws a projection, and a projection
-  // needs the schedule: asking it earlier meant falling back to a default of
-  // 20min x 4 days and telling a 1300 they'd reach 1600 in "about 4 years" —
-  // the most discouraging plausible number, at the moment of peak motivation.
-  // With time and frequency already answered the same user sees ~4 months.
-  steps.push("goals", "time", "frequency", "goal-rating");
+  // The goal question is LAST of the planning steps on purpose. It draws a
+  // projection, and a projection needs the schedule: asking it earlier meant
+  // falling back to a default of 20min x 4 days and telling a 1300 they'd
+  // reach 1600 in "about 4 years" — the most discouraging plausible number, at
+  // the moment of peak motivation. With time and frequency already answered
+  // the same user sees ~4 months.
+  //
+  // Which goal question depends on what we know about them. A platform player
+  // has a real rating in each of bullet, blitz and rapid, so they set a target
+  // per control (the same form /profile offers); everyone else has one coarse
+  // self-assessed number, and three boxes they would have to guess at is a
+  // worse question than the one slider.
+  steps.push("goals", "time", "frequency");
+  steps.push(usesPlatformPath(answers.playStyle) ? "perf-goals" : "goal-rating");
+  // Naming yourself belongs at the end, next to the account it attaches to —
+  // it is the one question that is about them rather than their chess, and it
+  // hands straight off to the signup on the result screen.
+  steps.push("handle");
   return steps;
 }
 
@@ -136,6 +159,15 @@ export function canAdvanceStep(step: StepId, a: QuizAnswers): boolean {
         a.goalRating === undefined ||
         (Number.isFinite(a.goalRating) && a.goalRating >= 100 && a.goalRating <= 3000)
       );
+    case "perf-goals":
+      // Same contract as goal-rating: naming a target is optional, but the
+      // numbers behind one that IS named have to hold up, or the projection
+      // drawn underneath is meaningless. Errors are shown per control.
+      return perfDraftsClean(a.perfDrafts);
+    case "handle":
+      // Optional too. Someone who skips it keeps being addressed by their
+      // first name, and /profile asks again.
+      return isQuizHandleValid(a.handle);
     case "time":
       return !!a.time;
     case "frequency":
@@ -165,6 +197,16 @@ export interface OnboardingQuizApi {
   toggleGoal: (key: string) => void;
   setTime: (v: TimeCommitment) => void;
   setGoalRating: (v: number | undefined) => void;
+  setPerfDraft: (
+    perf: GoalPerf,
+    field: keyof PerfDraftFields,
+    value: string
+  ) => void;
+  /** Fill blank CURRENT fields from the platform lookup, never over a typed one. */
+  seedPerfCurrents: (
+    currents: Partial<Record<GoalPerf, number | undefined>>
+  ) => void;
+  setHandle: (v: string) => void;
   setDaysPerWeek: (v: number) => void;
   setDailyReminder: (v: boolean) => void;
 }
@@ -190,6 +232,10 @@ export function useOnboardingQuiz(): OnboardingQuizApi {
             ...parsed.answers,
             selfAssess: parsed.answers.selfAssess ?? {},
             goals: parsed.answers.goals ?? [],
+            // A draft written before the per-control step existed has no
+            // perfDrafts at all; spreading it would leave the field undefined
+            // and every read of it would throw.
+            perfDrafts: parsed.answers.perfDrafts ?? emptyPerfDrafts(),
           };
           setAnswers(restored);
           const maxIdx = Math.max(0, resolveSteps(restored).length - 1);
@@ -286,6 +332,30 @@ export function useOnboardingQuiz(): OnboardingQuizApi {
   const setGoalRating = useCallback((v: number | undefined) => {
     setAnswers((a) => ({ ...a, goalRating: v }));
   }, []);
+  const setPerfDraft = useCallback(
+    (perf: GoalPerf, field: keyof PerfDraftFields, value: string) => {
+      setAnswers((a) => ({
+        ...a,
+        perfDrafts: {
+          ...a.perfDrafts,
+          [perf]: { ...a.perfDrafts[perf], [field]: sanitizeRatingInput(value) },
+        },
+      }));
+    },
+    []
+  );
+  const seedPerfCurrents = useCallback(
+    (currents: Partial<Record<GoalPerf, number | undefined>>) => {
+      setAnswers((a) => {
+        const perfDrafts = prefillCurrents(a.perfDrafts, currents);
+        return perfDrafts === a.perfDrafts ? a : { ...a, perfDrafts };
+      });
+    },
+    []
+  );
+  const setHandle = useCallback((v: string) => {
+    setAnswers((a) => ({ ...a, handle: v }));
+  }, []);
   const setDaysPerWeek = useCallback((v: number) => {
     setAnswers((a) => ({ ...a, daysPerWeek: v }));
   }, []);
@@ -313,6 +383,9 @@ export function useOnboardingQuiz(): OnboardingQuizApi {
     toggleGoal,
     setTime,
     setGoalRating,
+    setPerfDraft,
+    seedPerfCurrents,
+    setHandle,
     setDaysPerWeek,
     setDailyReminder,
   };

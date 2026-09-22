@@ -17,6 +17,7 @@ import {
   X as XIcon,
 } from "lucide-react";
 import { NavPill } from "@/components/ui/NavPill";
+import { Masti } from "@/components/masti";
 import {
   puzzleSessionHistoryAtom,
   puzzlePracticeQueueAtom,
@@ -171,6 +172,7 @@ export default function PuzzleSessionsPage() {
                 border: "1px solid rgba(255,255,255,0.07)",
               }}
             >
+              <Masti mood="wave" size={120} style={{ marginBottom: 12 }} />
               <Typography sx={{ fontSize: "1.05rem", fontWeight: 600, mb: 1 }}>
                 No sessions yet
               </Typography>

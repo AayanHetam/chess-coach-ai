@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { Box, Button, Chip, Typography } from "@mui/material";
 import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
+import { Masti } from "@/components/masti";
 import {
   QuizAnswers,
   bandLabel,
@@ -95,18 +96,29 @@ export default function QuizResult({
 
   return (
     <Box>
-      <Typography
+      <Box
         sx={{
-          color: "#FB923C",
-          fontWeight: 700,
-          fontSize: "0.78rem",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
           mb: 1,
         }}
       >
-        Your chess profile
-      </Typography>
+        <Typography
+          sx={{
+            color: "#FB923C",
+            fontWeight: 700,
+            fontSize: "0.78rem",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+          }}
+        >
+          Your chess profile
+        </Typography>
+        {/* The quiz just worked out who they are; that is an idea. */}
+        <Masti mood="idea" size={64} loops={2} decorative />
+      </Box>
 
       <Typography
         component="h2"

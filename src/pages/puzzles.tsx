@@ -16,14 +16,12 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
-import { Loader } from "@/components/ui/Loader";
 import { ThemeProvider, createTheme, useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import Head from "next/head";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import {
-  Check,
   ChevronDown,
   Eye,
   Flag,
@@ -31,13 +29,18 @@ import {
   Network,
   RotateCcw,
   Sparkles,
-  X,
 } from "lucide-react";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { VIEWPORT_LOCK_PROPS } from "@/components/ads/PartnerSlot";
 import { NavPill } from "@/components/ui/NavPill";
 import { ACCENTS, themeAccent, type Accent } from "@/components/ui/accents";
 import { PuzzleCoachPanel } from "@/components/puzzle/PuzzleCoachPanel";
+import {
+  Masti,
+  MastiAvatar,
+  puzzleMood,
+  useStickyMood,
+} from "@/components/masti";
 import type {
   CoachHighlight,
   MentionColor,
@@ -1227,6 +1230,41 @@ export default function PreviewPuzzlesPage() {
           {sessionTotal}
         </Box>
       </Box>
+      {/* Per-session solve streak (resets on any miss, including skips and
+          "Show solution"). Labelled "in a row" so it is never mistaken for the
+          daily streak, which is a different number. Three is the threshold:
+          two in a row is nothing to jump about. */}
+      {stats.currentStreak >= 3 && (
+        <Box
+          aria-label={`${stats.currentStreak} solved in a row`}
+          data-testid="puzzle-streak"
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.6,
+            px: 1.25,
+            py: 0.35,
+            borderRadius: "999px",
+            background: "rgba(249,115,22,0.14)",
+            border: "1px solid rgba(249,115,22,0.38)",
+            color: "#FFD1A8",
+            fontSize: "0.78rem",
+            fontWeight: 800,
+            lineHeight: 1,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <MastiAvatar
+            mood="excited"
+            size={18}
+            ring={false}
+            animated
+            loops={1}
+            replayKey={stats.currentStreak}
+          />
+          {stats.currentStreak} in a row
+        </Box>
+      )}
       <Button
         onClick={handleFinishSession}
         disabled={sessionTotal === 0}
@@ -1601,6 +1639,21 @@ export default function PreviewPuzzlesPage() {
     if (wrongAttempts > 0) return "wrong";
     return "unattempted";
   }, [status, wrongAttempts]);
+
+  // Masti's face for this attempt, shared by the coach panel header and the
+  // verdict pill. Held for a full animation loop (the red flash lasts 1.4 s)
+  // and pulsed by flashKey so a second miss animates again. Read-only over
+  // the same attempt state the board uses; nothing here touches the chess.
+  const masti = useStickyMood(
+    puzzleMood({
+      status,
+      wrongAttempts,
+      solutionRevealed,
+      demoRunning: !!activeDemo && !activeDemo.finished,
+    }),
+    1400,
+    flashKey
+  );
 
   // Demo locks out interaction — the coach is driving. The wrong-square
   // flash is also suppressed during demo so red overlays don't bleed into
@@ -2369,9 +2422,23 @@ export default function PreviewPuzzlesPage() {
                         }}
                       >
                         {status === "solved" ? (
-                          <Check size={13} color="#86efac" />
+                          <MastiAvatar
+                            mood="excited"
+                            size={18}
+                            ring={false}
+                            animated
+                            loops={1}
+                            replayKey={flashKey}
+                          />
                         ) : status === "wrong" ? (
-                          <X size={13} color="#fca5a5" />
+                          <MastiAvatar
+                            mood="nervous"
+                            size={18}
+                            ring={false}
+                            animated
+                            loops={1}
+                            replayKey={flashKey}
+                          />
                         ) : (
                           <Lightbulb size={13} color={VIOLET.bright} />
                         )}
@@ -2750,7 +2817,7 @@ export default function PreviewPuzzlesPage() {
                   >
                     {feed.loading ? (
                       <>
-                        <Loader size={44} showLabel={false} />
+                        <Masti mood="thinking" size={96} loops={0} />
                         <Typography
                           sx={{ fontSize: "0.92rem", fontWeight: 600 }}
                         >
@@ -2759,6 +2826,7 @@ export default function PreviewPuzzlesPage() {
                       </>
                     ) : feed.error ? (
                       <>
+                        <Masti mood="defeated" size={80} animated={false} />
                         <Typography
                           sx={{
                             color: "#fca5a5",
@@ -2910,6 +2978,8 @@ export default function PreviewPuzzlesPage() {
                   // ConceptLessonCard.
                   userRating={stats.rating}
                   userAttemptSan={lastWrongSan}
+                  mood={masti.mood}
+                  moodPulse={masti.replayKey}
                   onRequestMorePuzzles={handleNextPuzzle}
                   drillPuzzles={feed.upcoming}
                   onPickDrillPuzzle={handlePickDrillPuzzle}
@@ -2928,6 +2998,8 @@ export default function PreviewPuzzlesPage() {
                     flex: 1,
                     minHeight: 320,
                     display: "flex",
+                    flexDirection: "column",
+                    gap: 1.5,
                     alignItems: "center",
                     justifyContent: "center",
                     borderRadius: "1.5rem",
@@ -2939,6 +3011,7 @@ export default function PreviewPuzzlesPage() {
                     fontSize: "0.85rem",
                   }}
                 >
+                  <Masti mood="wave" size={110} loops={3} />
                   Coach activates with the first puzzle.
                 </Box>
               )}
@@ -3020,7 +3093,7 @@ export default function PreviewPuzzlesPage() {
       >
         <Alert
           severity="info"
-          icon={<Flag size={16} />}
+          icon={<MastiAvatar mood="wave" size={20} ring={false} />}
           onClose={() => setIdleSavedOpen(false)}
           action={
             <Button

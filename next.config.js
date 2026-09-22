@@ -213,6 +213,20 @@ const nextConfig = {
     },
     {
       /**
+       * Masti the Monkey's art. The directory is versioned (/masti/v4/...)
+       * and a new pack is a new directory, so every file under it is
+       * immutable and can be cached for a year. The six animations are
+       * 350-580 KB each; without this, every visit to /analysis would
+       * re-download the coach's face. Built by scripts/masti/build-assets.mjs,
+       * never hand-edited.
+       */
+      source: "/masti/:path*",
+      headers: [
+        { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+      ],
+    },
+    {
+      /**
        * The one framable route. SAMEORIGIN, not ALLOWALL: the preview shell
        * is served from this same origin, so nothing outside chessmasti.com
        * gains the ability to frame the site. frame-ancestors 'self' says the

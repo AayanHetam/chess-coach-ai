@@ -4,6 +4,7 @@ import { Icon } from "@iconify/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthDialog } from "@/contexts/AuthDialogContext";
 import { ACCENTS } from "@/components/ui/accents";
+import { Masti } from "@/components/masti";
 
 /**
  * Cosmetic sign-in gate for the /puzzles/<rating> landing pages.
@@ -89,6 +90,7 @@ export function PuzzleSignInGate({
             boxShadow: ACCENTS.ember.glow,
           }}
         >
+          <Masti mood="wave" size={88} style={{ marginBottom: 8 }} />
           <Typography
             component="h2"
             variant="h6"

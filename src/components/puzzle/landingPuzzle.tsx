@@ -6,6 +6,7 @@ import { parseSolutionMoves } from "@/lib/puzzleSolution";
 import { findThemeReference } from "@/lib/puzzle/themeReference";
 import { usePuzzleBoardState } from "@/hooks/usePuzzleBoardState";
 import { DEFAULT_PUZZLE_THEME } from "@/components/puzzle/boardTheme";
+import { MastiAvatar, type MastiMood } from "@/components/masti";
 import type { FeedPuzzle } from "@/lib/puzzle-feed/loadPuzzles";
 
 /**
@@ -259,6 +260,17 @@ export function InteractivePuzzleBoard({ puzzle }: { puzzle: LandingPuzzle }) {
       : board.status === "wrong"
         ? "error.main"
         : "rgba(255,255,255,0.6)";
+  // Client-only component (the pages gate it behind `mounted`), so a face
+  // keyed on live board state is safe here.
+  const statusMood: MastiMood = board.puzzleError
+    ? "nervous"
+    : board.status === "loading"
+      ? "thinking"
+      : board.status === "solved"
+        ? "excited"
+        : board.status === "wrong"
+          ? "nervous"
+          : "idea";
 
   return (
     <Box ref={containerRef}>
@@ -286,6 +298,15 @@ export function InteractivePuzzleBoard({ puzzle }: { puzzle: LandingPuzzle }) {
           color: statusColor,
         }}
       >
+        <MastiAvatar
+          mood={statusMood}
+          size={22}
+          ring={false}
+          animated
+          loops={1}
+          replayKey={board.flashKey}
+          style={{ verticalAlign: "middle", marginRight: 6 }}
+        />
         {statusText}
       </Typography>
     </Box>

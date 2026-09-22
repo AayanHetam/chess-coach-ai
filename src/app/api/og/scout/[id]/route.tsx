@@ -109,22 +109,10 @@ export async function GET(
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                backgroundColor: EMBER,
-                color: BG,
-                fontSize: 24,
-                fontWeight: 800,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              CM
-            </div>
+            {brand && (
+              // eslint-disable-next-line @next/next/no-img-element -- satori draws a plain img from a data URI
+              <img src={brand} alt="" width={40} height={40} />
+            )}
             <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
               <span style={{ fontSize: 24, fontWeight: 700, letterSpacing: -0.4 }}>
                 Chess Masti
@@ -254,21 +242,7 @@ export async function GET(
           }}
         >
           <span>Scout any opponent free →</span>
-          <span
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              color: FG,
-              fontWeight: 600,
-            }}
-          >
-            {brand && (
-              // eslint-disable-next-line @next/next/no-img-element -- satori draws a plain img from a data URI
-              <img src={brand} alt="" width={26} height={26} />
-            )}
-            chessmasti.com
-          </span>
+          <span style={{ color: FG, fontWeight: 600 }}>chessmasti.com</span>
         </div>
       </div>
     ),

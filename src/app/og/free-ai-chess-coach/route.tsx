@@ -1,10 +1,27 @@
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
-import { mastiOgUrl } from "@/lib/og/mastiUrl";
 
 export const runtime = "edge";
 
+/**
+ * Masti's still, bundled with the route (the edge runtime has no fs, and an
+ * absolute production URL would 500 on a preview deploy until production
+ * carries the file). Null when the fetch fails, and the card renders without
+ * him rather than not at all.
+ */
+async function mastiStill(): Promise<ArrayBuffer | null> {
+  try {
+    const res = await fetch(
+      new URL("../../../../public/masti/v4/still/wave.png", import.meta.url)
+    );
+    return res.ok ? await res.arrayBuffer() : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(_req: NextRequest) {
+  const masti = await mastiStill();
   return new ImageResponse(
     (
       <div
@@ -33,15 +50,17 @@ export async function GET(_req: NextRequest) {
           }}
         />
 
-        {/* Masti, waving from the free right half. Absolute URL: the edge
-            runtime has no fs, and this file is immutable-cached. */}
-        <img
-          src={mastiOgUrl("wave")}
-          alt=""
-          width={288}
-          height={360}
-          style={{ position: "absolute", right: 40, bottom: 0 }}
-        />
+        {/* Masti, waving from the free right half. */}
+        {masti && (
+          <img
+            // satori takes an ArrayBuffer here; the JSX types do not know it.
+            src={masti as unknown as string}
+            alt=""
+            width={288}
+            height={360}
+            style={{ position: "absolute", right: 40, bottom: 0 }}
+          />
+        )}
 
         {/* brand mark */}
         <div

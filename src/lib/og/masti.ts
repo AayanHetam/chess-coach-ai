@@ -4,7 +4,8 @@ import { MASTI_VERSION, type MastiMood } from "@/components/masti/manifest";
 
 /**
  * Masti for the OG share cards (nodejs runtime only: reads public/ with fs;
- * the edge route imports ./mastiUrl instead, this module cannot bundle there).
+ * the edge route bundles the file with fetch(new URL(..., import.meta.url))
+ * instead, this module cannot bundle there).
  * A data: URI keeps satori from fetching the deployment mid-render and works
  * on preview URLs, where an absolute production URL might not exist yet. The
  * routes that call this are listed in next.config.js outputFileTracingIncludes
@@ -32,5 +33,3 @@ export function mastiOgDataUri(mood: MastiMood): string | null {
   cache.set(mood, uri);
   return uri;
 }
-
-export { mastiOgUrl } from "./mastiUrl";

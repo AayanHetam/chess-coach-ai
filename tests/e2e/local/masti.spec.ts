@@ -16,8 +16,8 @@ test.describe("Masti on the landing", () => {
     page,
   }) => {
     await page.goto("/");
-    // One stage on every viewport: he is the first thing on the first screen
-    // of a phone as much as of a desktop.
+    // One stage on every viewport: he shares the first screen with the
+    // headline on a phone as much as on a desktop.
     const hero = page.getByTestId("hero-masti");
     await expect(hero).toBeVisible();
     const img = hero.locator("img").first();

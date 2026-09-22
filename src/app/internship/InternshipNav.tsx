@@ -55,7 +55,7 @@ export default function InternshipNav() {
               fontSize: "1.1rem",
             }}
           >
-            Chess Coach AI
+            Chess Masti
           </Typography>
         </Box>
 

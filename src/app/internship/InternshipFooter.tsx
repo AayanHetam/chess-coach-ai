@@ -36,7 +36,7 @@ export default function InternshipFooter() {
                 backgroundClip: "text",
               }}
             >
-              Chess Coach AI
+              Chess Masti
             </Typography>
           </Box>
 
@@ -83,7 +83,7 @@ export default function InternshipFooter() {
             variant="caption"
             sx={{ color: "rgba(255,255,255,0.3)", width: { xs: "100%", md: "auto" } }}
           >
-            &copy; {new Date().getFullYear()} Chess Coach AI. Free forever.
+            &copy; {new Date().getFullYear()} Chess Masti. Free forever.
           </Typography>
         </Box>
       </Container>

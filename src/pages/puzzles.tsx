@@ -2792,7 +2792,16 @@ export default function PreviewPuzzlesPage() {
                   >
                     {feed.loading ? (
                       <>
-                        <Masti mood="thinking" size={96} loops={0} decorative />
+                        {/* Still, not a loop: this placeholder lives for
+                            the length of one feed request and a 226 KB
+                            animation would still be downloading when it
+                            unmounts. */}
+                        <Masti
+                          mood="thinking"
+                          size={96}
+                          animated={false}
+                          decorative
+                        />
                         <Typography
                           sx={{ fontSize: "0.92rem", fontWeight: 600 }}
                         >
@@ -2992,7 +3001,7 @@ export default function PreviewPuzzlesPage() {
                     fontSize: "0.85rem",
                   }}
                 >
-                  <Masti mood="wave" size={110} loops={3} decorative />
+                  <Masti mood="wave" size={110} animated={false} decorative />
                   Coach activates with the first puzzle.
                 </Box>
               )}

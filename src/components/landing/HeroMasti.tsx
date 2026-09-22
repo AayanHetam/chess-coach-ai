@@ -108,11 +108,14 @@ export function HeroMastiGreeting() {
             flexShrink: 0,
           }}
         >
+          {/* No `priority`: on md+ the <link rel=preload> in the page head
+              already fetches this still first, and on phones it sits below
+              the fold where an eager high-priority fetch would only compete
+              with the headline. */}
           <Masti
             mood="wave"
             size={250}
             fluid
-            priority
             loops={3}
             replayOnHover
             label="Masti the Monkey, the Chess Masti mascot, waving hello"
@@ -129,7 +132,7 @@ export function HeroMastiMini() {
       data-testid="hero-masti-mini"
       sx={{ display: { xs: "block", md: "none" }, width: 64, flexShrink: 0 }}
     >
-      <Masti mood="wave" size={64} fluid priority loops={3} decorative />
+      <Masti mood="wave" size={64} fluid thumb priority loops={3} decorative />
     </Box>
   );
 }

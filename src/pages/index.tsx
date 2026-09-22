@@ -2921,13 +2921,16 @@ export default function LandingPage() {
         <title key="title">{HOME_TITLE}</title>
         <meta key="description" name="description" content={HOME_DESC} />
         <link key="canonical" rel="canonical" href="https://chessmasti.com/" />
-        {/* The hero Masti is above the fold; fetch his still with the HTML
-            rather than after the JS decides on the srcset. */}
+        {/* The hero Masti is above the fold on md+; fetch his still with the
+            HTML rather than after the JS decides on the srcset. Media-gated:
+            on phones the big figure is below the fold and the first screen
+            has the 24 KB mini instead. */}
         <link
           key="masti-hero-preload"
           rel="preload"
           as="image"
           type="image/webp"
+          media="(min-width: 900px)"
           imageSrcSet={mastiStillSrcSet("wave")}
         />
 

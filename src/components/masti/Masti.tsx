@@ -147,6 +147,9 @@ export function Masti({
     return () => {
       cancelled = true;
       pre.onload = null;
+      // Drop an in-flight warm-up when the figure leaves or changes mood, so
+      // a loader that unmounts after a second stops costing bandwidth.
+      pre.src = "";
       if (timer) clearTimeout(timer);
     };
   }, [motionOk, mood, loops, burstKey, animSize]);
@@ -156,10 +159,16 @@ export function Masti({
   }, [replayOnHover]);
 
   const alt = decorative ? "" : (label ?? MASTI_ALT[mood]);
-  const stillSrcSet = thumb
+  // The still follows the same size rule as the animation: a figure drawn
+  // under ~140 CSS px never needs the 640/1122 pair. Fluid figures size
+  // themselves from their container, so they opt in explicitly.
+  const useThumb = thumb || (!fluid && size <= MASTI_SM_MAX_CSS_PX);
+  const stillSrcSet = useThumb
     ? mastiStillSmSrc(mood, "webp")
     : mastiStillSrcSet(mood);
-  const stillPng = thumb ? mastiStillSmSrc(mood, "png") : mastiStillPng(mood);
+  const stillPng = useThumb
+    ? mastiStillSmSrc(mood, "png")
+    : mastiStillPng(mood);
   const imgStyle: CSSProperties = {
     display: "block",
     width: "100%",

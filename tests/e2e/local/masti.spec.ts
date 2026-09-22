@@ -20,7 +20,12 @@ test.describe("Masti on the landing", () => {
     const hero = page.getByTestId(isMobile ? "hero-masti-mini" : "hero-masti");
     await expect(hero).toBeVisible();
     const img = hero.locator("img").first();
-    await expect(img).toHaveAttribute("src", /\/masti\/v4\/still\/wave\.png$/);
+    // The phone mini draws from the 320px still, the desktop greeting from
+    // the full one.
+    await expect(img).toHaveAttribute(
+      "src",
+      /\/masti\/v4\/still\/wave(-sm)?\.png$/
+    );
     await expect
       .poll(() =>
         img.evaluate((el) => {
@@ -70,9 +75,9 @@ test.describe("Masti on the landing", () => {
     const figures = page.locator("[data-masti-mood]");
     expect(await figures.count()).toBeGreaterThan(0);
     expect(await page.locator("[data-masti-playing]").count()).toBe(0);
-    expect(await page.locator('source[srcset*="/masti/v4/anim/"]').count()).toBe(
-      0
-    );
+    expect(
+      await page.locator('source[srcset*="/masti/v4/anim/"]').count()
+    ).toBe(0);
   });
 });
 
@@ -97,7 +102,12 @@ test.describe("Masti on the coach surfaces", () => {
     page,
   }) => {
     await page.context().addCookies([
-      { name: "cm_consent", value: "accepted", domain: "127.0.0.1", path: "/" },
+      {
+        name: "cm_consent",
+        value: "accepted",
+        domain: "127.0.0.1",
+        path: "/",
+      },
     ]);
     await page.goto("/puzzles");
     await waitForStableFen(page);

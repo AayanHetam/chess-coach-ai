@@ -19,7 +19,7 @@ describe("Masti", () => {
   it.each(MASTI_MOODS)(
     "%s: server markup is the still, never the animation",
     (mood) => {
-      const html = render(createElement(Masti, { mood }));
+      const html = render(createElement(Masti, { mood, size: 200 }));
       expect(html).toContain(`data-masti-mood="${mood}"`);
       expect(html).toContain(`/masti/${MASTI_VERSION}/still/${mood}.webp 1x`);
       expect(html).toContain(
@@ -30,6 +30,23 @@ describe("Masti", () => {
       expect(html).not.toContain("data-masti-playing");
     }
   );
+
+  it("draws a small figure from the 320px still and a big one from the 640/1122 pair", () => {
+    const small = render(createElement(Masti, { mood: "wave", size: 96 }));
+    expect(small).toContain(`/masti/${MASTI_VERSION}/still/wave-sm.webp`);
+    expect(small).not.toContain("wave@2x.webp");
+    const big = render(createElement(Masti, { mood: "wave", size: 240 }));
+    expect(big).toContain(`/masti/${MASTI_VERSION}/still/wave@2x.webp 2x`);
+    // A fluid figure sizes itself from its container, so it opts in.
+    const fluid = render(
+      createElement(Masti, { mood: "wave", size: 64, fluid: true })
+    );
+    expect(fluid).toContain("wave@2x.webp");
+    const fluidThumb = render(
+      createElement(Masti, { mood: "wave", size: 64, fluid: true, thumb: true })
+    );
+    expect(fluidThumb).toContain("wave-sm.webp");
+  });
 
   it("reserves its box with explicit width and height at the 4:5 art ratio", () => {
     const html = render(createElement(Masti, { mood: "wave", size: 200 }));

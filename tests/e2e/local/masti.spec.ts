@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { horizontalOverflow, waitForStableFen } from "../helpers";
+import { horizontalOverflow, stubSignedIn, waitForStableFen } from "../helpers";
 
 /**
  * Masti the Monkey, the mascot, on the surfaces where he matters most.
@@ -111,10 +111,14 @@ test.describe("Masti on the coach surfaces", () => {
     page,
   }) => {
     // The real engine, on purpose: the second line is only ever spoken when
-    // the whole-game Stockfish pass returns, and a stubbed engine would prove
-    // nothing about that. A six-ply game keeps the sweep short; the budget
-    // covers a cold WASM download in CI.
+    // the whole-game Stockfish pass returns. The Lichess cloud eval is
+    // blocked so that pass is the local WASM search and its timing does not
+    // depend on the network. A six-ply game keeps it short; the budget
+    // covers a cold WASM download in CI. Signed in, so the composer shows
+    // its own placeholder rather than the sign-in ask.
     test.setTimeout(150_000);
+    await page.route("**/lichess.org/**", (route) => route.abort());
+    await stubSignedIn(page);
     const pgn = "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 *";
     await page.goto(`/analysis?pgn=${encodeURIComponent(pgn)}`);
 
@@ -152,9 +156,8 @@ test.describe("Masti on the coach surfaces", () => {
     const composer = page.getByPlaceholder(
       "Ask anything about this position..."
     );
-    if (await composer.isVisible()) {
-      await expect(composer).toBeEnabled();
-    }
+    await expect(composer).toBeVisible();
+    await expect(composer).toBeEnabled();
   });
 
   test("puzzles: the coach wears Masti and reads while the answer is shown", async ({

@@ -54,24 +54,33 @@ export const ENGINE_UNAVAILABLE_LINE =
   "Hmm, the engine would not run on this one. Ask me anything anyway, I will answer without the evaluations.";
 
 export interface SweepGreetingHeaders {
-  White?: string;
-  Black?: string;
-  Date?: string;
+  White?: string | null;
+  Black?: string | null;
+  Date?: string | null;
+}
+
+/** chess.js fills the seven-tag roster with "?" for a PGN without tags. */
+function tagValue(v: string | null | undefined): string | null {
+  const t = v?.trim();
+  return t && t !== "?" ? t : null;
 }
 
 /**
  * The load greeting for a game with moves. Names the players when the PGN
  * carries them, then asks for a second. chess.js fills an absent Date with
- * the placeholder "????.??.??", which is not a year.
+ * the placeholder "????.??.??", which is not a year, and absent players
+ * with "?", which is not a name.
  */
 export function buildSweepGreeting(
   headers: SweepGreetingHeaders
 ): EngineSweepMessage {
   const year = headers.Date?.split(".")[0];
   const yearSuffix = year && /^\d{4}$/.test(year) ? ` (${year})` : "";
+  const white = tagValue(headers.White);
+  const black = tagValue(headers.Black);
   const loaded =
-    headers.White && headers.Black
-      ? `Loaded **${headers.White} vs ${headers.Black}**${yearSuffix}.`
+    white && black
+      ? `Loaded **${white} vs ${black}**${yearSuffix}.`
       : "Loaded a new game.";
   return {
     role: "coach",
@@ -81,6 +90,42 @@ export function buildSweepGreeting(
     mascot: "thinking",
     engineSweep: "sweeping",
   };
+}
+
+/** A plain UI-authored coach turn: waves, carries no sweep marker. */
+export interface PlainGreeting {
+  role: "coach";
+  content: string;
+  ply: number;
+  synthetic: true;
+  mascot: MastiMood;
+}
+
+/** The greeting for a bare position, which has no sweep to wait for. */
+export const POSITION_GREETING = "Loaded a position. Ask me anything about it.";
+
+/**
+ * What the transcript opens with when a game is loaded and the chat is not
+ * being kept. A caller-supplied line (the ?fen= load) wins; a game with
+ * moves gets the sweep greeting, because a sweep is about to start; a bare
+ * position, which has no sweep to wait for, gets a plain wave.
+ */
+export function buildLoadGreeting(
+  headers: SweepGreetingHeaders,
+  moveCount: number,
+  override?: string
+): EngineSweepMessage | PlainGreeting {
+  const plain = override ?? (moveCount === 0 ? POSITION_GREETING : null);
+  if (plain) {
+    return {
+      role: "coach",
+      content: plain,
+      ply: 0,
+      synthetic: true,
+      mascot: "wave",
+    };
+  }
+  return buildSweepGreeting(headers);
 }
 
 /** The follow-up turn that lands with the evaluations. */

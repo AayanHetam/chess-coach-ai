@@ -1072,6 +1072,7 @@ import { generateSuggestions, type Suggestion } from "./generateSuggestions";
 import {
   appendEngineReady,
   appendEngineUnavailable,
+  buildLoadGreeting,
   buildSweepGreeting,
   type EngineSweepStatus,
 } from "./engineSweepMessages";
@@ -8637,27 +8638,16 @@ export default function AnalysisPage() {
         /* sentry failures are never user-facing */
       }
       if (!opts?.keepChat) {
-        // A game with moves gets the sweep greeting: Masti asks for a second
-        // while Stockfish goes through it, and his "ready" turn lands with
-        // the evaluations (see engineSweepMessages.ts). A caller-supplied
-        // greeting (the ?fen= load) and a bare position, which has no sweep
-        // to wait for, get a plain wave instead.
-        const greeting =
-          opts?.greeting ??
-          (game.history().length === 0
-            ? "Loaded a position. Ask me anything about it."
-            : null);
+        // D3: UI-authored greeting, not model output. A game with moves gets
+        // the sweep greeting: Masti asks for a second while Stockfish goes
+        // through it, and his "ready" turn lands with the evaluations. See
+        // engineSweepMessages.ts for the other two cases.
         setMessages([
-          // D3: UI-authored greeting, not model output.
-          greeting
-            ? {
-                role: "coach",
-                content: greeting,
-                ply: 0,
-                synthetic: true,
-                mascot: "wave",
-              }
-            : buildSweepGreeting(game.header()),
+          buildLoadGreeting(
+            game.header(),
+            game.history().length,
+            opts?.greeting,
+          ),
         ]);
       }
     },

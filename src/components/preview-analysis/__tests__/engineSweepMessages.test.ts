@@ -3,10 +3,12 @@ import {
   ENGINE_READY_LINE,
   ENGINE_SWEEPING_LINE,
   ENGINE_UNAVAILABLE_LINE,
+  POSITION_GREETING,
   appendEngineReady,
   appendEngineUnavailable,
   buildEngineReadyMessage,
   buildEngineUnavailableMessage,
+  buildLoadGreeting,
   buildSweepGreeting,
   type EngineSweepMessage,
 } from "@/components/preview-analysis/engineSweepMessages";
@@ -53,6 +55,60 @@ describe("buildSweepGreeting", () => {
     expect(buildSweepGreeting({ White: "only" }).content).toBe(
       `Loaded a new game. ${ENGINE_SWEEPING_LINE}`
     );
+  });
+
+  it("reads chess.js's '?' roster for a tagless PGN as nobody, not as a player", () => {
+    // `new Chess().loadPgn("1. e4 e5")` then `.header()` is exactly this.
+    const roster = {
+      Event: "?",
+      Site: "?",
+      Date: "????.??.??",
+      Round: "?",
+      White: "?",
+      Black: "?",
+      Result: "*",
+      WhiteElo: null,
+    };
+    expect(buildSweepGreeting(roster).content).toBe(
+      `Loaded a new game. ${ENGINE_SWEEPING_LINE}`
+    );
+    expect(buildSweepGreeting({ ...roster, White: "a" }).content).toBe(
+      `Loaded a new game. ${ENGINE_SWEEPING_LINE}`
+    );
+  });
+});
+
+describe("buildLoadGreeting", () => {
+  const named = { White: "a", Black: "b" };
+
+  it("a game with moves opens with the sweep greeting", () => {
+    const m = buildLoadGreeting(named, 40);
+    expect(m.content).toBe(`Loaded **a vs b**. ${ENGINE_SWEEPING_LINE}`);
+    expect(m).toMatchObject({
+      engineSweep: "sweeping",
+      mascot: "thinking",
+      synthetic: true,
+    });
+  });
+
+  it("a bare position waves and carries no marker, so no outcome ever lands", () => {
+    const m = buildLoadGreeting(named, 0);
+    expect(m.content).toBe(POSITION_GREETING);
+    expect(m).toMatchObject({ mascot: "wave", synthetic: true });
+    expect("engineSweep" in m).toBe(false);
+    expect(appendEngineReady([m])).toEqual([m]);
+    expect(appendEngineUnavailable([m])).toEqual([m]);
+  });
+
+  it("a caller's own line wins, with moves or without", () => {
+    const line = "Loaded a custom position (White to move).";
+    expect(buildLoadGreeting(named, 0, line).content).toBe(line);
+    expect(buildLoadGreeting(named, 12, line)).toMatchObject({
+      content: line,
+      mascot: "wave",
+      synthetic: true,
+    });
+    expect("engineSweep" in buildLoadGreeting(named, 12, line)).toBe(false);
   });
 });
 

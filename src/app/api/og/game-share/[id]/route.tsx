@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { mastiOgDataUri } from "@/lib/og/masti";
 import { Chess } from "chess.js";
 import { getGameShare } from "@/lib/gameShares";
 import {
@@ -80,6 +81,8 @@ export async function GET(
   const board = parseFenToBoard(fen);
   const side = sideToMoveFromFen(fen);
 
+  const masti = mastiOgDataUri("wave");
+
   return new ImageResponse(
     (
       <div
@@ -95,6 +98,16 @@ export async function GET(
           fontFamily: "system-ui, sans-serif",
         }}
       >
+        {/* Masti, top-right, above the header pill (the row keeps 116px clear). */}
+        {masti && (
+          <img
+            src={masti}
+            alt=""
+            width={96}
+            height={120}
+            style={{ position: "absolute", right: 40, top: 16 }}
+          />
+        )}
         {/* Header */}
         <div
           style={{
@@ -102,6 +115,7 @@ export async function GET(
             alignItems: "center",
             justifyContent: "space-between",
             marginBottom: 24,
+            paddingRight: 116,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

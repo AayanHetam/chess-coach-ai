@@ -80,6 +80,11 @@ const nextConfig = {
     // degrades to an 18MB self-fetch per cold start rather than an error —
     // slow enough to matter on a page whose whole job is landing traffic.
     "/puzzles/p/[id]": ["./public/data/lichess_puzzles_100k.csv"],
+    // Masti's stills for the OG share cards (src/lib/og/masti.ts reads them
+    // with fs, so the tracer cannot see them either).
+    "/api/og/insight/[id]": ["./public/masti/v4/still/*.png"],
+    "/api/og/game-share/[id]": ["./public/masti/v4/still/*.png"],
+    "/api/og/scout/[id]": ["./public/masti/v4/still/*.png"],
   },
   /**
    * Baseline hardening on every route, verified on the wire rather than

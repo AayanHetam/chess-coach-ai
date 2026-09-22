@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
+import { mastiOgUrl } from "@/lib/og/masti";
 
 export const runtime = "edge";
 
@@ -30,6 +31,16 @@ export async function GET(_req: NextRequest) {
             borderRadius: "50%",
             background: "radial-gradient(circle, rgba(255,107,43,0.18) 0%, transparent 70%)",
           }}
+        />
+
+        {/* Masti, waving from the free right half. Absolute URL: the edge
+            runtime has no fs, and this file is immutable-cached. */}
+        <img
+          src={mastiOgUrl("wave")}
+          alt=""
+          width={288}
+          height={360}
+          style={{ position: "absolute", right: 40, bottom: 0 }}
         />
 
         {/* brand mark */}
@@ -84,7 +95,7 @@ export async function GET(_req: NextRequest) {
             fontSize: 28,
             color: "rgba(255,255,255,0.55)",
             lineHeight: 1.5,
-            maxWidth: 800,
+            maxWidth: 700,
           }}
         >
           <span>Stockfish analysis.</span>

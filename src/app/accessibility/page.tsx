@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     siteName: "Chess Masti AI",
     images: [
       {
-        url: "https://chessmasti.com/social-networks-1200x630.png",
+        url: "https://chessmasti.com/og/home",
         width: 1200,
         height: 630,
         alt: "Chess Masti AI",
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     title: "Chess Masti AI — Accessibility Statement",
     description:
       "Our commitment to WCAG 2.1 AA, known limitations, and how to report a barrier.",
-    images: ["https://chessmasti.com/social-networks-1200x630.png"],
+    images: ["https://chessmasti.com/og/home"],
   },
 };
 

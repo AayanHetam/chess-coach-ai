@@ -12,7 +12,7 @@ export const organization = {
   "@id": ORGANIZATION_ID,
   name: "Chess Masti AI",
   url: BASE,
-  logo: `${BASE}/logo.svg`,
+  logo: `${BASE}/android-chrome-512x512.png`,
   founder: {
     "@type": "Person",
     name: "Aayan Hetamsaria",

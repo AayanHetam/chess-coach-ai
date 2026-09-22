@@ -89,6 +89,7 @@ const nextConfig = {
     // reason: on the edge the bundled PNG took the function past Vercel's
     // 1 MB compressed limit and the deploy failed after the build.
     "/og/free-ai-chess-coach": ["./public/masti/v4/still/*.png"],
+    "/og/home": ["./public/masti/v4/still/*.png"],
   },
   /**
    * Baseline hardening on every route, verified on the wire rather than

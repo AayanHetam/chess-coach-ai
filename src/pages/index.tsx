@@ -78,7 +78,7 @@ import {
 const HOME_TITLE = "Chess Masti AI — engine-grounded chess coaching, free";
 const HOME_DESC =
   "AI chess coach: Stockfish 17 evaluates first, Claude explains, a hallucination validator checks every claim. 100,000+ Lichess puzzles in a Neo4j graph. Free.";
-const HOME_OG_IMAGE = "https://chessmasti.com/social-networks-1200x630.png";
+const HOME_OG_IMAGE = "https://chessmasti.com/og/home";
 
 /**
  * Identity accents for the product surfaces this page advertises — the same

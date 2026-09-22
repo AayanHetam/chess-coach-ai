@@ -2,6 +2,7 @@
 
 import { Box, Button, Container, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
+import { MastiAvatar } from "@/components/masti";
 
 export default function InternshipNav() {
   const [scrolled, setScrolled] = useState(false);
@@ -42,7 +43,7 @@ export default function InternshipNav() {
             textDecoration: "none",
           }}
         >
-          <img src="/logo.svg" width={32} height={32} alt="Chess Masti" />
+          <MastiAvatar mood="wave" size={32} decorative />
           <Typography
             variant="h6"
             sx={{

@@ -9960,19 +9960,21 @@ export default function AnalysisPage() {
   // explicitly saved the game (so opt-in only — anonymous / unsaved games
   // never write to IndexedDB or Firestore). Debounced so streaming token
   // updates don't trigger one write per chunk; in practice setGameTranscript
-  // fires ~1s after the last message edit. The cold-start greeting is
-  // filtered out so it never overwrites a real conversation that the user is
-  // mid-replay-loading.
+  // fires ~1s after the last message edit.
+  //
+  // Only turns the model or the user actually wrote are saved. The stored
+  // shape carries no `synthetic` or `incomplete` flag, so a UI-authored turn
+  // (the cold-start greeting, the sweep lines, an error banner) or a
+  // truncated answer would come back on reopen as an ordinary coach turn and
+  // be replayed to the model as something it said (Group D). Reopening
+  // re-frames the sweep in memory anyway, so nothing the reader needs is
+  // lost. This also keeps the cold-start greeting from overwriting a real
+  // conversation the user is mid-replay-loading.
   useEffect(() => {
     if (savedGameId === null) return;
     if (messages.length === 0) return;
     const slim = messages
-      .filter(
-        (m) =>
-          !(
-            m.role === "coach" && m.content === EMPTY_STATE_MESSAGES[0]?.content
-          )
-      )
+      .filter((m) => !m.synthetic && !m.incomplete)
       .map((m) => ({
         role: m.role,
         content: m.content,

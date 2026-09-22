@@ -2,8 +2,11 @@ import { describe, it, expect } from "vitest";
 import {
   ENGINE_READY_LINE,
   ENGINE_SWEEPING_LINE,
+  ENGINE_UNAVAILABLE_LINE,
   appendEngineReady,
+  appendEngineUnavailable,
   buildEngineReadyMessage,
+  buildEngineUnavailableMessage,
   buildSweepGreeting,
   type EngineSweepMessage,
 } from "@/components/preview-analysis/engineSweepMessages";
@@ -64,6 +67,17 @@ describe("buildEngineReadyMessage", () => {
   });
 });
 
+describe("buildEngineUnavailableMessage", () => {
+  it("is the UI-authored admission, nervous", () => {
+    const m = buildEngineUnavailableMessage();
+    expect(m.content).toBe(ENGINE_UNAVAILABLE_LINE);
+    expect(m.engineSweep).toBe("unavailable");
+    expect(m.mascot).toBe("nervous");
+    expect(m.synthetic).toBe(true);
+    expect(m.role).toBe("coach");
+  });
+});
+
 describe("appendEngineReady", () => {
   const greeting = buildSweepGreeting({ White: "a", Black: "b" });
 
@@ -111,9 +125,27 @@ describe("appendEngineReady", () => {
     expect(next[3].content).toBe(ENGINE_READY_LINE);
   });
 
+  it("a sweep has one outcome: unavailable after ready, or ready after unavailable, is a no-op", () => {
+    const landed = appendEngineReady([greeting]);
+    expect(appendEngineUnavailable(landed)).toBe(landed);
+    const failed = appendEngineUnavailable([greeting]);
+    expect(failed).toHaveLength(2);
+    expect(failed[1].content).toBe(ENGINE_UNAVAILABLE_LINE);
+    expect(appendEngineReady(failed)).toBe(failed);
+    expect(appendEngineUnavailable(failed)).toBe(failed);
+  });
+
+  it("the failure line also needs the greeting to answer", () => {
+    const restored = [{ role: "coach" as const, content: "Push the pawn." }];
+    expect(appendEngineUnavailable(restored)).toBe(restored);
+  });
+
   it("never reaches the model: both turns are dropped from the replayed history", () => {
     const transcript = appendEngineReady([greeting]);
     expect(buildConversationHistory(transcript)).toEqual([]);
+    expect(
+      buildConversationHistory(appendEngineUnavailable([greeting]))
+    ).toEqual([]);
     const withAsk = [
       ...transcript,
       { role: "user" as const, content: "Analyze my game." },

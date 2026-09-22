@@ -63,12 +63,16 @@ test.describe("coach move links", () => {
 
     // The greeting no longer promises that a tab will "light up": Masti asks
     // for a second while the engine goes through the game. With /engines/*
-    // blocked the sweep never returns, so his "ready" turn never lands.
+    // blocked the sweep never returns, so his "ready" turn never lands and
+    // he says the engine would not run instead of waiting forever.
     await expect(page.getByText(/light up/)).toHaveCount(0);
     await expect(
       page.getByText("Wait a second, I am going through your game."),
     ).toBeVisible();
     await expect(page.getByText(/ask me anything you want/)).toHaveCount(0);
+    await expect(
+      page.getByText("Hmm, the engine would not run on this one."),
+    ).toBeVisible({ timeout: 30_000 });
 
     await composer.fill("analyse this game");
     await composer.press("Enter");

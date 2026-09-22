@@ -121,7 +121,7 @@ import {
   CommandIcons,
   type CommandGroup,
 } from "@/components/ui/CommandPalette";
-import { useEngineWithStatus } from "@/hooks/useEngine";
+import { isEngineUnavailable, useEngineWithStatus } from "@/hooks/useEngine";
 import { resolveEngineGate } from "@/lib/coach/engineGate";
 import {
   AI_DISABLED_ERROR,
@@ -1071,6 +1071,7 @@ const EMPTY_STATE_MESSAGES: CoachMessage[] = [
 import { generateSuggestions, type Suggestion } from "./generateSuggestions";
 import {
   appendEngineReady,
+  appendEngineUnavailable,
   buildSweepGreeting,
   type EngineSweepStatus,
 } from "./engineSweepMessages";
@@ -8268,6 +8269,9 @@ export default function AnalysisPage() {
         const msg = err instanceof Error ? err.message : String(err);
         console.warn("[preview/analysis] Stockfish failed:", msg);
         setAnalysisError(msg);
+        // The sweep Masti asked the reader to wait for is not coming, and
+        // the gate opens the composer on this error: say so.
+        setMessages((prev) => appendEngineUnavailable(prev));
       });
     return () => {
       cancelled = true;
@@ -8280,6 +8284,17 @@ export default function AnalysisPage() {
     analysisError,
     engineSettings.depth,
   ]);
+
+  // The engine will never boot (WASM unsupported, `/engines/*` blocked by a
+  // network filter): the evaluate effect above never runs, the gate opens
+  // the composer, and the load greeting would otherwise ask the reader to
+  // wait forever. Keyed on the engine status, which is not reset per game,
+  // so a game loaded after the failure gets the same answer and a live
+  // engine makes this a no-op.
+  useEffect(() => {
+    if (!isEngineUnavailable(engineStatus) || allMoves.length === 0) return;
+    setMessages((prev) => appendEngineUnavailable(prev));
+  }, [engineStatus, loadedGame, allMoves.length]);
 
   const [currentPly, setCurrentPly] = useState(0);
   const [boardOrientation, setBoardOrientation] = useState<"white" | "black">(
@@ -8732,10 +8747,17 @@ export default function AnalysisPage() {
         if (!res.ok) throw new Error(`insight fetch HTTP ${res.status}`);
         const data = await res.json();
         // Hydrate game state. The insight may carry pgn or just fen.
+        // keepChat skips the load greeting, but a game with moves still
+        // gets the sweep and the locked composer that comes with it, so
+        // Masti frames the wait after the saved insight.
+        let sweepFraming: CoachMessage[] = [];
         if (typeof data.pgn === "string" && data.pgn.length > 0) {
           const g = new Chess();
           g.loadPgn(data.pgn);
           loadNewGame(g, { keepChat: true });
+          if (g.history().length > 0) {
+            sweepFraming = [buildSweepGreeting(g.header())];
+          }
         } else if (typeof data.fen === "string" && data.fen.length >= 10) {
           const g = new Chess(data.fen);
           loadNewGame(g, { keepChat: true });
@@ -8752,7 +8774,7 @@ export default function AnalysisPage() {
               ply: 0,
             })
           );
-          setMessages(transcriptMessages);
+          setMessages([...transcriptMessages, ...sweepFraming]);
         } else if (
           data.kind === "single" &&
           typeof data.coachContent === "string"
@@ -8763,6 +8785,7 @@ export default function AnalysisPage() {
               content: data.coachContent,
               ply: 0,
             },
+            ...sweepFraming,
           ]);
         }
       } catch (err) {
@@ -9968,17 +9991,28 @@ export default function AnalysisPage() {
       // keepChat:true so loadNewGame doesn't reset messages to the greeting
       // before our setMessages below replaces them with the saved transcript.
       loadNewGame(restored, { keepChat: true });
+      // The sweep still runs on a reopened game and locks the composer, so
+      // Masti frames the wait after the saved transcript. A game saved
+      // before any chat gets the greeting on its own instead of the
+      // cold-start "Board's empty" line over a loaded board.
+      const sweepFraming: CoachMessage[] =
+        restored.history().length > 0
+          ? [buildSweepGreeting(restored.header())]
+          : [];
       if (
         gameFromUrl.coachTranscript &&
         gameFromUrl.coachTranscript.length > 0
       ) {
-        setMessages(
-          gameFromUrl.coachTranscript.map((m) => ({
+        setMessages([
+          ...gameFromUrl.coachTranscript.map((m) => ({
             role: m.role,
             content: m.content,
             ...(m.ply !== undefined ? { ply: m.ply } : {}),
-          }))
-        );
+          })),
+          ...sweepFraming,
+        ]);
+      } else if (sweepFraming.length > 0) {
+        setMessages(sweepFraming);
       }
     } catch (err) {
       console.warn("[preview/analysis] failed to hydrate saved game:", err);

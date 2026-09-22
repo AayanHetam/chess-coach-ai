@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { Masti } from "../Masti";
 import { MASTI_AVATAR_ANIMATE_MIN_PX, MastiAvatar } from "../MastiAvatar";
 import { MastiSays } from "../MastiSays";
-import { MASTI_MOODS, MASTI_VERSION } from "../manifest";
+import { MASTI_ALT, MASTI_MOODS, MASTI_VERSION } from "../manifest";
 
 /**
  * The repo's vitest env is node with no jsdom, so these render through
@@ -57,7 +57,7 @@ describe("Masti", () => {
 
   it("has an accessible name by default and hides itself when decorative", () => {
     expect(render(createElement(Masti, { mood: "idea" }))).toContain(
-      'alt="Masti the Monkey having an idea"'
+      `alt="${MASTI_ALT.idea}"`
     );
     expect(
       render(createElement(Masti, { mood: "idea", label: "Masti has a hint" }))

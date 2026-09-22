@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { HERO_MASTI_LINE, HeroMastiStage } from "../HeroMasti";
+import { MASTI_VERSION } from "@/components/masti/manifest";
 
 describe("HeroMastiStage", () => {
   it("puts the waving still and the one-line pitch on stage, no sign-in ask", () => {
@@ -9,8 +10,8 @@ describe("HeroMastiStage", () => {
     expect(html).toContain('data-testid="hero-masti"');
     expect(html).toContain('data-masti-mood="wave"');
     // The stage draws from the full still, not the 320px face crop.
-    expect(html).toContain("/masti/v4/still/wave@2x.webp 2x");
-    expect(html).not.toContain("/masti/v4/anim/");
+    expect(html).toContain(`/masti/${MASTI_VERSION}/still/wave@2x.webp 2x`);
+    expect(html).not.toContain("/anim/");
     expect(html).toContain("Hi, I");
     // The apostrophe is HTML-escaped in SSR output, so match around it.
     expect(html).toContain(HERO_MASTI_LINE.split("I'll")[1]);

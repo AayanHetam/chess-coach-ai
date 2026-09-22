@@ -71,7 +71,7 @@ export default function AccessibilityPage() {
                 mood="wave"
                 size={88}
                 animated={false}
-                label="Masti the Monkey, the Chess Masti coach, waving hello"
+                label="Masti the Monkey, the Chess Masti coach, saying hello"
               />
               <h1>Accessibility Statement</h1>
             </div>

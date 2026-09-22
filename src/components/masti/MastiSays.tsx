@@ -56,8 +56,8 @@ const TONES: Record<
  * Masti with a speech bubble. The bubble is a plain glass box with a tail
  * drawn as a rotated square, all inline styles, so it renders identically on
  * the server and inside MUI-free pages. Without children only the figure
- * renders, which is what the `thinking` mood wants: that art already says
- * "give me a minute" in its own bubble.
+ * renders, which is what the `thinking` mood wants: a chin-stroking Masti
+ * says "give me a minute" on his own.
  */
 export function MastiSays({
   mood,

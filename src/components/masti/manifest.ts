@@ -2,26 +2,34 @@
  * Masti the Monkey, the Chess Masti mascot.
  *
  * This file is the TypeScript mirror of public/masti/<version>/manifest.json,
- * which scripts/masti/build-assets.mjs writes from the animation pack. The
- * test in __tests__/manifest.test.ts fails when the two drift, so a new pack
- * (a new version directory) is a change here plus a rebuild, never a hand
- * edit under public/.
+ * which scripts/masti/build-assets.mjs writes from a pose pack. The test in
+ * __tests__/manifest.test.ts fails when the two drift, so a new pack (a new
+ * version directory) is a change here plus a rebuild, never a hand edit
+ * under public/.
  *
- * Six moods, each an animated WebP (a ~1.2 s loop) and a still:
+ * v5 is the "static pose pack, final logo": twelve stills with the CM logo
+ * on the hoodie and no animations, so every mood rests on its still and
+ * MASTI_LOOP_MS is empty. The six moods the reducers produce keep their
+ * names and take the closest pose; the other six poses are new moods that
+ * no surface uses yet.
  *
- *   wave      hello, idle, "you're in the right place"
- *   excited   a solve, a brilliant move, a won game, a streak
- *   idea      a hint, an insight, a lesson, "here's the point"
- *   nervous   a miss, a risky move, a blunder incoming, a soft error
- *   defeated  a loss, three misses in a row, the coach being offline
- *   thinking  the engine running, the coach streaming, anything loading
- *             (the art carries its own "give me a minute" bubble, so do not
- *             put a second speech bubble next to it)
+ *   wave      hello, idle, "you're in the right place"   (talking, open hand)
+ *   excited   a solve, a brilliant move, a won game      (celebration jump)
+ *   idea      a hint, an insight, "here's the point"     (finger raised)
+ *   nervous   a miss, a risky move, a soft error          (confused shrug)
+ *   defeated  a loss, three misses in a row, coach offline (facepalm)
+ *   thinking  the engine running, anything loading        (chin stroke)
+ *   shocked   jaw dropped                                  (new, unused)
+ *   panic     losing his mind                              (new, unused)
+ *   pointing  pointing at the answer                       (new, unused)
+ *   smug      smirking, unimpressed                        (new, unused)
+ *   laughing  laughing out loud                            (new, unused)
+ *   banana    holding up a banana rating                   (new, unused)
  */
 
 export const MASTI_NAME = "Masti";
 export const MASTI_FULL_NAME = "Masti the Monkey";
-export const MASTI_VERSION = "v4";
+export const MASTI_VERSION = "v5";
 
 export const MASTI_MOODS = [
   "wave",
@@ -30,6 +38,12 @@ export const MASTI_MOODS = [
   "nervous",
   "defeated",
   "thinking",
+  "shocked",
+  "panic",
+  "pointing",
+  "smug",
+  "laughing",
+  "banana",
 ] as const;
 export type MastiMood = (typeof MASTI_MOODS)[number];
 
@@ -43,15 +57,18 @@ export function isMastiMood(value: unknown): value is MastiMood {
 /** Every asset is 4:5 (600x750 animations, 1122x1402 stills). width / height. */
 export const MASTI_ASPECT = 0.8;
 
-/** One loop of each animation, in ms (frames x delay, from the GIF headers). */
-export const MASTI_LOOP_MS: Record<MastiMood, number> = {
-  wave: 1200,
-  excited: 1200,
-  idea: 1220,
-  nervous: 1200,
-  defeated: 1200,
-  thinking: 1240,
-};
+/**
+ * One loop of each animation, in ms (frames x delay, from the GIF headers).
+ * A mood missing here has no animation in the current pack and always shows
+ * its still; mastiAnimSrc returns null for it. Empty for v5, which is stills
+ * only until an animated pack with the final logo lands.
+ */
+export const MASTI_LOOP_MS: Partial<Record<MastiMood, number>> = {};
+
+/** Whether the current pack animates this mood. */
+export function mastiAnimates(mood: MastiMood): boolean {
+  return MASTI_LOOP_MS[mood] !== undefined;
+}
 
 export type MastiAnimSize = "lg" | "sm";
 
@@ -76,10 +93,12 @@ export const MASTI_SM_MAX_CSS_PX = 140;
 
 const base = `/masti/${MASTI_VERSION}`;
 
+/** The animated WebP for a mood, or null when the pack has no animation for it. */
 export function mastiAnimSrc(
   mood: MastiMood,
   size: MastiAnimSize = "lg"
-): string {
+): string | null {
+  if (!mastiAnimates(mood)) return null;
   return `${base}/anim/${mood}${size === "sm" ? "-sm" : ""}.webp`;
 }
 export function mastiStillSrc(mood: MastiMood, scale: 1 | 2 = 1): string {
@@ -111,20 +130,32 @@ export interface MastiFace {
   scale: number;
 }
 export const MASTI_FACE: Record<MastiMood, MastiFace> = {
-  wave: { x: 0.485, y: 0.31, scale: 2.3 },
-  excited: { x: 0.485, y: 0.275, scale: 2.3 },
-  idea: { x: 0.5, y: 0.42, scale: 2.3 },
-  nervous: { x: 0.47, y: 0.3, scale: 2.3 },
-  defeated: { x: 0.46, y: 0.355, scale: 2.3 },
-  thinking: { x: 0.4, y: 0.285, scale: 2.3 },
+  wave: { x: 0.52, y: 0.3, scale: 2.3 },
+  excited: { x: 0.6, y: 0.33, scale: 2.3 },
+  idea: { x: 0.46, y: 0.3, scale: 2.3 },
+  nervous: { x: 0.5, y: 0.3, scale: 2.3 },
+  defeated: { x: 0.42, y: 0.35, scale: 2.3 },
+  thinking: { x: 0.46, y: 0.3, scale: 2.3 },
+  shocked: { x: 0.54, y: 0.27, scale: 2.3 },
+  panic: { x: 0.52, y: 0.33, scale: 2.3 },
+  pointing: { x: 0.47, y: 0.32, scale: 2.3 },
+  smug: { x: 0.47, y: 0.3, scale: 2.3 },
+  laughing: { x: 0.45, y: 0.33, scale: 2.3 },
+  banana: { x: 0.53, y: 0.28, scale: 2.3 },
 };
 
 /** Accessible names. Short, present tense, no punctuation. */
 export const MASTI_ALT: Record<MastiMood, string> = {
-  wave: `${MASTI_FULL_NAME} waving hello`,
+  wave: `${MASTI_FULL_NAME} saying hello`,
   excited: `${MASTI_FULL_NAME} jumping with excitement`,
   idea: `${MASTI_FULL_NAME} having an idea`,
-  nervous: `${MASTI_FULL_NAME} looking nervous`,
-  defeated: `${MASTI_FULL_NAME} dizzy after a knock`,
-  thinking: `${MASTI_FULL_NAME} reading a chess book`,
+  nervous: `${MASTI_FULL_NAME} giving a nervous shrug`,
+  defeated: `${MASTI_FULL_NAME} facepalming`,
+  thinking: `${MASTI_FULL_NAME} thinking it over`,
+  shocked: `${MASTI_FULL_NAME} with his jaw dropped`,
+  panic: `${MASTI_FULL_NAME} losing his mind`,
+  pointing: `${MASTI_FULL_NAME} pointing at the answer`,
+  smug: `${MASTI_FULL_NAME} smirking unimpressed`,
+  laughing: `${MASTI_FULL_NAME} laughing out loud`,
+  banana: `${MASTI_FULL_NAME} holding up a banana rating`,
 };

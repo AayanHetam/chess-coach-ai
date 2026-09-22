@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Box, Container, Typography } from "@mui/material";
+import { Masti } from "@/components/masti";
 import InternshipNav from "../InternshipNav";
 import InternshipFooter from "../InternshipFooter";
 import ApplyForm from "./ApplyForm";
@@ -25,6 +26,17 @@ export default function ApplyPage() {
         }}
       >
         <Container maxWidth="md">
+          {/* A small greeting in the header; the form below stays all
+              business. Own block so he does not sit inline with the overline. */}
+          <Box sx={{ mb: 1.5 }}>
+            <Masti
+              mood="wave"
+              size={80}
+              loops={2}
+              priority
+              label="Masti the Monkey, the Chess Masti coach, waving hello"
+            />
+          </Box>
           <Typography
             variant="overline"
             sx={{ color: "#FF6B35", fontWeight: 700, letterSpacing: 2, fontSize: "0.85rem" }}

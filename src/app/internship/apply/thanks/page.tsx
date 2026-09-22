@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Box, Button, Container, Typography } from "@mui/material";
-import { Icon } from "@iconify/react";
+import { Masti } from "@/components/masti";
 import InternshipNav from "../../InternshipNav";
 import InternshipFooter from "../../InternshipFooter";
 import { getAuthEnv } from "@/env";
@@ -30,20 +30,17 @@ export default function ThanksPage() {
         }}
       >
         <Container maxWidth="sm" sx={{ textAlign: "center" }}>
-          <Box
-            sx={{
-              display: "inline-flex",
-              width: 88,
-              height: 88,
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
-              alignItems: "center",
-              justifyContent: "center",
-              mb: 3,
-              boxShadow: "0 12px 32px rgba(255,107,53,0.35)",
-            }}
-          >
-            <Icon icon="mdi:check-bold" width={48} color="#FFFFFF" />
+          {/* The confirmation state: the generic check glyph becomes the
+              coach celebrating. The heading right under him says what
+              happened, so the figure carries a plain name, not a caption. */}
+          <Box sx={{ mb: 2 }}>
+            <Masti
+              mood="excited"
+              size={150}
+              loops={3}
+              priority
+              label="Masti the Monkey, the Chess Masti coach, jumping with excitement"
+            />
           </Box>
 
           <Typography

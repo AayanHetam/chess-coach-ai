@@ -95,7 +95,10 @@ describe("ChessgroundBoard dynamic imports", () => {
   it("finds the callsites it is meant to guard", () => {
     // A rename that made the scan match nothing would otherwise turn this
     // whole file into a test that asserts an empty list, and pass forever.
-    expect(callsites.length).toBeGreaterThanOrEqual(4);
+    // Three today: /analysis, the puzzle surfaces, and the ChessUSA preview.
+    // The landing page's puzzle-of-the-day board was the fourth until the
+    // 2026-09-22 home page cleanup removed that section.
+    expect(callsites.length).toBeGreaterThanOrEqual(3);
   });
 
   it.each(callsites.map((c) => c.file))(

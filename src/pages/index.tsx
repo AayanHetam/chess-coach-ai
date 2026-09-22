@@ -2628,57 +2628,6 @@ function GmBackedLine() {
 }
 
 /**
- * Source credits for third-party portraits. Rendered in the footer, not
- * under the section, so the endorsement reads clean where it matters and
- * the attribution still ships on the same page.
- */
-function TestimonialPhotoCredits() {
-  const credits = EXPERT_TESTIMONIALS.flatMap((t) =>
-    t.photo?.credit ? [{ id: t.id, name: t.name, credit: t.photo.credit }] : []
-  );
-  if (credits.length === 0) return null;
-  return (
-    <Typography
-      component="p"
-      sx={{
-        m: 0,
-        fontSize: "0.72rem",
-        lineHeight: 1.6,
-        color: "rgba(255,255,255,0.32)",
-        "& a": {
-          color: "inherit",
-          textDecorationColor: "rgba(255,255,255,0.2)",
-        },
-        "& a:hover": { color: "rgba(255,255,255,0.55)" },
-      }}
-    >
-      {credits.map(({ id, name, credit }) => (
-        <Box component="span" key={id} sx={{ display: "block" }}>
-          Photo of {name}: {credit.author ? `${credit.author}, ` : null}
-          {credit.license && credit.licenseUrl ? (
-            <>
-              <a
-                href={credit.licenseUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {credit.license}
-              </a>
-              ,{" "}
-            </>
-          ) : null}
-          via{" "}
-          <a href={credit.sourceUrl} target="_blank" rel="noopener noreferrer">
-            {credit.sourceName}
-          </a>
-          , cropped.
-        </Box>
-      ))}
-    </Typography>
-  );
-}
-
-/**
  * Circular portrait filling the card's left third. Falls back to the
  * person's initials when no photograph is on file, so both cards keep the
  * same geometry whether or not a photo has been supplied.
@@ -3075,9 +3024,6 @@ function Footer() {
             </Box>
           ))}
         </Stack>
-      </Box>
-      <Box sx={{ mt: 3, textAlign: { xs: "center", md: "left" } }}>
-        <TestimonialPhotoCredits />
       </Box>
     </Box>
   );

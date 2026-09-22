@@ -6,6 +6,7 @@ import {
   readFlushPayload,
   clearAllQuizStorage,
 } from "@/components/onboarding/quizStorage";
+import { postHandleClaim } from "@/lib/auth/handleClient";
 
 /**
  * Redirect-proof onboarding flush.
@@ -44,6 +45,25 @@ export function useQuizPersistence(): void {
           ...env.payload,
           onboardingCompletedAt: Date.now(),
         });
+
+        // The handle the quiz asked for. It could not be claimed pre-auth —
+        // the claim is a transaction on a session — so this is the first
+        // moment it can be. Awaited (unlike the rating lookup below) because
+        // the user lands on a page that addresses them by it.
+        //
+        // Failure is non-fatal by design: somebody may have taken the handle
+        // in the seconds since they typed it, and losing that race must not
+        // cost them the profile they just filled in. /profile's HandleCard
+        // renders for any account without a handle and asks again.
+        if (env.handle) {
+          const claim = await postHandleClaim(env.handle);
+          if (claim.status !== "ok" && claim.status !== "unchanged") {
+            console.warn(
+              `Onboarding handle claim did not stick (${claim.status}).`
+            );
+          }
+        }
+
         clearAllQuizStorage();
 
         // The quiz collected a username instead of asking for a rating, so the

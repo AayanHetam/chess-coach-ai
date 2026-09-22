@@ -4,13 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Button, TextField, Typography } from "@mui/material";
 import { AtSign, Check } from "lucide-react";
 import { checkHandle, HANDLE_MAX } from "@/lib/auth/handle";
+import {
+  fetchHandleAvailability,
+  postHandleClaim,
+} from "@/lib/auth/handleClient";
 
 /**
- * Claim a handle from /plan.
+ * Claim a handle from /profile.
  *
- * Existing accounts predate handles entirely, and the onboarding quiz is
- * one-time — the same trap the goal card fell into. Without a prompt here, the
- * feature would be reachable only by people who sign up after it ships.
+ * The onboarding quiz now asks for one, so new accounts arrive with it set and
+ * never see this card. It stays for the two cases the quiz cannot cover:
+ * accounts that predate the question entirely, and the signup whose claim lost
+ * the race to another user in the seconds after they submitted it.
  *
  * Dismissible on purpose: nothing about the product stops working without a
  * handle, so a wall would cost sessions to buy a field.
@@ -57,52 +62,31 @@ export default function HandleCard({
     setMessage(undefined);
     const seq = ++seqRef.current;
     const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `/api/profile/handle?handle=${encodeURIComponent(value)}`,
-          { credentials: "include" }
-        );
-        const data = (await res.json()) as {
-          available?: boolean;
-          message?: string;
-        };
-        if (seq !== seqRef.current) return;
-        setStatus(data.available ? "free" : "taken");
-        setMessage(data.available ? undefined : data.message);
-      } catch {
-        if (seq !== seqRef.current) return;
-        // Unknown, not "free" — claiming is the real gate anyway, and showing
-        // a green tick we cannot back up would be a small lie.
+      const { available, message: reason } =
+        await fetchHandleAvailability(value);
+      if (seq !== seqRef.current) return;
+      if (available === undefined) {
+        // Unknown, not "free". Claiming is the real gate anyway.
         setStatus("idle");
         setMessage(undefined);
+        return;
       }
+      setStatus(available ? "free" : "taken");
+      setMessage(available ? undefined : reason);
     }, 350);
     return () => clearTimeout(timer);
   }, [value]);
 
   const claim = useCallback(async () => {
     setStatus("saving");
-    try {
-      const res = await fetch("/api/profile/handle", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ handle: value }),
-      });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) {
-        // 409 means somebody claimed it between the check and the submit. The
-        // availability hint was always advisory; this is where it is settled.
-        setStatus(res.status === 409 ? "taken" : "invalid");
-        setMessage(data.error ?? "Could not claim that handle.");
-        return;
-      }
+    const result = await postHandleClaim(value);
+    if (result.status === "ok" || result.status === "unchanged") {
       setStatus("done");
       await onClaimed();
-    } catch {
-      setStatus("invalid");
-      setMessage("Could not reach the server. Try again.");
+      return;
     }
+    setStatus(result.status === "taken" ? "taken" : "invalid");
+    setMessage(result.message ?? "Could not claim that handle.");
   }, [value, onClaimed]);
 
   if (currentHandle || dismissed || status === "done") return null;

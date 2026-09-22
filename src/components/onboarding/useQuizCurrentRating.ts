@@ -39,6 +39,14 @@ export interface QuizRating {
   rawRating?: number;
   platform?: "lichess" | "chesscom";
   perf?: string;
+  /**
+   * Every ESTABLISHED control, raw platform numbers — what the per-control
+   * goal step prefills its "current" fields from. Only perfs with real games
+   * behind them appear here (see platformRatings.ts): a rapid box seeded with
+   * the 1500 Lichess reports for a control the player has never touched is a
+   * fabricated rating wearing the authority of "read from your account".
+   */
+  perfs?: { perf: string; rating: number; games: number }[];
 }
 
 export function useQuizCurrentRating(answers: QuizAnswers): QuizRating {
@@ -74,6 +82,7 @@ export function useQuizCurrentRating(answers: QuizAnswers): QuizRating {
           rawRating?: number;
           platform?: "lichess" | "chesscom";
           perf?: string;
+          perfs?: { perf: string; rating: number; games: number }[];
         };
         if (cancelled) return;
 
@@ -84,11 +93,14 @@ export function useQuizCurrentRating(answers: QuizAnswers): QuizRating {
             rawRating: data.rawRating,
             platform: data.platform,
             perf: data.perf,
+            perfs: data.perfs,
           });
         } else if (data.status === "not_found") {
           setState({ status: "not_found" });
         } else if (data.status === "no_established_rating") {
-          setState({ status: "no_established_rating" });
+          // No headline rating to project from, but individual controls may
+          // still be established — the goal form can use those.
+          setState({ status: "no_established_rating", perfs: data.perfs, platform });
         } else {
           setState({ status: "unavailable" });
         }

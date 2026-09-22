@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -13,12 +13,15 @@ import { useRouter } from "next/router";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import TargetIcon from "@mui/icons-material/GpsFixed";
 import { PageTitle } from "@/components/pageTitle";
 import { chessMastiDarkTheme } from "@/theme/chessMasti";
 import { SERIF_DISPLAY } from "@/theme/fonts";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import ProfileDialog from "@/components/auth/ProfileDialog";
+import HandleCard from "@/components/profile/HandleCard";
+import GoalSetterCard from "@/components/profile/GoalSetterCard";
 import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
 import { PanelCard } from "@/components/performance/PanelCard";
 import { PuzzlePerformanceCard } from "@/components/performance/PuzzlePerformanceCard";
@@ -30,6 +33,28 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Masti } from "@/components/masti";
 import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
 import { describeSavedGamesList } from "@/lib/performance/savedGamesList";
+import {
+  GOAL_PERFS,
+  hasCompleteGoal,
+  type GoalPatch,
+  type PerfGoals,
+} from "@/lib/curriculum/goalPatch";
+import { PERF_LABEL } from "@/lib/curriculum/perfGoalDrafts";
+import type { TimeCommitment } from "@/lib/curriculum/timeCommitment";
+
+/** One line describing a goal that is already set — per control where the
+ *  user set them that way, and the single overall target otherwise. */
+function goalSummary(
+  perfGoals: PerfGoals | undefined,
+  goalRating: number | undefined
+): string {
+  const parts = GOAL_PERFS.filter((perf) => perfGoals?.[perf]).map(
+    (perf) => `${PERF_LABEL[perf]} ${perfGoals![perf]!.goal}`
+  );
+  if (parts.length > 0) return `Aiming for ${parts.join(" · ")}.`;
+  if (typeof goalRating === "number") return `Aiming for ${goalRating}.`;
+  return "Set where you want each time control to be.";
+}
 
 /**
  * /profile — the performance dashboard.
@@ -48,15 +73,50 @@ import { describeSavedGamesList } from "@/lib/performance/savedGamesList";
  *
  * Opening-drill progress moved off this page too — it is real (written by
  * /openings) but out of scope here, which is games and puzzles.
+ *
+ * Your setup (2026-09-22): the handle prompt and the rating-goal setter moved
+ * here from /plan. The onboarding quiz now asks both questions at signup, so
+ * what is left is the door back in — changing a goal, and the accounts that
+ * predate the questions. They sit at the BOTTOM, below the numbers, for the
+ * same reason personalisation does: they configure the product rather than
+ * report on it, and neither belongs between the user and their performance.
  */
 export default function Profile() {
   const router = useRouter();
-  const { user, profile: account, loading: authLoading } = useAuth();
+  const {
+    user,
+    profile: account,
+    updateProfile,
+    refresh,
+    loading: authLoading,
+  } = useAuth();
   const { games: savedGames, deleteGame } = useGameDatabase(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showAllSaved, setShowAllSaved] = useState(false);
+  // Closed once a goal exists — the numbers they committed to are shown on
+  // /plan, and re-opening the whole form every visit would read as "this was
+  // never saved". #goals is the exception: /plan's "Change goal" promised the
+  // form, so landing on the summary and having to click again is one click
+  // this link exists to save.
+  const [editingGoal, setEditingGoal] = useState(false);
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (router.asPath.split("#")[1] === "goals") setEditingGoal(true);
+  }, [router.isReady, router.asPath]);
 
   const personalized = !!account?.onboardingCompletedAt;
+  // The same predicate GoalProgressCard and /plan use, so all three agree on
+  // what counts as "a goal is set".
+  const hasGoal = hasCompleteGoal(account);
+
+  const handleSaveGoal = useCallback(
+    async (patch: GoalPatch | null) => {
+      if (!patch) return;
+      await updateProfile(patch);
+      setEditingGoal(false);
+    },
+    [updateProfile]
+  );
 
   const handleDeleteSavedGame = useCallback(
     async (gameId: number) => {
@@ -406,9 +466,92 @@ export default function Profile() {
             </div>
           )}
 
-          {/* Personalisation — moved to the bottom. It configures the coach
-              rather than reporting performance, so it should not be the first
-              thing between the user and their numbers. */}
+          {/* ── Your setup ──────────────────────────────────────────────
+              Everything below configures the product rather than reporting on
+              it. It lives under the numbers on purpose. */}
+
+          {/* The quiz asks for a handle at signup, so a new account arrives
+              with one and never sees this. It stays for the accounts that
+              predate the question, and for the signup whose claim lost the
+              race in the seconds after they submitted it. Renders nothing
+              once a handle exists, or once dismissed. */}
+          {user && (
+            <HandleCard currentHandle={account?.handle} onClaimed={refresh} />
+          )}
+
+          {/* Rating goals. The anchor for the deep link /plan uses when it has
+              no goal to show. */}
+          {user && (
+            <Box id="goals" sx={{ scrollMarginTop: 96 }}>
+              {hasGoal && !editingGoal ? (
+                <PanelCard>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1.5,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <TargetIcon sx={{ color: "#FB923C", fontSize: 20 }} />
+                    <Box sx={{ flex: 1, minWidth: 220 }}>
+                      <Typography
+                        sx={{
+                          fontSize: "0.9rem",
+                          fontWeight: 700,
+                          color: "rgba(255,255,255,0.9)",
+                        }}
+                      >
+                        Your rating goals
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontSize: "0.78rem",
+                          color: "rgba(255,255,255,0.45)",
+                          mt: 0.25,
+                        }}
+                      >
+                        {goalSummary(account?.perfGoals, account?.goalRating)}
+                      </Typography>
+                    </Box>
+                    <Button
+                      onClick={() => setEditingGoal(true)}
+                      sx={{
+                        textTransform: "none",
+                        fontWeight: 600,
+                        fontSize: "0.8rem",
+                        borderRadius: "0.6rem",
+                        px: 2,
+                        whiteSpace: "nowrap",
+                        color: "#FB923C",
+                        border: "1px solid rgba(249,115,22,0.4)",
+                        "&:hover": { background: "rgba(249,115,22,0.1)" },
+                      }}
+                    >
+                      Change goal
+                    </Button>
+                  </Box>
+                </PanelCard>
+              ) : (
+                <GoalSetterCard
+                  anchorPerf={account?.platformRatingPerf}
+                  platform={account?.platformRatingSource}
+                  initialPerfGoals={account?.perfGoals}
+                  initialTime={
+                    account?.dailyTimeCommitment as TimeCommitment | undefined
+                  }
+                  initialDaysPerWeek={account?.practiceDaysPerWeek}
+                  onSave={handleSaveGoal}
+                  onCancel={hasGoal ? () => setEditingGoal(false) : undefined}
+                  saveLabel={hasGoal ? "Update my goal" : "Commit to my goal"}
+                />
+              )}
+            </Box>
+          )}
+
+          {/* Personalisation. It configures the coach rather than reporting
+              performance, so it should not be the first thing between the user
+              and their numbers. */}
           {user && (
             <PanelCard>
               <Box

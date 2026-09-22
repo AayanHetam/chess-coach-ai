@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { Box, Button, Typography } from "@mui/material";
@@ -8,12 +8,14 @@ import { useAtomValue } from "jotai";
 import {
   BookOpen,
   Check,
+  ChevronRight,
   ExternalLink,
   Flame,
   Microscope,
   Play,
   RotateCcw,
   Sparkles,
+  Target,
   Zap,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -53,10 +55,8 @@ import { NavPill } from "@/components/ui/NavPill";
 import RatingTrends from "@/components/plan/RatingTrends";
 import { CHARTED_PERFS, type ChartedPerf } from "@/lib/rating/ratingHistory";
 import GoalProgressCard from "@/components/plan/GoalProgressCard";
-import GoalSetterCard from "@/components/plan/GoalSetterCard";
-import HandleCard from "@/components/plan/HandleCard";
 import EmailCard from "@/components/plan/EmailCard";
-import { buildGoalPatch, hasCompleteGoal } from "@/lib/curriculum/goalPatch";
+import { hasCompleteGoal } from "@/lib/curriculum/goalPatch";
 import { NumberTicker } from "@/components/ui/NumberTicker";
 import SessionRunner from "@/components/curriculum/SessionRunner";
 import CurriculumMap from "@/components/curriculum/CurriculumMap";
@@ -138,31 +138,14 @@ function GlassCard({
 
 export default function PlanPage() {
   const router = useRouter();
-  const {
-    user,
-    profile,
-    updateProfile,
-    refresh,
-    loading: authLoading,
-  } = useAuth();
-  // Open when they ask to change an existing goal. A user with no goal at
-  // all gets the setter unconditionally — see the mount below.
-  const [editingGoal, setEditingGoal] = useState(false);
+  const { user, profile, refresh, loading: authLoading } = useAuth();
 
   // MUST match GoalProgressCard's own bail-out condition exactly. If this says
   // "has a goal" where the card says "not enough to render one", the user gets
-  // neither the progress card nor the setter — a blank space with no way out.
-  // Hence the shared predicate rather than two hand-written checks.
+  // neither the progress card nor the prompt that offers to set one — a blank
+  // space with no way out. Hence the shared predicate rather than two
+  // hand-written checks.
   const hasGoal = hasCompleteGoal(profile);
-
-  const handleSaveGoal = useCallback(
-    async (patch: ReturnType<typeof buildGoalPatch>) => {
-      if (!patch) return;
-      await updateProfile(patch);
-      setEditingGoal(false);
-    },
-    [updateProfile]
-  );
   // Without this the goal is scored against the puzzle rating's 1200 default
   // for anyone who never opened the profile dialog.
   useEnsurePlatformRating(profile, refresh);
@@ -485,27 +468,23 @@ export default function PlanPage() {
         </Box>
       </Box>
 
-      {/* Existing accounts predate handles and the quiz is one-time, so
-          without this the feature would only ever reach new signups. */}
+      {/* An account you cannot recover is a worse problem than a goal you have
+          not set, so this one prompt stays on the daily page. */}
       {user && (
-        <>
-          <HandleCard currentHandle={profile?.handle} onClaimed={refresh} />
-
-          {/* Above the goal card on purpose: an account you cannot recover is
-              a worse problem than a goal you have not set. */}
-          <EmailCard
-            currentEmail={profile?.email}
-            hasPassword={profile?.hasPassword ?? false}
-            onSaved={refresh}
-          />
-        </>
+        <EmailCard
+          currentEmail={profile?.email}
+          hasPassword={profile?.hasPassword ?? false}
+          onSaved={refresh}
+        />
       )}
 
-      {/* The promise, and whether they're keeping to it — or the means to make
-          one. A signed-in user with no goal gets the setter: the quiz is
-          one-time by design and was the only place goals were collected, so
-          without this every existing account is permanently unable to set one
-          and the progress card can never appear for them. */}
+      {/* The promise, and whether they're keeping to it.
+          SETTING the goal is not done here. The quiz asks at signup and
+          /profile is where it is changed afterwards — a settings form sitting
+          between the user and their daily plan, on every visit, is a page that
+          asks you to configure it before it will help you. What stays is the
+          progress card, which is plan content: "am I on pace today". The link
+          below is the way back to the form for anyone who has no goal yet. */}
       {user &&
         (hasGoal ? (
           <>
@@ -521,43 +500,55 @@ export default function PlanPage() {
               currentRating={goalCurrentRating}
               perfGoals={profile?.perfGoals}
             />
-            {editingGoal ? (
-              <GoalSetterCard
-                anchorPerf={profile?.platformRatingPerf}
-                platform={profile?.platformRatingSource}
-                initialPerfGoals={profile?.perfGoals}
-                initialTime={
-                  profile?.dailyTimeCommitment as TimeCommitment | undefined
-                }
-                initialDaysPerWeek={profile?.practiceDaysPerWeek}
-                onSave={handleSaveGoal}
-                onCancel={() => setEditingGoal(false)}
-              />
-            ) : (
-              <Box sx={{ mt: -1.5, mb: 2.5, textAlign: "right" }}>
-                <Button
-                  onClick={() => setEditingGoal(true)}
-                  sx={{
-                    textTransform: "none",
-                    fontSize: "0.75rem",
-                    color: "rgba(255,255,255,0.45)",
-                  }}
-                >
-                  Change goal
-                </Button>
-              </Box>
-            )}
+            <Box sx={{ mt: -1.5, mb: 2.5, textAlign: "right" }}>
+              <Button
+                onClick={() => router.push("/profile#goals")}
+                sx={{
+                  textTransform: "none",
+                  fontSize: "0.75rem",
+                  color: "rgba(255,255,255,0.45)",
+                }}
+              >
+                Change goal
+              </Button>
+            </Box>
           </>
         ) : (
-          <GoalSetterCard
-            anchorPerf={profile?.platformRatingPerf}
-            platform={profile?.platformRatingSource}
-            initialTime={
-              profile?.dailyTimeCommitment as TimeCommitment | undefined
-            }
-            initialDaysPerWeek={profile?.practiceDaysPerWeek}
-            onSave={handleSaveGoal}
-          />
+          <Box sx={{ mb: 2.5 }}>
+            <GlassCard
+              accent="gold"
+              onClick={() => router.push("/profile#goals")}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 2,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                  <Target size={20} color="#FB923C" />
+                  <Box>
+                    <Typography sx={{ color: "#fff", fontWeight: 700 }}>
+                      Set a rating goal
+                    </Typography>
+                    <Typography
+                      sx={{
+                        color: "rgba(255,255,255,0.55)",
+                        fontSize: "0.82rem",
+                      }}
+                    >
+                      Pick a target for bullet, blitz or rapid and we&apos;ll
+                      work out the date — and turn the daily session up to
+                      match.
+                    </Typography>
+                  </Box>
+                </Box>
+                <ChevronRight size={18} color="#FB923C" />
+              </Box>
+            </GlassCard>
+          </Box>
         ))}
 
       {/* Bullet / blitz / rapid trends, read from the linked platform account.

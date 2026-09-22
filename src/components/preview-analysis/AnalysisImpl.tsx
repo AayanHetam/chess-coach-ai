@@ -42,6 +42,7 @@ import {
 } from "@/components/preview-analysis/playerSide";
 import BookExitCard from "@/components/analysis/BookExitCard";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
+import { ChessgroundBoardPlaceholder } from "@/components/ui/ChessgroundBoardPlaceholder";
 import {
   BoardArrowToggles,
   DEFAULT_ARROW_TOGGLES,
@@ -190,7 +191,14 @@ import { setContext as setSentryContext } from "@sentry/react";
 const ChessgroundBoard = dynamic(
   () =>
     import("@/components/ui/ChessgroundBoard").then((m) => m.ChessgroundBoard),
-  { ssr: false }
+  {
+    ssr: false,
+    // Without this the board is zero pixels tall until its chunk arrives and
+    // then 306px tall in one frame, which took the whole panel below it with
+    // it. The placeholder is the board's own outer box, so the wrapper's
+    // `height: auto` resolves to the same square either way.
+    loading: () => <ChessgroundBoardPlaceholder />,
+  }
 );
 
 // ───────────────────────────────────────────────────────────────────────────────

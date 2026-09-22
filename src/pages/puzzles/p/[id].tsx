@@ -5,6 +5,7 @@ import NextLink from "next/link";
 import { Box, Button, Chip, Link as MuiLink, Typography } from "@mui/material";
 import { getPuzzleCorpus } from "@/lib/puzzle-feed/loadPuzzles";
 import {
+  BOARD_CAPTION_SX,
   InteractivePuzzleBoard,
   StaticBoardDiagram,
   toLandingPuzzle,
@@ -160,14 +161,10 @@ export default function PuzzlePermalinkPage({
                 label={`Chess puzzle rated ${puzzle.rating}, ${sideLabel} to move`}
                 eager
               />
+              {/* Shared with the interactive caption this is swapped for
+                  after mount — see BOARD_CAPTION_SX. */}
               <Typography
-                sx={{
-                  mt: 1,
-                  textAlign: "center",
-                  fontSize: "0.82rem",
-                  fontWeight: 600,
-                  color: "rgba(255,255,255,0.6)",
-                }}
+                sx={{ ...BOARD_CAPTION_SX, color: "rgba(255,255,255,0.6)" }}
               >
                 {sideLabel} to move
               </Typography>

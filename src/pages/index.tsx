@@ -46,13 +46,19 @@ import {
 import { HeroMastiStage } from "@/components/landing/HeroMasti";
 import { coachPersonalities } from "@/config/coachPersonalities";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
+import { ChessgroundBoardPlaceholder } from "@/components/ui/ChessgroundBoardPlaceholder";
 import { DEFAULT_PUZZLE_THEME } from "@/components/puzzle/boardTheme";
 import { surfaceAccent, type Accent } from "@/components/ui/accents";
 
 const ChessgroundBoard = dynamic(
   () =>
     import("@/components/ui/ChessgroundBoard").then((m) => m.ChessgroundBoard),
-  { ssr: false }
+  {
+    ssr: false,
+    // A board always occupies its square, even before its chunk lands —
+    // see ChessgroundBoardPlaceholder.
+    loading: () => <ChessgroundBoardPlaceholder />,
+  }
 );
 
 // Board square colors for the puzzle demo — the same tokens every puzzle

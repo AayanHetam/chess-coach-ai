@@ -96,6 +96,22 @@ test.describe("Masti on the coach surfaces", () => {
     ).toBeVisible();
     const header = page.getByTestId("coach-masti");
     await expect(header).toHaveAttribute("data-masti-avatar", "wave");
+    // Masti is the coach, by name.
+    await expect(page.getByTestId("coach-title")).toHaveText("Masti");
+    // Each attitude wears its own face: pick the Grandmaster and the header
+    // face leaves the wave for the thinking still. The chip lives in the
+    // coach panel, which the phone layout keeps behind a tab.
+    const chip = page.getByTestId("coach-attitude-chip");
+    if (await chip.isVisible()) {
+      await chip.click();
+      const menu = page.getByRole("menu");
+      await expect(menu.getByText("Masti's attitude")).toBeVisible();
+      await expect(menu.locator("[data-masti-avatar]")).toHaveCount(7);
+      await menu.getByText("Grandmaster Masti").click();
+      await expect(header).toHaveAttribute("data-masti-avatar", "thinking", {
+        timeout: 10_000,
+      });
+    }
   });
 
   test("puzzles: the coach wears Masti and reads while the answer is shown", async ({
@@ -113,6 +129,7 @@ test.describe("Masti on the coach surfaces", () => {
     await waitForStableFen(page);
     const face = page.getByTestId("puzzle-coach-masti");
     await expect(face).toHaveAttribute("data-masti-avatar", "wave");
+    await expect(page.getByTestId("puzzle-coach-title")).toHaveText("Masti");
     await page.getByRole("button", { name: /show solution/i }).click();
     // The demo drives the board, so he reads; when it is over, the answer
     // is an idea, never a celebration for a solution the user was shown.

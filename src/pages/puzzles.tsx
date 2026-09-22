@@ -1753,7 +1753,7 @@ export default function PreviewPuzzlesPage() {
   return (
     <ThemeProvider theme={puzzleTheme}>
       <Head>
-        <title>Puzzle Coach · Chess Masti</title>
+        <title>Puzzles with Masti · Chess Masti</title>
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content="#0A0907" />
         <style>{`
@@ -1882,7 +1882,7 @@ export default function PreviewPuzzlesPage() {
                     textTransform: "uppercase",
                   }}
                 >
-                  Puzzle Coach
+                  Masti&apos;s puzzle coach
                 </Typography>
               </Box>
               {feed.totalAvailable !== null && (

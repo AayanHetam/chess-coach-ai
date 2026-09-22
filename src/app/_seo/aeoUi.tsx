@@ -1,6 +1,7 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Link from "next/link";
+import { Masti, MastiAvatar } from "@/components/masti";
 
 export const AEO_TOKENS = {
   bg: "#08080f",
@@ -79,8 +80,17 @@ export function Breadcrumb({ here }: { here: string }) {
     <Box
       component="nav"
       aria-label="Breadcrumb"
-      sx={{ mb: 4, display: "flex", gap: 1, fontSize: "0.85rem", color: "rgba(255,255,255,0.4)" }}
+      sx={{
+        mb: 4,
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        fontSize: "0.85rem",
+        color: "rgba(255,255,255,0.4)",
+      }}
     >
+      {/* Masti's face marks every page as his, the way the brand mark does elsewhere. */}
+      <MastiAvatar mood="wave" size={20} ring={false} decorative />
       <Link href="/" style={{ color: "inherit", textDecoration: "none" }}>
         Chess Masti AI
       </Link>
@@ -123,20 +133,38 @@ export function ProseBlock({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * The headline row. On tablets and up Masti waves from the right of the H1,
+ * so every page in this family opens with the coach it is about; on phones
+ * the headline keeps the whole width. Decorative: the H1 already says it.
+ */
 export function H1({ children }: { children: React.ReactNode }) {
   return (
-    <Typography
-      component="h1"
+    <Box
       sx={{
-        fontSize: { xs: "2.5rem", md: "3.5rem" },
-        fontWeight: 800,
-        lineHeight: 1.1,
-        color: "#fff",
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "space-between",
+        gap: 3,
         mb: 3,
       }}
     >
-      {children}
-    </Typography>
+      <Typography
+        component="h1"
+        sx={{
+          fontSize: { xs: "2.5rem", md: "3.5rem" },
+          fontWeight: 800,
+          lineHeight: 1.1,
+          color: "#fff",
+          minWidth: 0,
+        }}
+      >
+        {children}
+      </Typography>
+      <Box sx={{ display: { xs: "none", md: "block" }, flexShrink: 0 }}>
+        <Masti mood="wave" size={132} loops={2} replayOnHover decorative />
+      </Box>
+    </Box>
   );
 }
 
@@ -173,6 +201,10 @@ export function CrossLinkCallout({
 export function FooterCta({ title, sub }: { title: string; sub: string }) {
   return (
     <Box sx={{ ...glassCard, textAlign: "center", borderColor: `${AEO_TOKENS.ember}22` }}>
+      {/* The closing ask is Masti's: he is the coach the button leads to. */}
+      <Box sx={{ display: "flex", justifyContent: "center", mb: 1.5 }}>
+        <Masti mood="excited" size={120} loops={2} replayOnHover decorative />
+      </Box>
       <Typography
         sx={{ fontWeight: 700, color: "#fff", fontSize: { xs: "1.25rem", md: "1.5rem" }, mb: 1 }}
       >

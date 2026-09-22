@@ -1420,7 +1420,7 @@ function GameActions({
       sx={{ flexShrink: 0 }}
     >
       {onOpenPalette && (
-        <Tooltip title="Command palette — jump to a move, flip, ask the coach">
+        <Tooltip title="Command palette — jump to a move, flip, ask Masti">
           <Box
             component="button"
             type="button"
@@ -1930,7 +1930,7 @@ function DrillBanner({
                   fontStyle: "italic",
                 }}
               >
-                Stuck? Skip ahead, or ask the coach
+                Stuck? Skip ahead, or ask Masti
                 {/* "on the right" only reads right on viewports where the
                     right-column tabs actually sit to the right of the
                     board. On xs the page stacks vertically so the coach
@@ -2999,7 +2999,7 @@ function MovesListPanel({
               </Box>
             )}
           </Box>
-          <Tooltip title="Ask the coach about this move">
+          <Tooltip title="Ask Masti about this move">
             <IconButton
               className="ask-coach-btn"
               size="small"
@@ -4608,8 +4608,9 @@ function CoachPanel({
               color: "rgba(255,255,255,0.94)",
               lineHeight: 1.1,
             }}
+            data-testid="coach-title"
           >
-            AI Coach
+            Masti
           </Typography>
           <Stack
             direction="row"
@@ -4641,9 +4642,10 @@ function CoachPanel({
             the 6 coach voices. Closes the `personalityId` parity gap
             with /api/enhanced-analysis (final field). */}
         {onChangePersonality && (
-          <Tooltip title={`Coach voice: ${personality.title}`}>
+          <Tooltip title={`Masti's attitude: ${personality.title}`}>
             <Box
               ref={personalityChipRef}
+              data-testid="coach-attitude-chip"
               onClick={() => setPersonalityMenuOpen((v) => !v)}
               sx={{
                 cursor: "pointer",
@@ -4662,27 +4664,25 @@ function CoachPanel({
                 },
               }}
             >
-              <Box
-                sx={{
-                  fontSize: "0.92rem",
-                  lineHeight: 1,
-                  filter: "drop-shadow(0 0 4px rgba(249,115,22,0.32))",
-                }}
-              >
-                {personality.avatar}
-              </Box>
+              {/* The attitude's own face, so the chip changes with the pick. */}
+              <MastiAvatar
+                mood={personality.mood}
+                size={18}
+                ring={false}
+                decorative
+              />
               <Typography
                 sx={{
                   fontSize: "0.68rem",
                   fontWeight: 700,
                   color: "rgba(255,255,255,0.78)",
-                  maxWidth: 90,
+                  maxWidth: 110,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
                 }}
               >
-                {personality.name}
+                {personality.title.replace(/^The /, "")}
               </Typography>
               <ChevronDown size={11} color="rgba(255,255,255,0.55)" />
             </Box>
@@ -4724,7 +4724,7 @@ function CoachPanel({
               color: "rgba(255,255,255,0.42)",
             }}
           >
-            Coach voice
+            Masti&apos;s attitude
           </Box>
           {coachPersonalities.map((p) => {
             const isActive = p.id === personality.id;
@@ -4754,18 +4754,15 @@ function CoachPanel({
                   },
                 }}
               >
-                <Box
-                  sx={{
-                    fontSize: "1.4rem",
-                    lineHeight: 1,
-                    pt: 0.15,
-                    filter: isActive
-                      ? "drop-shadow(0 0 6px rgba(249,115,22,0.45))"
-                      : "none",
-                  }}
-                >
-                  {p.avatar}
-                </Box>
+                {/* Same monkey, a different face per attitude. Stills: seven
+                    animated faces in one menu would be a zoo. */}
+                <MastiAvatar
+                  mood={p.mood}
+                  size={32}
+                  ring={isActive}
+                  decorative
+                  style={{ marginTop: 2 }}
+                />
                 <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Typography
                     sx={{
@@ -8897,7 +8894,7 @@ export default function AnalysisPage() {
         : moverColor === playerSide.color
           ? "player"
           : "opponent";
-    return analysisMood({
+    const mood = analysisMood({
       hasGame,
       thinking: coachPhase === "waiting",
       streaming: coachPhase === "streaming",
@@ -8909,6 +8906,10 @@ export default function AnalysisPage() {
       classification: cls ? String(cls) : null,
       mover,
     });
+    // At rest, each attitude wears its own face: Grandmaster Masti thinks,
+    // Blitz Masti is fired up, Coach Masti waves. Every other state
+    // (thinking, streaming, an error, a classification, a result) wins.
+    return mood === "wave" ? personality.mood : mood;
   }, [
     classifiedPositions,
     currentPly,
@@ -8919,6 +8920,7 @@ export default function AnalysisPage() {
     analysisActive,
     lastCoachError,
     displayTerminal,
+    personality.mood,
   ]);
   // Held for one animation loop so arrow-key scrubbing does not flicker.
   const coachMasti = useStickyMood(coachMood, 1400);
@@ -10572,14 +10574,14 @@ export default function AnalysisPage() {
         ],
       },
       {
-        heading: "Coach",
+        heading: "Masti",
         // Same dynamic list rendered as pills above the chat input.
         // Pinned "Analyze my game" comes through verbatim so the
         // command palette and the pill row stay in sync.
         items: coachSuggestions.map((s, i) => ({
           id: `ask-${i}`,
           label: s.text,
-          hint: s.pinned ? "Pinned · ask the coach" : "Ask the coach",
+          hint: s.pinned ? "Pinned · ask Masti" : "Ask Masti",
           icon: CommandIcons.Coach,
           onSelect: () => {
             setInput(s.text);

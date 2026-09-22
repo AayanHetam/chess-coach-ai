@@ -22,7 +22,7 @@ const FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 describe("cache key topology", () => {
   it("legacy keys carry v3.6 and NO contract marker", () => {
-    expect(PROMPT_VERSION).toBe("3.6");
+    expect(PROMPT_VERSION).toBe("3.7");
     const key = generateCacheKey(FEN, "intermediate", "analyze my game", "p", ["e4"]);
     expect(key.startsWith(`v${PROMPT_VERSION}|`)).toBe(true);
     expect(key.includes(CONTRACT_CACHE_PREFIX)).toBe(false);

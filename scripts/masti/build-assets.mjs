@@ -5,9 +5,10 @@
  *
  *   node scripts/masti/build-assets.mjs --src /path/to/unzipped-pack --version v5
  *
- * Each version names its pack in PACKS below: the file prefix, how a state's
- * still and (when the pack has them) animation are named, and which pack
- * pose each mood key draws from. Two kinds of pack exist:
+ * Each version names its pack in lib/packs.mjs (shared with the reels kit
+ * builder): how a state's still and (when the pack has them) animation are
+ * named, and which pack pose each mood key draws from. Two kinds of pack
+ * exist so far:
  *
  *   v4  "Masti Smooth Animations v4": per state a GIF (600x750, ~1.2 s loop)
  *       and a still (1122x1402 RGBA). Old hoodie logo.
@@ -15,8 +16,8 @@
  *       with the CM logo on the hoodie and no animations, so every state's
  *       manifest entry has anim: null and the site rests on the still. The
  *       pack's manifest also lists animated "masti-final-logo-masti-v4-*"
- *       GIFs for six of the moods; when those files arrive, a new version
- *       with a gif naming rule turns the bursts back on.
+ *       GIFs for six of the moods; v6 in lib/packs.mjs already names them
+ *       and turns the bursts back on once the files are in the pack dir.
  *
  * Output (all under public/masti/<version>/):
  *   anim/<state>.webp      animated WebP, 480 wide  (hero, feature spots)
@@ -47,6 +48,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { animatedFromRoll, keyedFrames } from "./lib/keyFrames.mjs";
+import { PACKS, packFiles } from "./lib/packs.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "..");
@@ -64,48 +66,13 @@ if (!src || !fs.existsSync(src)) {
   process.exit(1);
 }
 
-/**
- * Per version: how the pack names its files and which pose each mood key
- * draws from. `gif` is null for a pack without animations.
- */
-const PACKS = {
-  v4: {
-    still: (base) => `masti-v4-${base}-still.png`,
-    gif: (base) => `masti-v4-${base}-smooth-24f.gif`,
-    states: {
-      wave: "waving-hi",
-      excited: "excited",
-      idea: "idea",
-      nervous: "nervous",
-      defeated: "defeated",
-      thinking: "analysis-reading-give-me-a-minute",
-    },
-  },
-  v5: {
-    still: (base) => `masti-final-logo-masti-v2-${base}.png`,
-    gif: null,
-    states: {
-      wave: "01-talking-explaining",
-      excited: "05-celebration",
-      idea: "02-talking-emphasis",
-      nervous: "11-confused-shrug",
-      defeated: "06-facepalm",
-      thinking: "07-thinking",
-      shocked: "03-shocked-jaw-drop",
-      panic: "04-losing-his-mind",
-      pointing: "08-pointing-guess",
-      smug: "09-smug-unimpressed",
-      laughing: "10-laughing",
-      banana: "12-banana-rating",
-    },
-  },
-};
 const pack = PACKS[version];
 if (!pack) {
-  console.error(`no pack description for ${version}; add one to PACKS`);
+  console.error(`no pack description for ${version}; add one to lib/packs.mjs`);
   process.exit(1);
 }
 const STATES = pack.states;
+const hasAnim = Object.keys(STATES).some((key) => packFiles(pack, key).gif);
 
 const ANIM_LG = 480;
 const ANIM_SM = 240;
@@ -114,7 +81,7 @@ const STILL_SM = 320;
 
 const out = path.join(root, "public", "masti", version);
 fs.rmSync(out, { recursive: true, force: true });
-if (pack.gif) fs.mkdirSync(path.join(out, "anim"), { recursive: true });
+if (hasAnim) fs.mkdirSync(path.join(out, "anim"), { recursive: true });
 fs.mkdirSync(path.join(out, "still"), { recursive: true });
 
 const manifest = {
@@ -125,9 +92,11 @@ const manifest = {
 const bytes = (p) => fs.statSync(p).size;
 const kb = (p) => `${(bytes(p) / 1024).toFixed(0)}KB`;
 
-for (const [key, base] of Object.entries(STATES)) {
-  const pngIn = path.join(src, pack.still(base));
-  const gifIn = pack.gif ? path.join(src, pack.gif(base)) : null;
+for (const key of Object.keys(STATES)) {
+  const files = packFiles(pack, key);
+  const base = files.source;
+  const pngIn = path.join(src, files.still);
+  const gifIn = files.gif ? path.join(src, files.gif) : null;
   for (const f of [gifIn, pngIn]) {
     if (f && !fs.existsSync(f)) {
       console.error(`missing ${f}`);

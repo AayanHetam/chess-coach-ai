@@ -5,7 +5,9 @@ Masti the Monkey for the Instagram reels and carousels built by
 `assets/` there. Nothing here needs a build step, a font, or the network.
 
 Rebuild from a new animation pack with
-`node scripts/masti/build-reels-kit.mjs --src <unzipped pack> --version v5`
+`node scripts/masti/build-reels-kit.mjs --src <unzipped pack> --version v6`
+(once the animated final-logo files are in the pack directory; the kit is
+built from v4 until then, since the v5 pose pack has no animations)
 (this repo); never edit the sprite sheets by hand. The rebuild also rewrites
 the `data-frames` / `data-delay` attributes in `overlay/masti-overlay.html`
 and `demo/reel-1080x1920.html` from the new pack, so the partial and the

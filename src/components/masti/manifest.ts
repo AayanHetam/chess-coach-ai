@@ -9,22 +9,22 @@
  *
  * v5 is the "static pose pack, final logo": twelve stills with the CM logo
  * on the hoodie and no animations, so every mood rests on its still and
- * MASTI_LOOP_MS is empty. The six moods the reducers produce keep their
- * names and take the closest pose; the other six poses are new moods that
- * no surface uses yet.
+ * MASTI_LOOP_MS is empty. The original six moods keep their names and take
+ * the closest pose; the other six poses are the moods mood.ts hands out for
+ * the moments below.
  *
- *   wave      hello, idle, "you're in the right place"   (talking, open hand)
- *   excited   a solve, a brilliant move, a won game      (celebration jump)
- *   idea      a hint, an insight, "here's the point"     (finger raised)
- *   nervous   a miss, a risky move, a soft error          (confused shrug)
- *   defeated  a loss, three misses in a row, coach offline (facepalm)
+ *   wave      hello, idle, "you're in the right place"    (talking, open hand)
+ *   excited   a clean solve, your brilliancy, a won game  (celebration jump)
+ *   idea      an insight, a revealed answer, a draw       (finger raised)
+ *   nervous   a miss, your mistake, a soft error          (confused shrug)
+ *   defeated  a loss, your blunder, the coach offline     (facepalm)
  *   thinking  the engine running, anything loading        (chin stroke)
- *   shocked   jaw dropped                                  (new, unused)
- *   panic     losing his mind                              (new, unused)
- *   pointing  pointing at the answer                       (new, unused)
- *   smug      smirking, unimpressed                        (new, unused)
- *   laughing  laughing out loud                            (new, unused)
- *   banana    holding up a banana rating                   (new, unused)
+ *   shocked   a blunder with no side known, their brilliancy (jaw drop)
+ *   panic     the third puzzle miss in a row              (losing his mind)
+ *   pointing  a hint, their blunder, Commentator at rest  (pointing)
+ *   smug      Rival at rest                               (smirk)
+ *   laughing  Buddy at rest                               (laughing)
+ *   banana    a rating gain in the session recap          (banana rating)
  */
 
 export const MASTI_NAME = "Masti";

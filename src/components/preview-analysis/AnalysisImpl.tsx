@@ -8099,7 +8099,18 @@ export default function AnalysisPage() {
   // cache so Stockfish re-runs. allMoves derives from loadedGame so
   // depending on .length alone misses the case where a different game of
   // the same length is loaded.
+  // For one commit after a load or a settings change, `gameEvalFull` still
+  // belongs to the PREVIOUS game or depth: the reset effect below only
+  // schedules the clear, while the save effect further down runs in the
+  // same commit with the new `cacheKey` and the old eval, and used to write
+  // the previous sweep under this game's key. A game with the same number
+  // of plies then restored it as its own, evaluations, classifications,
+  // accuracy and all. The ref flips synchronously here and back at the two
+  // places a sweep lands, so the save effect can tell a stale eval from a
+  // landed one.
+  const gameEvalStaleRef = useRef(false);
   useEffect(() => {
+    gameEvalStaleRef.current = true;
     setEnginePositions(null);
     setGameEvalFull(null);
     setAnalysisProgress(0);
@@ -8140,6 +8151,7 @@ export default function AnalysisPage() {
       // format handling.
       const restored = parseCachedEval(stored, allMoves.length + 1);
       if (restored) {
+        gameEvalStaleRef.current = false;
         setEnginePositions(restored.positions);
         if (restored.gameEval) setGameEvalFull(restored.gameEval);
         setAnalysisProgress(100);
@@ -8160,6 +8172,8 @@ export default function AnalysisPage() {
   // full entry with a partial one.
   useEffect(() => {
     if (!cacheKey || !gameEvalFull) return;
+    // Not this game's sweep yet (see gameEvalStaleRef above).
+    if (gameEvalStaleRef.current) return;
     if (typeof window === "undefined") return;
     try {
       window.sessionStorage.setItem(cacheKey, JSON.stringify(gameEvalFull));
@@ -8258,6 +8272,7 @@ export default function AnalysisPage() {
       })
       .then((result) => {
         if (cancelled) return;
+        gameEvalStaleRef.current = false;
         setEnginePositions(result.positions);
         setGameEvalFull(result);
         setAnalysisProgress(100);

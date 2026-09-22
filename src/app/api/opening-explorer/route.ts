@@ -4,6 +4,7 @@ import {
   curatedPositionCount,
   masterCorpusMeta,
 } from "@/data/master-openings";
+import { lookupOpeningByFen } from "@/lib/master/openingName";
 
 /**
  * Server-side proxy for "what do the masters / top engines play here?" data.
@@ -35,14 +36,21 @@ import {
  *   {
  *     "moves": [
  *       { "uci": "e2e4", "san": "e4", "count": N, "white": N, "draws": N,
- *         "black": N, "eval"?: cp, "rank"?: 0..3, "winrate"?: pct }
+ *         "black": N, "eval"?: cp, "rank"?: 0..2, "winrate"?: pct }
  *     ],
- *     "topGames": [{ uci, white: {name,rating}, black: {name,rating}, year, winner }],
- *     "opening"?: { eco, name },
+ *     "total"?: N,                // games that reached the position (tree)
+ *     "opening"?: { eco, name },  // when the position is a named one
  *     "source"?: "tree" | "lichess" | "chessdb",   // absent when out of book
  *     "hasGameCounts": boolean,
  *     "indexedPositions"?: N, "corpus"?: {...}
  *   }
+ *
+ * `eval` and `winrate` are ALWAYS from White's side, like every other
+ * evaluation in the app. chessdb reports both from the side to move (checked
+ * against a position with Black to move and White a knight up: score -274),
+ * so this route flips them when Black is to move. The previous version
+ * passed them through and labelled them "white POV", which inverted the sign
+ * of every engine row on every Black-to-move position.
  */
 
 interface ChessdbMove {
@@ -130,18 +138,21 @@ async function queryChessdb(fen: string, limit: number) {
   // They were a rounding of an engine's evaluation dressed as game
   // statistics. The client now renders this source as engine data, so the
   // fields are gone rather than faked.
+  // Side-to-move perspective → White's perspective (see the header).
+  const blackToMove = fen.split(" ")[1] === "b";
   const moves = top.map((m) => ({
     uci: m.uci,
     san: "",
-    eval: m.score,
+    eval: blackToMove ? -m.score : m.score,
     rank: m.rank,
-    winrate: m.winrate,
+    winrate: blackToMove
+      ? Math.round((100 - m.winrate) * 100) / 100
+      : m.winrate,
     popularity: m.popularity,
   }));
 
   return {
     moves,
-    topGames: [] as unknown[],
     source: "chessdb" as const,
     /** No game counts exist for this source — the client must not imply any. */
     hasGameCounts: false,
@@ -183,11 +194,15 @@ export async function GET(req: NextRequest) {
   //    corpus. `corpus` travels with the payload so the UI can name what the
   //    numbers are drawn from instead of implying all of chess history.
   const indexed = lookupCuratedPosition(fen);
+  const opening = lookupOpeningByFen(fen) ?? undefined;
   if (indexed && indexed.moves.length > 0) {
     return Response.json(
       {
         moves: indexed.moves.slice(0, limit),
-        topGames: [],
+        // Games that ARRIVED here, which the capped move list does not add up
+        // to. Shares are computed against this, never against the rows.
+        total: indexed.arrivals,
+        opening,
         source: "tree" as const,
         hasGameCounts: true,
         indexedPositions: curatedPositionCount(),
@@ -235,9 +250,10 @@ export async function GET(req: NextRequest) {
     );
   }
   if (engine) {
-    return Response.json(engine, {
-      headers: { "cache-control": "public, max-age=300, s-maxage=300" },
-    });
+    return Response.json(
+      { ...engine, opening },
+      { headers: { "cache-control": "public, max-age=300, s-maxage=300" } }
+    );
   }
 
   // 4. Nobody knows this position: not the tree, not chessdb. Out of book is
@@ -246,7 +262,7 @@ export async function GET(req: NextRequest) {
   return Response.json(
     {
       moves: [],
-      topGames: [],
+      opening,
       hasGameCounts: false,
       indexedPositions: curatedPositionCount(),
       corpus: masterCorpusMeta(),

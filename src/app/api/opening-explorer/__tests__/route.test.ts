@@ -47,7 +47,25 @@ describe("GET /api/opening-explorer", () => {
     expect(body.moves[0]).toMatchObject({ san: "e4", uci: "e2e4" });
     expect(body.moves[0].count).toBeGreaterThan(0);
     expect(body.corpus.games).toBeGreaterThan(0);
+    // Games that reached the position, for shares: at least the rows shown.
+    const shown = body.moves.reduce(
+      (sum: number, m: { count: number }) => sum + m.count,
+      0
+    );
+    expect(body.total).toBeGreaterThanOrEqual(shown);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("names the opening when the position is a named one", async () => {
+    stubChessdb("unknown");
+    const res = await get(
+      "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+      "10"
+    );
+    const body = await res.json();
+    expect(body.source).toBe("tree");
+    expect(body.opening?.name).toMatch(/Sicilian/);
+    expect(body.opening?.eco).toMatch(/^B\d\d$/);
   });
 
   it("answers out of book with 200 and no rows when nobody knows the position", async () => {
@@ -70,14 +88,43 @@ describe("GET /api/opening-explorer", () => {
         "move:d2d4,score:30,rank:2,note:! (30-20),winrate:52.90|" +
         "move:a2a4,score:-40,rank:0,note:? (30-01),winrate:46.10"
     );
+    // NOWHERE has White to move, so chessdb's numbers are already White's.
     const res = await get(NOWHERE, "2");
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.source).toBe("chessdb");
     expect(body.hasGameCounts).toBe(false);
     expect(body.moves).toHaveLength(2);
-    expect(body.moves[0]).toMatchObject({ uci: "e2e4", eval: 35, rank: 2 });
+    expect(body.moves[0]).toMatchObject({
+      uci: "e2e4",
+      eval: 35,
+      rank: 2,
+      winrate: 53.4,
+    });
     expect(body.moves[0].count).toBeUndefined();
+  });
+
+  it("flips chessdb's side-to-move eval to White's side when Black is to move", async () => {
+    // Off the tree with Black to move. The numbers are what chessdb really
+    // answers for 1.e4 e5 2.Nf3 f6 3.Nxe5 (checked 2026-09-22: score:-274,
+    // Black's view of a knight down), which the app's convention flips.
+    stubChessdb(
+      "move:g8e7,score:-274,rank:0,note:? (32-01),winrate:30.36|" +
+        "move:d7d5,score:-352,rank:0,note:? (36-01),winrate:25.60"
+    );
+    const res = await get(NOWHERE.replace(" w ", " b "), "10");
+    const body = await res.json();
+    expect(body.source).toBe("chessdb");
+    expect(body.moves[0]).toMatchObject({
+      uci: "g8e7",
+      eval: 274,
+      winrate: 69.64,
+    });
+    expect(body.moves[1]).toMatchObject({
+      uci: "d7d5",
+      eval: 352,
+      winrate: 74.4,
+    });
   });
 
   it("reports an outage as 502 when chessdb cannot be reached", async () => {

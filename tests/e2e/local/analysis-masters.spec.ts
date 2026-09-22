@@ -72,8 +72,12 @@ test("past the book the tab says so, not that the database is down", async ({
   });
   await expect(panel.getByText(/unavailable|unreachable/)).toHaveCount(0);
   await expect(panel.getByTestId("master-candidate")).toHaveCount(0);
-  // The footer still names what was searched.
-  await expect(panel.getByText(/3M games · Lichess Elite/)).toBeVisible();
+  // The header still says which position this is, from the FEN itself.
+  await expect(panel.getByTestId("master-games-subtitle")).toHaveText(
+    "Move 27 · White to move"
+  );
+  // And the footer names what was searched.
+  await expect(panel.getByText(/3\.4M games · Lichess Elite/)).toBeVisible();
 });
 
 test("a click shows the new position's rows and never the old position's", async ({
@@ -95,6 +99,20 @@ test("a click shows the new position's rows and never the old position's", async
   // Black to move after 1.e4 c5 2.Nf3: d6, Nc6 and e6 are the book.
   const d6 = rows.filter({ hasText: /^d6/ });
   await expect(d6).toBeVisible({ timeout: 15_000 });
+  // The header names the opening, the summary counts the games that got
+  // here, and every master row carries a result bar with the split in its
+  // accessible name.
+  await expect(panel.getByTestId("master-games-subtitle")).toContainText(
+    /Sicilian/
+  );
+  await expect(panel.getByTestId("master-games-summary")).toContainText(
+    /games reached this position/
+  );
+  await expect(
+    d6.getByRole("img", {
+      name: /White wins \d+% · Draws \d+% · Black wins \d+%/,
+    })
+  ).toBeVisible();
   await d6.click();
 
   // The board has left the mainline and says so.
@@ -120,13 +138,62 @@ test("sending a line to the coach shows the coach", async ({ page }) => {
   const d6 = panel.getByTestId("master-candidate").filter({ hasText: /^d6/ });
   await expect(d6).toBeVisible({ timeout: 15_000 });
 
-  await d6
-    .getByRole("button", { name: /send this line to the coach/i })
-    .click();
+  await d6.getByRole("button", { name: /ask masti about d6/i }).click();
 
   // The Coach tab is up, carrying the question that was just sent.
   await expect(
     page.getByText(/Tell me about d6 from this position/)
   ).toBeVisible({ timeout: 10_000 });
   await expect(panel).toHaveCount(0);
+});
+
+test("off the tree the rows are engine picks and say so", async ({ page }) => {
+  await acceptConsent(page);
+  await stubMaiaHealthy(page);
+  // The route's chessdb answer (its unit test pins the side flip); Black to
+  // move, so these evals are already White's.
+  await page.route("**/api/opening-explorer**", (r) =>
+    r.fulfill({
+      json: {
+        source: "chessdb",
+        hasGameCounts: false,
+        moves: [
+          { uci: "d8f6", eval: -4, rank: 2, winrate: 49.7 },
+          { uci: "g8f6", eval: 0, rank: 1, winrate: 50 },
+          { uci: "d8e7", eval: 27, rank: 0, winrate: 52.04 },
+        ],
+        corpus: {
+          games: 3_439_091,
+          positions: 99_836,
+          maxPlies: 24,
+          minGames: 50,
+          source: "Lichess Elite",
+          generatedAt: "2026-08-24",
+        },
+      },
+    })
+  );
+  const panel = await openMastersTab(
+    page,
+    // 1.e4 e5 2.Nf3 Nc6 3.Bc4 ... no: the Scholar's-mate try, Black to move.
+    "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR b KQkq - 3 3"
+  );
+  await expect(panel.getByText("Engine analysis", { exact: true })).toBeVisible(
+    {
+      timeout: 15_000,
+    }
+  );
+  await expect(panel.getByTestId("master-games-engine-notice")).toBeVisible();
+  const rows = panel.getByTestId("master-candidate");
+  await expect(rows).toHaveCount(3);
+  // SAN is derived from the position; the eval is White's; the best row for
+  // the mover (Black) is the LOWEST eval and reads "best", the rest a loss.
+  await expect(rows.nth(0)).toContainText("Qf6");
+  await expect(rows.nth(0)).toContainText("-0.04");
+  await expect(rows.nth(0)).toContainText("best");
+  await expect(rows.nth(0)).toContainText("Top choice");
+  await expect(rows.nth(2)).toContainText("Qe7");
+  await expect(rows.nth(2)).toContainText("−0.31");
+  await expect(rows.nth(2)).toContainText("Inferior");
+  await expect(panel.getByTestId("master-games-summary")).toHaveCount(0);
 });

@@ -20,12 +20,12 @@ import {
 import { ThemeProvider, createTheme, useTheme } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  MasterGamesTakeover,
+  MasterGamesPanel,
   buildCandidatesFromApi,
   masterLineInsight,
   replayPreviewMove,
   type MasterCandidate,
-} from "@/components/ui/MasterGamesTakeover";
+} from "@/components/ui/MasterGamesPanel";
 import {
   findAllMoveRefs,
   resolveMoveRef,
@@ -11055,13 +11055,12 @@ export default function AnalysisPage() {
                         }}
                         style={{ position: "absolute", inset: 0 }}
                       >
-                        <MasterGamesTakeover
+                        <MasterGamesPanel
                           fen={displayFen}
                           ply={currentPly}
                           playedSan={playedSanAtPly}
                           onPreviewMove={handleTakeoverPreviewMove}
                           onSendToCoach={handleTakeoverSendToCoach}
-                          onRevert={() => handleTabChange("coach")}
                           onCandidatesUpdate={setTakeoverCandidates}
                           moves={allMoves}
                           onJumpToPly={setCurrentPly}

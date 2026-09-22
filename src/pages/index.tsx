@@ -333,7 +333,7 @@ export function Hero() {
       aria-labelledby="hero-heading"
       sx={{
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", md: "0.92fr 1.08fr" },
+        gridTemplateColumns: { xs: "1fr", md: "1.08fr 0.92fr" },
         alignItems: "center",
         columnGap: { md: 5, lg: 7 },
         rowGap: { xs: 1.5 },
@@ -341,13 +341,6 @@ export function Hero() {
         pb: { xs: 5, md: 8 },
       }}
     >
-      {/* Masti first. He is the face of the brand, so the first thing on
-          every screen is him: on a phone the stage sits above the headline,
-          from md up he stands big beside the copy. Either way the primary
-          CTA lands above the fold (masti.spec asserts it at 390x664 and at
-          1280x720). */}
-      <HeroMastiStage />
-
       <Box
         sx={{
           display: "flex",
@@ -496,6 +489,12 @@ export function Hero() {
         </Stack>
       </motion.div>
       </Box>
+
+      {/* The headline leads and Masti follows: on a phone the stage sits
+          under the copy, from md up he stands big to its right. Either way
+          the primary CTA lands above the fold (masti.spec asserts it at
+          390x664 and at 1280x720). */}
+      <HeroMastiStage />
     </Box>
   );
 }

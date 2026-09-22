@@ -7,11 +7,11 @@ import { Masti, MASTI_NAME } from "@/components/masti";
 /**
  * Masti on the landing page: the stage at the top of the hero.
  *
- * He is the face of the brand, so he is the first thing on the first screen
- * on every viewport. On a phone he stands at the top with his greeting in a
- * bubble beside him and the headline follows underneath; on a tablet or a
- * desktop he stands big beside the copy with the greeting above his head,
- * so the primary call to action stays above a 720px fold. Purely
+ * He is the face of the brand and shares the first screen with the headline
+ * on every viewport. The copy leads: on a phone he stands under it with his
+ * greeting in a bubble beside him; on a tablet or a desktop he stands big to
+ * its right with the greeting above his head, so the primary call to action
+ * stays above a 720px fold. Purely
  * presentational: no chess state, and no sign-in ask, so nothing here needs
  * SIGN_IN_PROPS and the partner preview links show it unchanged.
  *

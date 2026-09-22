@@ -20,7 +20,7 @@ import { Menu as MenuIcon, Heart, LogOut, User, Settings } from "lucide-react";
 import { surfaceAccent } from "./accents";
 import { AppDrawer, type NavId } from "./AppDrawer";
 import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
-import { MastiAvatar } from "@/components/masti";
+import { BrandMark } from "./BrandMark";
 import { PartnerSlotPages } from "@/components/ads/PartnerSlotPages";
 import { useAuth } from "@/contexts/AuthContext";
 import ProfileDialog from "@/components/auth/ProfileDialog";
@@ -190,11 +190,9 @@ export function NavPill({
             pr: { xs: 0, md: 1 },
           }}
         >
-          {/* Masti is the brand mark: the same face crop the coach header and
-              the favicon use, resting (avatars do not animate, and 28px is
-              under the animation floor anyway). The link carries the
+          {/* The logo, the same mark as the favicon. The link carries the
               accessible name because the wordmark is hidden on phones. */}
-          <MastiAvatar mood="wave" size={28} decorative />
+          <BrandMark size={28} />
           <Box
             sx={{
               display: hasSlots

@@ -29,6 +29,7 @@ import { Chessboard } from "react-chessboard";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PageTitle } from "@/components/pageTitle";
+import { Masti, type MastiMood } from "@/components/masti";
 import {
   buildExport,
   CalibrationData,
@@ -195,6 +196,21 @@ export default function CalibratePage() {
   const current = items && items.length > 0 ? items[idx] : null;
   const total = items?.length ?? 0;
 
+  // Masti's face, from state the page already tracks: he reads while the
+  // packet loads (the loading block below carries that figure), is dizzy when
+  // the fetch fails or the packet is empty, celebrates once every item is
+  // fully rated, and otherwise holds the "here's the point" pose while the
+  // rater works. scoreMood does not apply here: the grades are helpfulness
+  // scores a human enters, not right-or-wrong answers.
+  const loading = !items && !loadError;
+  const allRated = total > 0 && fullyRatedCount === total;
+  const headerMood: MastiMood =
+    loadError || (items !== null && total === 0)
+      ? "defeated"
+      : allRated
+        ? "excited"
+        : "idea";
+
   return (
     <>
       <PageTitle title="Coach Calibration" />
@@ -209,9 +225,24 @@ export default function CalibratePage() {
             mb: 3,
           }}
         >
-          <Typography variant="h4" sx={{ fontWeight: 700, mr: "auto" }}>
-            Coach Calibration
-          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              mr: "auto",
+              minWidth: 0,
+            }}
+          >
+            {/* Hidden while loading so the reading figure below is the only
+                animated Masti on screen. */}
+            {!loading && (
+              <Masti mood={headerMood} size={64} loops={2} decorative />
+            )}
+            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+              Coach Calibration
+            </Typography>
+          </Box>
           <TextField
             label="Rater name"
             size="small"
@@ -241,9 +272,25 @@ export default function CalibratePage() {
           </Alert>
         )}
 
-        {!items && !loadError && (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-            <CircularProgress />
+        {loading && (
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 2,
+              py: 8,
+            }}
+          >
+            {/* The thinking art carries its own "give me a minute" bubble and
+                plays until the packet lands. */}
+            <Masti
+              mood="thinking"
+              size={120}
+              loops={0}
+              label="Masti the Monkey reading while the calibration packet loads"
+            />
+            <CircularProgress size={22} />
           </Box>
         )}
 

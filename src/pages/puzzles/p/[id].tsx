@@ -10,6 +10,7 @@ import {
   toLandingPuzzle,
   type LandingPuzzle,
 } from "@/components/puzzle/landingPuzzle";
+import { MastiSays } from "@/components/masti";
 
 /**
  * /puzzles/p/<id> — permalink to ONE puzzle from the bundled Lichess
@@ -125,10 +126,20 @@ export default function PuzzlePermalinkPage({
             }}
           />
         </Box>
-        <Typography sx={{ color: "rgba(255,255,255,0.6)", mb: 2.5 }}>
-          {sideLabel} to move. Tap or drag a piece — the board tells you if
-          you found it.
-        </Typography>
+        {/* Masti carries the intro, above the card and never over the board;
+            the status line under the board wears his face once it mounts. */}
+        <Box sx={{ mb: 2.5 }}>
+          <MastiSays
+            mood="wave"
+            size={72}
+            priority
+            maxWidth={420}
+            data-testid="puzzle-permalink-masti"
+          >
+            {sideLabel} to move. Tap or drag a piece and I&apos;ll tell you the
+            moment you find it.
+          </MastiSays>
+        </Box>
 
         <Box
           sx={{
@@ -192,7 +203,7 @@ export default function PuzzlePermalinkPage({
             href="/puzzles"
             sx={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.7)" }}
           >
-            Train endless puzzles in the Puzzle Coach
+            Train endless puzzles with Masti
           </MuiLink>
         </Box>
 

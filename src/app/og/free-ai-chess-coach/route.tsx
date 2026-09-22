@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
+import { brandMarkOgDataUri } from "@/lib/og/brand";
 import { mastiOgDataUri } from "@/lib/og/masti";
 
 /**
@@ -14,6 +15,7 @@ export const runtime = "nodejs";
 
 export async function GET(_req: NextRequest) {
   const masti = mastiOgDataUri("wave");
+  const brand = brandMarkOgDataUri();
   return new ImageResponse(
     (
       <div
@@ -62,21 +64,10 @@ export async function GET(_req: NextRequest) {
             marginBottom: 40,
           }}
         >
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: "rgba(255,107,43,0.2)",
-              border: "1px solid rgba(255,107,43,0.5)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 20,
-            }}
-          >
-            ♟
-          </div>
+          {brand && (
+            // eslint-disable-next-line @next/next/no-img-element -- satori draws a plain img from a data URI
+            <img src={brand} alt="" width={40} height={40} />
+          )}
           <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 20, letterSpacing: "0.04em" }}>
             chessmasti.com
           </span>

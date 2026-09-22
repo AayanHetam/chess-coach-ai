@@ -2,7 +2,7 @@
 
 import { Box, Button, Container, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
-import { MastiAvatar } from "@/components/masti";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 export default function InternshipNav() {
   const [scrolled, setScrolled] = useState(false);
@@ -43,7 +43,7 @@ export default function InternshipNav() {
             textDecoration: "none",
           }}
         >
-          <MastiAvatar mood="wave" size={32} decorative />
+          <BrandMark size={32} />
           <Typography
             variant="h6"
             sx={{

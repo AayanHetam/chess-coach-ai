@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { brandMarkOgDataUri } from "@/lib/og/brand";
 import { mastiOgDataUri } from "@/lib/og/masti";
 import { Chess } from "chess.js";
 import { getGameShare } from "@/lib/gameShares";
@@ -82,6 +83,7 @@ export async function GET(
   const side = sideToMoveFromFen(fen);
 
   const masti = mastiOgDataUri("wave");
+  const brand = brandMarkOgDataUri();
 
   return new ImageResponse(
     (
@@ -268,7 +270,21 @@ export async function GET(
           }}
         >
           <span>Try the free AI chess coach →</span>
-          <span style={{ color: FG, fontWeight: 600 }}>chessmasti.com</span>
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              color: FG,
+              fontWeight: 600,
+            }}
+          >
+            {brand && (
+              // eslint-disable-next-line @next/next/no-img-element -- satori draws a plain img from a data URI
+              <img src={brand} alt="" width={26} height={26} />
+            )}
+            chessmasti.com
+          </span>
         </div>
       </div>
     ),

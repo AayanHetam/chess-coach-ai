@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Container, Typography } from "@mui/material";
-import { MastiAvatar } from "@/components/masti";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 export default function InternshipFooter() {
   return (
@@ -25,7 +25,7 @@ export default function InternshipFooter() {
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <MastiAvatar mood="wave" size={28} decorative />
+            <BrandMark size={28} />
             <Typography
               variant="body1"
               sx={{

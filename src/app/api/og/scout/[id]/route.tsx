@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { brandMarkOgDataUri } from "@/lib/og/brand";
 import { mastiOgDataUri } from "@/lib/og/masti";
 import { getScoutSnapshot } from "@/lib/scoutSnapshots";
 
@@ -70,6 +71,7 @@ export async function GET(
   ];
 
   const masti = mastiOgDataUri("thinking");
+  const brand = brandMarkOgDataUri();
 
   return new ImageResponse(
     (
@@ -252,7 +254,21 @@ export async function GET(
           }}
         >
           <span>Scout any opponent free →</span>
-          <span style={{ color: FG, fontWeight: 600 }}>chessmasti.com</span>
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              color: FG,
+              fontWeight: 600,
+            }}
+          >
+            {brand && (
+              // eslint-disable-next-line @next/next/no-img-element -- satori draws a plain img from a data URI
+              <img src={brand} alt="" width={26} height={26} />
+            )}
+            chessmasti.com
+          </span>
         </div>
       </div>
     ),

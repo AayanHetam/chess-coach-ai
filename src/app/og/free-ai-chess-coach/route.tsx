@@ -1,27 +1,19 @@
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
-
-export const runtime = "edge";
+import { mastiOgDataUri } from "@/lib/og/masti";
 
 /**
- * Masti's still, bundled with the route (the edge runtime has no fs, and an
- * absolute production URL would 500 on a preview deploy until production
- * carries the file). Null when the fetch fails, and the card renders without
- * him rather than not at all.
+ * Node runtime, like the other three OG cards: Masti's still is read from
+ * public/ with fs and listed in next.config.js outputFileTracingIncludes so
+ * it ships with the function. This card used to run on the edge and bundle
+ * the PNG with fetch(new URL(..., import.meta.url)), which took the function
+ * from 0.96 MB to 1.06 MB compressed, past Vercel's 1 MB edge limit, and
+ * failed every deploy of the branch after the build had passed.
  */
-async function mastiStill(): Promise<ArrayBuffer | null> {
-  try {
-    const res = await fetch(
-      new URL("../../../../public/masti/v4/still/wave.png", import.meta.url)
-    );
-    return res.ok ? await res.arrayBuffer() : null;
-  } catch {
-    return null;
-  }
-}
+export const runtime = "nodejs";
 
 export async function GET(_req: NextRequest) {
-  const masti = await mastiStill();
+  const masti = mastiOgDataUri("wave");
   return new ImageResponse(
     (
       <div
@@ -53,8 +45,7 @@ export async function GET(_req: NextRequest) {
         {/* Masti, waving from the free right half. */}
         {masti && (
           <img
-            // satori takes an ArrayBuffer here; the JSX types do not know it.
-            src={masti as unknown as string}
+            src={masti}
             alt=""
             width={288}
             height={360}

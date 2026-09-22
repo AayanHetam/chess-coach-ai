@@ -85,6 +85,10 @@ const nextConfig = {
     "/api/og/insight/[id]": ["./public/masti/v4/still/*.png"],
     "/api/og/game-share/[id]": ["./public/masti/v4/still/*.png"],
     "/api/og/scout/[id]": ["./public/masti/v4/still/*.png"],
+    // The free-ai-chess-coach card is on the nodejs runtime for the same
+    // reason: on the edge the bundled PNG took the function past Vercel's
+    // 1 MB compressed limit and the deploy failed after the build.
+    "/og/free-ai-chess-coach": ["./public/masti/v4/still/*.png"],
   },
   /**
    * Baseline hardening on every route, verified on the wire rather than

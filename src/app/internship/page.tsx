@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Box, Button, Container, Typography } from "@mui/material";
 import { Icon } from "@iconify/react";
+import { Masti } from "@/components/masti";
 import InternshipNav from "./InternshipNav";
 import InternshipFooter from "./InternshipFooter";
 
@@ -133,6 +134,18 @@ export default function InternshipPage() {
         />
 
         <Container maxWidth="md" sx={{ position: "relative", zIndex: 1, textAlign: "center" }}>
+          {/* The coach fronts the program. Sized by the size prop (inline
+              width/height), and 150px cannot overflow a phone column, so no
+              breakpoint sizing is needed. One short burst, then the still. */}
+          <Box sx={{ mb: 2 }}>
+            <Masti
+              mood="wave"
+              size={150}
+              loops={3}
+              priority
+              label="Masti the Monkey, the Chess Masti coach, waving hello"
+            />
+          </Box>
           <Typography
             variant="overline"
             sx={{
@@ -613,6 +626,16 @@ export default function InternshipPage() {
         }}
       >
         <Container maxWidth="md">
+          {/* Near the call to action: an idea, not a cheer (the thanks page
+              owns the celebration). Plays once when scrolled into view. */}
+          <Box sx={{ mb: 2 }}>
+            <Masti
+              mood="idea"
+              size={120}
+              loops={2}
+              label="Masti the Monkey, the Chess Masti coach, having an idea"
+            />
+          </Box>
           <Typography
             variant="h3"
             sx={{

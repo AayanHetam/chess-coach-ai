@@ -10,6 +10,7 @@ import { chessMastiDarkTheme } from "@/theme/chessMasti";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import { ACCENTS } from "@/components/ui/accents";
+import { MastiSays } from "@/components/masti";
 
 type PlayMode = "lichess" | "chesscom";
 
@@ -40,67 +41,99 @@ export default function Play() {
 
         <Box sx={{ width: "100%", maxWidth: 1280, mx: "auto", mt: 2 }}>
           {/* Tab switcher — glass segmented track; jade-tinted active pill,
-              Play's surface identity (see SURFACE_ACCENTS). */}
-          <Tabs
-            value={mode}
-            onChange={(_, v) => setMode(v as PlayMode)}
-            variant="scrollable"
-            scrollButtons="auto"
-            allowScrollButtonsMobile
+              Play's surface identity (see SURFACE_ACCENTS). Masti stands at
+              the end of the row from sm up; on phones every pixel under the
+              nav belongs to the live board, so he sits this one out. The page
+              never sees the game phase (that lives in the section's hook), so
+              he greets rather than reacts to a result. */}
+          <Box
             sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 2,
               mb: 3,
-              minHeight: 0,
-              "& .MuiTabs-flexContainer": {
-                gap: 0.5,
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.06)",
-                borderRadius: "999px",
-                p: 0.5,
-                width: "fit-content",
-              },
-              "& .MuiTab-root": {
-                textTransform: "none",
-                fontWeight: 700,
-                fontSize: "0.92rem",
-                minHeight: 0,
-                py: 0.85,
-                px: 2.25,
-                borderRadius: "999px",
-                color: "rgba(255,255,255,0.62)",
-                transition: "color 180ms ease",
-                zIndex: 1,
-                "&:hover": { color: "rgba(255,255,255,0.92)" },
-              },
-              "& .Mui-selected": { color: `${ACCENTS.jade.bright} !important` },
-              "& .MuiTabs-indicator": {
-                height: "100%",
-                borderRadius: "999px",
-                background: ACCENTS.jade.soft,
-                border: `1px solid ${ACCENTS.jade.border}`,
-                boxShadow: `0 0 0 1px ${ACCENTS.jade.tint}`,
-                zIndex: 0,
-              },
             }}
           >
-            <Tab
-              value="lichess"
-              label={
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Icon icon="simple-icons:lichess" width={18} />
-                  <span>Play on Lichess</span>
-                </Stack>
-              }
-            />
-            <Tab
-              value="chesscom"
-              label={
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Icon icon="simple-icons:chessdotcom" width={18} />
-                  <span>Chess.com games</span>
-                </Stack>
-              }
-            />
-          </Tabs>
+            <Tabs
+              value={mode}
+              onChange={(_, v) => setMode(v as PlayMode)}
+              variant="scrollable"
+              scrollButtons="auto"
+              allowScrollButtonsMobile
+              sx={{
+                minHeight: 0,
+                "& .MuiTabs-flexContainer": {
+                  gap: 0.5,
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: "999px",
+                  p: 0.5,
+                  width: "fit-content",
+                },
+                "& .MuiTab-root": {
+                  textTransform: "none",
+                  fontWeight: 700,
+                  fontSize: "0.92rem",
+                  minHeight: 0,
+                  py: 0.85,
+                  px: 2.25,
+                  borderRadius: "999px",
+                  color: "rgba(255,255,255,0.62)",
+                  transition: "color 180ms ease",
+                  zIndex: 1,
+                  "&:hover": { color: "rgba(255,255,255,0.92)" },
+                },
+                "& .Mui-selected": {
+                  color: `${ACCENTS.jade.bright} !important`,
+                },
+                "& .MuiTabs-indicator": {
+                  height: "100%",
+                  borderRadius: "999px",
+                  background: ACCENTS.jade.soft,
+                  border: `1px solid ${ACCENTS.jade.border}`,
+                  boxShadow: `0 0 0 1px ${ACCENTS.jade.tint}`,
+                  zIndex: 0,
+                },
+              }}
+            >
+              <Tab
+                value="lichess"
+                label={
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Icon icon="simple-icons:lichess" width={18} />
+                    <span>Play on Lichess</span>
+                  </Stack>
+                }
+              />
+              <Tab
+                value="chesscom"
+                label={
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Icon icon="simple-icons:chessdotcom" width={18} />
+                    <span>Chess.com games</span>
+                  </Stack>
+                }
+              />
+            </Tabs>
+            <Box sx={{ display: { xs: "none", sm: "block" } }}>
+              <MastiSays
+                mood="wave"
+                size={72}
+                side="right"
+                align="center"
+                maxWidth={380}
+                replayKey={mode}
+                priority
+                data-testid="play-masti"
+              >
+                {mode === "lichess"
+                  ? "Play your game here. When it's over, bring it to my analysis board and we'll find the turning point together."
+                  : "Load your Chess.com daily games and I'll show you which ones are waiting on your move."}
+              </MastiSays>
+            </Box>
+          </Box>
 
           {mode === "lichess" && (
             <Box sx={{ maxWidth: 1100, mx: "auto" }}>

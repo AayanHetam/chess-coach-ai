@@ -5,7 +5,7 @@ import { horizontalOverflow, waitForStableFen } from "../helpers";
  * Masti the Monkey, the mascot, on the surfaces where he matters most.
  *
  * What these guard: he is on the first screen of the landing without pushing
- * the primary CTA under the fold (the mini on phones exists for exactly that),
+ * the primary CTA under the fold (the stage is sized for a phone's first screen),
  * he never adds sideways scroll, he rests on a still (the animation is a
  * bounded burst, never a forever loop), reduced-motion visitors never see the
  * animation at all, and the coach surfaces wear his face.
@@ -14,18 +14,14 @@ import { horizontalOverflow, waitForStableFen } from "../helpers";
 test.describe("Masti on the landing", () => {
   test("is on the first screen and the primary CTA stays above the fold", async ({
     page,
-    isMobile,
   }) => {
     await page.goto("/");
-    const hero = page.getByTestId(isMobile ? "hero-masti-mini" : "hero-masti");
+    // One stage on every viewport: he is the first thing on the first screen
+    // of a phone as much as of a desktop.
+    const hero = page.getByTestId("hero-masti");
     await expect(hero).toBeVisible();
     const img = hero.locator("img").first();
-    // The phone mini draws from the 320px still, the desktop greeting from
-    // the full one.
-    await expect(img).toHaveAttribute(
-      "src",
-      /\/masti\/v4\/still\/wave(-sm)?\.png$/
-    );
+    await expect(img).toHaveAttribute("src", /\/masti\/v4\/still\/wave\.png$/);
     await expect
       .poll(() =>
         img.evaluate((el) => {
@@ -96,6 +92,22 @@ test.describe("Masti on the coach surfaces", () => {
     ).toBeVisible();
     const header = page.getByTestId("coach-masti");
     await expect(header).toHaveAttribute("data-masti-avatar", "wave");
+    // Masti is the coach, by name.
+    await expect(page.getByTestId("coach-title")).toHaveText("Masti");
+    // Each attitude wears its own face: pick the Grandmaster and the header
+    // face leaves the wave for the thinking still. The chip lives in the
+    // coach panel, which the phone layout keeps behind a tab.
+    const chip = page.getByTestId("coach-attitude-chip");
+    if (await chip.isVisible()) {
+      await chip.click();
+      const menu = page.getByRole("menu");
+      await expect(menu.getByText("Masti's attitude")).toBeVisible();
+      await expect(menu.locator("[data-masti-avatar]")).toHaveCount(7);
+      await menu.getByText("Grandmaster Masti").click();
+      await expect(header).toHaveAttribute("data-masti-avatar", "thinking", {
+        timeout: 10_000,
+      });
+    }
   });
 
   test("puzzles: the coach wears Masti and reads while the answer is shown", async ({
@@ -113,6 +125,7 @@ test.describe("Masti on the coach surfaces", () => {
     await waitForStableFen(page);
     const face = page.getByTestId("puzzle-coach-masti");
     await expect(face).toHaveAttribute("data-masti-avatar", "wave");
+    await expect(page.getByTestId("puzzle-coach-title")).toHaveText("Masti");
     await page.getByRole("button", { name: /show solution/i }).click();
     // The demo drives the board, so he reads; when it is over, the answer
     // is an idea, never a celebration for a solution the user was shown.

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { Alert, Box, Button, Paper, Typography } from "@mui/material";
 import { PageTitle } from "@/components/pageTitle";
+import { Masti, type MastiMood } from "@/components/masti";
 import AgeGate from "@/components/consent/AgeGate";
 import { isAgeGateBlocked } from "@/lib/tracking/ageGateLock";
 
@@ -19,6 +20,25 @@ import { isAgeGateBlocked } from "@/lib/tracking/ageGateLock";
  */
 
 type Phase = "gate" | "submitting" | "blocked" | "expired";
+
+/**
+ * Masti's face and line for the card header, read off the phase the page
+ * already tracks. Display only: the gate itself is untouched. He waves at
+ * the gate, reads while the account is being created, is dizzy over an
+ * expired sign-in and apologetic (never dizzy) on the lockout notice.
+ */
+function mastiFor(phase: Phase): { mood: MastiMood; line: string } {
+  switch (phase) {
+    case "blocked":
+      return { mood: "nervous", line: "Sorry, I have to stop here." };
+    case "expired":
+      return { mood: "defeated", line: "That one timed out on me." };
+    case "submitting":
+      return { mood: "thinking", line: "Hi, I'm Masti, your coach." };
+    default:
+      return { mood: "wave", line: "Hi, I'm Masti, your coach." };
+  }
+}
 
 function sanitizeReturnTo(raw: unknown): string {
   if (typeof raw !== "string") return "/";
@@ -72,11 +92,39 @@ export default function AgeInterstitialPage() {
     }
   };
 
+  const masti = mastiFor(phase);
+
   return (
     <>
       <PageTitle title="One quick check" />
       <Box sx={{ display: "flex", justifyContent: "center", py: 8, px: 2 }}>
         <Paper sx={{ p: 4, maxWidth: 440, width: "100%", borderRadius: 4 }}>
+          {/* Card header: the coach, sized by the size prop so the box is
+              right before hydration (no Emotion SSR on the Pages Router). */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2.5 }}>
+            <Masti
+              mood={masti.mood}
+              size={88}
+              loops={masti.mood === "thinking" ? 0 : 2}
+              priority
+            />
+            <Box>
+              <Typography
+                sx={{
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "#FF6B35",
+                }}
+              >
+                Chess Masti
+              </Typography>
+              <Typography sx={{ fontWeight: 700, lineHeight: 1.3 }}>
+                {masti.line}
+              </Typography>
+            </Box>
+          </Box>
           {phase === "blocked" ? (
             <>
               <Typography sx={{ fontWeight: 700, mb: 1 }}>

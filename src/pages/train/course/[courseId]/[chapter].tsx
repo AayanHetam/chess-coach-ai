@@ -34,6 +34,7 @@ import type { FlashState } from "@/components/puzzle/FlashOverlay";
 import { CourseRoundRail, CourseRoundStrip } from "@/components/train/CourseRoundRail";
 import { CourseTeachCard } from "@/components/train/CourseTeachCard";
 import { RoundSummary } from "@/components/train/RoundSummary";
+import { MastiAvatar, MastiSays, scoreMood, type MastiMood } from "@/components/masti";
 import { hintAt, hintLadder, type Hint } from "@/lib/learn/hint";
 import { fetchOpeningTheory } from "@/lib/theory/fetchOpeningTheory";
 import type { OpeningTheory } from "@/types/theory";
@@ -452,6 +453,34 @@ export default function CourseTrainerPage(props: Props) {
     );
   }
 
+  // Masti on the contract screen reads the tally and nothing else. A drill
+  // owes no verdict and a chapter never asked has none, so both are a hello.
+  // A chapter under way is scored on what has been ASKED (known against known
+  // plus learning, never against the unseen, or a strong start would read as
+  // a poor one), and a chapter wholly known is the celebration. `scoreMood`
+  // has a dizzy face for nothing-stuck, but this screen comes before the
+  // attempt, so the worst it wears is a worry: the summary after a bad round
+  // already calibrates that way.
+  const askedSoFar = tally.known + tally.learning;
+  const introScore = scoreMood(tally.known, askedSoFar);
+  const introMood: MastiMood =
+    props.drill || askedSoFar === 0
+      ? "wave"
+      : introScore === "defeated"
+        ? "nervous"
+        : introScore;
+  const introLine = props.drill
+    ? "Every decision in here, asked cold. Miss one and it comes back around before the round is out."
+    : introMood === "wave"
+      ? "I ask first and teach only what you miss. Show me what you already know."
+      : tally.known === tally.total
+        ? "You own every decision in this chapter at your level. There is nothing left for me to ask."
+        : introMood === "excited"
+          ? "Nearly everything I have asked has stuck. Let's pick up the rest."
+          : introMood === "idea"
+            ? "Some of this has stuck and some slipped. I re-ask what slipped before anything new."
+            : "Not much has stuck yet, and that is fine. I re-ask what slipped before anything new.";
+
   return (
     <>
       <Head>
@@ -586,7 +615,21 @@ export default function CourseTrainerPage(props: Props) {
             />
           </Box>
 
+          {/* Masti sends them in. Beside the one button and over nothing: the
+              board only exists once a round is running. */}
           <Box sx={{ mt: 4 }}>
+            <MastiSays
+              mood={introMood}
+              size={88}
+              maxWidth={420}
+              loops={2}
+              data-testid="course-intro-masti"
+            >
+              {introLine}
+            </MastiSays>
+          </Box>
+
+          <Box sx={{ mt: 2.5 }}>
             <Link
               href={phaseHref(1)}
               style={{ textDecoration: "none", display: "inline-block" }}
@@ -762,18 +805,32 @@ function RoundScreen({
             />
           ) : answer?.right ? (
             <Box data-testid="verdict-correct" sx={{ display: "grid", gap: 1 }}>
-              <Typography
-                role="status"
-                aria-live="polite"
-                sx={{
-                  fontSize: "1rem",
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.92)",
-                }}
-              >
-                Correct.
-              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                {/* One short burst for a right answer, outside the live region
+                    so a screen reader hears "Correct." and nothing else. The
+                    verdict is on screen for 900 ms, so one loop is the most
+                    that can play. */}
+                <MastiAvatar
+                  mood="excited"
+                  size={36}
+                  ring={false}
+                  animated
+                  loops={1}
+                  data-testid="verdict-masti"
+                />
+                <Typography
+                  role="status"
+                  aria-live="polite"
+                  sx={{
+                    fontSize: "1rem",
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    color: "rgba(255,255,255,0.92)",
+                  }}
+                >
+                  Correct.
+                </Typography>
+              </Box>
               {/* The move alone. A sentence about it would be a sentence we
                   composed, and there is nothing to add to a right answer. */}
               <Typography
@@ -790,6 +847,15 @@ function RoundScreen({
           ) : (
             <Box sx={{ display: "grid", gap: 1.5 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                {/* The coach's face on the question: a hello, an idea once a
+                    hint is out, a worry when this one has come back around.
+                    A still, because the row re-renders on every question. */}
+                <MastiAvatar
+                  mood={repeat ? "nervous" : hint ? "idea" : "wave"}
+                  size={28}
+                  ring={false}
+                  data-testid="round-masti"
+                />
                 <Typography
                   sx={{
                     fontSize: "1rem",
@@ -869,8 +935,16 @@ function RoundScreen({
           {!saved && (
             <Typography
               data-testid="not-saved"
-              sx={{ mt: 2, color: "rgba(255,255,255,0.5)", fontSize: "0.78rem" }}
+              sx={{
+                mt: 2,
+                color: "rgba(255,255,255,0.5)",
+                fontSize: "0.78rem",
+                display: "flex",
+                alignItems: "center",
+                gap: 0.75,
+              }}
             >
+              <MastiAvatar mood="nervous" size={18} ring={false} />
               Not saved on this device.
             </Typography>
           )}

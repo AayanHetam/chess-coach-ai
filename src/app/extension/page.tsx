@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Masti, MastiSays } from "@/components/masti";
 import { contentPageStyles } from "../_seo/styles";
 
 export const metadata: Metadata = {
@@ -44,6 +45,9 @@ const extraStyles = `
 .cm-content {
   max-width: 920px;
 }
+.cm-hero-masti {
+  margin: 0.4em 0 0.8em;
+}
 .cm-install-card {
   background: linear-gradient(135deg, #FF8C42 0%, #FF6B35 100%);
   color: #fff;
@@ -51,6 +55,24 @@ const extraStyles = `
   padding: 40px 36px;
   margin: 2em 0 2.4em;
   box-shadow: 0 18px 40px rgba(255, 107, 53, 0.32);
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+.cm-install-masti {
+  flex: 0 0 auto;
+}
+.cm-install-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+@media (max-width: 599px) {
+  .cm-install-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 28px 24px;
+  }
 }
 .cm-install-card h2 {
   color: #fff;
@@ -147,20 +169,28 @@ const extraStyles = `
 function InstallCTA() {
   return (
     <div className="cm-install-card">
-      <h2>Install the Chrome extension</h2>
-      <p>
-        Add a one-click Analyze button to every Lichess and Chess.com game
-        page. Free. No account. Works on Chrome, Edge, Brave, and any other
-        Chromium browser.
-      </p>
-      <a
-        className="cm-install-cta"
-        href={STORE_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        ♟ Install from the Chrome Web Store →
-      </a>
+      {/* A still on purpose: the hero above already plays his burst, and one
+          animated Masti per view is the rule. The card copy says it all, so
+          he is decorative here. */}
+      <div className="cm-install-masti">
+        <Masti mood="idea" size={104} animated={false} decorative />
+      </div>
+      <div className="cm-install-body">
+        <h2>Install the Chrome extension</h2>
+        <p>
+          Add a one-click Analyze button to every Lichess and Chess.com game
+          page. Free. No account. Works on Chrome, Edge, Brave, and any other
+          Chromium browser.
+        </p>
+        <a
+          className="cm-install-cta"
+          href={STORE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          ♟ Install from the Chrome Web Store →
+        </a>
+      </div>
     </div>
   );
 }
@@ -189,6 +219,22 @@ export default function ExtensionPage() {
               you to chessmasti.com and the AI coach is already talking. No
               copy-paste, no upload, no account.
             </p>
+            {/* The coach greets in the hero. Figure and bubble are a flex
+                row, so the bubble shrinks and wraps at phone width instead
+                of pushing the page sideways. */}
+            <MastiSays
+              mood="wave"
+              size={120}
+              tone="glass"
+              priority
+              loops={3}
+              replayOnHover
+              maxWidth={420}
+              className="cm-hero-masti"
+            >
+              Finish a game, hit the orange button, and I&apos;m already reading
+              your moves by the time the tab opens.
+            </MastiSays>
           </header>
 
           <InstallCTA />

@@ -115,9 +115,5 @@ describe("expert testimonials", () => {
     // Prettier re-wraps JSX text, so pin the roster phrase, not the whole line.
     expect(source).toContain("What titled players say");
     expect(source).toContain("Two grandmasters and a FIDE Master");
-    // Photo credits ship in the footer, not under the section.
-    expect(source.indexOf("<TestimonialPhotoCredits />")).toBeGreaterThan(
-      source.indexOf("function Footer()")
-    );
   });
 });

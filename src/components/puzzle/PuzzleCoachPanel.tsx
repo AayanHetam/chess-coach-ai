@@ -581,8 +581,9 @@ export function PuzzleCoachPanel({
               color: "rgba(255,240,224,0.96)",
               lineHeight: 1.1,
             }}
+            data-testid="puzzle-coach-title"
           >
-            Puzzle Coach
+            Masti
           </Typography>
           <Typography
             sx={{
@@ -691,7 +692,7 @@ export function PuzzleCoachPanel({
                 color: "rgba(255,240,224,0.92)",
               }}
             >
-              Chess Masti Puzzle AI
+              Masti, your puzzle coach
             </Typography>
             <Typography
               sx={{

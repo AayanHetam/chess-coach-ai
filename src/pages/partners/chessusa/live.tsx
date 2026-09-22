@@ -46,13 +46,7 @@ import {
 // The real homepage sections, imported rather than copied. A copy would drift
 // from the live page invisibly, and a sales asset that quietly stops being
 // true is worse than no asset.
-import {
-  BentoSection,
-  Hero,
-  HowItWorks,
-  MarqueeStrip,
-  launchTheme,
-} from "@/pages/index";
+import { Hero, MarqueeStrip, launchTheme } from "@/pages/index";
 import LearnPage from "@/pages/learn";
 import { ChessgroundBoardPlaceholder } from "@/components/ui/ChessgroundBoardPlaceholder";
 
@@ -98,8 +92,6 @@ function HomeSurface({ banner }: { banner: React.ReactNode }) {
         <Box sx={{ maxWidth: 1200, mx: "auto" }}>
           <Hero />
           <MarqueeStrip />
-          <HowItWorks />
-          <BentoSection />
         </Box>
       </Box>
     </ThemeProvider>

@@ -1039,6 +1039,12 @@ interface CoachMessage {
    * derives one (a fragment is nervous, an answer is an idea).
    */
   mascot?: MastiMood;
+  /**
+   * Set on the two UI-authored turns that frame the engine sweep: the load
+   * greeting that asks for a second ("sweeping") and the follow-up that lands
+   * with the evaluations ("ready"). See engineSweepMessages.ts.
+   */
+  engineSweep?: EngineSweepStatus;
 }
 
 // The cold-start chat. `synthetic: true` keeps it out of conversationHistory
@@ -1063,6 +1069,11 @@ const EMPTY_STATE_MESSAGES: CoachMessage[] = [
 // based on the current game's blunders / brilliancies / opening /
 // endgame state / active mistake context.
 import { generateSuggestions, type Suggestion } from "./generateSuggestions";
+import {
+  appendEngineReady,
+  buildSweepGreeting,
+  type EngineSweepStatus,
+} from "./engineSweepMessages";
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Board square styling
@@ -7935,6 +7946,28 @@ export default function AnalysisPage() {
       : detectedOpening.name;
   }, [headers.Opening, headers.ECO, detectedOpening]);
 
+  // In puzzle mode, prepopulate the coach with a contextual seed message
+  const isPuzzleMode = Boolean(puzzleFen);
+
+  // Coach chat state (persists across takeover toggle — chat history intact).
+  // Declared ahead of the engine section below: the two places the sweep
+  // lands append Masti's "ready" turn to this transcript.
+  const [messages, setMessages] = useState<CoachMessage[]>(
+    isPuzzleMode
+      ? [
+          {
+            role: "coach",
+            // D3: UI-authored greeting, not model output.
+            synthetic: true,
+            content: solutionParam
+              ? `Loaded a puzzle position. Solution: **${solutionParam.replace("-", " → ")}**. Ask me anything about the tactical idea, or try alternatives on the board.`
+              : "Loaded a puzzle position. Ask me to walk through the tactical idea.",
+            ply: 0,
+          },
+        ]
+      : EMPTY_STATE_MESSAGES
+  );
+
   // ───── Real Stockfish evaluation ─────
   // Stockfish17Lite is single-threaded — works on networks that block
   // SharedArrayBuffer (school WiFi) and has the fastest cold start.
@@ -8109,6 +8142,8 @@ export default function AnalysisPage() {
         setEnginePositions(restored.positions);
         if (restored.gameEval) setGameEvalFull(restored.gameEval);
         setAnalysisProgress(100);
+        // A restored sweep is a landed sweep: Masti opens the floor.
+        setMessages((prev) => appendEngineReady(prev));
       }
     } catch {
       /* corrupted entry — let Stockfish re-run */
@@ -8225,6 +8260,8 @@ export default function AnalysisPage() {
         setEnginePositions(result.positions);
         setGameEvalFull(result);
         setAnalysisProgress(100);
+        // Stockfish has returned: Masti says so and opens the floor.
+        setMessages((prev) => appendEngineReady(prev));
       })
       .catch((err) => {
         if (cancelled) return;
@@ -8337,9 +8374,6 @@ export default function AnalysisPage() {
     personality.id,
     engineDataUnavailable,
   ]);
-
-  // In puzzle mode, prepopulate the coach with a contextual seed message
-  const isPuzzleMode = Boolean(puzzleFen);
 
   // Production's killer "you blundered, here are puzzles for that exact
   // pattern" UX — surfaces when the current ply is a Mistake / Blunder /
@@ -8460,22 +8494,6 @@ export default function AnalysisPage() {
     fen: string;
   } | null>(null);
 
-  // Coach chat state (persists across takeover toggle — chat history intact)
-  const [messages, setMessages] = useState<CoachMessage[]>(
-    isPuzzleMode
-      ? [
-          {
-            role: "coach",
-            // D3: UI-authored greeting, not model output.
-            synthetic: true,
-            content: solutionParam
-              ? `Loaded a puzzle position. Solution: **${solutionParam.replace("-", " → ")}**. Ask me anything about the tactical idea, or try alternatives on the board.`
-              : "Loaded a puzzle position. Ask me to walk through the tactical idea.",
-            ply: 0,
-          },
-        ]
-      : EMPTY_STATE_MESSAGES
-  );
   const [input, setInput] = useState(
     promptParam ? decodeURIComponent(promptParam) : ""
   );
@@ -8589,25 +8607,27 @@ export default function AnalysisPage() {
         /* sentry failures are never user-facing */
       }
       if (!opts?.keepChat) {
-        const newHeaders = game.header();
-        // chess.js fills an absent Date with the PGN placeholder
-        // "????.??.??", which used to render as "(????)" in the greeting.
-        const year = newHeaders.Date?.split(".")[0];
-        const yearSuffix = year && /^\d{4}$/.test(year) ? ` (${year})` : "";
+        // A game with moves gets the sweep greeting: Masti asks for a second
+        // while Stockfish goes through it, and his "ready" turn lands with
+        // the evaluations (see engineSweepMessages.ts). A caller-supplied
+        // greeting (the ?fen= load) and a bare position, which has no sweep
+        // to wait for, get a plain wave instead.
         const greeting =
           opts?.greeting ??
-          (newHeaders.White && newHeaders.Black
-            ? `Loaded **${newHeaders.White} vs ${newHeaders.Black}**${yearSuffix}. I'm running the engine over every move now — the Moves tab fills in with each move's verdict as it finishes. Ask me about any move in the meantime.`
-            : "Loaded a new game. I'm running the engine over every move now — the Moves tab fills in with each move's verdict as it finishes. Ask me about the position or any move in the meantime.");
+          (game.history().length === 0
+            ? "Loaded a position. Ask me anything about it."
+            : null);
         setMessages([
           // D3: UI-authored greeting, not model output.
-          {
-            role: "coach",
-            content: greeting,
-            ply: 0,
-            synthetic: true,
-            mascot: "wave",
-          },
+          greeting
+            ? {
+                role: "coach",
+                content: greeting,
+                ply: 0,
+                synthetic: true,
+                mascot: "wave",
+              }
+            : buildSweepGreeting(game.header()),
         ]);
       }
     },

@@ -107,6 +107,56 @@ test.describe("Masti on the coach surfaces", () => {
     }
   });
 
+  test("analysis: asks for a second while the engine sweeps, then opens the floor", async ({
+    page,
+  }) => {
+    // The real engine, on purpose: the second line is only ever spoken when
+    // the whole-game Stockfish pass returns, and a stubbed engine would prove
+    // nothing about that. A six-ply game keeps the sweep short; the budget
+    // covers a cold WASM download in CI.
+    test.setTimeout(150_000);
+    const pgn = "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 *";
+    await page.goto(`/analysis?pgn=${encodeURIComponent(pgn)}`);
+
+    // Each coach bubble sits in a row with Masti's face; the nearest
+    // ancestor holding an avatar is that row.
+    const faceBeside = (bubble: ReturnType<typeof page.getByText>) =>
+      bubble
+        .locator("xpath=ancestor::div[.//*[@data-masti-avatar]][1]")
+        .locator("[data-masti-avatar]")
+        .first();
+
+    const waiting = page.getByText(
+      "Wait a second, I am going through your game."
+    );
+    await expect(waiting).toBeVisible({ timeout: 30_000 });
+    // While he goes through the game the bubble wears the thinking still.
+    await expect(faceBeside(waiting)).toHaveAttribute(
+      "data-masti-avatar",
+      "thinking"
+    );
+
+    const ready = page.getByText(
+      "Ok, now ask me anything you want. Do you want me to analyze your game?"
+    );
+    await expect(ready).toBeVisible({ timeout: 120_000 });
+    await expect(faceBeside(ready)).toHaveAttribute(
+      "data-masti-avatar",
+      "wave"
+    );
+    // The first line stays in the transcript above the second, and the
+    // second is spoken once.
+    await expect(waiting).toBeVisible();
+    await expect(ready).toHaveCount(1);
+    // The composer unlocks with the same landing that he announces.
+    const composer = page.getByPlaceholder(
+      "Ask anything about this position..."
+    );
+    if (await composer.isVisible()) {
+      await expect(composer).toBeEnabled();
+    }
+  });
+
   test("puzzles: the coach wears Masti and reads while the answer is shown", async ({
     page,
   }) => {

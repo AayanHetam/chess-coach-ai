@@ -61,9 +61,14 @@ test.describe("coach move links", () => {
       .catch(() => false);
     test.skip(!appeared, "coach composer never unlocked on this machine — resolveMoveRef is unit-tested");
 
-    // The greeting no longer promises that a tab will "light up".
+    // The greeting no longer promises that a tab will "light up": Masti asks
+    // for a second while the engine goes through the game. With /engines/*
+    // blocked the sweep never returns, so his "ready" turn never lands.
     await expect(page.getByText(/light up/)).toHaveCount(0);
-    await expect(page.getByText(/fills in with each move's verdict/)).toBeVisible();
+    await expect(
+      page.getByText("Wait a second, I am going through your game."),
+    ).toBeVisible();
+    await expect(page.getByText(/ask me anything you want/)).toHaveCount(0);
 
     await composer.fill("analyse this game");
     await composer.press("Enter");

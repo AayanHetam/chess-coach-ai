@@ -17,6 +17,10 @@ import {
   GridActionsCellItem,
   GridRowId,
 } from "@mui/x-data-grid";
+import {
+  GAMES_TABLE_MAX_WIDTH,
+  GAMES_TABLE_MIN_HEIGHT,
+} from "./gamesTableLayout";
 import { blue, red } from "@mui/material/colors";
 import { useGameDatabase } from "@/hooks/useGameDatabase";
 import { useRouter } from "next/router";
@@ -247,6 +251,14 @@ export default function GamesTable({ games }: Props) {
           },
         }}
         sx={{
+          // Exactly the box the loading Skeleton on /database occupies, so
+          // the swap from one to the other costs nothing in either axis.
+          // An empty grid is 163px tall and, left to its own column widths,
+          // a width this cell has no way to predict.
+          minHeight: GAMES_TABLE_MIN_HEIGHT,
+          width: "100%",
+          maxWidth: GAMES_TABLE_MAX_WIDTH,
+          mx: "auto",
           // Neutral glass card frame around the table.
           borderRadius: "1.5rem",
           border: "1px solid rgba(255,255,255,0.08)",

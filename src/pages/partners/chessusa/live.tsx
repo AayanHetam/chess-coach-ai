@@ -54,11 +54,17 @@ import {
   launchTheme,
 } from "@/pages/index";
 import LearnPage from "@/pages/learn";
+import { ChessgroundBoardPlaceholder } from "@/components/ui/ChessgroundBoardPlaceholder";
 
 const ChessgroundBoard = dynamic(
   () =>
     import("@/components/ui/ChessgroundBoard").then((m) => m.ChessgroundBoard),
-  { ssr: false }
+  {
+    ssr: false,
+    // A board always occupies its square, even before its chunk lands —
+    // see ChessgroundBoardPlaceholder.
+    loading: () => <ChessgroundBoardPlaceholder />,
+  }
 );
 
 interface LiveProps {

@@ -5,11 +5,17 @@ import { Box, Typography } from "@mui/material";
 import { Chess } from "chess.js";
 import dynamic from "next/dynamic";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
+import { ChessgroundBoardPlaceholder } from "@/components/ui/ChessgroundBoardPlaceholder";
 
 const ChessgroundBoard = dynamic(
   () =>
     import("@/components/ui/ChessgroundBoard").then((m) => m.ChessgroundBoard),
-  { ssr: false },
+  {
+    ssr: false,
+    // A board always occupies its square, even before its chunk lands —
+    // see ChessgroundBoardPlaceholder.
+    loading: () => <ChessgroundBoardPlaceholder />,
+  }
 );
 
 /**

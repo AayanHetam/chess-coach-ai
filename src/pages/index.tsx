@@ -12,7 +12,6 @@ import {
   ArrowRight,
   Bot,
   Check,
-  Cpu,
   Crosshair,
   Download,
   Globe,
@@ -44,18 +43,22 @@ import {
   puzzleMood,
   useStickyMood,
 } from "@/components/masti";
-import {
-  HeroMastiGreeting,
-  HeroMastiMini,
-} from "@/components/landing/HeroMasti";
+import { HeroMastiStage } from "@/components/landing/HeroMasti";
+import { coachPersonalities } from "@/config/coachPersonalities";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
+import { ChessgroundBoardPlaceholder } from "@/components/ui/ChessgroundBoardPlaceholder";
 import { DEFAULT_PUZZLE_THEME } from "@/components/puzzle/boardTheme";
 import { surfaceAccent, type Accent } from "@/components/ui/accents";
 
 const ChessgroundBoard = dynamic(
   () =>
     import("@/components/ui/ChessgroundBoard").then((m) => m.ChessgroundBoard),
-  { ssr: false }
+  {
+    ssr: false,
+    // A board always occupies its square, even before its chunk lands —
+    // see ChessgroundBoardPlaceholder.
+    loading: () => <ChessgroundBoardPlaceholder />,
+  }
 );
 
 // Board square colors for the puzzle demo — the same tokens every puzzle
@@ -81,7 +84,7 @@ import {
 const HOME_TITLE = "Chess Masti AI — engine-grounded chess coaching, free";
 const HOME_DESC =
   "AI chess coach: Stockfish 17 evaluates first, Claude explains, a hallucination validator checks every claim. 100,000+ Lichess puzzles in a Neo4j graph. Free.";
-const HOME_OG_IMAGE = "https://chessmasti.com/social-networks-1200x630.png";
+const HOME_OG_IMAGE = "https://chessmasti.com/og/home";
 
 /**
  * Identity accents for the product surfaces this page advertises — the same
@@ -322,7 +325,7 @@ function GlassChatPreview() {
               lineHeight: 1.1,
             }}
           >
-            Coach
+            Masti
           </Typography>
           <Typography
             sx={{
@@ -418,170 +421,353 @@ function GlassChatPreview() {
 export function Hero() {
   return (
     <Box
+      component="section"
+      aria-labelledby="hero-heading"
       sx={{
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", md: "1.05fr 0.95fr" },
-        gap: { xs: 6, md: 8 },
+        gridTemplateColumns: { xs: "1fr", md: "0.92fr 1.08fr" },
         alignItems: "center",
-        py: { xs: 6, md: 10 },
+        columnGap: { md: 5, lg: 7 },
+        rowGap: { xs: 1.5 },
+        pt: { xs: 1, md: 2 },
+        pb: { xs: 5, md: 8 },
       }}
     >
-      <Box>
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.22, 0.61, 0.36, 1] }}
-        >
-          {/* On phones the big Masti sits below the fold with the chat card,
-              so a small one rides the eyebrow row: the first screen has him
-              and the primary CTA does not move down. Hidden on md+. */}
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            spacing={1.5}
-          >
-            <EyebrowBadge>
-              DEMOCRATIZING HIGH-QUALITY CHESS EDUCATION
-            </EyebrowBadge>
-            <HeroMastiMini />
-          </Stack>
-        </motion.div>
+      {/* Masti first. He is the face of the brand, so the first thing on
+          every screen is him: on a phone the stage sits above the headline,
+          from md up he stands big beside the copy. Either way the primary
+          CTA lands above the fold (masti.spec asserts it at 390x664 and at
+          1280x720). */}
+      <HeroMastiStage />
 
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.7,
-            ease: [0.22, 0.61, 0.36, 1],
-            delay: 0.1,
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: { xs: "center", md: "flex-start" },
+          textAlign: { xs: "center", md: "left" },
+        }}
+      >
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.22, 0.61, 0.36, 1], delay: 0.2 }}
+      >
+        <Box sx={{ mt: { xs: 1.5, md: 0 } }}>
+          <EyebrowBadge>CHESS EDUCATION FOR EVERYONE</EyebrowBadge>
+        </Box>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          duration: 0.7,
+          ease: [0.22, 0.61, 0.36, 1],
+          delay: 0.3,
+        }}
+      >
+        <Typography
+          id="hero-heading"
+          variant="h1"
+          sx={{
+            mt: 2,
+            fontSize: { xs: "2.15rem", sm: "3rem", md: "3.6rem", lg: "4rem" },
+            color: "rgba(255,255,255,0.96)",
+            maxWidth: 920,
+            mx: { xs: "auto", md: 0 },
           }}
         >
-          <Typography
-            variant="h1"
+          <Box
+            component="span"
             sx={{
-              mt: 3,
-              fontSize: { xs: "2.6rem", sm: "3.4rem", md: "4.2rem" },
+              background:
+                "linear-gradient(135deg, #F97316 0%, #FB923C 50%, #FBBF24 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            Meet Masti.
+          </Box>{" "}
+          Chess coaching for everyone.
+        </Typography>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          duration: 0.7,
+          ease: [0.22, 0.61, 0.36, 1],
+          delay: 0.4,
+        }}
+      >
+        <Typography
+          sx={{
+            mt: { xs: 2, md: 2.5 },
+            fontSize: { xs: "0.98rem", md: "1.12rem", lg: "1.18rem" },
+            lineHeight: 1.5,
+            color: "rgba(255,255,255,0.66)",
+            maxWidth: { xs: 720, md: 600 },
+            mx: { xs: "auto", md: 0 },
+          }}
+        >
+          World-class chess coaching has been out of reach for most players.
+          Masti changes that: Stockfish 17 calculates, Masti explains in plain
+          words, and a validator checks every claim.{" "}
+          <Box
+            component="span"
+            sx={{ color: "rgba(255,255,255,0.92)", fontWeight: 600 }}
+          >
+            The same caliber, free for everyone.
+          </Box>
+        </Typography>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          duration: 0.7,
+          ease: [0.22, 0.61, 0.36, 1],
+          delay: 0.5,
+        }}
+      >
+        <Stack
+          direction="row"
+          spacing={2}
+          justifyContent={{ xs: "center", md: "flex-start" }}
+          sx={{ mt: { xs: 3, md: 3.5 }, flexWrap: "wrap" }}
+        >
+          {/* Program-first (2026-08-10): the plan is the product, so it
+              leads. "Analyze a game" stays as the secondary action: it is
+              the conversion path for AEO traffic arriving on coach queries
+              and must not be removed. */}
+          <StartPlanCTA />
+          <GhostCTA href="/analysis">Analyze a game</GhostCTA>
+        </Stack>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          duration: 0.7,
+          ease: [0.22, 0.61, 0.36, 1],
+          delay: 0.6,
+        }}
+      >
+        <GmBackedLine />
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1, delay: 0.7 }}
+      >
+        <Stack
+          direction="row"
+          spacing={3}
+          justifyContent={{ xs: "center", md: "flex-start" }}
+          sx={{
+            mt: 3.5,
+            color: "rgba(255,255,255,0.42)",
+            fontSize: "0.78rem",
+            letterSpacing: "0.04em",
+            flexWrap: "wrap",
+          }}
+        >
+          <Box>Engine-grounded AI coaching</Box>
+          {/* The account line and its separator drop out under the
+              ChessUSA preview prefix. See SIGN_IN_ATTR. */}
+          <Box {...SIGN_IN_PROPS}>·</Box>
+          <Box {...SIGN_IN_PROPS}>Free account, no card</Box>
+          <Box>·</Box>
+          <Box>Lichess sync</Box>
+        </Stack>
+      </motion.div>
+      </Box>
+    </Box>
+  );
+}
+
+/**
+ * The coach chat, right under the hero: the product Masti was pointing at.
+ * One card, centered, so the conversation is the second thing a visitor
+ * reads and the first thing they can picture themselves doing.
+ */
+function AskMastiSection() {
+  return (
+    <Box
+      component="section"
+      aria-labelledby="ask-masti-heading"
+      sx={{ pt: { xs: 2, md: 2 }, pb: { xs: 4, md: 6 } }}
+    >
+      <RevealOnScroll>
+        <Box sx={{ maxWidth: 720, mx: "auto", textAlign: "center", mb: 4 }}>
+          <EyebrowBadge>ASK MASTI ANYTHING</EyebrowBadge>
+          <Typography
+            id="ask-masti-heading"
+            variant="h2"
+            sx={{
+              mt: 2.5,
+              fontSize: { xs: "1.8rem", md: "2.4rem" },
               color: "rgba(255,255,255,0.96)",
             }}
           >
-            Chess coaching,{" "}
+            Every answer starts with the engine{" "}
             <Box
               component="span"
               sx={{
-                background:
-                  "linear-gradient(135deg, #F97316 0%, #FB923C 50%, #FBBF24 100%)",
+                background: "linear-gradient(135deg, #F97316, #A855F7)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
               }}
             >
-              for everyone.
+              and ends in plain words.
             </Box>
           </Typography>
-        </motion.div>
+        </Box>
+      </RevealOnScroll>
+      <RevealOnScroll delay={0.08}>
+        <Box sx={{ maxWidth: 680, mx: "auto", perspective: "1200px" }}>
+          <GlassChatPreview />
+        </Box>
+      </RevealOnScroll>
+    </Box>
+  );
+}
 
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.7,
-            ease: [0.22, 0.61, 0.36, 1],
-            delay: 0.2,
-          }}
-        >
+/**
+ * The seven attitudes, the same monkey. This is the brand in one row: one
+ * coach, one set of engine-grounded facts, seven ways of talking. Stills
+ * only, seven bursts in a row would be a zoo; the faces come from the same
+ * config the analysis picker uses, so the row can never drift from the app.
+ */
+function MastiAttitudesSection() {
+  return (
+    <Box
+      component="section"
+      aria-labelledby="attitudes-heading"
+      sx={{ py: { xs: 6, md: 10 } }}
+    >
+      <RevealOnScroll>
+        <Box sx={{ maxWidth: 720, mb: 5 }}>
+          <EyebrowBadge>ONE COACH, SEVEN ATTITUDES</EyebrowBadge>
           <Typography
+            id="attitudes-heading"
+            variant="h2"
             sx={{
-              mt: 3,
-              fontSize: { xs: "1.05rem", md: "1.2rem" },
-              lineHeight: 1.55,
-              color: "rgba(255,255,255,0.66)",
-              maxWidth: 560,
+              mt: 2.5,
+              fontSize: { xs: "2rem", md: "2.8rem" },
+              color: "rgba(255,255,255,0.96)",
             }}
           >
-            World-class chess coaching has been out of reach for many players.
-            We&apos;re changing that. Stockfish 17 + a smart AI coach + a
-            hallucination validator deliver{" "}
+            Same Masti,{" "}
             <Box
               component="span"
-              sx={{ color: "rgba(255,255,255,0.92)", fontWeight: 600 }}
+              sx={{
+                background: "linear-gradient(135deg, #F97316, #A855F7)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
             >
-              the same caliber, free for everyone.
+              your kind of coaching.
             </Box>
           </Typography>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.7,
-            ease: [0.22, 0.61, 0.36, 1],
-            delay: 0.32,
-          }}
-        >
-          <Stack direction="row" spacing={2} sx={{ mt: 4.5, flexWrap: "wrap" }}>
-            {/* Program-first (2026-08-10): the plan is the product, so it
-                leads. "Analyze a game" stays as the secondary action — it is
-                the conversion path for AEO traffic arriving on coach queries
-                and must not be removed. */}
-            <StartPlanCTA />
-            <GhostCTA href="/analysis">Analyze a game</GhostCTA>
-          </Stack>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.7,
-            ease: [0.22, 0.61, 0.36, 1],
-            delay: 0.42,
-          }}
-        >
-          <GmBackedLine />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 0.55 }}
-        >
-          <Stack
-            direction="row"
-            spacing={3}
+          <Typography
             sx={{
-              mt: 4,
-              color: "rgba(255,255,255,0.42)",
-              fontSize: "0.78rem",
-              letterSpacing: "0.04em",
-              flexWrap: "wrap",
+              mt: 2.5,
+              fontSize: "1.05rem",
+              lineHeight: 1.55,
+              color: "rgba(255,255,255,0.6)",
             }}
           >
-            <Box>Engine-grounded AI coaching</Box>
-            {/* The account line and its separator drop out under the
-                ChessUSA preview prefix. See SIGN_IN_ATTR. */}
-            <Box {...SIGN_IN_PROPS}>·</Box>
-            <Box {...SIGN_IN_PROPS}>Free account, no card</Box>
-            <Box>·</Box>
-            <Box>Lichess sync</Box>
-          </Stack>
-        </motion.div>
+            Precise like a grandmaster, warm like a mentor, or loud like a
+            broadcast booth. Pick the attitude on the analysis board and the
+            same engine-grounded coach changes how he talks, never what is
+            true.
+          </Typography>
+        </Box>
+      </RevealOnScroll>
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "repeat(2, 1fr)",
+            sm: "repeat(3, 1fr)",
+            md: "repeat(4, 1fr)",
+            lg: "repeat(7, 1fr)",
+          },
+          gap: 2,
+        }}
+      >
+        {coachPersonalities.map((p, i) => (
+          <RevealOnScroll key={p.id} delay={i * 0.05}>
+            <Box
+              data-testid="attitude-card"
+              sx={{
+                height: "100%",
+                borderRadius: "1.25rem",
+                background: "rgba(20,22,28,0.55)",
+                backdropFilter: "blur(14px) saturate(140%)",
+                WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                boxShadow:
+                  "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+                p: 2.5,
+                textAlign: "center",
+                transition: "all 240ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+                "&:hover": {
+                  transform: "translateY(-3px)",
+                  borderColor: "rgba(249,115,22,0.35)",
+                },
+              }}
+            >
+              <Box sx={{ display: "flex", justifyContent: "center", mb: 1.5 }}>
+                <MastiAvatar mood={p.mood} size={64} decorative />
+              </Box>
+              <Typography
+                sx={{
+                  fontSize: "0.92rem",
+                  fontWeight: 700,
+                  color: "rgba(255,255,255,0.94)",
+                  lineHeight: 1.25,
+                }}
+              >
+                {p.name}
+              </Typography>
+              <Typography
+                sx={{
+                  mt: 0.5,
+                  fontSize: "0.74rem",
+                  color: "rgba(255,255,255,0.5)",
+                  lineHeight: 1.35,
+                }}
+              >
+                {p.title}
+              </Typography>
+            </Box>
+          </RevealOnScroll>
+        ))}
       </Box>
 
-      <Box sx={{ position: "relative", perspective: "1200px" }}>
-        {/* The big hero Masti. He leans on the top edge of the coach chat card
-            (negative margin in HeroMastiGreeting), waving; the card below is
-            the product he is pointing at. */}
-        <HeroMastiGreeting />
-        <GlassChatPreview />
-      </Box>
+      <RevealOnScroll delay={0.2}>
+        <Box sx={{ mt: 4 }}>
+          <GhostCTA href="/analysis">Pick your Masti on the analysis board</GhostCTA>
+        </Box>
+      </RevealOnScroll>
     </Box>
   );
 }
 
 export function MarqueeStrip() {
   const items = [
+    "Masti, your coach",
     "Stockfish 17",
     "Engine-grounded AI coach",
     "Hallucination validator",
@@ -641,20 +827,20 @@ export function HowItWorks() {
     {
       number: "01",
       masti: "wave" as const,
-      title: "Drop your game.",
-      body: "Paste a PGN, a Lichess link, or play one live — the coach picks up wherever you are.",
+      title: "Show Masti your game.",
+      body: "Paste a PGN, a Lichess link, or play one live. Masti picks up wherever you are.",
     },
     {
       number: "02",
       masti: "thinking" as const,
-      title: "Engine + AI analyze.",
-      body: "Stockfish 17 evaluates every move. Our AI coach turns the numbers into a plain-English lesson. A validator checks every claim before you see it.",
+      title: "Masti reads it with Stockfish.",
+      body: "Stockfish 17 evaluates every move. Masti turns the numbers into a plain-English lesson, and a validator checks every claim before you see it.",
     },
     {
       number: "03",
       masti: "excited" as const,
       title: "You improve.",
-      body: "Drill same-motif puzzles the coach surfaces, then face Maia-2 at your rating. Progress, on loop.",
+      body: "Drill the same-motif puzzles Masti surfaces, then face Maia-2 at your rating. Progress, on loop.",
     },
   ];
 
@@ -662,7 +848,7 @@ export function HowItWorks() {
     <Box sx={{ py: { xs: 6, md: 10 } }}>
       <RevealOnScroll>
         <Box sx={{ maxWidth: 720, mb: 6 }}>
-          <EyebrowBadge>HOW IT WORKS</EyebrowBadge>
+          <EyebrowBadge>HOW MASTI COACHES</EyebrowBadge>
           <Typography
             variant="h2"
             sx={{
@@ -778,7 +964,7 @@ export function BentoSection() {
     <Box sx={{ py: { xs: 4, md: 6 } }}>
       <RevealOnScroll>
         <Box sx={{ maxWidth: 720, mb: 6 }}>
-          <EyebrowBadge>THE COACHING STACK</EyebrowBadge>
+          <EyebrowBadge>WHAT MASTI IS MADE OF</EyebrowBadge>
           <Typography
             variant="h2"
             sx={{
@@ -809,8 +995,8 @@ export function BentoSection() {
             }}
           >
             Stockfish-grounded analysis, motif drilling, and opponent prep work
-            together in one free coaching experience. Here&apos;s the stack that
-            makes it possible.
+            together in one free coaching experience. Here&apos;s the stack
+            behind Masti.
           </Typography>
         </Box>
       </RevealOnScroll>
@@ -834,20 +1020,9 @@ export function BentoSection() {
             sx={{ height: "100%", justifyContent: "space-between" }}
             spacing={3}
           >
-            <Box
-              sx={{
-                width: 44,
-                height: 44,
-                borderRadius: "12px",
-                background: ANALYSIS_ACCENT.soft,
-                border: `1px solid ${ANALYSIS_ACCENT.border}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Cpu size={22} color={ANALYSIS_ACCENT.bright} />
-            </Box>
+            {/* Masti reading the engine: the card is about where his
+                numbers come from, so his face fronts it, not a chip icon. */}
+            <MastiAvatar mood="thinking" size={44} decorative />
             <Box>
               <Typography
                 variant="h3"
@@ -868,7 +1043,7 @@ export function BentoSection() {
                 }}
               >
                 The world's strongest engine evaluates every move via WASM —
-                locally. Coaching commentary always starts from real numbers,
+                locally. Masti's commentary always starts from real numbers,
                 then the coaching request is sent securely to Anthropic or the
                 configured OpenAI fallback.
               </Typography>
@@ -2459,57 +2634,6 @@ function GmBackedLine() {
 }
 
 /**
- * Source credits for third-party portraits. Rendered in the footer, not
- * under the section, so the endorsement reads clean where it matters and
- * the attribution still ships on the same page.
- */
-function TestimonialPhotoCredits() {
-  const credits = EXPERT_TESTIMONIALS.flatMap((t) =>
-    t.photo?.credit ? [{ id: t.id, name: t.name, credit: t.photo.credit }] : []
-  );
-  if (credits.length === 0) return null;
-  return (
-    <Typography
-      component="p"
-      sx={{
-        m: 0,
-        fontSize: "0.72rem",
-        lineHeight: 1.6,
-        color: "rgba(255,255,255,0.32)",
-        "& a": {
-          color: "inherit",
-          textDecorationColor: "rgba(255,255,255,0.2)",
-        },
-        "& a:hover": { color: "rgba(255,255,255,0.55)" },
-      }}
-    >
-      {credits.map(({ id, name, credit }) => (
-        <Box component="span" key={id} sx={{ display: "block" }}>
-          Photo of {name}: {credit.author ? `${credit.author}, ` : null}
-          {credit.license && credit.licenseUrl ? (
-            <>
-              <a
-                href={credit.licenseUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {credit.license}
-              </a>
-              ,{" "}
-            </>
-          ) : null}
-          via{" "}
-          <a href={credit.sourceUrl} target="_blank" rel="noopener noreferrer">
-            {credit.sourceName}
-          </a>
-          , cropped.
-        </Box>
-      ))}
-    </Typography>
-  );
-}
-
-/**
  * Circular portrait filling the card's left third. Falls back to the
  * person's initials when no photograph is on file, so both cards keep the
  * same geometry whether or not a photo has been supplied.
@@ -2807,7 +2931,7 @@ function FinalCTA() {
               mb: 2,
             }}
           >
-            GM-quality chess coaching.{" "}
+            Meet Masti at the board.{" "}
             <Box
               component="span"
               sx={{
@@ -2818,7 +2942,7 @@ function FinalCTA() {
                 backgroundClip: "text",
               }}
             >
-              Free coaching.
+              Free, for everyone.
             </Box>
           </Typography>
           <Typography
@@ -2831,8 +2955,8 @@ function FinalCTA() {
               lineHeight: 1.55,
             }}
           >
-            Engine analysis runs in your browser with no account at all. The
-            coach needs a free account — no card — and its requests are sent
+            Engine analysis runs in your browser with no account at all. Masti
+            needs a free account — no card — and his requests are sent
             securely to Anthropic or OpenAI. Every coaching feature is free.
           </Typography>
           <Stack
@@ -2907,9 +3031,6 @@ function Footer() {
           ))}
         </Stack>
       </Box>
-      <Box sx={{ mt: 3, textAlign: { xs: "center", md: "left" } }}>
-        <TestimonialPhotoCredits />
-      </Box>
     </Box>
   );
 }
@@ -2921,16 +3042,14 @@ export default function LandingPage() {
         <title key="title">{HOME_TITLE}</title>
         <meta key="description" name="description" content={HOME_DESC} />
         <link key="canonical" rel="canonical" href="https://chessmasti.com/" />
-        {/* The hero Masti is above the fold on md+; fetch his still with the
-            HTML rather than after the JS decides on the srcset. Media-gated:
-            on phones the big figure is below the fold and the first screen
-            has the 24 KB mini instead. */}
+        {/* Masti is the first thing on the first screen on every viewport,
+            so his still is fetched with the HTML rather than after the JS
+            decides on the srcset. */}
         <link
           key="masti-hero-preload"
           rel="preload"
           as="image"
           type="image/webp"
-          media="(min-width: 900px)"
           imageSrcSet={mastiStillSrcSet("wave")}
         />
 
@@ -3038,9 +3157,11 @@ export default function LandingPage() {
           {/* Renders only for logged-in CMIP interns; renders nothing for customers. */}
           <InternalHomeCard />
           <Hero />
+          <AskMastiSection />
           <ExpertTestimonials />
           <MarqueeStrip />
           <HowItWorks />
+          <MastiAttitudesSection />
           <BentoSection />
           <DailyPuzzleSection />
           <Comparison />

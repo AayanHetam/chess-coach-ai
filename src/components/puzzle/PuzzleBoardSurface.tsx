@@ -5,6 +5,7 @@ import { Chess, Square } from "chess.js";
 import { Box, Typography } from "@mui/material";
 import { Chessboard } from "react-chessboard";
 import { isMoveStartKey, parseKeyboardMove } from "@/lib/puzzle/keyboardMove";
+import { useLostDragRecovery } from "@/hooks/useLostDragRecovery";
 import type {
   CustomPieces,
   CustomSquareStyles,
@@ -254,6 +255,9 @@ export function PuzzleBoardSurface({
     setSelected(sq);
   }, []);
   const onPieceDragEnd = useCallback(() => setSelected(null), []);
+  // A drag the browser never finishes leaves the lifted square empty and a
+  // phantom piece frozen over the board, until this puts it back.
+  useLostDragRecovery();
   const isDraggablePiece = useCallback(
     ({ piece }: { piece: Piece }) => isOwnPiece(piece),
     [isOwnPiece],

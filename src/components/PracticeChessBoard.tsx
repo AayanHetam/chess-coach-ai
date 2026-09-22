@@ -15,6 +15,7 @@ import {
   updatePuzzleStats,
 } from "@/lib/puzzleRating";
 import { useScreenSize } from "@/hooks/useScreenSize";
+import { useLostDragRecovery } from "@/hooks/useLostDragRecovery";
 import { pieceSetAtom } from "@/components/board/states";
 import { Piece, CustomPieces } from "react-chessboard/dist/chessboard/types";
 import { recordPuzzleAttempt } from "@/lib/repetitTraining";
@@ -35,6 +36,9 @@ const PIECE_CODES: Piece[] = [
 export type PuzzleStatus = HookPuzzleStatus;
 
 export default function PracticeChessBoard() {
+  // A drag the browser never finishes leaves the lifted square empty and a
+  // phantom piece frozen over the board, until this puts it back.
+  useLostDragRecovery();
   const router = useRouter();
   const screenSize = useScreenSize();
   const currentPuzzle = useAtomValue(currentPuzzleAtom);

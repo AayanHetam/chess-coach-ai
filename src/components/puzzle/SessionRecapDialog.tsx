@@ -14,6 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import { classifyTrend, pickSessionMessage } from "@/lib/puzzleSessionMessages";
+import { Masti, trendMood } from "@/components/masti";
 import type { SessionResult } from "@/lib/puzzleSession";
 
 // Re-exported so existing imports (`SessionResult` from this module) keep
@@ -141,18 +142,28 @@ export function SessionRecapDialog({
           </Typography>
         </Stack>
 
-        {/* Motivational note */}
-        <Typography
-          sx={{
-            fontSize: "0.98rem",
-            fontWeight: 600,
-            color: "rgba(255,240,224,0.9)",
-            mb: 2,
-            minHeight: 24,
-          }}
-        >
-          {message}
-        </Typography>
+        {/* Motivational note, delivered by Masti wearing the same trend
+            bucket that colours the headline: a gain jumps, a loss is dizzy,
+            sideways is a wave. */}
+        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
+          <Masti
+            mood={trendMood(trend)}
+            size={72}
+            loops={2}
+            decorative
+            data-testid="recap-masti"
+          />
+          <Typography
+            sx={{
+              fontSize: "0.98rem",
+              fontWeight: 600,
+              color: "rgba(255,240,224,0.9)",
+              minHeight: 24,
+            }}
+          >
+            {message}
+          </Typography>
+        </Stack>
 
         {/* Count chips */}
         <Stack direction="row" spacing={1.25} sx={{ mb: 2 }}>

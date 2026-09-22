@@ -83,6 +83,18 @@ import {
   Zap,
 } from "lucide-react";
 import {
+  Masti,
+  MastiAvatar,
+  analysisMood,
+  classificationMood,
+  coachErrorMood,
+  useStickyMood,
+  type CoachErrorKind,
+  type MastiMood,
+  type Mover,
+  type TerminalLabel,
+} from "@/components/masti";
+import {
   cloneElement,
   Fragment,
   isValidElement,
@@ -133,7 +145,13 @@ import {
   satisfiesRequest,
 } from "@/lib/engine/pickDisplayEval";
 import { EngineName, MoveClassification } from "@/types/enums";
-import type { PositionEval, LineEval, Accuracy } from "@/types/eval";
+import type {
+  PositionEval,
+  LineEval,
+  Accuracy,
+  GameEval,
+  SavedEvals,
+} from "@/types/eval";
 import { getMovesClassification } from "@/lib/engine/helpers/moveClassification";
 import { ContextualPuzzleRecommendations } from "@/components/ContextualPuzzleRecommendations";
 import { useGameDatabase } from "@/hooks/useGameDatabase";
@@ -142,7 +160,6 @@ import { resolveUserRating } from "@/lib/coach/userRating";
 import { buildAnalysisRequestBody } from "@/lib/coach/analysisRequestBody";
 import { buildChatRequestBody } from "@/lib/coach/chatRequestBody";
 import { buildConversationHistory } from "@/lib/coach/conversationHistory";
-import type { GameEval } from "@/types/eval";
 import { FlagButton } from "@/components/intern/FlagButton";
 import {
   coachPersonalities,
@@ -156,7 +173,6 @@ import { parseInsights, type InsightData } from "@/components/AICoachInsights";
 import { recordPuzzleAttempt, getAllAttempts } from "@/lib/repetitTraining";
 import { useAtomValue, useSetAtom } from "jotai";
 import { savedEvalsAtom } from "@/sections/analysis/states";
-import type { SavedEvals } from "@/types/eval";
 import {
   getEvaluateGameParams,
   getEvaluationBarValue,
@@ -341,11 +357,7 @@ function uciToShape(uci: string, brush: string): DrawShape {
  * illegal/unparseable move so the caller can just skip drawing rather than
  * crash — chess.js throws on bad input instead of returning null itself.
  */
-function sanToShape(
-  fen: string,
-  san: string,
-  brush: string
-): DrawShape | null {
+function sanToShape(fen: string, san: string, brush: string): DrawShape | null {
   try {
     const g = new Chess(fen);
     const result = g.move(san);
@@ -1012,6 +1024,12 @@ interface CoachMessage {
    *  handoff atom is consumed and cleared by /puzzles, this is the durable
    *  copy. */
   puzzleSet?: PuzzleSet;
+  /**
+   * Masti's face beside this bubble. UI-authored turns set it (a greeting
+   * waves, an error is dizzy); model turns leave it unset and the bubble
+   * derives one (a fragment is nervous, an answer is an idea).
+   */
+  mascot?: MastiMood;
 }
 
 // The cold-start chat. `synthetic: true` keeps it out of conversationHistory
@@ -1026,6 +1044,7 @@ const EMPTY_STATE_MESSAGES: CoachMessage[] = [
     content:
       "Board's empty — load a game and I'll take a look. **Load game** up top takes a PGN, a FEN, or your last games straight from Lichess or Chess.com.",
     ply: 0,
+    mascot: "wave",
   },
 ];
 
@@ -2314,6 +2333,15 @@ function BoardArea({
                     : undefined,
                 }}
               >
+                {/* The one time Masti may stand on the board: it is dimmed
+                    and empty. The overlay unmounts the moment a game loads. */}
+                <Masti
+                  mood="wave"
+                  size={116}
+                  loops={3}
+                  data-testid="masti-board-empty"
+                  style={{ marginBottom: 4 }}
+                />
                 <Typography
                   sx={{
                     fontSize: "1rem",
@@ -4385,7 +4413,17 @@ function CoachPanel({
   onLaunchPuzzleSet,
   signedOut,
   onSignIn,
+  mood,
+  moodPulse,
 }: {
+  /**
+   * Masti's face in the header, decided by the page from what it already
+   * knows (coach working, engine running, the current move's verdict, the
+   * result on the board). Defaults to a wave.
+   */
+  mood?: MastiMood;
+  /** Changes when the face should animate again. */
+  moodPulse?: number;
   /**
    * True once auth has resolved to "nobody is signed in". The coach routes
    * are session-gated, so every send from an anonymous visitor came back 401:
@@ -4505,7 +4543,10 @@ function CoachPanel({
   const [personalityMenuOpen, setPersonalityMenuOpen] = useState(false);
   // Stable identity for BookExitCard: a fresh array per render made its
   // effect refetch on every engine tick (see the note in BookExitCard).
-  const bookExitSans = useMemo(() => (allMoves ?? []).map((mv) => mv.san), [allMoves]);
+  const bookExitSans = useMemo(
+    () => (allMoves ?? []).map((mv) => mv.san),
+    [allMoves]
+  );
   const personalityChipRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -4548,20 +4589,17 @@ function CoachPanel({
           zIndex: 1,
         }}
       >
-        <Box
-          sx={{
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "0 0 20px rgba(249,115,22,0.45)",
-          }}
-        >
-          <Sparkles size={16} color="#0A0A0A" />
-        </Box>
+        {/* Masti is the coach's face; the personality chip to the right
+            stays the coach's voice. Same 36px as the old orb so the header,
+            and the board sized under it at lg, do not move. */}
+        <MastiAvatar
+          mood={mood ?? "wave"}
+          size={36}
+          animated
+          loops={2}
+          replayKey={`${mood ?? "wave"}:${moodPulse ?? 0}`}
+          data-testid="coach-masti"
+        />
         <Box sx={{ flex: 1 }}>
           <Typography
             sx={{
@@ -4903,9 +4941,7 @@ function CoachPanel({
           {suggestions.map((s) => (
             <Box
               key={s.text}
-              onClick={() =>
-                signedOut ? onSignIn?.() : onSuggestion(s.text)
-              }
+              onClick={() => (signedOut ? onSignIn?.() : onSuggestion(s.text))}
               sx={{
                 cursor: "pointer",
                 px: 1.5,
@@ -5114,10 +5150,10 @@ function CoachPanel({
                 : signedOut
                   ? "Sign in to ask the coach — free account, no card."
                   : analysisActive
-                  ? "Analyzing your game… coach unlocks when Stockfish finishes."
-                  : engineDataUnavailable
-                    ? "Ask anything — answering without engine analysis."
-                    : "Ask anything about this position..."
+                    ? "Analyzing your game… coach unlocks when Stockfish finishes."
+                    : engineDataUnavailable
+                      ? "Ask anything — answering without engine analysis."
+                      : "Ask anything about this position..."
             }
             disabled={AI_DISABLED || analysisActive}
             fullWidth
@@ -6030,7 +6066,7 @@ function InsightBodyText({
     }
     // Non-continuation line — strip any inline continuation tags so the
     // literal `[CONTINUATION:…]` text never reaches the renderer.
-    let cleanedLine = rawLine.replace(CONTINUATION_TAG_RE, "").trim();
+    const cleanedLine = rawLine.replace(CONTINUATION_TAG_RE, "").trim();
     if (!cleanedLine) continue;
     CONTINUATION_TAG_RE.lastIndex = 0;
     const labelM = INSIGHT_LABEL_RE.exec(cleanedLine);
@@ -6401,6 +6437,11 @@ function DarkInsightCard({
           {glyph && <Box component="span">{glyph}</Box>}
           {label}
         </Box>
+        <MastiAvatar
+          mood={classificationMood(cls, "unknown")}
+          size={20}
+          ring={false}
+        />
         {evalLine && (
           <Typography
             sx={{
@@ -7315,8 +7356,25 @@ function CoachBubble({
 
   return (
     <Box sx={{ position: "relative" }}>
+      {/* The row holds only the face and the bubble; the fragment banner,
+          insight cards and puzzle cards below stay block siblings under it. */}
+      <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1 }}>
+      {/* Every coach bubble gets Masti's face, expression by what the turn
+          is: a greeting waves, a fragment is nervous, an error is dizzy, an
+          answer is an idea. Stills only; twelve loops down a transcript
+          would be noise. */}
+      {!isUser && (
+        <MastiAvatar
+          mood={msg.mascot ?? (msg.incomplete ? "nervous" : "idea")}
+          size={26}
+          ring={false}
+          style={{ marginBottom: 2 }}
+        />
+      )}
       <Box
         sx={{
+          minWidth: 0,
+          flex: 1,
           px: 2.25,
           py: 1.5,
           borderRadius: "1rem",
@@ -7406,6 +7464,7 @@ function CoachBubble({
             </IconButton>
           </Tooltip>
         )}
+      </Box>
       </Box>
       {msg.incomplete && !isUser && (
         // D4 / T5 (SILENT_SUBSTITUTION_HANDOFF §3 Group D, §4): this answer is
@@ -7536,7 +7595,7 @@ function ThinkingBubble() {
         gap: 1,
       }}
     >
-      <Lightbulb size={14} color="#FB923C" />
+      <MastiAvatar mood="thinking" size={24} ring={false} animated loops={0} />
       <Typography
         sx={{
           fontSize: "0.85rem",
@@ -8405,7 +8464,7 @@ export default function AnalysisPage() {
             synthetic: true,
             content: solutionParam
               ? `Loaded a puzzle position. Solution: **${solutionParam.replace("-", " → ")}**. Ask me anything about the tactical idea, or try alternatives on the board.`
-              : `Loaded a puzzle position. Ask me to walk through the tactical idea.`,
+              : "Loaded a puzzle position. Ask me to walk through the tactical idea.",
             ply: 0,
           },
         ]
@@ -8415,6 +8474,15 @@ export default function AnalysisPage() {
     promptParam ? decodeURIComponent(promptParam) : ""
   );
   const [isThinking, setIsThinking] = useState(false);
+  // Masti's view of a coach request: "waiting" is the gap between send and
+  // the first token (the "give me a minute" the user is waiting on),
+  // "streaming" is tokens arriving. UI state only; no new fetches or retries.
+  const [coachPhase, setCoachPhase] = useState<
+    "idle" | "waiting" | "streaming"
+  >("idle");
+  const [lastCoachError, setLastCoachError] = useState<CoachErrorKind | null>(
+    null
+  );
 
   // Coach context cache — minted by the first /api/enhanced-analysis call,
   // reused on every follow-up /api/chat call. Reset on game change so the
@@ -8524,10 +8592,16 @@ export default function AnalysisPage() {
           opts?.greeting ??
           (newHeaders.White && newHeaders.Black
             ? `Loaded **${newHeaders.White} vs ${newHeaders.Black}**${yearSuffix}. I'm running the engine over every move now — the Moves tab fills in with each move's verdict as it finishes. Ask me about any move in the meantime.`
-            : `Loaded a new game. I'm running the engine over every move now — the Moves tab fills in with each move's verdict as it finishes. Ask me about the position or any move in the meantime.`);
+            : "Loaded a new game. I'm running the engine over every move now — the Moves tab fills in with each move's verdict as it finishes. Ask me about the position or any move in the meantime.");
         setMessages([
           // D3: UI-authored greeting, not model output.
-          { role: "coach", content: greeting, ply: 0, synthetic: true },
+          {
+            role: "coach",
+            content: greeting,
+            ply: 0,
+            synthetic: true,
+            mascot: "wave",
+          },
         ]);
       }
     },
@@ -8803,6 +8877,52 @@ export default function AnalysisPage() {
     return null;
   }, [displayFen]);
 
+  // Masti's face for the coach header, gathered from what the page already
+  // knows. The priority order lives in analysisMood(); this only collects
+  // the inputs, and it only READS the classification and the terminal state.
+  // A win is celebrated only for the side the reader said they played.
+  const coachMood = useMemo<MastiMood>(() => {
+    const cls = classifiedPositions?.[currentPly]?.moveClassification ?? null;
+    // From the move itself, not ply parity: a game rooted at a Black-to-move
+    // FEN starts with Black's move at ply 1.
+    const played = allMoves[currentPly - 1];
+    const moverColor: PlayerSideColor | null = played
+      ? played.color === "w"
+        ? "white"
+        : "black"
+      : null;
+    const mover: Mover =
+      !moverColor || !playerSide
+        ? "unknown"
+        : moverColor === playerSide.color
+          ? "player"
+          : "opponent";
+    return analysisMood({
+      hasGame,
+      thinking: coachPhase === "waiting",
+      streaming: coachPhase === "streaming",
+      engineRunning: hasGame && analysisActive,
+      coachError: lastCoachError,
+      aiDisabled: AI_DISABLED,
+      terminal: (displayTerminal?.label as TerminalLabel | undefined) ?? null,
+      playerColor: playerSide?.color ?? null,
+      classification: cls ? String(cls) : null,
+      mover,
+    });
+  }, [
+    classifiedPositions,
+    currentPly,
+    allMoves,
+    playerSide,
+    hasGame,
+    coachPhase,
+    analysisActive,
+    lastCoachError,
+    displayTerminal,
+  ]);
+  // Held for one animation loop so arrow-key scrubbing does not flicker.
+  const coachMasti = useStickyMood(coachMood, 1400);
+
   const savedEvals = useAtomValue(savedEvalsAtom);
   const [liveEval, setLiveEval] = useState<{
     fen: string;
@@ -9056,7 +9176,9 @@ export default function AnalysisPage() {
     if (commonCache[currentFen]) return;
     if (commonInFlightRef.current.has(currentFen)) return;
     commonInFlightRef.current.add(currentFen);
-    fetch(`/api/opening-explorer?fen=${encodeURIComponent(currentFen)}&moves=10`)
+    fetch(
+      `/api/opening-explorer?fen=${encodeURIComponent(currentFen)}&moves=10`
+    )
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data) {
@@ -9248,6 +9370,9 @@ export default function AnalysisPage() {
         { role: "user", content: message, ply: currentPly },
       ]);
       setIsThinking(true);
+      setCoachPhase("waiting");
+      // The error face describes the latest request only.
+      setLastCoachError(null);
 
       // Build a rich insight card we'll attach to the coach's response —
       // structured data the LLM doesn't have direct access to.
@@ -9294,6 +9419,7 @@ export default function AnalysisPage() {
           contextIdRef: coachContextIdRef,
           ...coachExtras,
           onDelta: (chunk) => {
+            if (accumulated.length === 0) setCoachPhase("streaming");
             accumulated += chunk;
             setMessages((prev) => {
               if (prev.length === 0) return prev;
@@ -9322,11 +9448,21 @@ export default function AnalysisPage() {
               if (prev.length === 0) return prev;
               const last = prev[prev.length - 1];
               if (last.role !== "coach") return prev;
-              return [...prev.slice(0, -1), { ...last, incomplete: true }];
+              return [
+                ...prev.slice(0, -1),
+                { ...last, incomplete: true, mascot: "nervous" },
+              ];
             });
           },
         });
       } catch (err) {
+        setLastCoachError(
+          err instanceof CoachAuthError
+            ? "auth"
+            : err instanceof CoachApiError
+              ? "api"
+              : "network"
+        );
         const errorText =
           err instanceof CoachAuthError
             ? "**Sign-in required** — the coach needs a free account. Use **Sign in** above and ask again."
@@ -9347,11 +9483,16 @@ export default function AnalysisPage() {
               content: errorText,
               synthetic: true,
               incomplete: undefined,
+              // A sign-in wall is a nervous face; an outage is a dizzy one.
+              mascot: coachErrorMood(
+                err instanceof CoachAuthError ? "auth" : "api"
+              ),
             },
           ];
         });
       } finally {
         setIsThinking(false);
+        setCoachPhase("idle");
       }
     },
     [messages, currentPly, displayFen, allMoves]
@@ -9829,6 +9970,9 @@ export default function AnalysisPage() {
         { role: "coach", content: "", ply },
       ]);
       setIsThinking(true);
+      setCoachPhase("waiting");
+      // The error face describes the latest request only.
+      setLastCoachError(null);
 
       // Compute the FEN AT this ply (not at the current display position),
       // replaying from the game's root so FEN-loaded games are correct.
@@ -9849,6 +9993,7 @@ export default function AnalysisPage() {
           contextIdRef: coachContextIdRef,
           ...coachExtras,
           onDelta: (chunk) => {
+            if (accumulated.length === 0) setCoachPhase("streaming");
             accumulated += chunk;
             setMessages((prev) => {
               if (prev.length === 0) return prev;
@@ -9877,7 +10022,10 @@ export default function AnalysisPage() {
               if (prev.length === 0) return prev;
               const last = prev[prev.length - 1];
               if (last.role !== "coach") return prev;
-              return [...prev.slice(0, -1), { ...last, incomplete: true }];
+              return [
+                ...prev.slice(0, -1),
+                { ...last, incomplete: true, mascot: "nervous" },
+              ];
             });
           },
         });
@@ -9897,6 +10045,13 @@ export default function AnalysisPage() {
           );
         }
       } catch (err) {
+        setLastCoachError(
+          err instanceof CoachAuthError
+            ? "auth"
+            : err instanceof CoachApiError
+              ? "api"
+              : "network"
+        );
         const errorText =
           err instanceof CoachAuthError
             ? "**Sign-in required** — the coach needs a free account. Use **Sign in** above and ask again."
@@ -9915,11 +10070,16 @@ export default function AnalysisPage() {
               content: errorText,
               synthetic: true,
               incomplete: undefined,
+              // A sign-in wall is a nervous face; an outage is a dizzy one.
+              mascot: coachErrorMood(
+                err instanceof CoachAuthError ? "auth" : "api"
+              ),
             },
           ];
         });
       } finally {
         setIsThinking(false);
+        setCoachPhase("idle");
       }
     },
     [allMoves, isThinking, messages, triggerPuzzleFetch]
@@ -9967,6 +10127,9 @@ export default function AnalysisPage() {
       ]);
       setInput("");
       setIsThinking(true);
+      setCoachPhase("waiting");
+      // The error face describes the latest request only.
+      setLastCoachError(null);
 
       let accumulated = "";
       try {
@@ -9982,6 +10145,7 @@ export default function AnalysisPage() {
           contextIdRef: coachContextIdRef,
           ...coachExtras,
           onDelta: (chunk) => {
+            if (accumulated.length === 0) setCoachPhase("streaming");
             accumulated += chunk;
             // Update the last coach message in-place
             setMessages((prev) => {
@@ -10011,7 +10175,10 @@ export default function AnalysisPage() {
               if (prev.length === 0) return prev;
               const last = prev[prev.length - 1];
               if (last.role !== "coach") return prev;
-              return [...prev.slice(0, -1), { ...last, incomplete: true }];
+              return [
+                ...prev.slice(0, -1),
+                { ...last, incomplete: true, mascot: "nervous" },
+              ];
             });
           },
         });
@@ -10044,6 +10211,13 @@ export default function AnalysisPage() {
           setAutoAnalyzeState("done");
         }
       } catch (err) {
+        setLastCoachError(
+          err instanceof CoachAuthError
+            ? "auth"
+            : err instanceof CoachApiError
+              ? "api"
+              : "network"
+        );
         const errorText =
           err instanceof CoachAuthError
             ? "**Sign-in required** — the coach endpoint is auth-gated. Sign in on chessmasti.com and refresh."
@@ -10062,11 +10236,16 @@ export default function AnalysisPage() {
               content: errorText,
               synthetic: true,
               incomplete: undefined,
+              // A sign-in wall is a nervous face; an outage is a dizzy one.
+              mascot: coachErrorMood(
+                err instanceof CoachAuthError ? "auth" : "api"
+              ),
             },
           ];
         });
       } finally {
         setIsThinking(false);
+        setCoachPhase("idle");
       }
     },
     [
@@ -10164,6 +10343,9 @@ export default function AnalysisPage() {
       }
 
       setIsThinking(true);
+      setCoachPhase("waiting");
+      // The error face describes the latest request only.
+      setLastCoachError(null);
       try {
         const puzzles = await fetchPuzzlesForTheme(
           displayFen,
@@ -10214,6 +10396,7 @@ export default function AnalysisPage() {
         console.warn("[puzzle-generation]", err);
       } finally {
         setIsThinking(false);
+        setCoachPhase("idle");
       }
     },
     [
@@ -10273,7 +10456,8 @@ export default function AnalysisPage() {
           { role: "user", content: s, ply: currentPly, synthetic: true },
           {
             role: "coach",
-            content: `Pulled three positions in the same family from the master puzzle index — solve them inline, or move any one onto the big board.`,
+            content:
+              "Pulled three positions in the same family from the master puzzle index — solve them inline, or move any one onto the big board.",
             ply: currentPly,
             synthetic: true,
           },
@@ -10810,6 +10994,8 @@ export default function AnalysisPage() {
                           signedOut={!authLoading && !user}
                           onSignIn={() => openAuthDialog()}
                           isThinking={isThinking}
+                          mood={coachMasti.mood}
+                          moodPulse={coachMasti.replayKey}
                           analysisActive={analysisActive}
                           engineDataUnavailable={engineDataUnavailable}
                           onPromoteToBoard={handlePromoteToBoard}

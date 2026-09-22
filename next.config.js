@@ -80,6 +80,15 @@ const nextConfig = {
     // degrades to an 18MB self-fetch per cold start rather than an error —
     // slow enough to matter on a page whose whole job is landing traffic.
     "/puzzles/p/[id]": ["./public/data/lichess_puzzles_100k.csv"],
+    // Masti's stills for the OG share cards (src/lib/og/masti.ts reads them
+    // with fs, so the tracer cannot see them either).
+    "/api/og/insight/[id]": ["./public/masti/v4/still/*.png"],
+    "/api/og/game-share/[id]": ["./public/masti/v4/still/*.png"],
+    "/api/og/scout/[id]": ["./public/masti/v4/still/*.png"],
+    // The free-ai-chess-coach card is on the nodejs runtime for the same
+    // reason: on the edge the bundled PNG took the function past Vercel's
+    // 1 MB compressed limit and the deploy failed after the build.
+    "/og/free-ai-chess-coach": ["./public/masti/v4/still/*.png"],
   },
   /**
    * Baseline hardening on every route, verified on the wire rather than
@@ -210,6 +219,20 @@ const nextConfig = {
        */
       source: "/partners/:path*",
       headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+    },
+    {
+      /**
+       * Masti the Monkey's art. The directory is versioned (/masti/v4/...)
+       * and a new pack is a new directory, so every file under it is
+       * immutable and can be cached for a year. The six animations are
+       * 480-640 KB each; without this, every visit to /analysis would
+       * re-download the coach's face. Built by scripts/masti/build-assets.mjs,
+       * never hand-edited.
+       */
+      source: "/masti/:path*",
+      headers: [
+        { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+      ],
     },
     {
       /**

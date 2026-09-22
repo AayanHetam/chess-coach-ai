@@ -27,6 +27,7 @@ import { RecentGamesCard } from "@/components/performance/RecentGamesCard";
 import { GameInsightsCard } from "@/components/performance/GameInsightsCard";
 import { useGameDatabase } from "@/hooks/useGameDatabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { Masti } from "@/components/masti";
 import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
 import { describeSavedGamesList } from "@/lib/performance/savedGamesList";
 
@@ -202,6 +203,7 @@ export default function Profile() {
                     background: "rgba(255,255,255,0.02)",
                   }}
                 >
+                  <Masti mood="idea" size={72} loops={2} decorative style={{ marginBottom: 8 }} />
                   <Typography
                     sx={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.5)" }}
                   >

@@ -1,9 +1,19 @@
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
+import { mastiOgDataUri } from "@/lib/og/masti";
 
-export const runtime = "edge";
+/**
+ * Node runtime, like the other three OG cards: Masti's still is read from
+ * public/ with fs and listed in next.config.js outputFileTracingIncludes so
+ * it ships with the function. This card used to run on the edge and bundle
+ * the PNG with fetch(new URL(..., import.meta.url)), which took the function
+ * from 0.96 MB to 1.06 MB compressed, past Vercel's 1 MB edge limit, and
+ * failed every deploy of the branch after the build had passed.
+ */
+export const runtime = "nodejs";
 
 export async function GET(_req: NextRequest) {
+  const masti = mastiOgDataUri("wave");
   return new ImageResponse(
     (
       <div
@@ -31,6 +41,17 @@ export async function GET(_req: NextRequest) {
             background: "radial-gradient(circle, rgba(255,107,43,0.18) 0%, transparent 70%)",
           }}
         />
+
+        {/* Masti, waving from the free right half. */}
+        {masti && (
+          <img
+            src={masti}
+            alt=""
+            width={288}
+            height={360}
+            style={{ position: "absolute", right: 40, bottom: 0 }}
+          />
+        )}
 
         {/* brand mark */}
         <div
@@ -84,7 +105,7 @@ export async function GET(_req: NextRequest) {
             fontSize: 28,
             color: "rgba(255,255,255,0.55)",
             lineHeight: 1.5,
-            maxWidth: 800,
+            maxWidth: 700,
           }}
         >
           <span>Stockfish analysis.</span>

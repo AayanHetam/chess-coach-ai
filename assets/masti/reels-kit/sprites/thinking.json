@@ -1,0 +1,8 @@
+{
+  "mood": "thinking",
+  "frames": 20,
+  "frameWidth": 300,
+  "frameHeight": 375,
+  "delayMs": 62,
+  "loopMs": 1240
+}

@@ -1,0 +1,35 @@
+/* Masti overlay for reels and carousel slides.
+ *
+ * One element per Masti on screen:
+ *
+ *   <div class="masti" data-masti="thinking" data-height="320"
+ *        data-frames="20" data-frame-w="300" data-frame-h="375" data-delay="62"></div>
+ *
+ * The sheet is a horizontal strip of frames; masti-overlay.js sets
+ * background-position from a timeline so every render of the same reel gets
+ * the same frame. The `.masti--<mood>` classes below point at the sheet files
+ * by relative path, which Playwright's setContent cannot resolve: run
+ * `node overlay/inline.mjs <moods…>` and paste its output instead, which
+ * carries the same rules with data: URIs.
+ */
+.masti {
+  position: absolute;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  image-rendering: auto;
+  /* width/height/background-size are written by masti-overlay.js from
+     data-height, so the element reserves its box before the first frame. */
+}
+.masti--wave     { background-image: url("../sprites/wave.webp"); }
+.masti--excited  { background-image: url("../sprites/excited.webp"); }
+.masti--idea     { background-image: url("../sprites/idea.webp"); }
+.masti--nervous  { background-image: url("../sprites/nervous.webp"); }
+.masti--defeated { background-image: url("../sprites/defeated.webp"); }
+.masti--thinking { background-image: url("../sprites/thinking.webp"); }
+
+/* A still for slides that never move (carousel body slides, covers). */
+.masti-still {
+  position: absolute;
+  pointer-events: none;
+  display: block;
+}

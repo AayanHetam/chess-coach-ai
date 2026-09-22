@@ -4,13 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Box,
   Button,
-  CircularProgress,
   Collapse,
   Typography,
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import SchoolIcon from "@mui/icons-material/School";
 import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
+import { MastiAvatar } from "@/components/masti";
 import type { ChessPuzzle } from "@/lib/chessPuzzlesService";
 import {
   PUZZLE_EXPLANATION_SYSTEM_PROMPT,
@@ -279,7 +279,13 @@ export default function InlinePuzzleCoach({
 
           {loading && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <CircularProgress size={14} sx={{ color: "#ffa726" }} />
+              <MastiAvatar
+                mood="thinking"
+                size={20}
+                ring={false}
+                animated
+                loops={0}
+              />
               <Typography variant="body2" sx={{ color: "grey.400" }}>
                 Coach is thinking…
               </Typography>

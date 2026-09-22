@@ -12,12 +12,9 @@ import {
   ArrowRight,
   Bot,
   Check,
-  CheckCircle2,
-  Clipboard,
   Cpu,
   Crosshair,
   Download,
-  Flame,
   Globe,
   GraduationCap,
   Lightbulb,
@@ -29,7 +26,6 @@ import {
   RotateCcw,
   ShieldCheck,
   Sparkles,
-  TrendingUp,
   Wrench,
   X,
 } from "lucide-react";
@@ -41,6 +37,17 @@ import {
   type ReactNode,
 } from "react";
 import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
+import {
+  Masti,
+  MastiAvatar,
+  mastiStillSrcSet,
+  puzzleMood,
+  useStickyMood,
+} from "@/components/masti";
+import {
+  HeroMastiGreeting,
+  HeroMastiMini,
+} from "@/components/landing/HeroMasti";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 import { DEFAULT_PUZZLE_THEME } from "@/components/puzzle/boardTheme";
 import { surfaceAccent, type Accent } from "@/components/ui/accents";
@@ -303,20 +310,9 @@ function GlassChatPreview() {
         spacing={1.25}
         sx={{ mb: 2.5 }}
       >
-        <Box
-          sx={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #F97316 0%, #A855F7 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "0 0 20px rgba(249,115,22,0.4)",
-          }}
-        >
-          <Sparkles size={16} color="#0A0A0A" />
-        </Box>
+        {/* The coach has a face now: Masti, mid-idea, because the bubble
+            under him is the answer. Still image, a 32px loop would be noise. */}
+        <MastiAvatar mood="idea" size={32} />
         <Box>
           <Typography
             sx={{
@@ -436,9 +432,20 @@ export function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 0.61, 0.36, 1] }}
         >
-          <EyebrowBadge>
-            DEMOCRATIZING HIGH-QUALITY CHESS EDUCATION
-          </EyebrowBadge>
+          {/* On phones the big Masti sits below the fold with the chat card,
+              so a small one rides the eyebrow row: the first screen has him
+              and the primary CTA does not move down. Hidden on md+. */}
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            spacing={1.5}
+          >
+            <EyebrowBadge>
+              DEMOCRATIZING HIGH-QUALITY CHESS EDUCATION
+            </EyebrowBadge>
+            <HeroMastiMini />
+          </Stack>
         </motion.div>
 
         <motion.div
@@ -562,7 +569,11 @@ export function Hero() {
         </motion.div>
       </Box>
 
-      <Box sx={{ perspective: "1200px" }}>
+      <Box sx={{ position: "relative", perspective: "1200px" }}>
+        {/* The big hero Masti. He leans on the top edge of the coach chat card
+            (negative margin in HeroMastiGreeting), waving; the card below is
+            the product he is pointing at. */}
+        <HeroMastiGreeting />
         <GlassChatPreview />
       </Box>
     </Box>
@@ -623,31 +634,25 @@ export function MarqueeStrip() {
 }
 
 export function HowItWorks() {
+  // Masti acts each step out: waves you in, reads the engine output, jumps
+  // when you improve. The stills only; the cards are below the fold and
+  // three loops next to each other would compete with the copy.
   const steps = [
     {
       number: "01",
-      icon: Clipboard,
-      iconColor: "#F97316",
-      iconBg: "rgba(249,115,22,0.12)",
-      iconBorder: "rgba(249,115,22,0.3)",
+      masti: "wave" as const,
       title: "Drop your game.",
       body: "Paste a PGN, a Lichess link, or play one live — the coach picks up wherever you are.",
     },
     {
       number: "02",
-      icon: Cpu,
-      iconColor: "#A855F7",
-      iconBg: "rgba(168,85,247,0.12)",
-      iconBorder: "rgba(168,85,247,0.3)",
+      masti: "thinking" as const,
       title: "Engine + AI analyze.",
       body: "Stockfish 17 evaluates every move. Our AI coach turns the numbers into a plain-English lesson. A validator checks every claim before you see it.",
     },
     {
       number: "03",
-      icon: TrendingUp,
-      iconColor: "#22c55e",
-      iconBg: "rgba(34,197,94,0.12)",
-      iconBorder: "rgba(34,197,94,0.3)",
+      masti: "excited" as const,
       title: "You improve.",
       body: "Drill same-motif puzzles the coach surfaces, then face Maia-2 at your rating. Progress, on loop.",
     },
@@ -691,7 +696,6 @@ export function HowItWorks() {
         }}
       >
         {steps.map((step, i) => {
-          const Icon = step.icon;
           return (
             <RevealOnScroll key={step.number} delay={i * 0.1}>
               <Box
@@ -734,20 +738,12 @@ export function HowItWorks() {
                         "linear-gradient(90deg, rgba(255,255,255,0.12), transparent)",
                     }}
                   />
-                  <Box
-                    sx={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: "10px",
-                      background: step.iconBg,
-                      border: `1px solid ${step.iconBorder}`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Icon size={20} color={step.iconColor} />
-                  </Box>
+                  <Masti
+                    mood={step.masti}
+                    size={64}
+                    animated={false}
+                    decorative
+                  />
                 </Stack>
                 <Typography
                   variant="h3"
@@ -1204,6 +1200,20 @@ function DailyPuzzleSection() {
   const [tries, setTries] = useState(0);
   const [hintShown, setHintShown] = useState(false);
 
+  // Masti reacts to the attempt. "wrong" only lasts 650 ms, so the mood is
+  // held for a full loop before the next one shows, and `tries` doubles as
+  // the pulse that replays "nervous" on a second miss. Read-only over the
+  // same state the board uses; nothing here touches the chess.
+  const masti = useStickyMood(
+    puzzleMood({
+      status,
+      wrongAttempts: tries,
+      hintStage: hintShown && status !== "solved" ? "hint" : null,
+    }),
+    1400,
+    tries
+  );
+
   // Compute legal destinations for chessground to highlight on click
   const dests = useMemo(() => {
     if (status === "solved") return new Map<string, string[]>();
@@ -1330,20 +1340,14 @@ function DailyPuzzleSection() {
 
           <Box sx={{ position: "relative", zIndex: 1 }}>
             <Stack direction="row" spacing={1.5} alignItems="center" mb={2}>
-              <Box
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: "10px",
-                  background: PRACTICE_ACCENT.soft,
-                  border: `1px solid ${PRACTICE_ACCENT.border}`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Flame size={20} color={PRACTICE_ACCENT.bright} />
-              </Box>
+              <MastiAvatar
+                mood={masti.mood}
+                size={44}
+                animated
+                loops={2}
+                replayKey={masti.replayKey}
+                data-testid="daily-puzzle-masti"
+              />
               <Box>
                 <Typography
                   sx={{
@@ -1424,8 +1428,14 @@ function DailyPuzzleSection() {
                       fontStyle: "italic",
                     }}
                   >
-                    💡 The knight on d5 can attack both the king and the rook
-                    from a single square.
+                    <MastiAvatar
+                      mood="idea"
+                      size={26}
+                      ring={false}
+                      style={{ verticalAlign: "middle", marginRight: 8 }}
+                    />
+                    The knight on d5 can attack both the king and the rook from
+                    a single square.
                   </Box>
                 )}
               </Typography>
@@ -1442,7 +1452,7 @@ function DailyPuzzleSection() {
                 }}
               >
                 <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                  <CheckCircle2 size={20} color="#22c55e" />
+                  <MastiAvatar mood="excited" size={36} animated loops={2} />
                   <Box>
                     <Typography
                       sx={{
@@ -2786,6 +2796,9 @@ function FinalCTA() {
           }}
         />
         <Box sx={{ position: "relative" }}>
+          <Box sx={{ display: "flex", justifyContent: "center", mb: 2.5 }}>
+            <Masti mood="excited" size={150} loops={2} replayOnHover />
+          </Box>
           <Typography
             variant="h2"
             sx={{
@@ -2853,19 +2866,7 @@ function Footer() {
         }}
       >
         <Stack direction="row" spacing={1.5} alignItems="center">
-          <Box
-            sx={{
-              width: 22,
-              height: 22,
-              borderRadius: "6px",
-              background: "linear-gradient(135deg, #F97316, #A855F7)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Sparkles size={12} color="#0A0A0A" />
-          </Box>
+          <MastiAvatar mood="wave" size={22} ring={false} />
           <Typography
             sx={{
               fontSize: "0.85rem",
@@ -2920,6 +2921,18 @@ export default function LandingPage() {
         <title key="title">{HOME_TITLE}</title>
         <meta key="description" name="description" content={HOME_DESC} />
         <link key="canonical" rel="canonical" href="https://chessmasti.com/" />
+        {/* The hero Masti is above the fold on md+; fetch his still with the
+            HTML rather than after the JS decides on the srcset. Media-gated:
+            on phones the big figure is below the fold and the first screen
+            has the 24 KB mini instead. */}
+        <link
+          key="masti-hero-preload"
+          rel="preload"
+          as="image"
+          type="image/webp"
+          media="(min-width: 900px)"
+          imageSrcSet={mastiStillSrcSet("wave")}
+        />
 
         <meta key="og:type" property="og:type" content="website" />
         <meta

@@ -1,6 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { Box, Button, Typography, Paper } from "@mui/material";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import { mastiStillPng } from "@/components/masti/manifest";
 import { logErrorToSentry } from "@/lib/sentry";
 
 interface ErrorBoundaryProps {
@@ -71,8 +71,16 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             backgroundColor: "background.paper",
           }}
         >
-          <ErrorOutlineIcon
-            sx={{ fontSize: 40, color: "error.main", mb: 1 }}
+          {/* A plain <img> on purpose: this renders when something has
+              already thrown, so the fallback takes no hooks and no motion. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={mastiStillPng("defeated")}
+            alt=""
+            aria-hidden
+            width={96}
+            height={120}
+            style={{ display: "block", margin: "0 auto 8px" }}
           />
           <Typography variant="subtitle1" gutterBottom>
             Something went wrong

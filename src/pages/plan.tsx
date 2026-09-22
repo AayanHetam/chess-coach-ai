@@ -17,6 +17,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { MastiAvatar } from "@/components/masti";
 import { useDueCourse } from "@/lib/learn/useDueCourse";
 import { useEnsurePlatformRating } from "@/lib/rating/useEnsurePlatformRating";
 import { puzzleStatsAtom } from "@/lib/puzzleRating";
@@ -691,6 +692,12 @@ export default function PlanPage() {
             <Typography
               sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.9rem" }}
             >
+              <MastiAvatar
+                mood="wave"
+                size={22}
+                ring={false}
+                style={{ verticalAlign: "middle", marginRight: 8 }}
+              />
               Nothing scheduled — open the puzzle trainer whenever you like.
             </Typography>
           ) : (

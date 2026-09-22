@@ -10,7 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 import { motion } from "framer-motion";
-import { ArrowUp, RotateCcw, Sparkles, Target } from "lucide-react";
+import { ArrowUp, RotateCcw, Target } from "lucide-react";
 import { Chess } from "chess.js";
 import {
   PuzzleCoachBubble,
@@ -18,7 +18,7 @@ import {
 } from "./PuzzleCoachBubble";
 import { HintStageRow } from "./HintStageRow";
 import { PuzzleDrillMenu } from "./PuzzleDrillMenu";
-import { Logo } from "@/components/ui/Logo";
+import { Masti, MastiAvatar, type MastiMood } from "@/components/masti";
 import { SERIF_DISPLAY } from "@/theme/fonts";
 import type {
   PuzzleContext,
@@ -114,6 +114,17 @@ interface PuzzleCoachPanelProps {
    * conversation, mid-sentence. (SILENT_SUBSTITUTION_HANDOFF §4, T10.)
    */
   onActivity?: () => void;
+  /**
+   * Masti's face for this attempt, decided by the page, which knows about
+   * revealed solutions and running demos. The panel overrides it with
+   * "thinking" while the coach is working and falls back to a face derived
+   * from `outcome` when the page passes nothing.
+   */
+  mood?: MastiMood;
+  /** Changes whenever the face should animate again (a second miss). */
+  moodPulse?: number;
+  /** Solves in a row this session; shown from three up. */
+  streak?: number;
 }
 
 const SUGGESTED_FOLLOWUPS = [
@@ -135,6 +146,9 @@ export function PuzzleCoachPanel({
   onCoachDemoRequest,
   onShowCoachHighlight,
   onActivity,
+  mood,
+  moodPulse,
+  streak = 0,
 }: PuzzleCoachPanelProps) {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState("");
@@ -148,6 +162,24 @@ export function PuzzleCoachPanel({
   // a spinner on the right button.
   const [hintsFired, setHintsFired] = useState<HintStage[]>([]);
   const [hintLoading, setHintLoading] = useState<HintStage | null>(null);
+
+  // The face in the header: the coach working beats the page's verdict.
+  const fallbackMood: MastiMood =
+    outcome === "solved" ? "excited" : outcome === "wrong" ? "nervous" : "wave";
+  const headerMood: MastiMood =
+    streaming || hintLoading ? "thinking" : (mood ?? fallbackMood);
+  const firstCoachTurn = turns.findIndex((t) => t.role === "coach");
+  // Per-bubble faces: a hint stage wears its meaning, the first explanation
+  // after a solve celebrates, everything else is "here's the point".
+  // The first explanation after a solve wears the page's verdict, so a solve
+  // after a miss or a revealed answer is an idea here as well, not a cheer.
+  const solvedFace: MastiMood = mood === "excited" ? "excited" : "idea";
+  const bubbleMood = (t: ChatTurn, isFirstCoachTurn: boolean): MastiMood => {
+    if (t.streaming) return "thinking";
+    if (t.hintStage === "why_wrong") return "nervous";
+    if (t.hintStage) return "idea";
+    return outcome === "solved" && isFirstCoachTurn ? solvedFace : "idea";
+  };
   const hintsFiredRef = useRef<HintStage[]>([]);
 
   // Stable id ref so an in-flight stream aborts cleanly when the parent
@@ -530,21 +562,17 @@ export function PuzzleCoachPanel({
           gap: 1.5,
         }}
       >
-        <Box
-          sx={{
-            width: 34,
-            height: 34,
-            borderRadius: "12px",
-            background:
-              "linear-gradient(135deg, rgba(255,122,26,0.22), rgba(255,140,66,0.08))",
-            border: "1px solid rgba(255,122,26,0.32)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Sparkles size={16} color="#FFD1A8" />
-        </Box>
+        {/* Masti is the puzzle coach's face. Same 34px box as the old icon
+            tile so the header height, and therefore the board below it on
+            the one-screen layout, does not move. */}
+        <MastiAvatar
+          mood={headerMood}
+          size={34}
+          animated
+          loops={2}
+          replayKey={`${headerMood}:${moodPulse ?? 0}`}
+          data-testid="puzzle-coach-masti"
+        />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             sx={{
@@ -571,6 +599,40 @@ export function PuzzleCoachPanel({
               : ""}
           </Typography>
         </Box>
+        {/* Solves in a row this session. Lives here, not in the board card's
+            toolbar, because that toolbar wraps at 1280px when it grows and the
+            board pays for every row it wraps to. */}
+        {streak >= 3 && (
+          <Box
+            data-testid="puzzle-streak"
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 0.6,
+              px: 1.1,
+              py: 0.35,
+              borderRadius: "999px",
+              background: "rgba(249,115,22,0.14)",
+              border: "1px solid rgba(249,115,22,0.38)",
+              color: "#FFD1A8",
+              fontSize: "0.76rem",
+              fontWeight: 800,
+              lineHeight: 1,
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            <MastiAvatar
+              mood="excited"
+              size={18}
+              ring={false}
+              animated
+              loops={1}
+              replayKey={streak}
+            />
+            {streak} in a row
+          </Box>
+        )}
         {onResetPuzzle && (
           <IconButton
             size="small"
@@ -618,7 +680,7 @@ export function PuzzleCoachPanel({
               px: 2,
             }}
           >
-            <Logo size={46} color="#FF7A1A" />
+            <Masti mood="wave" size={112} loops={3} decorative />
             <Typography
               sx={{
                 mt: 2,
@@ -657,6 +719,7 @@ export function PuzzleCoachPanel({
             content={t.content || (t.streaming ? "" : "(empty)")}
             startFen={studentStartFen}
             streaming={!!t.streaming}
+            mood={bubbleMood(t, i === firstCoachTurn)}
             onCoachDemoRequest={onCoachDemoRequest}
             mentions={t.mentions}
             onShowCoachHighlight={onShowCoachHighlight}

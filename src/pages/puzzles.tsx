@@ -16,14 +16,12 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
-import { Loader } from "@/components/ui/Loader";
 import { ThemeProvider, createTheme, useTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import Head from "next/head";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import {
-  Check,
   ChevronDown,
   Eye,
   Flag,
@@ -31,13 +29,18 @@ import {
   Network,
   RotateCcw,
   Sparkles,
-  X,
 } from "lucide-react";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { VIEWPORT_LOCK_PROPS } from "@/components/ads/PartnerSlot";
 import { NavPill } from "@/components/ui/NavPill";
 import { ACCENTS, themeAccent, type Accent } from "@/components/ui/accents";
 import { PuzzleCoachPanel } from "@/components/puzzle/PuzzleCoachPanel";
+import {
+  Masti,
+  MastiAvatar,
+  puzzleMood,
+  useStickyMood,
+} from "@/components/masti";
 import type {
   CoachHighlight,
   MentionColor,
@@ -1161,6 +1164,14 @@ export default function PreviewPuzzlesPage() {
   // Session: counts for the HUD + Finish recap. Rating already auto-saves per
   // puzzle, so Finish is purely a recap + reset gesture.
   const sessionSolved = sessionResults.filter((r) => r.solved).length;
+  // Solves in a row at the END of this session (a miss, a skip or "Show
+  // solution" grades as a miss and breaks it). Session-scoped on purpose: the
+  // persisted stats atom has its own streak that survives reloads and days.
+  let sessionStreak = 0;
+  for (let i = sessionResults.length - 1; i >= 0; i--) {
+    if (!sessionResults[i].solved) break;
+    sessionStreak++;
+  }
   const sessionTotal = sessionResults.length;
   const sessionWrong = sessionTotal - sessionSolved;
 
@@ -1601,6 +1612,21 @@ export default function PreviewPuzzlesPage() {
     if (wrongAttempts > 0) return "wrong";
     return "unattempted";
   }, [status, wrongAttempts]);
+
+  // Masti's face for this attempt, shared by the coach panel header and the
+  // verdict pill. Held for a full animation loop (the red flash lasts 1.4 s)
+  // and pulsed by flashKey so a second miss animates again. Read-only over
+  // the same attempt state the board uses; nothing here touches the chess.
+  const masti = useStickyMood(
+    puzzleMood({
+      status,
+      wrongAttempts,
+      solutionRevealed,
+      demoRunning: !!activeDemo && !activeDemo.finished,
+    }),
+    1400,
+    flashKey
+  );
 
   // Demo locks out interaction — the coach is driving. The wrong-square
   // flash is also suppressed during demo so red overlays don't bleed into
@@ -2369,9 +2395,25 @@ export default function PreviewPuzzlesPage() {
                         }}
                       >
                         {status === "solved" ? (
-                          <Check size={13} color="#86efac" />
+                          <MastiAvatar
+                            // The page's reducer, so a solve after a miss or a
+                            // revealed answer is an idea here too, not a cheer.
+                            mood={masti.mood === "excited" ? "excited" : "idea"}
+                            size={18}
+                            ring={false}
+                            animated
+                            loops={1}
+                            replayKey={flashKey}
+                          />
                         ) : status === "wrong" ? (
-                          <X size={13} color="#fca5a5" />
+                          <MastiAvatar
+                            mood="nervous"
+                            size={18}
+                            ring={false}
+                            animated
+                            loops={1}
+                            replayKey={flashKey}
+                          />
                         ) : (
                           <Lightbulb size={13} color={VIOLET.bright} />
                         )}
@@ -2750,7 +2792,16 @@ export default function PreviewPuzzlesPage() {
                   >
                     {feed.loading ? (
                       <>
-                        <Loader size={44} showLabel={false} />
+                        {/* Still, not a loop: this placeholder lives for
+                            the length of one feed request and a 226 KB
+                            animation would still be downloading when it
+                            unmounts. */}
+                        <Masti
+                          mood="thinking"
+                          size={96}
+                          animated={false}
+                          decorative
+                        />
                         <Typography
                           sx={{ fontSize: "0.92rem", fontWeight: 600 }}
                         >
@@ -2759,6 +2810,12 @@ export default function PreviewPuzzlesPage() {
                       </>
                     ) : feed.error ? (
                       <>
+                        <Masti
+                          mood="defeated"
+                          size={80}
+                          animated={false}
+                          decorative
+                        />
                         <Typography
                           sx={{
                             color: "#fca5a5",
@@ -2910,6 +2967,9 @@ export default function PreviewPuzzlesPage() {
                   // ConceptLessonCard.
                   userRating={stats.rating}
                   userAttemptSan={lastWrongSan}
+                  mood={masti.mood}
+                  moodPulse={masti.replayKey}
+                  streak={sessionStreak}
                   onRequestMorePuzzles={handleNextPuzzle}
                   drillPuzzles={feed.upcoming}
                   onPickDrillPuzzle={handlePickDrillPuzzle}
@@ -2928,6 +2988,8 @@ export default function PreviewPuzzlesPage() {
                     flex: 1,
                     minHeight: 320,
                     display: "flex",
+                    flexDirection: "column",
+                    gap: 1.5,
                     alignItems: "center",
                     justifyContent: "center",
                     borderRadius: "1.5rem",
@@ -2939,6 +3001,7 @@ export default function PreviewPuzzlesPage() {
                     fontSize: "0.85rem",
                   }}
                 >
+                  <Masti mood="wave" size={110} animated={false} decorative />
                   Coach activates with the first puzzle.
                 </Box>
               )}
@@ -3020,7 +3083,7 @@ export default function PreviewPuzzlesPage() {
       >
         <Alert
           severity="info"
-          icon={<Flag size={16} />}
+          icon={<MastiAvatar mood="wave" size={20} ring={false} />}
           onClose={() => setIdleSavedOpen(false)}
           action={
             <Button

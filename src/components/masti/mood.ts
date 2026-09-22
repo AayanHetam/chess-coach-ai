@@ -40,10 +40,12 @@ export function puzzleMood(i: PuzzleMoodInput): MastiMood {
     return i.wrongAttempts === 0 ? "excited" : "idea";
   }
   if (i.solutionRevealed) return "idea";
-  if (i.hintStage === "hint" || i.hintStage === "deeper_dive") return "idea";
+  // A miss beats a hint that is still open: the face answers the move just
+  // played, not the button pressed a minute ago.
   if (i.status === "wrong")
     return i.wrongAttempts >= 3 ? "defeated" : "nervous";
   if (i.wrongAttempts > 0) return "nervous";
+  if (i.hintStage === "hint" || i.hintStage === "deeper_dive") return "idea";
   return "wave";
 }
 

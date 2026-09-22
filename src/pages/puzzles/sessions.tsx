@@ -172,7 +172,12 @@ export default function PuzzleSessionsPage() {
                 border: "1px solid rgba(255,255,255,0.07)",
               }}
             >
-              <Masti mood="wave" size={120} style={{ marginBottom: 12 }} />
+              <Masti
+                mood="wave"
+                size={120}
+                decorative
+                style={{ marginBottom: 12 }}
+              />
               <Typography sx={{ fontSize: "1.05rem", fontWeight: 600, mb: 1 }}>
                 No sessions yet
               </Typography>

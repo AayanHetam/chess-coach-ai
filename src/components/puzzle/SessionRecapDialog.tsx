@@ -150,6 +150,7 @@ export function SessionRecapDialog({
             mood={trendMood(trend)}
             size={72}
             loops={2}
+            decorative
             data-testid="recap-masti"
           />
           <Typography

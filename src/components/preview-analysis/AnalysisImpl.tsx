@@ -7355,14 +7355,10 @@ function CoachBubble({
     !isUser && msg.content.trim().length > 0 && Boolean(onShare);
 
   return (
-    <Box
-      sx={{
-        position: "relative",
-        display: "flex",
-        alignItems: "flex-end",
-        gap: 1,
-      }}
-    >
+    <Box sx={{ position: "relative" }}>
+      {/* The row holds only the face and the bubble; the fragment banner,
+          insight cards and puzzle cards below stay block siblings under it. */}
+      <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1 }}>
       {/* Every coach bubble gets Masti's face, expression by what the turn
           is: a greeting waves, a fragment is nervous, an error is dizzy, an
           answer is an idea. Stills only; twelve loops down a transcript
@@ -7378,6 +7374,7 @@ function CoachBubble({
       <Box
         sx={{
           minWidth: 0,
+          flex: 1,
           px: 2.25,
           py: 1.5,
           borderRadius: "1rem",
@@ -7467,6 +7464,7 @@ function CoachBubble({
             </IconButton>
           </Tooltip>
         )}
+      </Box>
       </Box>
       {msg.incomplete && !isUser && (
         // D4 / T5 (SILENT_SUBSTITUTION_HANDOFF §3 Group D, §4): this answer is
@@ -8885,9 +8883,14 @@ export default function AnalysisPage() {
   // A win is celebrated only for the side the reader said they played.
   const coachMood = useMemo<MastiMood>(() => {
     const cls = classifiedPositions?.[currentPly]?.moveClassification ?? null;
-    // Ply 1 is White's first move, so an odd ply was played by White.
-    const moverColor: PlayerSideColor | null =
-      currentPly >= 1 ? (currentPly % 2 === 1 ? "white" : "black") : null;
+    // From the move itself, not ply parity: a game rooted at a Black-to-move
+    // FEN starts with Black's move at ply 1.
+    const played = allMoves[currentPly - 1];
+    const moverColor: PlayerSideColor | null = played
+      ? played.color === "w"
+        ? "white"
+        : "black"
+      : null;
     const mover: Mover =
       !moverColor || !playerSide
         ? "unknown"
@@ -8909,6 +8912,7 @@ export default function AnalysisPage() {
   }, [
     classifiedPositions,
     currentPly,
+    allMoves,
     playerSide,
     hasGame,
     coachPhase,
@@ -9367,6 +9371,8 @@ export default function AnalysisPage() {
       ]);
       setIsThinking(true);
       setCoachPhase("waiting");
+      // The error face describes the latest request only.
+      setLastCoachError(null);
 
       // Build a rich insight card we'll attach to the coach's response —
       // structured data the LLM doesn't have direct access to.
@@ -9965,6 +9971,8 @@ export default function AnalysisPage() {
       ]);
       setIsThinking(true);
       setCoachPhase("waiting");
+      // The error face describes the latest request only.
+      setLastCoachError(null);
 
       // Compute the FEN AT this ply (not at the current display position),
       // replaying from the game's root so FEN-loaded games are correct.
@@ -10120,6 +10128,8 @@ export default function AnalysisPage() {
       setInput("");
       setIsThinking(true);
       setCoachPhase("waiting");
+      // The error face describes the latest request only.
+      setLastCoachError(null);
 
       let accumulated = "";
       try {
@@ -10334,6 +10344,8 @@ export default function AnalysisPage() {
 
       setIsThinking(true);
       setCoachPhase("waiting");
+      // The error face describes the latest request only.
+      setLastCoachError(null);
       try {
         const puzzles = await fetchPuzzlesForTheme(
           displayFen,

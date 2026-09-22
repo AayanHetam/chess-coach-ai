@@ -123,6 +123,8 @@ interface PuzzleCoachPanelProps {
   mood?: MastiMood;
   /** Changes whenever the face should animate again (a second miss). */
   moodPulse?: number;
+  /** Solves in a row this session; shown from three up. */
+  streak?: number;
 }
 
 const SUGGESTED_FOLLOWUPS = [
@@ -146,6 +148,7 @@ export function PuzzleCoachPanel({
   onActivity,
   mood,
   moodPulse,
+  streak = 0,
 }: PuzzleCoachPanelProps) {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState("");
@@ -168,11 +171,14 @@ export function PuzzleCoachPanel({
   const firstCoachTurn = turns.findIndex((t) => t.role === "coach");
   // Per-bubble faces: a hint stage wears its meaning, the first explanation
   // after a solve celebrates, everything else is "here's the point".
+  // The first explanation after a solve wears the page's verdict, so a solve
+  // after a miss or a revealed answer is an idea here as well, not a cheer.
+  const solvedFace: MastiMood = mood === "excited" ? "excited" : "idea";
   const bubbleMood = (t: ChatTurn, isFirstCoachTurn: boolean): MastiMood => {
     if (t.streaming) return "thinking";
     if (t.hintStage === "why_wrong") return "nervous";
     if (t.hintStage) return "idea";
-    return outcome === "solved" && isFirstCoachTurn ? "excited" : "idea";
+    return outcome === "solved" && isFirstCoachTurn ? solvedFace : "idea";
   };
   const hintsFiredRef = useRef<HintStage[]>([]);
 
@@ -593,6 +599,40 @@ export function PuzzleCoachPanel({
               : ""}
           </Typography>
         </Box>
+        {/* Solves in a row this session. Lives here, not in the board card's
+            toolbar, because that toolbar wraps at 1280px when it grows and the
+            board pays for every row it wraps to. */}
+        {streak >= 3 && (
+          <Box
+            data-testid="puzzle-streak"
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 0.6,
+              px: 1.1,
+              py: 0.35,
+              borderRadius: "999px",
+              background: "rgba(249,115,22,0.14)",
+              border: "1px solid rgba(249,115,22,0.38)",
+              color: "#FFD1A8",
+              fontSize: "0.76rem",
+              fontWeight: 800,
+              lineHeight: 1,
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            <MastiAvatar
+              mood="excited"
+              size={18}
+              ring={false}
+              animated
+              loops={1}
+              replayKey={streak}
+            />
+            {streak} in a row
+          </Box>
+        )}
         {onResetPuzzle && (
           <IconButton
             size="small"
@@ -640,12 +680,7 @@ export function PuzzleCoachPanel({
               px: 2,
             }}
           >
-            <Masti
-              mood="wave"
-              size={112}
-              loops={3}
-              label="Masti the Monkey, your puzzle coach, waving hello"
-            />
+            <Masti mood="wave" size={112} loops={3} decorative />
             <Typography
               sx={{
                 mt: 2,

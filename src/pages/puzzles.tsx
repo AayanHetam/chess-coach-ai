@@ -1164,6 +1164,14 @@ export default function PreviewPuzzlesPage() {
   // Session: counts for the HUD + Finish recap. Rating already auto-saves per
   // puzzle, so Finish is purely a recap + reset gesture.
   const sessionSolved = sessionResults.filter((r) => r.solved).length;
+  // Solves in a row at the END of this session (a miss, a skip or "Show
+  // solution" grades as a miss and breaks it). Session-scoped on purpose: the
+  // persisted stats atom has its own streak that survives reloads and days.
+  let sessionStreak = 0;
+  for (let i = sessionResults.length - 1; i >= 0; i--) {
+    if (!sessionResults[i].solved) break;
+    sessionStreak++;
+  }
   const sessionTotal = sessionResults.length;
   const sessionWrong = sessionTotal - sessionSolved;
 
@@ -1230,41 +1238,6 @@ export default function PreviewPuzzlesPage() {
           {sessionTotal}
         </Box>
       </Box>
-      {/* Per-session solve streak (resets on any miss, including skips and
-          "Show solution"). Labelled "in a row" so it is never mistaken for the
-          daily streak, which is a different number. Three is the threshold:
-          two in a row is nothing to jump about. */}
-      {stats.currentStreak >= 3 && (
-        <Box
-          aria-label={`${stats.currentStreak} solved in a row`}
-          data-testid="puzzle-streak"
-          sx={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 0.6,
-            px: 1.25,
-            py: 0.35,
-            borderRadius: "999px",
-            background: "rgba(249,115,22,0.14)",
-            border: "1px solid rgba(249,115,22,0.38)",
-            color: "#FFD1A8",
-            fontSize: "0.78rem",
-            fontWeight: 800,
-            lineHeight: 1,
-            whiteSpace: "nowrap",
-          }}
-        >
-          <MastiAvatar
-            mood="excited"
-            size={18}
-            ring={false}
-            animated
-            loops={1}
-            replayKey={stats.currentStreak}
-          />
-          {stats.currentStreak} in a row
-        </Box>
-      )}
       <Button
         onClick={handleFinishSession}
         disabled={sessionTotal === 0}
@@ -2423,7 +2396,9 @@ export default function PreviewPuzzlesPage() {
                       >
                         {status === "solved" ? (
                           <MastiAvatar
-                            mood="excited"
+                            // The page's reducer, so a solve after a miss or a
+                            // revealed answer is an idea here too, not a cheer.
+                            mood={masti.mood === "excited" ? "excited" : "idea"}
                             size={18}
                             ring={false}
                             animated
@@ -2817,7 +2792,7 @@ export default function PreviewPuzzlesPage() {
                   >
                     {feed.loading ? (
                       <>
-                        <Masti mood="thinking" size={96} loops={0} />
+                        <Masti mood="thinking" size={96} loops={0} decorative />
                         <Typography
                           sx={{ fontSize: "0.92rem", fontWeight: 600 }}
                         >
@@ -2826,7 +2801,12 @@ export default function PreviewPuzzlesPage() {
                       </>
                     ) : feed.error ? (
                       <>
-                        <Masti mood="defeated" size={80} animated={false} />
+                        <Masti
+                          mood="defeated"
+                          size={80}
+                          animated={false}
+                          decorative
+                        />
                         <Typography
                           sx={{
                             color: "#fca5a5",
@@ -2980,6 +2960,7 @@ export default function PreviewPuzzlesPage() {
                   userAttemptSan={lastWrongSan}
                   mood={masti.mood}
                   moodPulse={masti.replayKey}
+                  streak={sessionStreak}
                   onRequestMorePuzzles={handleNextPuzzle}
                   drillPuzzles={feed.upcoming}
                   onPickDrillPuzzle={handlePickDrillPuzzle}
@@ -3011,7 +2992,7 @@ export default function PreviewPuzzlesPage() {
                     fontSize: "0.85rem",
                   }}
                 >
-                  <Masti mood="wave" size={110} loops={3} />
+                  <Masti mood="wave" size={110} loops={3} decorative />
                   Coach activates with the first puzzle.
                 </Box>
               )}

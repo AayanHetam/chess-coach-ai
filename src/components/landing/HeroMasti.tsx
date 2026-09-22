@@ -67,12 +67,14 @@ export function HeroMastiGreeting() {
               bottom: 18,
               background: "rgba(20,22,28,0.72)",
               transform: "rotate(45deg)",
-              left: { xs: "auto", md: -7 },
-              right: { xs: -7, md: "auto" },
-              borderLeft: { md: "1px solid rgba(255,255,255,0.1)" },
-              borderBottom: { md: "1px solid rgba(255,255,255,0.1)" },
-              borderRight: { xs: "1px solid rgba(255,255,255,0.1)", md: 0 },
-              borderTop: { xs: "1px solid rgba(255,255,255,0.1)", md: 0 },
+              // The tail points at Masti: he stands to the bubble's RIGHT on
+              // md+ (order 1) and to its LEFT on phones (order 0).
+              left: { xs: -7, md: "auto" },
+              right: { xs: "auto", md: -7 },
+              borderLeft: { xs: "1px solid rgba(255,255,255,0.1)", md: 0 },
+              borderBottom: { xs: "1px solid rgba(255,255,255,0.1)", md: 0 },
+              borderRight: { md: "1px solid rgba(255,255,255,0.1)" },
+              borderTop: { md: "1px solid rgba(255,255,255,0.1)" },
             },
           }}
         >

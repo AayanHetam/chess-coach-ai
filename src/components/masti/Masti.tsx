@@ -99,29 +99,57 @@ export function Masti({
   // frame 0 (the same trick FlashOverlay uses to restart a CSS animation).
   const [round, setRound] = useState(0);
   const [hoverKey, setHoverKey] = useState(0);
+  // A burst that has finished stays finished: coming back to the tab must
+  // not replay every mascot on the page. Keyed on what defines a burst.
+  const burstKey = `${mood}|${String(replayKey)}|${hoverKey}`;
+  const doneBurst = useRef<string | null>(null);
+
+  const height = Math.round(size / MASTI_ASPECT);
+  const animSize: MastiAnimSize =
+    variant === "auto" ? (size <= MASTI_SM_MAX_CSS_PX ? "sm" : "lg") : variant;
 
   useEffect(() => {
     if (!motionOk) {
       setPlaying(false);
       return;
     }
-    setPlaying(true);
-    setRound((r) => r + 1);
-    if (!loops || !Number.isFinite(loops) || loops <= 0) return;
-    const timer = setTimeout(
-      () => setPlaying(false),
-      loops * MASTI_LOOP_MS[mood] + 80
-    );
-    return () => clearTimeout(timer);
-  }, [motionOk, mood, loops, replayKey, hoverKey]);
+    if (doneBurst.current === burstKey) return;
+    // Fetch the animation before showing it. Swapping the still for a source
+    // that has not arrived leaves an empty box for the length of the download
+    // and burns the loop timer on nothing; a warmed cache makes the swap
+    // instant and the timer honest.
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const pre = new Image();
+    const start = () => {
+      if (cancelled) return;
+      setPlaying(true);
+      setRound((r) => r + 1);
+      if (!loops || !Number.isFinite(loops) || loops <= 0) return;
+      timer = setTimeout(
+        () => {
+          doneBurst.current = burstKey;
+          setPlaying(false);
+        },
+        loops * MASTI_LOOP_MS[mood] + 80
+      );
+    };
+    pre.onload = start;
+    // A failed fetch keeps the still; nothing to do.
+    pre.onerror = () => undefined;
+    pre.src = mastiAnimSrc(mood, animSize);
+    if (pre.complete && pre.naturalWidth > 0) start();
+    return () => {
+      cancelled = true;
+      pre.onload = null;
+      if (timer) clearTimeout(timer);
+    };
+  }, [motionOk, mood, loops, burstKey, animSize]);
 
   const onMouseEnter = useCallback(() => {
     if (replayOnHover) setHoverKey((k) => k + 1);
   }, [replayOnHover]);
 
-  const height = Math.round(size / MASTI_ASPECT);
-  const animSize: MastiAnimSize =
-    variant === "auto" ? (size <= MASTI_SM_MAX_CSS_PX ? "sm" : "lg") : variant;
   const alt = decorative ? "" : (label ?? MASTI_ALT[mood]);
   const stillSrcSet = thumb
     ? mastiStillSmSrc(mood, "webp")

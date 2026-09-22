@@ -38,8 +38,15 @@ describe("puzzleMood", () => {
   });
   it("a hint or a revealed answer is an idea, never a cheer", () => {
     expect(
-      puzzleMood({ status: "playing", wrongAttempts: 1, hintStage: "hint" })
+      puzzleMood({ status: "playing", wrongAttempts: 0, hintStage: "hint" })
     ).toBe("idea");
+    // A miss after the hint is still a miss.
+    expect(
+      puzzleMood({ status: "wrong", wrongAttempts: 1, hintStage: "hint" })
+    ).toBe("nervous");
+    expect(
+      puzzleMood({ status: "playing", wrongAttempts: 1, hintStage: "hint" })
+    ).toBe("nervous");
     expect(
       puzzleMood({
         status: "playing",

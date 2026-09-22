@@ -90,7 +90,7 @@ export function PuzzleSignInGate({
             boxShadow: ACCENTS.ember.glow,
           }}
         >
-          <Masti mood="wave" size={88} style={{ marginBottom: 8 }} />
+          <Masti mood="wave" size={88} decorative style={{ marginBottom: 8 }} />
           <Typography
             component="h2"
             variant="h6"

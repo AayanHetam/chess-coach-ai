@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
+import { stubAccount, gotoPlan } from "./ratedAccount";
 
 /**
  * /plan renders — the cards, not the modules behind them.
@@ -9,141 +10,42 @@ import { test, expect, type Page } from "@playwright/test";
  * of it was ever observed on a screen. Twice that day a green suite sat on top
  * of a wrong screen, so the gap is not theoretical.
  *
- * /plan has no getServerSideProps — auth is client-side through AuthContext,
- * which reads /api/auth/me. Stubbing that endpoint gives the REAL page, with
- * the real components, in whichever account state we want, without secrets and
- * without creating anything. That is the point: these are the shipped
- * components, not a storybook of look-alikes.
+ * Two of those cards have since left. The goal SETTER and the handle card
+ * moved to /profile on 2026-09-22 — the quiz asks both questions at signup
+ * now, so what is left of them is a settings form, and a settings form has no
+ * business standing between a user and their daily plan. Their coverage moved
+ * with them, to profile-setup.spec.ts. What stays here is what /plan still
+ * owns: the progress card, the forecast, and the way in to set a goal.
  */
-
-const DAY = 86_400_000;
-
-/** A year of daily rating points ending at `end`, drifting gently upward. */
-function series(end: number, days: number, step: number) {
-  const t0 = Date.now() - days * DAY;
-  return Array.from({ length: days }, (_, i) => ({
-    t: t0 + i * DAY,
-    rating: Math.round(end - (days - 1 - i) * step),
-  }));
-}
-
-interface AccountState {
-  handle?: string;
-  goal?: boolean;
-  /** A goal set control-by-control, the way the new setter writes it. */
-  perfGoals?: boolean;
-  /** Practice budget. 15 min fits ONE extra task, 30+ fits both. */
-  time?: "under-10" | "10-30" | "30-plus" | "60-plus";
-}
-
-async function stubAccount(page: Page, state: AccountState = {}) {
-  const user: Record<string, unknown> = {
-    uid: "e2e-user",
-    email: "e2e@example.com",
-    displayName: "E2E",
-    chesscomUsername: "Lazer_Wizard",
-    platformRatingSource: "chesscom",
-    platformRating: 1805,
-    platformRatingRaw: 1805,
-    platformRatingPerf: "rapid",
-    dailyTimeCommitment: state.time ?? "10-30",
-    practiceDaysPerWeek: 5,
-    // Quiz already done. Without it OnboardingNudge opens a MUI Modal over the
-    // page, and a modal marks the rest of the app aria-hidden — every
-    // getByRole() below then finds nothing, on a page that looks fine in a
-    // screenshot. That is a property of modals, not a bug, but it makes the
-    // account state the test runs in load-bearing.
-    onboardingCompletedAt: Date.now() - 30 * DAY,
-  };
-  if (state.handle) user.handle = state.handle;
-  if (state.goal || state.perfGoals) {
-    Object.assign(user, {
-      goalRating: 2000,
-      goalStartRating: 1805,
-      goalSetAt: Date.now() - 7 * DAY,
-      goalTargetDate: Date.now() + 220 * DAY,
-    });
-  }
-  if (state.perfGoals) {
-    // Starts sit BELOW the history stub's live currents (1289/1425/1805) so
-    // the progress rows have real distance-covered to draw.
-    Object.assign(user, {
-      perfGoals: {
-        bullet: { start: 1240, goal: 1500 },
-        blitz: { start: 1380, goal: 1600 },
-        rapid: { start: 1740, goal: 2000 },
-      },
-    });
-  }
-
-  await page.route("**/api/auth/me", (r) =>
-    r.fulfill({ json: { user, isIntern: false, isAdmin: false } })
-  );
-  // Already fresh, so useEnsurePlatformRating must not fire. Stubbed anyway:
-  // an unstubbed call would 401 and the failure would look like the page's.
-  await page.route("**/api/ratings/lookup**", (r) =>
-    r.fulfill({ json: { rating: 1805, raw: 1805, perf: "rapid" } })
-  );
-  await page.route("**/api/ratings/history**", (r) =>
-    r.fulfill({
-      json: {
-        status: "ok",
-        platform: "chesscom",
-        username: "Lazer_Wizard",
-        windowDays: 365,
-        trends: [
-          {
-            perf: "bullet",
-            platform: "chesscom",
-            points: series(1289, 60, 4),
-            current: 1289,
-            delta: 236,
-          },
-          {
-            perf: "blitz",
-            platform: "chesscom",
-            points: series(1425, 60, 2.2),
-            current: 1425,
-            delta: 132,
-          },
-          {
-            perf: "rapid",
-            platform: "chesscom",
-            points: series(1805, 60, 1),
-            current: 1805,
-            delta: 59,
-          },
-        ],
-      },
-    })
-  );
-}
-
-/** The page is up when its own heading is on screen, not when navigation ends. */
-async function gotoPlan(page: Page) {
-  await page.goto("/plan");
-  await expect(page.getByText("Your rating trend")).toBeVisible({
-    timeout: 20_000,
-  });
-  // The consent banner is fixed-position and has intercepted clicks before
-  // (the mobile-signup bug of 2026-08-11). Answer it like a user would.
-  const consent = page.getByRole("button", { name: "I agree" });
-  if (await consent.isVisible().catch(() => false)) await consent.click();
-}
 
 test.describe("no goal set", () => {
   test.beforeEach(async ({ page }) => {
     await stubAccount(page);
   });
 
-  test("the goal setter is offered, since the quiz is one-time", async ({
+  test("the way to set one is offered, not the form itself", async ({
     page,
   }) => {
     await gotoPlan(page);
-    // The whole reason this card exists: existing accounts were never asked.
+    // A user with no goal must not hit a dead end here — the quiz is
+    // one-time, so for an account that predates it this link is the only
+    // route to a goal at all. What it must NOT be is the form: /plan is the
+    // daily session, and a settings card ahead of it is a page that asks you
+    // to configure it before it will help you.
+    await expect(page.getByText("Set a rating goal")).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Commit to my goal" })
-    ).toBeVisible();
+    ).toHaveCount(0);
+    await expect(page.getByLabel("Rapid current rating")).toHaveCount(0);
+  });
+
+  test("that way leads to the setter on /profile", async ({ page }) => {
+    await gotoPlan(page);
+    await page.getByText("Set a rating goal").click();
+    await expect(page).toHaveURL(/\/profile#goals$/);
+    await expect(
+      page.getByRole("button", { name: "Commit to my goal" })
+    ).toBeVisible({ timeout: 20_000 });
   });
 
   test("there is exactly ONE rating goal to set", async ({ page }) => {
@@ -151,87 +53,14 @@ test.describe("no goal set", () => {
     // /plan carried a second, older goal setter (GoalsCard) writing
     // goals.targetRating and scoring it against the PUZZLE rating. Two "Set a
     // goal" buttons, two fields, two scales — visible the moment the page was
-    // looked at, invisible to every unit test.
+    // looked at, invisible to every unit test. Now that the setter itself
+    // lives on /profile, neither belongs here.
     await expect(
       page.getByRole("button", { name: /^set a goal$/i })
     ).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: "Commit to my goal" })
-    ).toHaveCount(1);
-  });
-
-  test("all three controls are offered, currents prefilled from the platform", async ({
-    page,
-  }) => {
-    await gotoPlan(page);
-    // The current side comes from the SAME response the trend panels render,
-    // so the number in the box is the number on the chart below it.
-    await expect(page.getByLabel("Bullet current rating")).toHaveValue("1289");
-    await expect(page.getByLabel("Blitz current rating")).toHaveValue("1425");
-    await expect(page.getByLabel("Rapid current rating")).toHaveValue("1805");
-    // No goal typed anywhere yet — nothing to commit.
-    await expect(
-      page.getByRole("button", { name: "Commit to my goal" })
-    ).toBeDisabled();
-  });
-
-  test("typing one goal is enough, and the patch stores it per control", async ({
-    page,
-  }) => {
-    let patched: Record<string, unknown> | undefined;
-    await page.route("**/api/users/me", async (route) => {
-      if (route.request().method() === "PATCH") {
-        patched = route.request().postDataJSON() as Record<string, unknown>;
-        return route.fulfill({ json: { ok: true } });
-      }
-      return route.fallback();
-    });
-    await gotoPlan(page);
-    await expect(page.getByLabel("Rapid current rating")).toHaveValue("1805");
-
-    await page.getByLabel("Rapid goal rating").fill("2000");
-    // The gain chip is the Acely-style receipt that both numbers were read.
-    await expect(page.getByText("+195 pts")).toBeVisible();
-
-    const commit = page.getByRole("button", { name: "Commit to my goal" });
-    await expect(commit).toBeEnabled();
-    await commit.click();
-
-    await expect.poll(() => patched).toBeTruthy();
-    // Raw per-control numbers, plus the overall pair every existing reader
-    // consumes. Chess.com IS the calibration scale, so they match here.
-    expect(patched!.perfGoals).toEqual({ rapid: { start: 1805, goal: 2000 } });
-    expect(patched!.goalRating).toBe(2000);
-    expect(patched!.goalStartRating).toBe(1805);
-    expect(patched!.goalTargetDate).toBeGreaterThan(Date.now());
-  });
-
-  test("a goal below the current rating is refused on the card", async ({
-    page,
-  }) => {
-    await gotoPlan(page);
-    await expect(page.getByLabel("Rapid current rating")).toHaveValue("1805");
-    await page.getByLabel("Rapid goal rating").fill("1700");
-    await expect(page.getByText("Set a goal above 1805")).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Commit to my goal" })
-    ).toBeDisabled();
-  });
-
-  test("an out-of-reach goal warns instead of promising a date", async ({
-    page,
-  }) => {
-    await gotoPlan(page);
-    await expect(page.getByLabel("Rapid current rating")).toHaveValue("1805");
-    // +1195 at 15 min × 5 days runs past the model's 5-year ceiling. (2800
-    // used to be enough here; the 2026-08-26 pace retune brought it inside
-    // the ceiling, so the test now uses the input's 3000 cap.) The button
-    // staying dead with no explanation would read as a broken page.
-    await page.getByLabel("Rapid goal rating").fill("3000");
-    await expect(page.getByText(/hard to reach at your pace/i)).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Commit to my goal" })
-    ).toBeDisabled();
+    ).toHaveCount(0);
   });
 
   test("the panels SAY why there is no forecast", async ({ page }) => {
@@ -386,92 +215,13 @@ test.describe("goal set", () => {
   });
 });
 
-test.describe("handle card", () => {
-  test("Claim only enables once the server says the handle is free", async ({
+test.describe("the handle card is not here any more", () => {
+  test("an account with no handle is asked on /profile, not on the plan", async ({
     page,
   }) => {
+    // It used to sit above the goal card. Both were prompts bolted onto the
+    // daily page because the quiz never asked; the quiz asks now.
     await stubAccount(page);
-    let asked = "";
-    await page.route("**/api/profile/handle**", async (route) => {
-      const url = new URL(route.request().url());
-      asked = url.searchParams.get("handle") ?? "";
-      await route.fulfill({ json: { available: true } });
-    });
-    await gotoPlan(page);
-
-    const field = page.getByLabel("Handle");
-    const claim = page.getByRole("button", { name: /^claim/i });
-    await expect(field).toBeVisible();
-    // The falsification the whole exercise is for: if the availability check
-    // never reaches the endpoint, this button never enables and the feature is
-    // dead on the screen while every unit test still passes.
-    await expect(claim).toBeDisabled();
-    await field.fill("lazerwizard");
-    await expect(claim).toBeEnabled({ timeout: 5_000 });
-    await expect(page.getByText(/is free/i)).toBeVisible();
-    expect(asked).toBe("lazerwizard");
-  });
-
-  test("a taken handle keeps Claim disabled and says so", async ({ page }) => {
-    await stubAccount(page);
-    await page.route("**/api/profile/handle**", (r) =>
-      r.fulfill({
-        json: { available: false, message: "That handle is taken." },
-      })
-    );
-    await gotoPlan(page);
-    await page.getByLabel("Handle").fill("lazerwizard");
-    await expect(page.getByText(/that handle is taken/i)).toBeVisible({
-      timeout: 5_000,
-    });
-    await expect(page.getByRole("button", { name: /^claim/i })).toBeDisabled();
-  });
-
-  test("a bad handle is refused in the browser, without asking the server", async ({
-    page,
-  }) => {
-    await stubAccount(page);
-    let calls = 0;
-    await page.route("**/api/profile/handle**", (r) => {
-      calls += 1;
-      return r.fulfill({ json: { available: true } });
-    });
-    await gotoPlan(page);
-    await page.getByLabel("Handle").fill("admin");
-    await expect(
-      page.getByText(/reserved|not available|can't use/i).first()
-    ).toBeVisible();
-    await expect(page.getByRole("button", { name: /^claim/i })).toBeDisabled();
-    expect(calls).toBe(0);
-  });
-
-  test("claiming posts the handle and the card gets out of the way", async ({
-    page,
-  }) => {
-    await stubAccount(page);
-    let posted: string | undefined;
-    await page.route("**/api/profile/handle**", async (route) => {
-      const req = route.request();
-      if (req.method() === "POST") {
-        posted = (req.postDataJSON() as { handle?: string }).handle;
-        return route.fulfill({ json: { ok: true, handle: "lazerwizard" } });
-      }
-      return route.fulfill({ json: { available: true } });
-    });
-    await gotoPlan(page);
-    await page.getByLabel("Handle").fill("lazerwizard");
-    await expect(page.getByRole("button", { name: /^claim/i })).toBeEnabled({
-      timeout: 5_000,
-    });
-    await page.getByRole("button", { name: /^claim/i }).click();
-    await expect(page.getByText("Pick your handle")).toHaveCount(0);
-    expect(posted).toBe("lazerwizard");
-  });
-
-  test("an account that already has a handle is not asked again", async ({
-    page,
-  }) => {
-    await stubAccount(page, { handle: "LazerWizard" });
     await gotoPlan(page);
     await expect(page.getByText("Pick your handle")).toHaveCount(0);
   });

@@ -86,16 +86,76 @@ test("the quiz walks end to end on the self-assessment branch", async ({ page })
   await page.getByRole("button", { name: /days|every day/i }).first().click();
   await next(page);
 
-  // Q8 — the goal, asked LAST so its projection uses the real schedule.
+  // Q8 — the goal, asked after the schedule so its projection uses the real
+  // one. The self-assessment branch gets the single slider: it has one coarse
+  // derived rating behind it, so the per-control form a platform player sees
+  // would be three boxes they have to guess at.
   await expect(
     page.getByRole("heading", { name: /rating do you want to reach/i })
   ).toBeVisible();
   await expect(page.getByRole("slider")).toBeVisible();
+  // NOT the last step any more — the handle is.
+  await expect(page.getByRole("button", { name: "See my results" })).toHaveCount(0);
+  await next(page);
+
+  // Q9 — the handle, last, next to the signup it attaches to.
+  await expect(
+    page.getByRole("heading", { name: "Pick your handle" })
+  ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "See my results" })
   ).toBeVisible();
 
   expect(crashes, `page errors during the quiz: ${crashes.join(" | ")}`).toEqual([]);
+});
+
+test("the handle step is optional, and refuses what the claim would refuse", async ({
+  page,
+}) => {
+  await page.goto("/onboarding");
+  await dismissConsent(page);
+
+  await page.getByText("Over the board").first().click();
+  await next(page);
+  await page.getByText("1–3 years").first().click();
+  await next(page);
+  await page.getByText("Sometimes").first().click();
+  await next(page);
+  await page.getByText("A few online").first().click();
+  await next(page);
+  await page.getByRole("button", { name: /^Tactics/ }).first().click();
+  await next(page);
+  await page.getByRole("button", { name: /min \/ day/ }).first().click();
+  await next(page);
+  await page.getByRole("button", { name: /days|every day/i }).first().click();
+  await next(page);
+  await next(page); // past the goal slider, which seeds its own default
+
+  await expect(
+    page.getByRole("heading", { name: "Pick your handle" })
+  ).toBeVisible();
+
+  const cta = page.getByRole("button", { name: "See my results" });
+  const field = page.getByLabel("Handle");
+
+  // Blank is a legitimate answer. A wall here would cost a signup to buy a
+  // field nothing in the product depends on.
+  await expect(cta).toBeEnabled();
+
+  // A handle the claim would reject has to be caught HERE. The visitor has no
+  // session yet, so the availability endpoint is out of reach and the format
+  // rules are the only thing standing between them and a signup that silently
+  // fails to claim.
+  await field.fill("admin");
+  await expect(page.getByText(/reserved/i)).toBeVisible();
+  await expect(cta).toBeDisabled();
+
+  await field.fill("ab");
+  await expect(cta).toBeDisabled();
+
+  await field.fill("lazerwizard");
+  await expect(page.getByText(/looks good/i)).toBeVisible();
+  await expect(cta).toBeEnabled();
 });
 
 test("the goal step renders a projection rather than an empty box", async ({ page }) => {

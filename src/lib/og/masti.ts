@@ -3,7 +3,8 @@ import path from "node:path";
 import { MASTI_VERSION, type MastiMood } from "@/components/masti/manifest";
 
 /**
- * Masti for the OG share cards (nodejs runtime only: reads public/ with fs).
+ * Masti for the OG share cards (nodejs runtime only: reads public/ with fs;
+ * the edge route imports ./mastiUrl instead, this module cannot bundle there).
  * A data: URI keeps satori from fetching the deployment mid-render and works
  * on preview URLs, where an absolute production URL might not exist yet. The
  * routes that call this are listed in next.config.js outputFileTracingIncludes
@@ -32,8 +33,4 @@ export function mastiOgDataUri(mood: MastiMood): string | null {
   return uri;
 }
 
-/** Absolute URL for the edge runtime, which has no fs. */
-export function mastiOgUrl(mood: MastiMood): string {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://chessmasti.com";
-  return `${base.replace(/\/$/, "")}/masti/${MASTI_VERSION}/still/${mood}.png`;
-}
+export { mastiOgUrl } from "./mastiUrl";

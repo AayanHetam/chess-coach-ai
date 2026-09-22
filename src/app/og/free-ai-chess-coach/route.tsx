@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
-import { mastiOgUrl } from "@/lib/og/masti";
+import { mastiOgUrl } from "@/lib/og/mastiUrl";
 
 export const runtime = "edge";
 

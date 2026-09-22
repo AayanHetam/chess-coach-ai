@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { brandMarkOgDataUri } from "@/lib/og/brand";
 import { mastiOgDataUri } from "@/lib/og/masti";
 
 /**
@@ -17,6 +18,7 @@ const EMBER = "#F97316";
 
 export async function GET() {
   const masti = mastiOgDataUri("wave");
+  const brand = brandMarkOgDataUri();
   return new ImageResponse(
     (
       <div
@@ -72,14 +74,10 @@ export async function GET() {
               marginBottom: 36,
             }}
           >
-            <div
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: 6,
-                background: EMBER,
-              }}
-            />
+            {brand && (
+              // eslint-disable-next-line @next/next/no-img-element -- satori draws a plain img from a data URI
+              <img src={brand} alt="" width={44} height={44} />
+            )}
             <span
               style={{
                 color: "rgba(255,255,255,0.55)",

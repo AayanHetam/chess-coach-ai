@@ -4,10 +4,11 @@ import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
 /**
- * The brand icons are Masti's face, built from the wave still by
- * scripts/masti/build-brand-icons.mjs. These assertions run on the shipped
- * files, so an icon regenerated from the old logo.svg, or a manifest that
- * names a file that is not there, fails CI instead of the browser tab.
+ * The brand icons are the Chess Masti logo (the CM monogram with Masti's
+ * face), built from assets/brand/chess-masti-logo.webp by
+ * scripts/brand/build-logo-assets.mjs. These assertions run on the shipped
+ * files, so an icon regenerated from an old mark, or a manifest that names a
+ * file that is not there, fails CI instead of the browser tab.
  */
 const PUB = path.join(process.cwd(), "public");
 const read = (file: string) => fs.readFileSync(path.join(PUB, file));
@@ -41,6 +42,27 @@ describe("brand icons", () => {
       // The round favicons show the tab through their corners; the touch and
       // PWA icons are full-bleed because iOS paints transparency black.
       expect(alphaAt(0, 0)).toBe(round ? 0 : 255);
+      expect(alphaAt(size / 2, size / 2)).toBe(255);
+    }
+  );
+
+  it.each([64, 128, 256, 512])(
+    "brand/cm-mark-%i.png is the transparent mark",
+    async (size) => {
+      const img = sharp(read(`brand/cm-mark-${size}.png`));
+      const meta = await img.metadata();
+      expect([meta.format, meta.width, meta.height, meta.hasAlpha]).toEqual([
+        "png",
+        size,
+        size,
+        true,
+      ]);
+      const { data, info } = await img
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      const alphaAt = (x: number, y: number) =>
+        data[(y * info.width + x) * info.channels + 3];
+      expect(alphaAt(0, 0)).toBe(0);
       expect(alphaAt(size / 2, size / 2)).toBe(255);
     }
   );

@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { brandMarkOgDataUri } from "@/lib/og/brand";
 import { mastiOgDataUri } from "@/lib/og/masti";
 import { getInsight } from "@/lib/insights";
 import { excerptCoachContent } from "@/lib/og/excerptCoachContent";
@@ -77,6 +78,7 @@ export async function GET(
   const board = parseFenToBoard(fen);
 
   const masti = mastiOgDataUri("idea");
+  const brand = brandMarkOgDataUri();
 
   return new ImageResponse(
     (
@@ -114,22 +116,10 @@ export async function GET(
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                backgroundColor: EMBER,
-                color: BG,
-                fontSize: 24,
-                fontWeight: 800,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              CM
-            </div>
+            {brand && (
+              // eslint-disable-next-line @next/next/no-img-element -- satori draws a plain img from a data URI
+              <img src={brand} alt="" width={40} height={40} />
+            )}
             <div
               style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}
             >

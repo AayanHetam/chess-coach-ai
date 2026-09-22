@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { surfaceAccent } from "./accents";
 import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
-import { MastiAvatar } from "@/components/masti";
+import { BrandMark } from "./BrandMark";
 import ChatHistoryList from "@/components/chat/ChatHistoryList";
 import { EmployeePill } from "@/components/intern/EmployeePill";
 import { useViewer } from "@/hooks/useViewer";
@@ -176,7 +176,7 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                 gap: 1.5,
               }}
             >
-              <MastiAvatar mood="wave" size={36} decorative />
+              <BrandMark size={36} />
               <Box>
                 <Typography
                   sx={{

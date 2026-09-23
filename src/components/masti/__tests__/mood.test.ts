@@ -4,6 +4,7 @@ import {
   classificationMood,
   coachErrorMood,
   puzzleMood,
+  repertoireMood,
   resultMood,
   scoreMood,
   trendMood,
@@ -147,5 +148,20 @@ describe("recap, score and result moods", () => {
     expect(resultMood("draw")).toBe("idea");
     expect(resultMood(null)).toBe("wave");
     expect(coachErrorMood("api")).toBe("defeated");
+  });
+});
+
+describe("repertoireMood", () => {
+  const open = { lockedHere: false, bothLocked: false };
+  it("waves at an empty side and points at the gap once something is chosen", () => {
+    expect(repertoireMood({ picks: 0, enough: false, ...open })).toBe("wave");
+    expect(repertoireMood({ picks: 1, enough: false, ...open })).toBe("pointing");
+  });
+  it("celebrates a side that is enough, then moves on once it is locked", () => {
+    expect(repertoireMood({ picks: 2, enough: true, ...open })).toBe("excited");
+    expect(repertoireMood({ picks: 2, enough: true, lockedHere: true, bothLocked: false })).toBe("idea");
+  });
+  it("brings the banana when both colours are locked, whatever the coverage", () => {
+    expect(repertoireMood({ picks: 0, enough: false, lockedHere: true, bothLocked: true })).toBe("banana");
   });
 });

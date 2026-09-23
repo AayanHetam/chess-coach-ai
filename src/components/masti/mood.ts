@@ -192,3 +192,28 @@ export function resultMood(
   if (result === "draw") return "idea";
   return "wave";
 }
+
+export interface RepertoireMoodInput {
+  /** Picks made on the side of the bracket being shown. */
+  picks: number;
+  /** Coverage on that side has reached the band's enough line. */
+  enough: boolean;
+  lockedHere: boolean;
+  bothLocked: boolean;
+}
+
+/**
+ * The guide at the top of /learn. Both colours locked is the banana (the
+ * repertoire is done and the work moves to the courses); a locked side is the
+ * next idea (the other colour); a side that is enough but still open is the
+ * celebration; an empty side is hello; anything in between is Masti pointing
+ * at the biggest gap. The line he says beside it is `guideLine` in
+ * lib/repertoire/guide.ts, which reads the same inputs.
+ */
+export function repertoireMood(i: RepertoireMoodInput): MastiMood {
+  if (i.bothLocked) return "banana";
+  if (i.lockedHere) return "idea";
+  if (i.enough) return "excited";
+  if (i.picks === 0) return "wave";
+  return "pointing";
+}

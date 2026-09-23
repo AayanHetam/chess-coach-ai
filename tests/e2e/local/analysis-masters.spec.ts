@@ -197,3 +197,46 @@ test("off the tree the rows are engine picks and say so", async ({ page }) => {
   await expect(rows.nth(2)).toContainText("Inferior");
   await expect(panel.getByTestId("master-games-summary")).toHaveCount(0);
 });
+
+test("arrow keys drive the Masters tab: → plays the selection, ↑↓ move it, ← steps back", async ({
+  page,
+}) => {
+  await acceptConsent(page);
+  await stubMaiaHealthy(page);
+  const panel = await openMastersTab(page, IN_BOOK);
+  const rows = panel.getByTestId("master-candidate");
+  const selected = panel.locator('[data-kb-selected="true"]');
+  const path = page.getByTestId("exploration-path");
+
+  // The most played reply is selected before anything is pressed.
+  await expect(rows.first()).toContainText("d6", { timeout: 15_000 });
+  await expect(selected).toContainText("d6");
+
+  // → plays it; the board is now off the mainline by one move, and the
+  // rows are White's replies to it, with the most played one selected.
+  await page.keyboard.press("ArrowRight");
+  await expect(path).toHaveText("d6");
+  await expect(rows.first()).toContainText("d4", { timeout: 15_000 });
+  await expect(selected).toContainText("d4");
+
+  // ↓ moves the selection to the second row, and → plays that one.
+  await page.keyboard.press("ArrowDown");
+  const secondSan = (await rows.nth(1).getAttribute("aria-label"))!.replace(
+    "Preview ",
+    ""
+  );
+  await expect(selected).toContainText(secondSan);
+  await page.keyboard.press("ArrowRight");
+  await expect(path).toHaveText(`d6 ${secondSan}`);
+
+  // ← takes that move back, and it comes up selected rather than the first
+  // row, so ↓ from here reaches its siblings.
+  await page.keyboard.press("ArrowLeft");
+  await expect(path).toHaveText("d6");
+  await expect(selected).toContainText(secondSan, { timeout: 15_000 });
+
+  // ← again takes back the first explored move: the board is on the anchor.
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.getByText("Exploring", { exact: true })).toHaveCount(0);
+  await expect(selected).toContainText("d6", { timeout: 15_000 });
+});

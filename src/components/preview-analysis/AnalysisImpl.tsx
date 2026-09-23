@@ -26,6 +26,8 @@ import {
   replayPreviewMove,
   type MasterCandidate,
 } from "@/components/ui/MasterGamesPanel";
+import { fetchExplorer } from "@/lib/master/explorerClient";
+import { fenAtPly, stepBackPreview } from "@/lib/master/exploration";
 import {
   findAllMoveRefs,
   resolveMoveRef,
@@ -350,6 +352,11 @@ function classifyMove(
 // (e.g. a heatmap overlay) doesn't have to re-import. Calling it has no
 // side effects so this is just a soft tree-shake hint.
 void getPositionWinPercentage;
+
+/** The first four FEN fields: the position, whatever its move counters say. */
+function normalizePosition(fen: string): string {
+  return fen.split(" ").slice(0, 4).join(" ");
+}
 
 function uciToShape(uci: string, brush: string): DrawShape {
   return { orig: uci.slice(0, 2), dest: uci.slice(2, 4), brush };
@@ -3360,6 +3367,7 @@ function ExplorationBanner({
           whiteSpace: "nowrap",
         }}
         title={preview.path.join(" ")}
+        data-testid="exploration-path"
       >
         {preview.path.join(" ")}
       </Typography>
@@ -8792,6 +8800,14 @@ export default function AnalysisPage() {
   const [takeoverCandidates, setTakeoverCandidates] = useState<
     MasterCandidate[]
   >([]);
+  // The move ← on the Masters tab just took back, and the position that put
+  // the board on. The panel selects that row while the board shows that
+  // position, so ↓ reaches the move's siblings; anywhere else the hint is
+  // simply not for this position and the first row is selected as usual.
+  const [undoneMove, setUndoneMove] = useState<{
+    san: string;
+    fen: string;
+  } | null>(null);
 
   // Drill mode — puzzle promoted onto the main board. Coach chat persists
   // alongside the drill so the user can chat with the coach about the
@@ -9202,10 +9218,7 @@ export default function AnalysisPage() {
     if (commonCache[displayFen]) return;
     if (commonInFlightRef.current.has(displayFen)) return;
     commonInFlightRef.current.add(displayFen);
-    fetch(
-      `/api/opening-explorer?fen=${encodeURIComponent(displayFen)}&moves=10`
-    )
-      .then((res) => (res.ok ? res.json() : null))
+    fetchExplorer(displayFen)
       .then((data) => {
         if (data) {
           // Out of book is an empty list, cached like any other answer so the
@@ -9389,6 +9402,29 @@ export default function AnalysisPage() {
     setTakeoverPreview(null);
     if (anchorPly !== currentPly) setCurrentPly(anchorPly);
   }, [takeoverPreview, currentPly]);
+
+  // ← on the Masters tab: half a move back. Off the mainline that takes back
+  // the last explored move (taking back the first one puts the board on the
+  // anchor); on it, one ply back like everywhere else. Either way the move
+  // taken back is handed to the panel so it comes up selected.
+  const stepBackHalfMove = useCallback(() => {
+    if (takeoverPreview) {
+      const shorter = stepBackPreview(takeoverPreview, allMoves, rootFen);
+      // While a preview exists the cursor sits on its anchor, so the anchor's
+      // position is the one on the board once the whole path is taken back.
+      setUndoneMove({
+        san: takeoverPreview.san,
+        fen: shorter?.fen ?? currentFen,
+      });
+      setTakeoverPreview(shorter);
+      return;
+    }
+    if (currentPly === 0) return;
+    const undone = allMoves[currentPly - 1];
+    const fenBefore = fenAtPly(allMoves, currentPly - 1, rootFen);
+    if (undone && fenBefore) setUndoneMove({ san: undone.san, fen: fenBefore });
+    setCurrentPly(currentPly - 1);
+  }, [takeoverPreview, allMoves, rootFen, currentFen, currentPly]);
 
   const handleTakeoverSendToCoach = useCallback(
     async (message: string, candidate?: MasterCandidate) => {
@@ -10502,6 +10538,14 @@ export default function AnalysisPage() {
         returnToAnchor();
         return;
       }
+      // On the Masters tab ← and → belong to the panel: → plays the selected
+      // master move and ← takes half a move back. See MasterGamesPanel.
+      if (
+        rightTab === "masters" &&
+        (e.key === "ArrowLeft" || e.key === "ArrowRight")
+      ) {
+        return;
+      }
       if (e.key === "ArrowLeft") setCurrentPly((p) => Math.max(0, p - 1));
       else if (e.key === "ArrowRight")
         setCurrentPly((p) => Math.min(allMoves.length, p + 1));
@@ -10512,7 +10556,7 @@ export default function AnalysisPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [allMoves.length, takeoverPreview, returnToAnchor]);
+  }, [allMoves.length, takeoverPreview, returnToAnchor, rightTab]);
 
   // Command palette groups — recomputed when ply/moments change
   const commandGroups: CommandGroup[] = useMemo(
@@ -11060,6 +11104,14 @@ export default function AnalysisPage() {
                           ply={currentPly}
                           playedSan={playedSanAtPly}
                           onPreviewMove={handleTakeoverPreviewMove}
+                          onStepBack={stepBackHalfMove}
+                          selectSan={
+                            undoneMove &&
+                            normalizePosition(undoneMove.fen) ===
+                              normalizePosition(displayFen)
+                              ? undoneMove.san
+                              : undefined
+                          }
                           onSendToCoach={handleTakeoverSendToCoach}
                           onCandidatesUpdate={setTakeoverCandidates}
                           moves={allMoves}

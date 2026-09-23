@@ -21,18 +21,21 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import {
+  fetchExplorer,
+  peekExplorer,
+  prefetchExplorer,
+  type ApiData,
+  type ApiMove,
+  type MasterCorpusMeta,
+  type MasterSource,
+} from "@/lib/master/explorerClient";
+
+export type { ApiData, ApiMove, MasterCorpusMeta, MasterSource };
+
 // ───────────────────────────────────────────────────────────────────────────
 // Data model — what /api/opening-explorer answers, and what a row is.
 // ───────────────────────────────────────────────────────────────────────────
-
-/**
- * Which upstream produced this answer. Mirrors the route:
- * tree (the generated master-games corpus) → lichess (Lichess Masters, live,
- * 401-blocked and off by default) → chessdb (engine analysis, no games).
- * "curated" is the retired name for "tree", kept so answers still inside the
- * edge cache render after a deploy.
- */
-export type MasterSource = "tree" | "curated" | "lichess" | "chessdb";
 
 export interface MasterCandidate {
   san: string;
@@ -49,40 +52,6 @@ export interface MasterCandidate {
   /** White's expected score, 0..100, from the engine analysis. */
   winrate?: number;
   source?: MasterSource;
-}
-
-export interface ApiMove {
-  uci: string;
-  san?: string;
-  count?: number;
-  white?: number;
-  draws?: number;
-  black?: number;
-  eval?: number;
-  rank?: number;
-  winrate?: number;
-}
-
-/** Provenance for the generated tree, surfaced in the footer. */
-export interface MasterCorpusMeta {
-  games: number;
-  positions: number;
-  maxPlies: number;
-  minGames: number;
-  source: string;
-  generatedAt: string;
-}
-
-export interface ApiData {
-  moves: ApiMove[];
-  /** Games that reached the position. Shares divide by this, never by the rows. */
-  total?: number;
-  opening?: { eco: string | null; name: string };
-  source?: MasterSource;
-  /** False when the source has no game statistics at all. Absent = true. */
-  hasGameCounts?: boolean;
-  indexedPositions?: number;
-  corpus?: MasterCorpusMeta;
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -612,8 +581,15 @@ interface MasterGamesPanelProps {
   ply: number;
   /** Move played in the loaded game at this ply, for the PLAYED badge. */
   playedSan?: string;
-  /** A row was chosen: parent plays it on the board. */
+  /** A row was chosen (click, → or Enter): parent plays it on the board. */
   onPreviewMove: (uci: string, san: string) => void;
+  /** ←: parent takes the board half a move back. */
+  onStepBack?: () => void;
+  /**
+   * The row to select when the rows for `fen` are up, instead of the first:
+   * after ← it is the move just taken back, so ↓ reaches its siblings.
+   */
+  selectSan?: string;
   /** A row's chat button: parent sends the question with the row attached. */
   onSendToCoach: (message: string, candidate?: MasterCandidate) => void;
   /** Fires whenever the visible rows change, for the board's arrows. */
@@ -624,57 +600,63 @@ interface MasterGamesPanelProps {
   onJumpToPly?: (ply: number) => void;
 }
 
-const ROWS_REQUESTED = 20;
+/**
+ * Holding an arrow key through the strip changes the position faster than
+ * this; one request per position the user actually settles on.
+ */
+const FETCH_DEBOUNCE_MS = 60;
+
+/** How long a selection has to rest before its position is fetched ahead. */
+const PREFETCH_DELAY_MS = 150;
 
 export function MasterGamesPanel({
   fen,
   ply,
   playedSan,
   onPreviewMove,
+  onStepBack,
+  selectSan,
   onSendToCoach,
   onCandidatesUpdate,
   moves,
   onJumpToPly,
 }: MasterGamesPanelProps) {
-  // The explorer's last answer, tagged with the position it answers for —
-  // see ExplorerResult for why it is one value and not three states.
-  const [result, setResult] = useState<ExplorerResult | null>(null);
+  // The explorer's last answer that had to be waited for, tagged with the
+  // position it answers for — see ExplorerResult for why it is one value and
+  // not three states. Positions already answered come straight from the
+  // shared cache below, with no loading state at all.
+  const [fetched, setFetched] = useState<ExplorerResult | null>(null);
   const [retryTick, setRetryTick] = useState(0);
-  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (!fen) return;
-    abortRef.current?.abort();
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-
-    const handle = setTimeout(async () => {
-      try {
-        const url = `/api/opening-explorer?fen=${encodeURIComponent(fen)}&moves=${ROWS_REQUESTED}`;
-        const res = await fetch(url, { signal: ctrl.signal });
-        if (!res.ok) throw new Error(String(res.status));
-        const data = (await res.json()) as ApiData;
-        if (!ctrl.signal.aborted) setResult({ fen, data, error: false });
-      } catch (e) {
-        if ((e as Error).name !== "AbortError" && !ctrl.signal.aborted) {
-          setResult({ fen, data: null, error: true });
-        }
-      }
-    }, 200);
-
+    if (!fen || peekExplorer(fen)) return;
+    let cancelled = false;
+    const handle = setTimeout(() => {
+      fetchExplorer(fen)
+        .then((data) => {
+          if (!cancelled) setFetched({ fen, data, error: false });
+        })
+        .catch(() => {
+          if (!cancelled) setFetched({ fen, data: null, error: true });
+        });
+    }, FETCH_DEBOUNCE_MS);
     return () => {
+      cancelled = true;
       clearTimeout(handle);
-      ctrl.abort();
     };
   }, [fen, retryTick]);
 
   // Everything below reads the answer for the position on the board and
   // nothing else. Until one exists the panel is loading, whatever the
   // previous position had.
-  const current = result?.fen === fen ? result : null;
-  const apiData = current?.data ?? null;
-  const apiError = current?.error ?? false;
-  const loading = current === null;
+  const result = useMemo<ExplorerResult | null>(() => {
+    const cached = peekExplorer(fen);
+    if (cached) return { fen, data: cached, error: false };
+    return fetched?.fen === fen ? fetched : null;
+  }, [fen, fetched]);
+  const apiData = result?.data ?? null;
+  const apiError = result?.error ?? false;
+  const loading = result === null;
 
   const candidates = useMemo<MasterCandidate[]>(
     () => candidatesForPosition(result, fen),
@@ -694,12 +676,20 @@ export function MasterGamesPanel({
   const isFallback = apiError && candidates.length > 0;
   const opening = apiData?.opening;
 
-  // ↑/↓ to cycle rows, Enter to preview. ←/→ are bound globally in the
-  // parent (AnalysisImpl keyboard nav effect) so we deliberately skip them.
+  // Which row → plays: the first (most played, or the engine's top choice)
+  // unless the parent names one — after ← it is the move just taken back, so
+  // ↓ reaches its siblings.
   const [selectedIdx, setSelectedIdx] = useState(0);
   useEffect(() => {
-    setSelectedIdx(0);
-  }, [fen, candidates.length]);
+    const wanted = selectSan
+      ? candidates.findIndex((c) => c.san === selectSan)
+      : -1;
+    setSelectedIdx(wanted >= 0 ? wanted : 0);
+  }, [fen, candidates, selectSan]);
+
+  // ↑/↓ select, → (or Enter) plays the selection, ← takes half a move back.
+  // The page binds ←/→ to the game's plies everywhere else; while this panel
+  // is up they belong to it, and AnalysisImpl stands down.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -707,9 +697,13 @@ export function MasterGamesPanel({
         t &&
         (t.tagName === "INPUT" ||
           t.tagName === "TEXTAREA" ||
-          t.tagName === "BUTTON" ||
           t.isContentEditable)
       ) {
+        return;
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        onStepBack?.();
         return;
       }
       if (candidates.length === 0) return;
@@ -719,7 +713,10 @@ export function MasterGamesPanel({
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setSelectedIdx((i) => nextCandidateIndex(i, candidates.length, -1));
-      } else if (e.key === "Enter") {
+      } else if (
+        e.key === "ArrowRight" ||
+        (e.key === "Enter" && t?.tagName !== "BUTTON")
+      ) {
         const c = candidates[selectedIdx];
         if (!c) return;
         e.preventDefault();
@@ -728,7 +725,23 @@ export function MasterGamesPanel({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [candidates, selectedIdx, onPreviewMove]);
+  }, [candidates, selectedIdx, onPreviewMove, onStepBack]);
+
+  // Have the selected row's position answered before → asks for it. Only
+  // from a master position: past the tree every child is a chessdb round
+  // trip, and one of those per keypress is enough.
+  useEffect(() => {
+    if (!apiData || apiData.source !== "tree") return;
+    const c = candidates[selectedIdx];
+    if (!c) return;
+    const next = replayPreviewMove(fen, c.uci);
+    if (!next) return;
+    const handle = setTimeout(
+      () => prefetchExplorer(next.fen),
+      PREFETCH_DELAY_MS
+    );
+    return () => clearTimeout(handle);
+  }, [apiData, candidates, selectedIdx, fen]);
 
   // Auto-scroll the history strip to keep the current ply in view.
   const stripRef = useRef<HTMLDivElement>(null);
@@ -897,7 +910,7 @@ export function MasterGamesPanel({
               </IconButton>
             </span>
           </Tooltip>
-          <Tooltip title="Previous move (←)" arrow>
+          <Tooltip title="Previous move in the game" arrow>
             <span>
               <IconButton
                 onClick={() => onJumpToPly(Math.max(0, ply - 1))}
@@ -910,7 +923,7 @@ export function MasterGamesPanel({
               </IconButton>
             </span>
           </Tooltip>
-          <Tooltip title="Next move (→)" arrow>
+          <Tooltip title="Next move in the game" arrow>
             <span>
               <IconButton
                 onClick={() => onJumpToPly(Math.min(totalPlies, ply + 1))}
@@ -1488,7 +1501,7 @@ export function MasterGamesPanel({
             display: { xs: "none", sm: "block" },
           }}
         >
-          ↑↓ Enter previews · drag to explore
+          ↑↓ select · → play · ← back · drag to explore
         </Box>
       </Box>
     </Box>

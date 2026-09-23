@@ -561,7 +561,7 @@ export function MarqueeStrip() {
   return (
     <Box
       sx={{
-        my: { xs: 6, md: 8 },
+        my: { xs: 2, md: 2.5 },
         py: 2.5,
         borderTop: "1px solid rgba(255,255,255,0.06)",
         borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -602,7 +602,7 @@ export function MarqueeStrip() {
 
 function ChromeExtension() {
   return (
-    <Box sx={{ py: { xs: 6, md: 10 } }}>
+    <Box sx={{ py: { xs: 2, md: 3 } }}>
       <RevealOnScroll>
         <Box
           sx={{
@@ -1063,10 +1063,10 @@ function ExpertTestimonials() {
       component="section"
       id="gm-backed"
       aria-labelledby="expert-testimonials-heading"
-      sx={{ py: { xs: 6, md: 10 }, scrollMarginTop: 96 }}
+      sx={{ py: { xs: 2, md: 3 }, scrollMarginTop: 96 }}
     >
       <RevealOnScroll>
-        <Box sx={{ maxWidth: 720, mb: 6 }}>
+        <Box sx={{ maxWidth: 720, mb: 3 }}>
           <EyebrowBadge>BACKED BY GRANDMASTERS</EyebrowBadge>
           <Typography
             id="expert-testimonials-heading"
@@ -1236,7 +1236,7 @@ function FinalCTA() {
     <RevealOnScroll>
       <Box
         sx={{
-          my: { xs: 8, md: 12 },
+          my: { xs: 3, md: 4 },
           position: "relative",
           borderRadius: "2rem",
           background:

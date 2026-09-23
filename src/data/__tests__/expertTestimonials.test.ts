@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { TESTIMONIALS_HEADING } from "@/components/landing/HomeTestimonials";
 import {
   EXPERT_TESTIMONIALS,
   testimonialInitials,
@@ -90,30 +91,38 @@ describe("expert testimonials", () => {
     expect(testimonialInitials("Magnus")).toBe("M");
   });
 
-  it("is rendered by the landing page, directly under the hero", () => {
-    const source = fs.readFileSync(
+  it("is rendered by the landing page, under the four doors", () => {
+    const page = fs.readFileSync(
       path.join(root, "src/pages/index.tsx"),
       "utf8"
     );
-    expect(source).toContain('from "@/data/expertTestimonials"');
-    expect(source).toContain("<ExpertTestimonials />");
-    // Section order: hero, then the grandmasters, then everything else. The
-    // endorsement is the first thing a visitor reads after the pitch.
-    expect(source.indexOf("<Hero />")).toBeLessThan(
-      source.indexOf("<ExpertTestimonials />")
+    const section = fs.readFileSync(
+      path.join(root, "src/components/landing/HomeTestimonials.tsx"),
+      "utf8"
     );
-    expect(source.indexOf("<ExpertTestimonials />")).toBeLessThan(
-      source.indexOf("<MarqueeStrip />")
+    expect(section).toContain('from "@/data/expertTestimonials"');
+    expect(page).toContain("<HomeTestimonials />");
+    // Section order: the hero, the four doors, then the masters. The
+    // endorsement is a credibility signal for whoever scrolls, never a
+    // choice on the first screen.
+    expect(page.indexOf("<Hero />")).toBeLessThan(
+      page.indexOf("<HomeChoices />")
     );
-    // The hero's one-line signal deep-links to the section.
-    expect(source).toContain('id="gm-backed"');
-    expect(source).toContain('href="#gm-backed"');
-    // The section copy is written against the roster: two grandmasters and
-    // one FIDE Master. A heading that still said "grandmasters" over an FM's
-    // card would overstate his title, so the roster line is pinned here and
-    // must be rewritten in the same change as the data file.
-    // Prettier re-wraps JSX text, so pin the roster phrase, not the whole line.
-    expect(source).toContain("What titled players say");
-    expect(source).toContain("Two grandmasters and a FIDE Master");
+    expect(page.indexOf("<HomeChoices />")).toBeLessThan(
+      page.indexOf("<HomeTestimonials />")
+    );
+    // The anchor stays for links from outside the page.
+    expect(section).toContain('id="gm-backed"');
+    // The heading is written against the roster. Each card's caption spells
+    // out the person's own title, so the heading must not claim one for the
+    // group that not everyone holds: "grandmasters" over an FM's card would
+    // overstate his title.
+    expect(TESTIMONIALS_HEADING).toBe("What chess masters say.");
+    const allGrandmasters = EXPERT_TESTIMONIALS.every(
+      (t) => t.title === "Grandmaster"
+    );
+    if (!allGrandmasters) {
+      expect(TESTIMONIALS_HEADING).not.toMatch(/grandmaster/i);
+    }
   });
 });

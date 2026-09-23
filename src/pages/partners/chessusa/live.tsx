@@ -46,7 +46,9 @@ import {
 // The real homepage sections, imported rather than copied. A copy would drift
 // from the live page invisibly, and a sales asset that quietly stops being
 // true is worse than no asset.
-import { Hero, MarqueeStrip, launchTheme } from "@/pages/index";
+import { Hero } from "@/components/landing/Hero";
+import { HomeChoices } from "@/components/landing/HomeChoices";
+import { launchTheme } from "@/components/landing/launchTheme";
 import LearnPage from "@/pages/learn";
 import { ChessgroundBoardPlaceholder } from "@/components/ui/ChessgroundBoardPlaceholder";
 
@@ -70,13 +72,13 @@ interface LiveProps {
    home — real components throughout.
 
    Mirrors the shape of LandingPage in src/pages/index.tsx: same launchTheme,
-   same GradientBackdrop, same NavPill active="launch", same 1200px content
+   same flat background (the home page has no backdrop since the 2026-09-23
+   simplification), same NavPill active="launch", same 1120px content
    column. The banner goes where it would go live, directly under the nav.
    ───────────────────────────────────────────────────────────────────────── */
 function HomeSurface({ banner }: { banner: React.ReactNode }) {
   return (
     <ThemeProvider theme={launchTheme}>
-      <GradientBackdrop />
       <Box
         sx={{
           minHeight: "100vh",
@@ -89,9 +91,9 @@ function HomeSurface({ banner }: { banner: React.ReactNode }) {
       >
         <NavPill active="launch" />
         {banner}
-        <Box sx={{ maxWidth: 1200, mx: "auto" }}>
+        <Box sx={{ maxWidth: 1120, mx: "auto" }}>
           <Hero />
-          <MarqueeStrip />
+          <HomeChoices />
         </Box>
       </Box>
     </ThemeProvider>

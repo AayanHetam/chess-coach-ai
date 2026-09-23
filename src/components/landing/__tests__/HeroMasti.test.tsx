@@ -1,20 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { HERO_MASTI_LINE, HeroMastiStage } from "../HeroMasti";
+import { HERO_MASTI_GREETING, HeroMastiStage } from "../HeroMasti";
 import { MASTI_VERSION } from "@/components/masti/manifest";
 
 describe("HeroMastiStage", () => {
-  it("puts the waving still and the one-line pitch on stage, no sign-in ask", () => {
+  it("puts the waving still and one word on stage, no sign-in ask", () => {
     const html = renderToStaticMarkup(createElement(HeroMastiStage));
     expect(html).toContain('data-testid="hero-masti"');
     expect(html).toContain('data-masti-mood="wave"');
     // The stage draws from the full still, not the 320px face crop.
     expect(html).toContain(`/masti/${MASTI_VERSION}/still/wave@2x.webp 2x`);
     expect(html).not.toContain("/anim/");
-    expect(html).toContain("Hi, I");
-    // The apostrophe is HTML-escaped in SSR output, so match around it.
-    expect(html).toContain(HERO_MASTI_LINE.split("I'll")[1]);
+    expect(html).toContain(HERO_MASTI_GREETING);
     // The page head preloads this still on every viewport, so the figure
     // itself stays lazy.
     expect(html).toContain('loading="lazy"');

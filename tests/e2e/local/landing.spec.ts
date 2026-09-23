@@ -11,7 +11,7 @@ test("landing is dark with the hero visible (light-preference visitor)", async (
   page,
 }) => {
   await page.goto("/");
-  await expect(page.locator("h1")).toContainText(/chess coaching/i, {
+  await expect(page.locator("h1")).toContainText(/chess coach/i, {
     timeout: 15_000,
   });
   expect(await bodyLuminance(page)).toBeLessThan(0.2);
@@ -66,7 +66,7 @@ test.describe("landing hydration under a skewed clock", () => {
     await page.clock.setFixedTime(new Date("2031-03-09T12:00:00Z"));
     await page.goto("/");
     // The page has to have rendered for the empty error list to mean anything.
-    await expect(page.locator("h1")).toContainText(/chess coaching/i, {
+    await expect(page.locator("h1")).toContainText(/chess coach/i, {
       timeout: 15_000,
     });
     await page.waitForTimeout(3000);

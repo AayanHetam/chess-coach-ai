@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { startPlanHref } from "@/lib/onboarding/quizGate";
 import { HeroMastiStage } from "./HeroMasti";
+import { HomeMasters } from "./HomeMasters";
 import {
   HOME_EMBER,
   HOME_EMBER_BRIGHT,
@@ -14,13 +15,14 @@ import {
 } from "./launchTheme";
 
 /**
- * The first screen: Masti, one sentence, one button.
+ * The one screen: Masti, one sentence, one button, the masters.
  *
  * Everything a first visitor needs in order to decide is here and nothing
  * else. The headline names the coach, the line under it names the three
- * things to do, and the button starts. The four tiles in HomeChoices, right
- * under this, are the direct doors for anyone who already knows what they
- * came for. The word budget is pinned in __tests__/home.test.tsx.
+ * things to do, the button starts, and the faces under it say who vouches
+ * for him. The section takes whatever height the nav and the footer leave
+ * and centres in it, so the page never scrolls on the screens it is sized
+ * for. The word budget is pinned in __tests__/home.test.tsx.
  */
 
 export const HERO_HEADLINE = "I'm Masti, your chess coach.";
@@ -73,21 +75,23 @@ export function Hero() {
       component="section"
       aria-labelledby="hero-heading"
       sx={{
+        flex: 1,
         display: "grid",
         gridTemplateColumns: {
           xs: "1fr",
           md: "minmax(0, 5fr) minmax(0, 6fr)",
         },
         alignItems: "center",
+        alignContent: "center",
         columnGap: { md: 6, lg: 8 },
-        rowGap: { xs: 3, sm: 4 },
-        pt: { xs: 1, md: 2 },
-        pb: { xs: 8, md: 12 },
+        rowGap: { xs: 2.5, sm: 3 },
+        py: { xs: 1, md: 2 },
       }}
     >
       {/* Masti first: the top of the screen on a phone, the left half on a
           desktop. Either way the button lands above the fold (masti.spec
-          asserts it at 390x664 and at 1280x720). */}
+          asserts it at 390x664 and at 1280x720, and landing.spec asserts
+          the page does not scroll at all). */}
       <HeroMastiStage />
       <Box
         sx={{
@@ -101,7 +105,7 @@ export function Hero() {
           id="hero-heading"
           variant="h1"
           sx={{
-            fontSize: { xs: "2.2rem", sm: "2.8rem", md: "3.4rem", lg: "4rem" },
+            fontSize: { xs: "2.1rem", sm: "2.8rem", md: "3.4rem", lg: "4rem" },
             color: HOME_TEXT,
             maxWidth: 560,
           }}
@@ -110,8 +114,8 @@ export function Hero() {
         </Typography>
         <Typography
           sx={{
-            mt: { xs: 1.5, md: 2.5 },
-            fontSize: { xs: "1.15rem", md: "1.45rem" },
+            mt: { xs: 1.25, md: 2.5 },
+            fontSize: { xs: "1.1rem", md: "1.45rem" },
             lineHeight: 1.45,
             color: HOME_MUTED,
             maxWidth: 460,
@@ -119,9 +123,15 @@ export function Hero() {
         >
           {HERO_SUBLINE}
         </Typography>
-        <Box sx={{ mt: { xs: 3, md: 4.5 } }}>
+        <Box sx={{ mt: { xs: 2.5, md: 4.5 } }}>
           <StartButton />
         </Box>
+        {/* The faces need a row of their own, which a phone's screen has no
+            room for next to a Masti this size; from a tablet up they sit
+            under the button. */}
+        <HomeMasters
+          sx={{ display: { xs: "none", sm: "flex" }, mt: { sm: 3, md: 4 } }}
+        />
       </Box>
     </Box>
   );

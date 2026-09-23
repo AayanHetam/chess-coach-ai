@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { TESTIMONIALS_HEADING } from "@/components/landing/HomeTestimonials";
+import { MASTERS_LABEL } from "@/components/landing/HomeMasters";
 import {
   EXPERT_TESTIMONIALS,
   testimonialInitials,
@@ -91,38 +91,34 @@ describe("expert testimonials", () => {
     expect(testimonialInitials("Magnus")).toBe("M");
   });
 
-  it("is rendered by the landing page, under the four doors", () => {
-    const page = fs.readFileSync(
-      path.join(root, "src/pages/index.tsx"),
+  it("is on the home page's one screen, under the start button", () => {
+    const hero = fs.readFileSync(
+      path.join(root, "src/components/landing/Hero.tsx"),
       "utf8"
     );
-    const section = fs.readFileSync(
-      path.join(root, "src/components/landing/HomeTestimonials.tsx"),
+    const masters = fs.readFileSync(
+      path.join(root, "src/components/landing/HomeMasters.tsx"),
       "utf8"
     );
-    expect(section).toContain('from "@/data/expertTestimonials"');
-    expect(page).toContain("<HomeTestimonials />");
-    // Section order: the hero, the four doors, then the masters. The
-    // endorsement is a credibility signal for whoever scrolls, never a
-    // choice on the first screen.
-    expect(page.indexOf("<Hero />")).toBeLessThan(
-      page.indexOf("<HomeChoices />")
+    expect(masters).toContain('from "@/data/expertTestimonials"');
+    expect(hero).toContain("<HomeMasters");
+    // Under the button, never above it: the endorsement is a credibility
+    // signal for whoever looks, not a choice on the way to the start.
+    expect(hero.indexOf("<StartButton />")).toBeLessThan(
+      hero.indexOf("<HomeMasters")
     );
-    expect(page.indexOf("<HomeChoices />")).toBeLessThan(
-      page.indexOf("<HomeTestimonials />")
-    );
-    // The anchor stays for links from outside the page.
-    expect(section).toContain('id="gm-backed"');
-    // The heading is written against the roster. Each card's caption spells
-    // out the person's own title, so the heading must not claim one for the
-    // group that not everyone holds: "grandmasters" over an FM's card would
-    // overstate his title.
-    expect(TESTIMONIALS_HEADING).toBe("What chess masters say.");
+    // The quote is handed to the face's tooltip whole.
+    expect(masters).toContain("{t.quote}");
+    // The label is written against the roster. Each face is named by the
+    // person's own title, so the label must not claim one for the group
+    // that not everyone holds: "grandmasters" over an FM would overstate
+    // his title.
+    expect(MASTERS_LABEL).toBe("Backed by chess masters");
     const allGrandmasters = EXPERT_TESTIMONIALS.every(
       (t) => t.title === "Grandmaster"
     );
     if (!allGrandmasters) {
-      expect(TESTIMONIALS_HEADING).not.toMatch(/grandmaster/i);
+      expect(MASTERS_LABEL).not.toMatch(/grandmaster/i);
     }
   });
 });

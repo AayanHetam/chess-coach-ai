@@ -1,6 +1,7 @@
 /**
- * Expert testimonials shown on the home page, in HomeTestimonials
- * (src/components/landing/HomeTestimonials.tsx).
+ * Expert testimonials shown on the home page as a row of faces under the
+ * start button, each quote in its face's tooltip (HomeMasters in
+ * src/components/landing/HomeMasters.tsx).
  *
  * Each quote is reproduced verbatim from what the titled player said about
  * the project. Do not paraphrase, trim, or polish them: a testimonial is only
@@ -49,10 +50,10 @@ export interface ExpertTestimonial {
 
 /**
  * Array order is display order: grandmasters first, then the other titled
- * players. The section heading is title-neutral ("What chess masters say.")
- * and each card's caption spells out the person's own title, so adding a
- * name here needs no copy change; expertTestimonials.test.ts fails if the
- * heading ever claims a title the whole roster does not hold.
+ * players. The row's label is title-neutral ("Backed by chess masters")
+ * and each face is named by the person's own title, so adding a name here
+ * needs no copy change; expertTestimonials.test.ts fails if the label ever
+ * claims a title the whole roster does not hold.
  */
 export const EXPERT_TESTIMONIALS: readonly ExpertTestimonial[] = [
   {

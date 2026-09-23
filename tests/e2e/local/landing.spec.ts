@@ -23,6 +23,27 @@ test("landing has no sideways scroll on mobile", async ({ page }) => {
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
 });
 
+/**
+ * The home page is one screen (2026-09-23): Masti, one sentence, one button,
+ * the masters and a one-line footer, and nothing under the fold to scroll
+ * to. Both projects run this, so it holds at 1280x720 and at 390x664; the
+ * hero sizes Masti against the viewport height to make it so.
+ */
+test("landing fits on one screen with nothing to scroll to", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.locator("h1")).toContainText(/chess coach/i, {
+    timeout: 15_000,
+  });
+  await page.waitForLoadState("networkidle");
+  const { scrollHeight, clientHeight } = await page.evaluate(() => ({
+    scrollHeight: document.documentElement.scrollHeight,
+    clientHeight: document.documentElement.clientHeight,
+  }));
+  expect(scrollHeight).toBeLessThanOrEqual(clientHeight);
+});
+
 test("landing survives without JS crashes", async ({ page }) => {
   const crashes: string[] = [];
   page.on("pageerror", (e) => crashes.push(String(e)));

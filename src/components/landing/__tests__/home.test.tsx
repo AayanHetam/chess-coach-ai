@@ -4,15 +4,17 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { HERO_HEADLINE, HERO_SUBLINE, Hero, START_LABEL } from "../Hero";
-import { CHOICES_HEADING, HOME_CHOICES, HomeChoices } from "../HomeChoices";
 import { HERO_MASTI_GREETING } from "../HeroMasti";
+import { HomeMasters, MASTERS_LABEL } from "../HomeMasters";
+import { EXPERT_TESTIMONIALS } from "@/data/expertTestimonials";
 
 /**
- * The home page is Masti, one sentence, one button and four doors, and it
- * stays that way by test: the visible word count of the first screen is a
+ * The home page is one screen: Masti, one sentence, one button and the
+ * masters, and it stays that way by test. The visible word count is a
  * budget here, and the landing files are grepped for the glass-and-glow
- * idioms the 2026-09-23 simplification removed. A new section has to earn
- * its words in this file.
+ * idioms the 2026-09-23 simplification removed. landing.spec adds the
+ * pixels: the page does not scroll. A new section has to earn its words in
+ * this file and its height there.
  */
 
 const root = process.cwd();
@@ -36,17 +38,19 @@ function wordCount(text: string): number {
   return text.split(/\s+/).filter(Boolean).length;
 }
 
-describe("home page: the first screen", () => {
+describe("home page: the one screen", () => {
   const html = renderToStaticMarkup(createElement(Hero));
   const text = visibleText(html);
 
-  it("is Masti, one sentence and one button", () => {
+  it("is Masti, one sentence, one button and the masters", () => {
     expect(html).toContain('data-testid="hero-masti"');
     expect(text).toContain(HERO_MASTI_GREETING);
     expect(html).toContain("<h1");
     expect(text).toContain(HERO_HEADLINE);
     expect(text).toContain(HERO_SUBLINE);
     expect(text).toContain(START_LABEL);
+    expect(html).toContain('data-testid="home-masters"');
+    expect(text).toContain(MASTERS_LABEL);
   });
 
   it("keeps the search phrase in the headline", () => {
@@ -60,7 +64,7 @@ describe("home page: the first screen", () => {
     expect(html).toContain('href="/onboarding"');
   });
 
-  it("says it in under twenty words", () => {
+  it("says it in twenty words or fewer", () => {
     expect(wordCount(text)).toBeLessThanOrEqual(20);
   });
 
@@ -70,32 +74,37 @@ describe("home page: the first screen", () => {
   });
 });
 
-describe("home page: the four doors", () => {
-  const html = renderToStaticMarkup(createElement(HomeChoices));
-  const text = visibleText(html);
+describe("home page: the masters", () => {
+  const html = renderToStaticMarkup(createElement(HomeMasters));
 
-  it("are Play, Practice, Analyze and Learn, in the nav's words and order", () => {
-    expect(HOME_CHOICES.map((c) => [c.label, c.href])).toEqual([
-      ["Play", "/play"],
-      ["Practice", "/practice"],
-      ["Analyze", "/analysis"],
-      ["Learn", "/learn"],
-    ]);
-    for (const c of HOME_CHOICES) {
-      expect(html).toContain(`href="${c.href}"`);
-      expect(html).toContain(`data-testid="home-choice-${c.id}"`);
-      expect(text).toContain(c.label);
-      expect(text).toContain(c.hint);
+  it("shows every titled player as a face named by their own title", () => {
+    for (const t of EXPERT_TESTIMONIALS) {
+      expect(html).toContain(`aria-label="${t.name}, ${t.title}"`);
     }
-    expect(text).toContain(CHOICES_HEADING);
+    expect(visibleText(html)).toContain(MASTERS_LABEL);
   });
 
-  it("say one word each plus a short hint, under thirty words in all", () => {
-    for (const c of HOME_CHOICES) {
-      expect(wordCount(c.label), c.id).toBe(1);
-      expect(wordCount(c.hint), c.id).toBeLessThanOrEqual(4);
+  it("keeps each quote whole in the face's tooltip, off the first paint", () => {
+    // The tooltip renders only when open, so the page's first paint carries
+    // none of the quote; the source hands it over untouched.
+    const src = fs.readFileSync(
+      path.join(root, "src/components/landing/HomeMasters.tsx"),
+      "utf8"
+    );
+    expect(src).toContain("{t.quote}");
+    for (const t of EXPERT_TESTIMONIALS) {
+      expect(html).not.toContain(t.quote);
     }
-    expect(wordCount(text)).toBeLessThanOrEqual(30);
+  });
+
+  it("names the group by a title every one of them holds", () => {
+    expect(MASTERS_LABEL).toBe("Backed by chess masters");
+    const allGrandmasters = EXPERT_TESTIMONIALS.every(
+      (t) => t.title === "Grandmaster"
+    );
+    if (!allGrandmasters) {
+      expect(MASTERS_LABEL).not.toMatch(/grandmaster/i);
+    }
   });
 });
 
@@ -104,8 +113,7 @@ describe("home page: flat, not glowing", () => {
     "src/pages/index.tsx",
     "src/components/landing/Hero.tsx",
     "src/components/landing/HeroMasti.tsx",
-    "src/components/landing/HomeChoices.tsx",
-    "src/components/landing/HomeTestimonials.tsx",
+    "src/components/landing/HomeMasters.tsx",
     "src/components/landing/launchTheme.ts",
   ];
 

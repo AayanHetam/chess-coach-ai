@@ -6,11 +6,11 @@ import { Masti } from "@/components/masti";
 /**
  * Masti on the home page: the stage at the top of the hero.
  *
- * He is the biggest thing on the first screen on every viewport, a plain
- * still with one word in a bubble. The headline and the button beside him
- * carry the pitch, so the stage itself only says hello. Purely
- * presentational: no chess state and no sign-in ask, so nothing here needs
- * SIGN_IN_PROPS and the partner preview links show it unchanged.
+ * He is the biggest thing on the screen on every viewport, a plain still
+ * with one word in a bubble. The headline and the button beside him carry
+ * the pitch, so the stage itself only says hello. Purely presentational: no
+ * chess state and no sign-in ask, so nothing here needs SIGN_IN_PROPS and
+ * the partner preview links show it unchanged.
  *
  * Sizing is explicit through the figure's size prop and a fluid box, never
  * emotion alone: the Pages Router has no Emotion SSR cache, and the first
@@ -20,8 +20,29 @@ import { Masti } from "@/components/masti";
 
 export const HERO_MASTI_GREETING = "Hi!";
 
-/** The figure's CSS width per breakpoint. The height follows the 4:5 art. */
-export const HERO_MASTI_WIDTH = { xs: 200, sm: 250, md: 400, lg: 460 };
+/** Intrinsic width for the image attributes; the box decides the drawn size. */
+const HERO_MASTI_INTRINSIC_PX = 440;
+
+/**
+ * As wide as the screen allows and never so wide that the page scrolls: the
+ * cap for the breakpoint, or the height left after the rest of the screen
+ * (nav, headline, button, footer) turned into a width through the 4:5 art,
+ * whichever is smaller, with a floor so a phone held sideways still shows
+ * him. `--home-vh` comes from homeRootSx.
+ */
+function stageWidth(capPx: number, reservePx: number, floorPx: number): string {
+  return `max(${floorPx}px, min(${capPx}px, calc((var(--home-vh, 100vh) - ${reservePx}px) * 0.8)))`;
+}
+
+export const HERO_MASTI_WIDTH = {
+  // Stacked under the nav, over the headline and the button.
+  xs: stageWidth(200, 430, 120),
+  sm: stageWidth(300, 470, 140),
+  // Beside the headline: only the nav and the footer are above and below.
+  // The lg cap is his column's width at the 1120px content width.
+  md: stageWidth(380, 250, 200),
+  lg: stageWidth(480, 250, 200),
+};
 
 export function HeroMastiStage() {
   return (
@@ -36,7 +57,7 @@ export function HeroMastiStage() {
     >
       <Masti
         mood="wave"
-        size={HERO_MASTI_WIDTH.lg}
+        size={HERO_MASTI_INTRINSIC_PX}
         fluid
         loops={3}
         replayOnHover

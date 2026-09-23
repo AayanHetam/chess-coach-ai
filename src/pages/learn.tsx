@@ -316,8 +316,18 @@ export default function LearnPage() {
 
   return (
     <Shell>
-      <Box sx={{ maxWidth: 860, mx: "auto", px: { xs: 2, md: 3 }, py: { xs: 3, md: 5 } }}>
-        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
+      <Box sx={{ maxWidth: 1180, mx: "auto", px: { xs: 2, md: 3 }, py: { xs: 3, md: 4 } }}>
+        {/* Title on the left, Masti on the right: one line, the next thing
+            to do. On a phone he wraps under the title. */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: { xs: "flex-start", md: "center" },
+            justifyContent: "space-between",
+            gap: { xs: 1.5, md: 3 },
+            flexWrap: "wrap",
+          }}
+        >
           <Box sx={{ minWidth: 0 }}>
             <Typography
               component="h1"
@@ -327,48 +337,29 @@ export default function LearnPage() {
             </Typography>
             <LevelChip band={band} rating={rating} />
           </Box>
-          <Box
-            component={Link}
-            href="/courses"
-            sx={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 0.75,
-              minHeight: 44,
-              color: "rgba(255,255,255,0.55)",
-              fontSize: "0.85rem",
-              textDecoration: "none",
-              borderRadius: "8px",
-              "&:hover": { color: GOLD.bright },
-              ...FOCUS,
-            }}
-          >
-            <BookOpen size={14} aria-hidden /> Browse every course
+          <Box data-testid="learn-guide" sx={{ minWidth: 0 }}>
+            <MastiSays
+              mood={mood}
+              size={92}
+              side="right"
+              maxWidth={340}
+              tone={bothLocked ? "ember" : enoughHere ? "jade" : "glass"}
+              replayOnHover
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.span
+                  key={line}
+                  initial={reduce ? { opacity: 0 } : { opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.16, ease: EASE }}
+                  style={{ display: "block", fontWeight: 600 }}
+                >
+                  {line}
+                </motion.span>
+              </AnimatePresence>
+            </MastiSays>
           </Box>
-        </Box>
-
-        {/* Masti is the guide: one line, the next thing to do. */}
-        <Box sx={{ mt: 2.5 }} data-testid="learn-guide">
-          <MastiSays
-            mood={mood}
-            size={84}
-            maxWidth={380}
-            tone={bothLocked ? "ember" : enoughHere ? "jade" : "glass"}
-            replayOnHover
-          >
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.span
-                key={line}
-                initial={reduce ? { opacity: 0 } : { opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.16, ease: EASE }}
-                style={{ display: "block", fontWeight: 600 }}
-              >
-                {line}
-              </motion.span>
-            </AnimatePresence>
-          </MastiSays>
         </Box>
 
         <RepertoireHud
@@ -381,105 +372,163 @@ export default function LearnPage() {
           band={band}
         />
 
-        <Box sx={{ mt: 2.5 }}>
-          <YourGamesCard
-            state={mine}
-            account={archive}
-            side={side}
-            churn={state.churn}
-            onAnswerChurn={(churn) => persist({ ...state, churn })}
-          />
-          <QuizSummary
-            quiz={state.quiz}
-            onEdit={() => {
-              setEditing(state.quiz);
-              setOpenSlot(null);
-              persist({ ...state, quiz: null });
-            }}
-          />
-        </Box>
+        {/* Two columns from lg up: the quests, and beside them the score. The
+            quests come first in the DOM so a phone reaches a card right after
+            the HUD; the score column sits to the right and sticks on a wide
+            screen. */}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1fr) 360px" },
+            gap: { xs: 2, lg: 3 },
+            mt: 2.5,
+            alignItems: "start",
+          }}
+        >
+          <Box sx={{ gridColumn: { lg: 1 }, gridRow: { lg: 1 }, minWidth: 0 }}>
+            {/* Keyed on the colour so switching plays a short crossfade and
+                every card makes its entrance again. */}
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={side}
+                initial={reduce ? { opacity: 0 } : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduce ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                transition={{ duration: 0.16, ease: EASE }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.25 }}>
+                  <Typography sx={{ color: GOLD.bright, fontSize: "0.72rem", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                    Decisions
+                  </Typography>
+                  <Pips done={decided} total={visible.length} />
+                  <Typography sx={{ fontSize: "0.76rem", color: "rgba(255,255,255,0.45)", fontVariantNumeric: "tabular-nums" }}>
+                    {decided} of {visible.length} decided
+                  </Typography>
+                </Box>
 
-        {/* Where the last save landed, said only when it is not both places. */}
-        {!savedLocally && (
-          <Typography
-            data-testid="bracket-save-state"
-            sx={{ mt: 1.5, fontSize: "0.78rem", lineHeight: 1.55, color: savedToAccount ? "rgba(255,255,255,0.5)" : ROSE.bright }}
-          >
-            {savedToAccount
-              ? "This device is out of storage, so your repertoire is being kept on your account instead. It will be here when you come back."
-              : "Not saved, not on this device and not on your account. Your last change may be lost if you close this page."}
-          </Typography>
-        )}
+                <Box sx={{ display: "grid", gap: 1.5 }}>
+                  {visible.map((node, i) => (
+                    <SlotBranch
+                      key={node.slot.id}
+                      node={node}
+                      map={map}
+                      picks={picks}
+                      quiz={state.quiz}
+                      band={band}
+                      tree={measured}
+                      churn={state.churn}
+                      courses={courses}
+                      openSlot={lockedHere ? null : openSlot}
+                      onOpen={lockedHere ? NOOP : setOpenSlot}
+                      onPick={choose}
+                      index={i}
+                    />
+                  ))}
+                </Box>
 
-        {/* The colour's own screen. Keyed on the colour so switching plays a
-            short crossfade and every card makes its entrance again. */}
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={side}
-            initial={reduce ? { opacity: 0 } : { opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reduce ? { opacity: 0 } : { opacity: 0, y: -6 }}
-            transition={{ duration: 0.16, ease: EASE }}
-          >
-            {cover && (
-              <CoverageMeter
-                coverage={cover}
-                side={side}
-                meta={map.meta}
-                band={band}
-                rating={rating}
-                tree={measured}
-                roots={rootSlots}
-                pickKey={pickKey}
-              />
-            )}
-
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 3, mb: 1.25 }}>
-              <Typography sx={{ color: GOLD.bright, fontSize: "0.72rem", letterSpacing: "0.14em", textTransform: "uppercase" }}>
-                Decisions
-              </Typography>
-              <Pips done={decided} total={visible.length} />
-              <Typography sx={{ fontSize: "0.76rem", color: "rgba(255,255,255,0.45)", fontVariantNumeric: "tabular-nums" }}>
-                {decided} of {visible.length} decided
-              </Typography>
-            </Box>
-
-            <Box sx={{ display: "grid", gap: 1.5 }}>
-              {visible.map((node, i) => (
-                <SlotBranch
-                  key={node.slot.id}
-                  node={node}
-                  map={map}
+                <LockBar
+                  side={side}
+                  locked={state.locked}
                   picks={picks}
-                  quiz={state.quiz}
-                  band={band}
-                  tree={measured}
-                  churn={state.churn}
-                  courses={courses}
-                  openSlot={lockedHere ? null : openSlot}
-                  onOpen={lockedHere ? NOOP : setOpenSlot}
-                  onPick={choose}
-                  index={i}
+                  firstCourse={firstCourse}
+                  onToggle={(which) => {
+                    setOpenSlot(null);
+                    persist({ ...state, locked: { ...state.locked, [which]: !state.locked[which] } });
+                  }}
                 />
-              ))}
+
+                {focus.deferred.length > 0 && (
+                  <DeferredRoots slots={focus.deferred} showAll={showAll} band={band} onToggle={() => setShowAll((v) => !v)} />
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </Box>
+          <Box
+            data-testid="learn-side"
+            sx={{
+              gridColumn: { lg: 2 },
+              gridRow: { lg: 1 },
+              position: { lg: "sticky" },
+              top: { lg: 96 },
+              minWidth: 0,
+              display: "grid",
+              gap: 1.5,
+            }}
+          >
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={side}
+                initial={reduce ? { opacity: 0 } : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduce ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                transition={{ duration: 0.16, ease: EASE }}
+              >
+                {cover && (
+                  <CoverageMeter
+                    coverage={cover}
+                    side={side}
+                    meta={map.meta}
+                    band={band}
+                    rating={rating}
+                    tree={measured}
+                    roots={rootSlots}
+                    pickKey={pickKey}
+                  />
+                )}
+              </motion.div>
+            </AnimatePresence>
+
+            <Box>
+              <YourGamesCard
+                state={mine}
+                account={archive}
+                side={side}
+                churn={state.churn}
+                onAnswerChurn={(churn) => persist({ ...state, churn })}
+              />
+              <QuizSummary
+                quiz={state.quiz}
+                onEdit={() => {
+                  setEditing(state.quiz);
+                  setOpenSlot(null);
+                  persist({ ...state, quiz: null });
+                }}
+              />
             </Box>
 
-            <LockBar
-              side={side}
-              locked={state.locked}
-              picks={picks}
-              firstCourse={firstCourse}
-              onToggle={(which) => {
-                setOpenSlot(null);
-                persist({ ...state, locked: { ...state.locked, [which]: !state.locked[which] } });
-              }}
-            />
-
-            {focus.deferred.length > 0 && (
-              <DeferredRoots slots={focus.deferred} showAll={showAll} band={band} onToggle={() => setShowAll((v) => !v)} />
+            {/* Where the last save landed, said only when it is not both places. */}
+            {!savedLocally && (
+              <Typography
+                data-testid="bracket-save-state"
+                sx={{ fontSize: "0.78rem", lineHeight: 1.55, color: savedToAccount ? "rgba(255,255,255,0.5)" : ROSE.bright }}
+              >
+                {savedToAccount
+                  ? "This device is out of storage, so your repertoire is being kept on your account instead. It will be here when you come back."
+                  : "Not saved, not on this device and not on your account. Your last change may be lost if you close this page."}
+              </Typography>
             )}
-          </motion.div>
-        </AnimatePresence>
+
+            <Box
+              component={Link}
+              href="/courses"
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.75,
+                minHeight: 44,
+                color: "rgba(255,255,255,0.55)",
+                fontSize: "0.85rem",
+                textDecoration: "none",
+                borderRadius: "8px",
+                "&:hover": { color: GOLD.bright },
+                ...FOCUS,
+              }}
+            >
+              <BookOpen size={14} aria-hidden /> Browse every course
+            </Box>
+          </Box>
+
+        </Box>
       </Box>
     </Shell>
   );

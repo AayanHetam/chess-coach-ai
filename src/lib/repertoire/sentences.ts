@@ -99,3 +99,29 @@ function gapName(gap: { slot: string; share: number }): string {
 export function unfilledSentence(slot: Pick<RepertoireSlot, 'share' | 'line' | 'name'>): string {
   return `${share(slot.share)} of games. Nothing chosen for ${facing(slot)} yet.`;
 }
+
+/**
+ * The coverage sentence with the homework left off.
+ *
+ * `coverageSentence` names the biggest gap and counts the rest, which is the
+ * right thing to say once and the wrong thing to say on nine cards at once:
+ * measured on the chooser as shipped, a list against 1.d4 carried more than
+ * four hundred words of it. The card keeps the two claims that decide a
+ * choice, how much it answers and how much it leaves, and the branches it
+ * leaves appear as rows the moment the choice is made.
+ */
+export function coverageBrief(
+  choice: Pick<RepertoireChoice, 'coverage' | 'absorbs' | 'gaps'>,
+  slot: Pick<RepertoireSlot, 'line' | 'name'>
+): string {
+  const against = facing(slot);
+  if (choice.coverage === 'move') {
+    const n = choice.gaps.length;
+    if (n === 0) return 'A move, not an answer.';
+    return `A first move, not an answer. ${n} decision${n === 1 ? '' : 's'} still to make.`;
+  }
+  if (choice.coverage === 'system') return 'One setup, whatever they play.';
+  if (choice.gaps.length === 0) return `It answers everything after ${against}.`;
+  return `It answers ${share(choice.absorbs)} of ${against}. You still need something for the other ${share(1 - choice.absorbs)}.`;
+}
+

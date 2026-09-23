@@ -2,7 +2,7 @@
 // right and a sentence that is wrong is still a wrong page.
 
 import { describe, expect, it } from 'vitest';
-import { coverageSentence, facing, unfilledSentence } from '../sentences';
+import { coverageBrief, coverageSentence, facing, unfilledSentence } from '../sentences';
 
 const slot = (over: Partial<{ line: string[]; name: string | null; share: number }> = {}) => ({
   line: [] as string[],
@@ -108,3 +108,23 @@ describe('unfilledSentence', () => {
     );
   });
 });
+
+describe('coverageBrief', () => {
+  it('keeps the two numbers and drops the homework', () => {
+    const line = coverageBrief(
+      choice({ absorbs: 0.7, gaps: [{ slot: 'black:d4 Nf6 Bf4', share: 0.2 }, { slot: 'black:d4 Nf6 Bg5', share: 0.1 }] }),
+      slot({ line: ['d4'] })
+    );
+    expect(line).toBe('It answers 70% of 1.d4. You still need something for the other 30%.');
+    expect(line).not.toContain('mostly');
+  });
+
+  it('says a full answer, a system and a first move each in one line', () => {
+    expect(coverageBrief(choice({ absorbs: 1 }), slot({ line: ['e4'] }))).toBe('It answers everything after 1.e4.');
+    expect(coverageBrief(choice({ coverage: 'system' }), slot())).toBe('One setup, whatever they play.');
+    expect(
+      coverageBrief(choice({ coverage: 'move', gaps: [{ slot: 'a', share: 0.5 }, { slot: 'b', share: 0.5 }] }), slot())
+    ).toBe('A first move, not an answer. 2 decisions still to make.');
+  });
+});
+

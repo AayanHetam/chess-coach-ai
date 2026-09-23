@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { guideLine } from '@/lib/repertoire/guide';
+import { guideLine, pickLine } from '@/lib/repertoire/guide';
 
 const open = { white: false, black: false };
 
@@ -34,3 +34,27 @@ describe('guideLine', () => {
       .toBe('Every branch answered.');
   });
 });
+
+describe('pickLine', () => {
+  const base = { coverage: 'family' as const, recommended: false, suits: false, alreadyPlays: null };
+
+  it('names the top card with the strongest true reason', () => {
+    expect(pickLine({ ...base, name: 'Grünfeld Defence', recommended: true }))
+      .toBe('My pick: the Grünfeld Defence. Level, theory and style all fit.');
+    expect(pickLine({ ...base, name: 'London System', coverage: 'system', suits: true }))
+      .toBe('My pick: the London System. One setup, nothing to memorise.');
+    expect(pickLine({ ...base, name: "King's Indian Defence", suits: true }))
+      .toBe("My pick: the King's Indian Defence. It suits your level.");
+    expect(pickLine({ ...base, name: 'Nimzo-Indian Defence' })).toBe('My pick: the Nimzo-Indian Defence.');
+  });
+
+  it('puts what they already play above every judgement', () => {
+    expect(pickLine({ ...base, name: 'Caro-Kann Defence', recommended: true, alreadyPlays: 'c6' }))
+      .toBe('You already play c6. Keep the Caro-Kann Defence?');
+  });
+
+  it('never articles a move', () => {
+    expect(pickLine({ ...base, name: '1.e4', coverage: 'move', suits: true })).toBe('My pick: 1.e4. It suits your level.');
+  });
+});
+

@@ -157,3 +157,33 @@ describe("LockBar", () => {
     expect(done).toContain("Repertoire locked.");
   });
 });
+
+describe("SlotChooser", () => {
+  it("opens with Masti's pick and keeps every card to a board, a name, one line and tags", async () => {
+    const { default: SlotChooser } = await import("../SlotChooser");
+    const shipped = (await import("@/data/repertoire-map.json")).default as unknown as RepertoireMap;
+    const d4 = shipped.slots.find((s) => s.id === "black:d4")!;
+    const club = BANDS.find((b) => b.id === "club")!;
+    const html = renderToStaticMarkup(
+      <SlotChooser
+        slot={d4}
+        quiz={{ load: "heavy", character: "counterattack" }}
+        band={club}
+        transposes={[]}
+        onPick={() => {}}
+        onClose={() => {}}
+      />
+    );
+    // 1700, heavy, counterattacking: the Grünfeld lines up on every axis.
+    expect(html).toContain("My pick: the Grünfeld Defence. Level, theory and style all fit.");
+    expect(html).toContain("Masti&#x27;s pick");
+    expect(html).toContain("heavily recommended");
+    // The short coverage line, with the two numbers and no homework.
+    expect(html).toMatch(/answers \d+% of 1\.d4\. You still need something for the other \d+%\./);
+    expect(html).not.toContain("mostly");
+    // The prose rides along as a tooltip rather than on the card.
+    expect(html).toMatch(/title="[^"]+"/);
+    for (const c of d4.choices) expect(html).not.toContain(`>${c.blurb}<`);
+    expect(html).toContain('aria-label="Search every named opening"');
+  });
+});

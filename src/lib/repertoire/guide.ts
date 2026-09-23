@@ -35,3 +35,40 @@ export function guideLine(i: GuideInput): string {
   if (i.next) return `Next up: ${i.next}.`;
   return 'Every branch answered.';
 }
+
+// ── The chooser ──────────────────────────────────────────────────────────────
+
+/** The name the way it is said out loud: "the London System", but "1.e4". */
+const named = (name: string) => (/^(the\s|\d)/i.test(name) ? name : `the ${name}`);
+
+export interface PickInput {
+  /** The top-ranked choice's name. */
+  name: string;
+  coverage: 'family' | 'system' | 'move';
+  /** Level, theory load and character all line up (`fitOf().recommended`). */
+  recommended: boolean;
+  /** Pitched at their band (`fitOf().level === 'suits'`). */
+  suits: boolean;
+  /** The move they measurably already play here, when the top choice commits to it. */
+  alreadyPlays: string | null;
+}
+
+/**
+ * What Masti says over the list of suggestions: which one, and the one reason.
+ *
+ * The list is already ranked, so "my pick" is simply the first card, and the
+ * reason is the strongest true thing about it. Their own move outranks
+ * every judgement, because it is measured and the rest are inferred.
+ */
+export function pickLine(i: PickInput): string {
+  const who = named(i.name);
+  if (i.alreadyPlays) return `You already play ${i.alreadyPlays}. Keep ${who}?`;
+  if (i.recommended) return `My pick: ${who}. Level, theory and style all fit.`;
+  if (i.coverage === 'system') return `My pick: ${who}. One setup, nothing to memorise.`;
+  if (i.suits) return `My pick: ${who}. It suits your level.`;
+  return `My pick: ${who}.`;
+}
+
+/** The chooser with nothing curated to say. */
+export const NO_PICK_LINE = 'Nothing to recommend this deep. Pick a move below, or search.';
+

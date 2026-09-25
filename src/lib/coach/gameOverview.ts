@@ -32,7 +32,7 @@ export function buildGameOverview(context: AnalysisContext): string[] {
       const opening = detectOpening(game);
       if (opening && opening.name && opening.name !== "Opening") {
         out.push(
-          `Opening: ${opening.name}${opening.eco ? ` (ECO ${opening.eco})` : ""}`,
+          `Opening: ${opening.name}${opening.eco ? ` (ECO ${opening.eco})` : ""}`
         );
       }
     } catch {

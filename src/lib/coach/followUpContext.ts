@@ -58,18 +58,24 @@ const GAME_PLIES = 6;
 /** Same rule as positionFacts.isRealEval: a depth-0 line is a client timeout, not a 0.00. */
 function realEval(line: EvalLineLike | undefined): line is EvalLineLike {
   if (!line || line.depth === 0) return false;
-  return (line.cp !== undefined && line.cp !== null) || (line.mate !== undefined && line.mate !== null);
+  return (
+    (line.cp !== undefined && line.cp !== null) ||
+    (line.mate !== undefined && line.mate !== null)
+  );
 }
 
 /** Same formatting as the compact move table, so the strings match what the referee licenses. */
 function formatEval(line: EvalLineLike): string {
-  if (typeof line.mate === "number") return `M${line.mate > 0 ? "+" : ""}${line.mate}`;
+  if (typeof line.mate === "number")
+    return `M${line.mate > 0 ? "+" : ""}${line.mate}`;
   const cp = line.cp ?? 0;
   if (Math.abs(cp) >= 9000) return cp > 0 ? "M+" : "M-";
   return `${cp >= 0 ? "+" : ""}${(cp / 100).toFixed(2)}`;
 }
 
-function pieceMap(fen: string): { white: string; black: string; toMove: "White" | "Black" } | null {
+function pieceMap(
+  fen: string
+): { white: string; black: string; toMove: "White" | "Black" } | null {
   let game: Chess;
   try {
     game = new Chess(fen);
@@ -80,28 +86,40 @@ function pieceMap(fen: string): { white: string; black: string; toMove: "White" 
   const black: string[] = [];
   for (const row of game.board()) {
     for (const sq of row) {
-      if (sq) (sq.color === "w" ? white : black).push(sq.type.toUpperCase() + sq.square);
+      if (sq)
+        (sq.color === "w" ? white : black).push(
+          sq.type.toUpperCase() + sq.square
+        );
     }
   }
-  return { white: white.join(" "), black: black.join(" "), toMove: game.turn() === "w" ? "White" : "Black" };
+  return {
+    white: white.join(" "),
+    black: black.join(" "),
+    toMove: game.turn() === "w" ? "White" : "Black",
+  };
 }
 
 /** Story lines for the chat block: no citation prefix, no ledger labels. */
 function storyLines(fen: string, sans: string[]): string[] {
   if (sans.length === 0) return [];
   try {
-    return projectLineStory(buildLineStory(fen, sans, { maxPlies: 6 })).map((line) =>
-      line
-        .replace(/^s\d{1,2} /, "")
-        .replace(/^material: /, "after these moves: ")
-        .replace(/^offer: /, "note: "),
+    return projectLineStory(buildLineStory(fen, sans, { maxPlies: 6 })).map(
+      (line) =>
+        line
+          .replace(/^s\d{1,2} /, "")
+          .replace(/^material: /, "after these moves: ")
+          .replace(/^offer: /, "note: ")
     );
   } catch {
     return [];
   }
 }
 
-function renderLine(startMoveNumber: number, startsWhite: boolean, sans: string[]): string {
+function renderLine(
+  startMoveNumber: number,
+  startsWhite: boolean,
+  sans: string[]
+): string {
   const parts: string[] = [];
   let n = startMoveNumber;
   let white = startsWhite;
@@ -123,29 +141,42 @@ export function buildAnchorBlock(
   anchor: QuestionAnchor,
   playedMoves: readonly string[],
   gameEval: GameEvalLike | undefined,
-  playerColor: "w" | "b",
+  playerColor: "w" | "b"
 ): string {
   const colorName = anchor.color === "w" ? "White" : "Black";
-  const whose = anchor.color === playerColor ? "the player's move" : "the opponent's move";
+  const whose =
+    anchor.color === playerColor ? "the player's move" : "the opponent's move";
   const label = `${anchor.moveNumber}${anchor.color === "w" ? "." : "..."} ${anchor.san}`;
   const out: string[] = [];
   out.push(
-    `## MOVE UNDER DISCUSSION — ${label} (${colorName}, ${whose}). The board will show the position after it.`,
+    `## MOVE UNDER DISCUSSION — ${label} (${colorName}, ${whose}). The board will show the position after it.`
   );
   if (anchor.askedSan) {
-    out.push(`The player asks about ${anchor.askedSan} as an alternative at this point.`);
+    out.push(
+      `The player asks about ${anchor.askedSan} as an alternative at this point.`
+    );
   }
 
   const before = gameEval?.positions?.[anchor.index];
   const after = gameEval?.positions?.[anchor.index + 1];
-  const evalBefore = realEval(before?.lines?.[0]) ? formatEval(before!.lines![0]) : null;
-  const evalAfter = realEval(after?.lines?.[0]) ? formatEval(after!.lines![0]) : null;
+  const evalBefore = realEval(before?.lines?.[0])
+    ? formatEval(before!.lines![0])
+    : null;
+  const evalAfter = realEval(after?.lines?.[0])
+    ? formatEval(after!.lines![0])
+    : null;
   if (evalBefore && evalAfter) {
-    out.push(`Eval before the move: ${evalBefore}. After it: ${evalAfter}. (Pawns, White's perspective.)`);
+    out.push(
+      `Eval before the move: ${evalBefore}. After it: ${evalAfter}. (Pawns, White's perspective.)`
+    );
   } else if (evalAfter) {
-    out.push(`Eval after the move: ${evalAfter}. (Pawns, White's perspective.)`);
+    out.push(
+      `Eval after the move: ${evalAfter}. (Pawns, White's perspective.)`
+    );
   } else {
-    out.push("Engine data for this move is unavailable — do not quote an evaluation for it.");
+    out.push(
+      "Engine data for this move is unavailable — do not quote an evaluation for it."
+    );
   }
 
   // The engine's preference and its line, narrated ply by ply.
@@ -166,13 +197,18 @@ export function buildAnchorBlock(
       lineSan = [];
     }
   }
-  if (bestSan && bestSan.replace(/[+#]/g, "") !== anchor.san.replace(/[+#]/g, "")) {
+  if (
+    bestSan &&
+    bestSan.replace(/[+#]/g, "") !== anchor.san.replace(/[+#]/g, "")
+  ) {
     out.push(`Engine's preferred move here: ${bestSan}.`);
   } else if (bestSan) {
-    out.push(`The move played was the engine's preferred move.`);
+    out.push("The move played was the engine's preferred move.");
   }
   if (lineSan.length > 0) {
-    out.push(`Engine line from before the move: ${renderLine(anchor.moveNumber, anchor.color === "w", lineSan)}`);
+    out.push(
+      `Engine line from before the move: ${renderLine(anchor.moveNumber, anchor.color === "w", lineSan)}`
+    );
     const story = storyLines(anchor.fenBefore, lineSan);
     if (story.length > 0) {
       out.push("  what the engine line does:");
@@ -183,7 +219,9 @@ export function buildAnchorBlock(
   // What the game did from there, told the same way.
   const gameSans = playedMoves.slice(anchor.index, anchor.index + GAME_PLIES);
   if (gameSans.length > 0) {
-    out.push(`What the game did next: ${renderLine(anchor.moveNumber, anchor.color === "w", gameSans)}`);
+    out.push(
+      `What the game did next: ${renderLine(anchor.moveNumber, anchor.color === "w", gameSans)}`
+    );
     const story = storyLines(anchor.fenBefore, gameSans);
     if (story.length > 0) {
       out.push("  what these moves do:");
@@ -198,7 +236,13 @@ export function buildAnchorBlock(
     out.push(`  Black pieces: ${pmBefore.black}`);
     try {
       const rel = buildRelationalFacts(anchor.fenBefore).summary.trim();
-      if (rel) out.push(rel.split("\n").map((l) => `  ${l}`).join("\n"));
+      if (rel)
+        out.push(
+          rel
+            .split("\n")
+            .map((l) => `  ${l}`)
+            .join("\n")
+        );
     } catch {
       /* relational read is best-effort */
     }
@@ -210,7 +254,7 @@ export function buildAnchorBlock(
     out.push(`  Black pieces: ${pmAfter.black}`);
   }
   out.push(
-    "Use only these facts for this move. Do not read or reconstruct the board from the move list.",
+    "Use only these facts for this move. Do not read or reconstruct the board from the move list."
   );
   return out.join("\n");
 }
@@ -233,14 +277,18 @@ const TABLE_LINE_RE = /^Move (\d+) \((White|Black)\)/;
  * played). Lines with a severity label are kept wherever they are, so the
  * game's turning points never fall out of the window.
  */
-export function windowMoveTable(compact: string, centerPly: number | null): string | null {
+export function windowMoveTable(
+  compact: string,
+  centerPly: number | null
+): string | null {
   const section = sectionOf(compact, "MOVE-BY-MOVE NARRATIVE");
   if (!section) return null;
   const lines = section.split("\n");
   const head = lines[0];
   const body = lines.slice(1).filter((l) => TABLE_LINE_RE.test(l));
   if (body.length === 0) return null;
-  const centerIndex = centerPly === null ? body.length - 1 : Math.max(0, centerPly - 1);
+  const centerIndex =
+    centerPly === null ? body.length - 1 : Math.max(0, centerPly - 1);
   const kept: string[] = [];
   let omitted = 0;
   body.forEach((line, i) => {
@@ -251,8 +299,16 @@ export function windowMoveTable(compact: string, centerPly: number | null): stri
   });
   const title = head
     .replace("## MOVE-BY-MOVE NARRATIVE", "## MOVE TABLE")
-    .replace("(One sentence per half-move.", "(The moves around the one under discussion, plus every flagged move.");
-  const tail = omitted > 0 ? [`(${omitted} routine ${omitted === 1 ? "move" : "moves"} not listed — ask about one by number to see it.)`] : [];
+    .replace(
+      "(One sentence per half-move.",
+      "(The moves around the one under discussion, plus every flagged move."
+    );
+  const tail =
+    omitted > 0
+      ? [
+          `(${omitted} routine ${omitted === 1 ? "move" : "moves"} not listed — ask about one by number to see it.)`,
+        ]
+      : [];
   return [title, ...kept, ...tail].join("\n");
 }
 
@@ -265,16 +321,16 @@ export function windowMoveTable(compact: string, centerPly: number | null): stri
  */
 export function buildFollowUpCondensedContext(
   context: AnalysisContext,
-  centerPly: number | null,
+  centerPly: number | null
 ): string {
   const lines: string[] = [];
   lines.push("## THIS GAME");
   lines.push(
-    `Player: ${context.playerColor === "w" ? "White" : "Black"} · Skill: ${context.skillLevel} · ${context.moveCount} full moves`,
+    `Player: ${context.playerColor === "w" ? "White" : "Black"} · Skill: ${context.skillLevel} · ${context.moveCount} full moves`
   );
   for (const l of buildGameOverview(context)) lines.push(l);
   lines.push(
-    "Your review of this game is your first message in this conversation. Build on it; do not repeat it. If the player corrects something in it, take the correction.",
+    "Your review of this game is your first message in this conversation. Build on it; do not repeat it. If the player corrects something in it, take the correction."
   );
 
   const compact = context.compactGameContext ?? "";

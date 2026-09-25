@@ -41,15 +41,16 @@ const SAN_CORE =
 /** "8. Nc7+", "8.Nc7+", "8... Kd8", "8...Kd8" — the number decides the ply. */
 const NUMBERED_RE = new RegExp(
   `(?<![A-Za-z0-9])(\\d{1,3})\\s*(\\.{1,3})\\s*(${SAN_CORE})(?![A-Za-z0-9])`,
-  "g",
+  "g"
 );
 /** "Move 3: Nxd4", "move 3 (Nxd4)" — the coach's own card phrasing, side unstated. */
 const LABELLED_RE = new RegExp(
   `\\bmove\\s+(\\d{1,3})\\s*[:(]\\s*(${SAN_CORE})(?![A-Za-z0-9])`,
-  "gi",
+  "gi"
 );
 /** "move 8", "Move 12", "my 8th move", "the 12th move". */
-const MOVE_NUMBER_RE = /\bmove\s+(\d{1,3})\b|\b(\d{1,3})(?:st|nd|rd|th)\s+move\b/gi;
+const MOVE_NUMBER_RE =
+  /\bmove\s+(\d{1,3})\b|\b(\d{1,3})(?:st|nd|rd|th)\s+move\b/gi;
 /** A piece move, a castle or a pawn capture written bare ("Nc7+", "exd5", "O-O"). Pawn pushes need a cue. */
 const BARE_SAN_RE =
   /(?<![A-Za-z0-9.])((?:[NBRQK][a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?)|O-O(?:-O)?[+#]?|[a-h]x[a-h][1-8](?:=[NBRQ])?[+#]?)(?![A-Za-z0-9])/g;
@@ -72,14 +73,15 @@ function build(
   moves: readonly string[],
   index: number,
   matched: QuestionAnchor["matched"],
-  askedSan?: string,
+  askedSan?: string
 ): QuestionAnchor | null {
   if (index < 0 || index >= moves.length) return null;
   const fenBefore = fenAt(moves, index);
   const fenAfter = fenAt(moves, index + 1);
   if (!fenBefore || !fenAfter) return null;
   const san = moves[index];
-  const asked = askedSan && strip(askedSan) !== strip(san) ? askedSan : undefined;
+  const asked =
+    askedSan && strip(askedSan) !== strip(san) ? askedSan : undefined;
   return {
     index,
     moveNumber: Math.floor(index / 2) + 1,
@@ -105,7 +107,7 @@ export function resolveQuestionAnchor(
   question: string,
   moves: readonly string[],
   playerColor: "w" | "b" = "w",
-  viewedPly?: number,
+  viewedPly?: number
 ): QuestionAnchor | null {
   if (!question || moves.length === 0) return null;
   const text = question.trim();
@@ -132,7 +134,12 @@ export function resolveQuestionAnchor(
   if (numbered.length > 0) {
     const played = numbered.find((r) => strip(moves[r.index]) === strip(r.san));
     const pick = played ?? numbered[0];
-    const a = build(moves, pick.index, "numbered", played ? undefined : pick.san);
+    const a = build(
+      moves,
+      pick.index,
+      "numbered",
+      played ? undefined : pick.san
+    );
     if (a) return a;
   }
 
@@ -142,7 +149,8 @@ export function resolveQuestionAnchor(
     if (!Number.isFinite(n) || n < 1) continue;
     const own = (n - 1) * 2 + (playerColor === "b" ? 1 : 0);
     const other = (n - 1) * 2 + (playerColor === "b" ? 0 : 1);
-    const a = build(moves, own, "move-number") ?? build(moves, other, "move-number");
+    const a =
+      build(moves, own, "move-number") ?? build(moves, other, "move-number");
     if (a) return a;
   }
 

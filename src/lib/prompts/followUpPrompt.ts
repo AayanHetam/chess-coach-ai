@@ -39,7 +39,8 @@ export type FollowUpPromptMode = "v1" | "legacy";
 
 /** `COACH_FOLLOWUP_PROMPT=legacy` is the one-line rollback; anything else is the new prompt. */
 export function getFollowUpPromptMode(): FollowUpPromptMode {
-  return (process.env.COACH_FOLLOWUP_PROMPT ?? "").trim().toLowerCase() === "legacy"
+  return (process.env.COACH_FOLLOWUP_PROMPT ?? "").trim().toLowerCase() ===
+    "legacy"
     ? "legacy"
     : "v1";
 }

@@ -33,8 +33,16 @@ import {
   resolveMoveRef,
   plyBeforeMove,
   buildRecommendedPreview,
+  buildLinePreview,
   playSanOnFen,
 } from "@/components/preview-analysis/coachMoveRefs";
+import { ProofLine } from "@/components/preview-analysis/ProofLine";
+import {
+  engineLineAt,
+  playedLineAt,
+  splitProseByLineTokens,
+  type CoachLine,
+} from "@/components/preview-analysis/coachLines";
 import {
   gameSideKey,
   inferPlayerSideFromHeaders,
@@ -81,7 +89,6 @@ import {
   RotateCw,
   Send,
   Share2,
-  ShieldCheck,
   Sparkles,
   Target,
   Zap,
@@ -99,9 +106,7 @@ import {
   type TerminalLabel,
 } from "@/components/masti";
 import {
-  cloneElement,
   Fragment,
-  isValidElement,
   useCallback,
   useEffect,
   useMemo,
@@ -584,6 +589,16 @@ async function streamCoachReply(params: {
    * of conversationHistory.
    */
   onTruncated?: () => void;
+  /**
+   * The move the server resolved the question to (questionAnchor.ts), so
+   * the board can show the position the answer is about.
+   */
+  onAnchor?: (anchor: {
+    ply: number;
+    moveNumber: number;
+    color: "w" | "b";
+    san: string;
+  }) => void;
   signal?: AbortSignal;
 }): Promise<string> {
   const {
@@ -608,6 +623,7 @@ async function streamCoachReply(params: {
     onDelta,
     onCorrected,
     onTruncated,
+    onAnchor,
     signal,
   } = params;
 
@@ -650,6 +666,14 @@ async function streamCoachReply(params: {
       const data = await chatRes.json();
       const text: string =
         data.message ?? data.response ?? data.gameAnalysis?.analysis ?? "";
+      const anchor = data.gameAnalysis?.anchor;
+      if (
+        anchor &&
+        typeof anchor.ply === "number" &&
+        typeof anchor.san === "string"
+      ) {
+        onAnchor?.(anchor);
+      }
       // Emit as a single chunk so the UI animates the same way
       onDelta(text);
       return text;
@@ -3406,6 +3430,89 @@ function ExplorationBanner({
 }
 
 /**
+ * The coach moved the board. A follow-up that names a move ("why was
+ * 8. Nc7+ a mistake?") is answered about that move, and the board goes
+ * there so the answer and the position are read together; this says so and
+ * offers the way back to where the reader was.
+ */
+function CoachJumpBanner({
+  jump,
+  onBack,
+}: {
+  jump: { fromPly: number; toPly: number; label: string };
+  onBack: () => void;
+}) {
+  const from = plyToMoveDisplay(jump.fromPly);
+  return (
+    <Box
+      data-testid="coach-jump-banner"
+      sx={{
+        mb: 1.25,
+        px: 1.5,
+        py: 0.85,
+        borderRadius: "0.9rem",
+        background:
+          "linear-gradient(135deg, rgba(249,115,22,0.12), rgba(20,22,28,0.6))",
+        border: "1px solid rgba(249,115,22,0.32)",
+        display: "flex",
+        alignItems: "center",
+        gap: 1.25,
+        flexWrap: "wrap",
+        rowGap: 0.75,
+      }}
+    >
+      <MastiAvatar mood="pointing" size={22} ring={false} decorative />
+      <Typography
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          fontSize: "0.78rem",
+          color: "rgba(255,255,255,0.82)",
+        }}
+      >
+        Showing{" "}
+        <Box
+          component="span"
+          sx={{
+            fontFamily: "Monaco, Menlo, monospace",
+            fontWeight: 700,
+            color: "#FB923C",
+          }}
+        >
+          {jump.label}
+        </Box>
+        , the move you asked about.
+      </Typography>
+      <Button
+        onClick={onBack}
+        startIcon={<ArrowLeft size={13} />}
+        sx={{
+          flexShrink: 0,
+          px: 1.25,
+          py: 0.4,
+          minWidth: 0,
+          borderRadius: "8px",
+          fontSize: "0.75rem",
+          fontWeight: 700,
+          textTransform: "none",
+          whiteSpace: "nowrap",
+          background: "rgba(255,255,255,0.06)",
+          border: "1px solid rgba(255,255,255,0.14)",
+          color: "rgba(255,255,255,0.88)",
+          "&:hover": {
+            background: "rgba(249,115,22,0.16)",
+            borderColor: "rgba(249,115,22,0.45)",
+            color: "#FB923C",
+          },
+        }}
+      >
+        {from.color === null ? "Back to start" : `Back to move ${from.moveNum}`}
+      </Button>
+    </Box>
+  );
+}
+
+/**
  * Stockfish's top lines FOR THE POSITION ON THE BOARD.
  *
  * `position` must be the evaluation OF `fen`. It used to be handed
@@ -4432,7 +4539,10 @@ function CoachPanel({
   onSignIn,
   mood,
   moodPulse,
+  onShowLinePly,
 }: {
+  /** Put a ply of a proof line on the main board. */
+  onShowLinePly?: (line: CoachLine, k: number) => void;
   /**
    * Masti's face in the header, decided by the page from what it already
    * knows (coach working, engine running, the current move's verdict, the
@@ -4611,13 +4721,13 @@ function CoachPanel({
             and the board sized under it at lg, do not move. */}
         <MastiAvatar
           mood={mood ?? "wave"}
-          size={36}
+          size={44}
           animated
           loops={2}
           replayKey={`${mood ?? "wave"}:${moodPulse ?? 0}`}
           data-testid="coach-masti"
         />
-        <Box sx={{ flex: 1 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             sx={{
               fontSize: "0.95rem",
@@ -4629,31 +4739,24 @@ function CoachPanel({
           >
             Masti
           </Typography>
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="center"
-            sx={{ mt: 0.5 }}
+          {/* One quiet line under the name. The "Stockfish-grounded ·
+              Engine-validated" badge and the hard-coded Validated chip that
+              sat here claimed a check the panel never looked up; the proof
+              lines carry the engine's own numbers instead. */}
+          <Typography
+            data-testid="coach-status"
+            sx={{
+              mt: 0.35,
+              fontSize: "0.72rem",
+              color: "rgba(255,255,255,0.5)",
+              minHeight: "1.15em",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
           >
-            <Box
-              sx={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: "#22c55e",
-                boxShadow: "0 0 8px rgba(34,197,94,0.6)",
-              }}
-            />
-            <Typography
-              sx={{
-                fontSize: "0.72rem",
-                color: "rgba(255,255,255,0.5)",
-                fontFamily: "Monaco, Menlo, monospace",
-              }}
-            >
-              Stockfish-grounded · Engine-validated
-            </Typography>
-          </Stack>
+            {isThinking ? "thinking…" : personality.description.split(".")[0]}
+          </Typography>
         </Box>
         {/* Personality picker chip — clicking opens a glass popover with
             the 6 coach voices. Closes the `personalityId` parity gap
@@ -4817,27 +4920,6 @@ function CoachPanel({
             );
           })}
         </Menu>
-        <Tooltip title="Every claim validated against the engine">
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.5,
-              px: 1.25,
-              py: 0.5,
-              borderRadius: "999px",
-              background: "rgba(34,197,94,0.1)",
-              border: "1px solid rgba(34,197,94,0.25)",
-            }}
-          >
-            <ShieldCheck size={12} color="#22c55e" />
-            <Typography
-              sx={{ fontSize: "0.68rem", color: "#86efac", fontWeight: 600 }}
-            >
-              Validated
-            </Typography>
-          </Box>
-        </Tooltip>
       </Box>
 
       {/* Messages */}
@@ -4911,6 +4993,10 @@ function CoachPanel({
                   onLaunchPuzzleSet={onLaunchPuzzleSet}
                   enginePositions={enginePositions}
                   loadedGame={loadedGame}
+                  onShowLinePly={onShowLinePly}
+                  playerColor={
+                    playerSide ? (playerSide.color === "white" ? "w" : "b") : null
+                  }
                 />
               </motion.div>
             ))}
@@ -5775,7 +5861,7 @@ function CoachPuzzleCard({
 //   3. Lists of "- foo" bullets get rendered as a real list.
 const INSIGHT_LABEL_RE =
   /^(Idea|Problem|Solution|Outcome|Continuation)\s*:\s*(.+)$/i;
-const CONTINUATION_TAG_RE = /\[(CONTINUATION|MAIA_CONTINUATION):(\d+):(w|b)\]/g;
+const CONTINUATION_TAG_RE = /\[(CONTINUATION|MAIA_CONTINUATION|PLAYED):(\d+):(w|b)\]/g;
 
 function ContinuationPill({
   kind,
@@ -5810,202 +5896,11 @@ function ContinuationPill({
   );
 }
 
-// Dark-themed counterpart to production's EngineContinuation
-// (AICoachChat.tsx:716) and MaiaContinuation (:822). Reads PV directly
-// from the local enginePositions[] (no atoms — the new surface uses
-// component state). Falls back to the lightweight ContinuationPill +
-// "open the Lines tab" footer when data isn't available.
-function InsightContinuationInline({
-  kind,
-  moveNum,
-  color,
-  enginePositions,
-  loadedGame,
-  onJumpToPly,
-  renderInline,
-}: {
-  kind: "CONTINUATION" | "MAIA_CONTINUATION";
-  moveNum: number;
-  color: "w" | "b";
-  enginePositions: PositionEval[] | null;
-  loadedGame: Chess;
-  onJumpToPly?: (ply: number) => void;
-  /** When provided, the PV's SAN moves get run through renderInline with
-   *  forceRecommended=true so each "N. san" turns into a green 🔍
-   *  clickable Box (same styling as recommended-move refs in prose).
-   *  Caller passes CoachBubble's renderInline closure. */
-  renderInline?: (
-    text: string,
-    forceRecommended?: boolean
-  ) => React.ReactNode[];
-}) {
-  // Half-move index inside enginePositions / loadedGame.history():
-  // - white move N lands at ply 2N-1 (1-indexed) → index 2(N-1)
-  // - black move N lands at ply 2N        (1-indexed) → index 2N-1
-  const halfMoveIdx = color === "b" ? moveNum * 2 - 1 : (moveNum - 1) * 2;
-
-  const isMaia = kind === "MAIA_CONTINUATION";
-  const accent = isMaia ? "#C4B5FD" : "#FB923C";
-  const bg = isMaia ? "rgba(196,181,253,0.08)" : "rgba(251,146,60,0.08)";
-  const border = isMaia ? "rgba(196,181,253,0.28)" : "rgba(251,146,60,0.28)";
-  const label = isMaia ? "Maia line" : "Engine line";
-
-  const data = useMemo(() => {
-    if (!enginePositions || halfMoveIdx < 0) return null;
-    // The PV at index `halfMoveIdx` is the engine's best continuation
-    // FROM that position. We want the line AT this move, which means
-    // looking at the position BEFORE the move (halfMoveIdx itself).
-    const posEval = enginePositions[halfMoveIdx];
-    const pv = posEval?.lines?.[0];
-    if (!pv?.pv || pv.pv.length === 0) return null;
-
-    // Get FEN before this move by replaying loadedGame's history from its
-    // ROOT — a FEN-loaded game does not start from the standard position.
-    let fenBefore: string | null = null;
-    try {
-      const { board } = replayFromRoot(
-        loadedGame.history(),
-        halfMoveIdx,
-        getRootFen(loadedGame)
-      );
-      fenBefore = board.fen();
-    } catch {
-      return null;
-    }
-
-    // Convert UCI PV → SAN. Bail at the first failure (corrupt UCI).
-    const sans: string[] = [];
-    try {
-      const replay = new Chess(fenBefore);
-      for (const uci of pv.pv.slice(0, 8)) {
-        const mv = replay.move({
-          from: uci.slice(0, 2),
-          to: uci.slice(2, 4),
-          promotion: uci.length >= 5 ? uci[4] : "q",
-        });
-        if (!mv) break;
-        sans.push(mv.san);
-      }
-    } catch {
-      /* SAN conversion partial — render what we got */
-    }
-    if (sans.length === 0) return null;
-
-    const evalStr =
-      typeof pv.mate === "number"
-        ? `M${pv.mate > 0 ? "+" : ""}${pv.mate}`
-        : typeof pv.cp === "number"
-          ? `${pv.cp >= 0 ? "+" : ""}${(pv.cp / 100).toFixed(2)}`
-          : "";
-
-    // Render as "14. e4 c5 15. Nf3 d6 16. d4 …" — chess.com-style
-    // move-number-prefixed display, beginning at the right move number.
-    const display: string[] = [];
-    let m = moveNum;
-    let isWhiteMove = color === "w";
-    for (const san of sans) {
-      if (isWhiteMove) display.push(`${m}.`);
-      display.push(san);
-      if (!isWhiteMove) m += 1;
-      isWhiteMove = !isWhiteMove;
-    }
-    return { evalStr, displayText: display.join(" "), depth: pv.depth };
-  }, [enginePositions, halfMoveIdx, color, moveNum, loadedGame]);
-
-  if (!data) {
-    // Engine data not ready or PV unavailable — fall back to the small
-    // pill marker so the user still knows the coach referenced a line.
-    return <ContinuationPill kind={kind} />;
-  }
-
-  return (
-    <Box
-      onClick={() => onJumpToPly?.(halfMoveIdx)}
-      sx={{
-        mt: 1,
-        mb: 0.5,
-        cursor: onJumpToPly ? "pointer" : "default",
-        background: bg,
-        border: `1px solid ${border}`,
-        borderRadius: "0.6rem",
-        px: 1.25,
-        py: 0.85,
-        display: "flex",
-        flexDirection: "column",
-        gap: 0.4,
-        transition: "all 180ms ease",
-        "&:hover": onJumpToPly
-          ? {
-              background: isMaia
-                ? "rgba(196,181,253,0.12)"
-                : "rgba(251,146,60,0.12)",
-              borderColor: accent,
-            }
-          : {},
-      }}
-    >
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 0.75,
-        }}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0.6,
-            fontSize: "0.66rem",
-            fontWeight: 800,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            color: accent,
-          }}
-        >
-          {label}
-          {data.evalStr && (
-            <Box
-              component="span"
-              sx={{
-                color: "rgba(255,255,255,0.55)",
-                fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                letterSpacing: "0.02em",
-                textTransform: "none",
-              }}
-            >
-              {data.evalStr}
-            </Box>
-          )}
-        </Box>
-        {typeof data.depth === "number" && (
-          <Box
-            sx={{
-              fontSize: "0.62rem",
-              color: "rgba(255,255,255,0.35)",
-              fontFamily: "ui-monospace, SFMono-Regular, monospace",
-            }}
-          >
-            d{data.depth}
-          </Box>
-        )}
-      </Box>
-      <Box
-        sx={{
-          fontFamily: "ui-monospace, SFMono-Regular, monospace",
-          fontSize: "0.84rem",
-          color: "rgba(255,255,255,0.86)",
-          lineHeight: 1.4,
-        }}
-      >
-        {renderInline
-          ? renderInline(data.displayText, !isMaia)
-          : data.displayText}
-      </Box>
-    </Box>
-  );
-}
+// Engine lines under a card used to be drawn here, per token, inside the
+// WHY reveal — and a second, identical box labelled "Maia line" beside it,
+// because the client has no Maia data and the token fell back to the same
+// Stockfish PV. The card now draws ONE proof line (ProofLine.tsx) from the
+// same engine data, with what each move does, above the reveals.
 
 function InsightBodyText({
   text,
@@ -6029,22 +5924,18 @@ function InsightBodyText({
   //   - a paragraph
   // Lines that aren't continuations still get their inline [CONTINUATION:…]
   // tags stripped so the literal token never leaks into prose.
-  const canInline = !!enginePositions && !!loadedGame;
+  // A line token on a line of its own is the CARD's to draw (the proof line
+  // under the headline), never the body's: here it is dropped, and when
+  // engine data is not ready yet a footer pill says a line was cited.
+  const engineReady = !!enginePositions && !!loadedGame;
   const standaloneContinuationRe =
-    /^\[(CONTINUATION|MAIA_CONTINUATION):(\d+):([wb])\]\s*$/i;
-  type Continuation = {
-    kind: "continuation";
-    tagKind: "CONTINUATION" | "MAIA_CONTINUATION";
-    moveNum: number;
-    color: "w" | "b";
-  };
+    /^\[(CONTINUATION|MAIA_CONTINUATION|PLAYED):(\d+):([wb])\]\s*$/i;
 
   const rawLines = text.split(/\r?\n/).map((l) => l.trim());
   const blocks: Array<
     | { kind: "label"; label: string; body: string }
     | { kind: "bullets"; items: string[] }
     | { kind: "para"; body: string }
-    | Continuation
   > = [];
   let bulletBuf: string[] = [];
   const flushBullets = () => {
@@ -6057,24 +5948,13 @@ function InsightBodyText({
   // Track whether any non-inlined continuation tags remained — drives the
   // footer pill fallback for when engine data isn't ready.
   let unInlinedContinuation = false;
-  let unInlinedMaia = false;
 
   for (const rawLine of rawLines) {
     if (!rawLine) continue;
     const contM = standaloneContinuationRe.exec(rawLine);
     if (contM) {
-      const tagKind = contM[1].toUpperCase() as Continuation["tagKind"];
-      if (canInline) {
-        flushBullets();
-        blocks.push({
-          kind: "continuation",
-          tagKind,
-          moveNum: parseInt(contM[2], 10),
-          color: contM[3].toLowerCase() as "w" | "b",
-        });
-      } else {
-        if (tagKind === "MAIA_CONTINUATION") unInlinedMaia = true;
-        else unInlinedContinuation = true;
+      if (!engineReady && contM[1].toUpperCase() === "CONTINUATION") {
+        unInlinedContinuation = true;
       }
       continue;
     }
@@ -6103,7 +5983,6 @@ function InsightBodyText({
   // referenced a line. Keeps the name `hasContinuation`/`hasMaia` so the
   // existing footer JSX below works unchanged.
   const hasContinuation = unInlinedContinuation;
-  const hasMaia = unInlinedMaia;
 
   return (
     <Box
@@ -6177,28 +6056,13 @@ function InsightBodyText({
             </Box>
           );
         }
-        if (b.kind === "continuation") {
-          if (!enginePositions || !loadedGame) return null;
-          return (
-            <InsightContinuationInline
-              key={i}
-              kind={b.tagKind}
-              moveNum={b.moveNum}
-              color={b.color}
-              enginePositions={enginePositions}
-              loadedGame={loadedGame}
-              onJumpToPly={onJumpToPly}
-              renderInline={renderInline}
-            />
-          );
-        }
         return (
           <Box key={i} sx={{ mt: i === 0 ? 0 : 0.6 }}>
             {renderInline(b.body)}
           </Box>
         );
       })}
-      {(hasContinuation || hasMaia) && (
+      {hasContinuation && (
         <Box
           sx={{
             mt: 1.25,
@@ -6212,8 +6076,7 @@ function InsightBodyText({
             color: "rgba(255,255,255,0.55)",
           }}
         >
-          {hasContinuation && <ContinuationPill kind="CONTINUATION" />}
-          {hasMaia && <ContinuationPill kind="MAIA_CONTINUATION" />}
+          <ContinuationPill kind="CONTINUATION" />
           <Box sx={{ ml: 0.35 }}>· open the Lines tab for the full PV</Box>
         </Box>
       )}
@@ -6244,6 +6107,10 @@ function DarkInsightCard({
   enginePositions,
   loadedGame,
   onJumpToPly,
+  gameSans,
+  rootFen,
+  playerColor,
+  onShowLinePly,
 }: {
   insight: InsightData;
   renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
@@ -6257,18 +6124,20 @@ function DarkInsightCard({
   enginePositions?: PositionEval[] | null;
   loadedGame?: Chess;
   onJumpToPly?: (ply: number) => void;
+  /** The game's SAN moves and root, to resolve the card's lines. */
+  gameSans?: string[];
+  rootFen?: string;
+  playerColor?: "w" | "b" | null;
+  /** Put a ply of a proof line on the main board. */
+  onShowLinePly?: (line: CoachLine, k: number) => void;
 }) {
-  // showWhy is open by default so the card's actual analysis is visible
-  // immediately. The headline alone is a non-spoiler one-liner and was
-  // never enough on its own to demonstrate value — users had to click
-  // four reveals per card (Why / Threats / Roles / Concept) to read a
-  // single insight, and at five-card carousels that's 20+ clicks. The
-  // spoiler-avoidance design assumed users wanted to think about the
-  // position first; in practice with no progressive-reveal UI elsewhere
-  // on the page the convention isn't legible. The three secondary
-  // reveals (Threats / Roles / Concept) stay closed by default — they
-  // are supplementary context and the user can opt in if they want it.
-  const [showWhy, setShowWhy] = useState(true);
+  // The card leads with the proof, not the prose: headline, then the
+  // engine's line drawn with what each move does, then the reveals. The
+  // written explanation sits behind "Show what was missed" — the headline
+  // is written as a non-spoiler, and with the line on screen the reader
+  // already sees the answer; the words are there for whoever wants them.
+  const [showWhy, setShowWhy] = useState(false);
+  const [showPlayed, setShowPlayed] = useState(false);
   const [showThreats, setShowThreats] = useState(false);
   const [showRoles, setShowRoles] = useState(false);
   const [showConcept, setShowConcept] = useState(false);
@@ -6291,6 +6160,18 @@ function DarkInsightCard({
   const moveText = insight.playedMove
     ? `${insight.moveLabel} ${insight.playedMove}`
     : insight.moveLabel;
+
+  // The lines this card can draw, from the client's own engine data.
+  const cardColor: "w" | "b" = insight.color === "b" ? "b" : "w";
+  const sans = useMemo(() => gameSans ?? [], [gameSans]);
+  const engineLine = useMemo(
+    () => engineLineAt(enginePositions, sans, insight.moveNumber, cardColor, rootFen),
+    [enginePositions, sans, insight.moveNumber, cardColor, rootFen]
+  );
+  const playedLine = useMemo(
+    () => playedLineAt(sans, insight.moveNumber, cardColor, rootFen, 6, enginePositions),
+    [sans, insight.moveNumber, cardColor, rootFen, enginePositions]
+  );
 
   const Pill = ({
     label,
@@ -6483,6 +6364,26 @@ function DarkInsightCard({
         </Typography>
       )}
 
+      {/* The proof: the engine's line from this position, drawn rather than
+          described, playable on the board. */}
+      {engineLine && (
+        <ProofLine
+          line={engineLine}
+          playerColor={playerColor ?? null}
+          onShowPly={onShowLinePly}
+          data-testid="insight-engine-line"
+        />
+      )}
+      {showPlayed && playedLine && (
+        <ProofLine
+          line={playedLine}
+          playerColor={playerColor ?? null}
+          onShowPly={onShowLinePly}
+          label="What happened"
+          data-testid="insight-played-line"
+        />
+      )}
+
       {/* Reveal pills */}
       <Stack
         direction="row"
@@ -6500,6 +6401,13 @@ function DarkInsightCard({
             }
             active={showWhy}
             onClick={() => setShowWhy((v) => !v)}
+          />
+        )}
+        {playedLine && (
+          <Pill
+            label="What happened"
+            active={showPlayed}
+            onClick={() => setShowPlayed((v) => !v)}
           />
         )}
         {insight.threats && (
@@ -6597,18 +6505,13 @@ function DarkInsightCard({
   );
 }
 
-// ─── DarkInsightCarousel ────────────────────────────────────────────────
-// Paginated wrapper around DarkInsightCard. Renders one insight at a time
-// with prev/next arrows + counter + progress bar — mirrors production's
-// InsightsCarousel UX (src/components/AICoachInsights.tsx:487) but on
-// our dark glass surface.
-//
-// Animations:
-//   - Card content slides horizontally on direction change (framer-motion)
-//   - Indexed dots double as click targets so the user can jump to any
-//     insight directly
-//   - Keyboard: ← / → arrow keys advance when the carousel has focus
-function DarkInsightCarousel({
+// ─── DarkInsightStack ────────────────────────────────────────────────────
+// The review's key moments, stacked. This was a one-card-at-a-time carousel
+// ("Insight 1 / 3", arrows, dots, a slide animation): two of every three
+// cards were off screen, and the shape of the game — where it turned, how
+// many times — was hidden behind pagination. With the proof line on each
+// card and the written explanation folded, a card is short enough to stack.
+function DarkInsightStack({
   insights,
   renderInline,
   onMoveClick,
@@ -6616,6 +6519,10 @@ function DarkInsightCarousel({
   enginePositions,
   loadedGame,
   onJumpToPly,
+  gameSans,
+  rootFen,
+  playerColor,
+  onShowLinePly,
 }: {
   insights: InsightData[];
   renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
@@ -6624,39 +6531,17 @@ function DarkInsightCarousel({
   enginePositions?: PositionEval[] | null;
   loadedGame?: Chess;
   onJumpToPly?: (ply: number) => void;
+  gameSans?: string[];
+  rootFen?: string;
+  playerColor?: "w" | "b" | null;
+  onShowLinePly?: (line: CoachLine, k: number) => void;
 }) {
-  const [[idx, dir], setState] = useState<[number, 1 | -1]>([0, 1]);
   const total = insights.length;
-  const clamp = useCallback(
-    (n: number) => ((n % total) + total) % total,
-    [total]
-  );
-  const current = insights[clamp(idx)];
-  const go = useCallback(
-    (delta: 1 | -1) => setState(([prev]) => [clamp(prev + delta), delta]),
-    [clamp]
-  );
-  const jump = useCallback(
-    (target: number) =>
-      setState(([prev]) => [target, (target > prev ? 1 : -1) as 1 | -1]),
-    []
-  );
-  const handleKey = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowLeft") {
-      e.preventDefault();
-      go(-1);
-    } else if (e.key === "ArrowRight") {
-      e.preventDefault();
-      go(1);
-    }
-  };
-
   if (total === 0) return null;
 
   return (
     <Box
-      tabIndex={0}
-      onKeyDown={handleKey}
+      data-testid="key-moments"
       sx={{
         mt: 1.5,
         borderRadius: "1rem",
@@ -6666,207 +6551,83 @@ function DarkInsightCarousel({
         WebkitBackdropFilter: "blur(18px) saturate(160%)",
         border: "1px solid rgba(255,255,255,0.08)",
         overflow: "hidden",
-        outline: "none",
-        "&:focus-visible": {
-          borderColor: "rgba(249,115,22,0.5)",
-          boxShadow: "0 0 0 2px rgba(249,115,22,0.18)",
-        },
       }}
     >
-      {/* Eyebrow + nav */}
+      {/* Eyebrow */}
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          gap: 0.85,
           px: 1.5,
           py: 1,
           borderBottom: "1px solid rgba(255,255,255,0.05)",
         }}
       >
+        <Flame size={12} color="#FB923C" />
         <Box
           sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0.85,
+            fontSize: "0.66rem",
+            fontWeight: 800,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.55)",
           }}
         >
-          <Flame size={12} color="#FB923C" />
-          <Box
-            sx={{
-              fontSize: "0.66rem",
-              fontWeight: 800,
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              color: "rgba(255,255,255,0.62)",
-            }}
-          >
-            Key moments
-          </Box>
+          Key moments
         </Box>
         <Box
           sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0.5,
+            ml: "auto",
+            fontSize: "0.66rem",
+            fontWeight: 700,
+            color: "rgba(255,255,255,0.4)",
+            fontFamily: "ui-monospace, SFMono-Regular, monospace",
           }}
         >
-          <Box
-            onClick={() => go(-1)}
-            aria-label="Previous insight"
-            sx={{
-              cursor: total > 1 ? "pointer" : "default",
-              opacity: total > 1 ? 1 : 0.3,
-              width: 24,
-              height: 24,
-              borderRadius: "999px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "rgba(255,255,255,0.7)",
-              transition: "all 180ms ease",
-              "&:hover":
-                total > 1
-                  ? {
-                      background: "rgba(249,115,22,0.12)",
-                      color: "#FB923C",
-                    }
-                  : {},
-            }}
-          >
-            <ChevronLeft size={14} />
-          </Box>
-          <Box
-            sx={{
-              fontSize: "0.72rem",
-              fontWeight: 700,
-              color: "rgba(255,255,255,0.85)",
-              fontVariantNumeric: "tabular-nums",
-              minWidth: 32,
-              textAlign: "center",
-              letterSpacing: "0.02em",
-            }}
-          >
-            {clamp(idx) + 1} / {total}
-          </Box>
-          <Box
-            onClick={() => go(1)}
-            aria-label="Next insight"
-            sx={{
-              cursor: total > 1 ? "pointer" : "default",
-              opacity: total > 1 ? 1 : 0.3,
-              width: 24,
-              height: 24,
-              borderRadius: "999px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "rgba(255,255,255,0.7)",
-              transition: "all 180ms ease",
-              "&:hover":
-                total > 1
-                  ? {
-                      background: "rgba(249,115,22,0.12)",
-                      color: "#FB923C",
-                    }
-                  : {},
-            }}
-          >
-            <ChevronRight size={14} />
-          </Box>
+          {total === 1 ? "1 moment" : `${total} moments`}
         </Box>
       </Box>
 
-      {/* Progress bar */}
-      <Box sx={{ position: "relative", height: 2 }}>
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            background: "rgba(255,255,255,0.04)",
-          }}
-        />
-        <motion.div
-          layout
-          animate={{
-            width: `${((clamp(idx) + 1) / total) * 100}%`,
-          }}
-          transition={{ duration: 0.32, ease: [0.22, 0.61, 0.36, 1] }}
-          style={{
-            position: "absolute",
-            top: 0,
-            bottom: 0,
-            left: 0,
-            background: "linear-gradient(90deg, #F97316 0%, #FB923C 100%)",
-            boxShadow: "0 0 12px rgba(249,115,22,0.45)",
-          }}
-        />
-      </Box>
-
-      {/* Slide-animated card body */}
-      <Box sx={{ position: "relative", p: 1.5 }}>
-        <AnimatePresence mode="wait" custom={dir} initial={false}>
-          <motion.div
-            key={clamp(idx)}
-            custom={dir}
-            initial={{ opacity: 0, x: dir * 24 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: dir * -24 }}
-            transition={{
-              duration: 0.22,
-              ease: [0.22, 0.61, 0.36, 1],
+      <Box sx={{ px: 1.25, pb: 1.25 }}>
+        {insights.map((insight, i) => (
+          <Box
+            key={`${insight.moveNumber}${insight.color}-${i}`}
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "16px 1fr",
+              columnGap: 0.75,
+              alignItems: "start",
             }}
           >
+            <Box
+              sx={{
+                mt: 2.4,
+                fontSize: "0.66rem",
+                fontWeight: 800,
+                color: "rgba(255,255,255,0.35)",
+                textAlign: "right",
+                fontFamily: "ui-monospace, SFMono-Regular, monospace",
+              }}
+            >
+              {i + 1}
+            </Box>
             <DarkInsightCard
-              insight={current}
+              insight={insight}
               renderInline={renderInline}
               onMoveClick={onMoveClick}
               onPracticeConcept={onPracticeConcept}
               enginePositions={enginePositions}
               loadedGame={loadedGame}
               onJumpToPly={onJumpToPly}
+              gameSans={gameSans}
+              rootFen={rootFen}
+              playerColor={playerColor}
+              onShowLinePly={onShowLinePly}
             />
-          </motion.div>
-        </AnimatePresence>
+          </Box>
+        ))}
       </Box>
-
-      {/* Indexed dots (jump-to) */}
-      {total > 1 && (
-        <Box
-          sx={{
-            display: "flex",
-            gap: 0.5,
-            justifyContent: "center",
-            pb: 1.25,
-            pt: 0.25,
-          }}
-        >
-          {insights.map((_, i) => {
-            const active = i === clamp(idx);
-            return (
-              <Box
-                key={i}
-                onClick={() => jump(i)}
-                aria-label={`Go to insight ${i + 1}`}
-                sx={{
-                  cursor: "pointer",
-                  width: active ? 18 : 6,
-                  height: 6,
-                  borderRadius: "999px",
-                  background: active
-                    ? "linear-gradient(135deg,#F97316,#EA580C)"
-                    : "rgba(255,255,255,0.18)",
-                  boxShadow: active ? "0 0 10px rgba(249,115,22,0.45)" : "none",
-                  transition: "all 220ms ease",
-                  "&:hover": active
-                    ? {}
-                    : { background: "rgba(255,255,255,0.32)" },
-                }}
-              />
-            );
-          })}
-        </Box>
-      )}
     </Box>
   );
 }
@@ -7003,6 +6764,8 @@ function CoachBubble({
   onLaunchPuzzleSet,
   enginePositions,
   loadedGame,
+  onShowLinePly,
+  playerColor,
 }: {
   msg: CoachMessage;
   onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
@@ -7033,11 +6796,16 @@ function CoachBubble({
   /** Open a generated practice set on /puzzles. */
   onLaunchPuzzleSet?: (set: PuzzleSet) => void;
   /** Engine data passed through to insight cards so `[CONTINUATION:N:c]`
-   *  / `[MAIA_CONTINUATION:N:c]` tokens can materialise inline PVs. */
+   *  / `[PLAYED:N:c]` tokens can materialise as proof lines. */
   enginePositions?: PositionEval[] | null;
   loadedGame?: Chess;
+  /** Put a ply of a proof line on the main board. */
+  onShowLinePly?: (line: CoachLine, k: number) => void;
+  /** The side the reader played, for the proof line's ledger wording. */
+  playerColor?: "w" | "b" | null;
 }) {
   const isUser = msg.role === "user";
+  const gameSans = useMemo(() => (allMoves ?? []).map((m) => m.san), [allMoves]);
 
   // Renderer: handles bold (**…**) AND inline move references (24.Rxd4 →
   // clickable, board jumps on click). `forceRecommended` lets a caller
@@ -7172,6 +6940,12 @@ function CoachBubble({
   // `renderInline` already handles `**bold**`, so we leave bold to it
   // rather than relying on react-markdown's `<strong>` to avoid double-
   // bolding when both layers fire on the same span.
+  // Only the DIRECT string children of an element are tokenized here. Every
+  // element react-markdown emits is rendered by one of the components below,
+  // which tokenizes its own strings — so descending into child elements as
+  // well ran renderInline twice over the same text (a list item's paragraph:
+  // once from the <li>, once from the <p>), and a move link came out as
+  // "🔍 🔍 6. Bxb2". Elements are left exactly as they are.
   const processChildren = (node: ReactNode): ReactNode => {
     if (typeof node === "string") {
       return <>{renderInline(node)}</>;
@@ -7180,15 +6954,6 @@ function CoachBubble({
       return node.map((child, idx) => (
         <Fragment key={idx}>{processChildren(child)}</Fragment>
       ));
-    }
-    if (
-      isValidElement<{ children?: ReactNode }>(node) &&
-      node.props != null &&
-      "children" in node.props
-    ) {
-      return cloneElement(node, {
-        children: processChildren(node.props.children),
-      });
     }
     return node;
   };
@@ -7292,12 +7057,17 @@ function CoachBubble({
       </Box>
     ),
     em: ({ children }: any) => <em>{processChildren(children)}</em>,
-    // We intentionally do NOT remap <strong>: renderInline already turns
-    // `**bold**` into a styled span, and remark-gfm's `<strong>` rendering
-    // would double-bold the same content. Leaving `strong` off this map
-    // means react-markdown emits the default <strong>, but the bold text
-    // never reaches react-markdown because renderInline consumed the
-    // `**…**` syntax first.
+    // react-markdown parses `**bold**` before renderInline ever sees the
+    // text, so bold arrives here as <strong>. Rendered as the same orange
+    // span renderInline uses inside cards, with its own move refs linked.
+    strong: ({ children }: any) => (
+      <Box
+        component="strong"
+        sx={{ fontWeight: 700, color: isUser ? "#0A0A0A" : "#FB923C" }}
+      >
+        {processChildren(children)}
+      </Box>
+    ),
     code: ({ inline, children, ...rest }: any) => {
       // react-markdown 10 still passes `inline` for compatibility; default
       // to "inline" when in doubt — coach output rarely contains real
@@ -7359,11 +7129,54 @@ function CoachBubble({
   // Wraps a chunk of prose in react-markdown but lets renderInline keep
   // owning the bold + move-ref tokenization. Returns a JSX element rather
   // than ReactNode[] so callers can drop it into JSX with `{}`.
+  // A verdict that opens with a move ("6. Na3 walked past a free queen")
+  // is, to markdown, an ordered list starting at 6 — rendered as "1. Na3".
+  // Escaping the dot keeps it prose; the parser strips the backslash, so
+  // the move ref tokenizer still sees "6. Na3" and links it.
+  const protectLeadingMoves = (text: string): string =>
+    text.replace(/^(\s*)(\d{1,3})\.(\s+(?:[NBRQK]?[a-h]|O-O))/gm, "$1$2\\.$3");
+
   const renderMarkdownProse = (text: string): React.ReactNode => (
     <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-      {text}
+      {protectLeadingMoves(text)}
     </ReactMarkdown>
   );
+
+  // A follow-up cites a line with a token on a line of its own
+  // ([CONTINUATION:8:w] / [PLAYED:8:w]); the token becomes a proof line
+  // drawn from the client's own engine data, the prose around it stays
+  // markdown. A token the client cannot resolve yet (engine still running)
+  // simply disappears — the literal never reaches the reader.
+  const renderProseWithLines = (text: string): React.ReactNode => {
+    const parts = splitProseByLineTokens(text);
+    if (parts.length === 1 && parts[0].kind === "text") {
+      return renderMarkdownProse(parts[0].text);
+    }
+    return (
+      <>
+        {parts.map((part, i) => {
+          if (part.kind === "text") {
+            return <Fragment key={i}>{renderMarkdownProse(part.text)}</Fragment>;
+          }
+          const { token } = part;
+          if (token.kind === "maia") return null;
+          const line =
+            token.kind === "played"
+              ? playedLineAt(gameSans, token.moveNumber, token.color, rootFen, 6, enginePositions)
+              : engineLineAt(enginePositions, gameSans, token.moveNumber, token.color, rootFen);
+          if (!line) return null;
+          return (
+            <ProofLine
+              key={i}
+              line={line}
+              playerColor={playerColor ?? null}
+              onShowPly={onShowLinePly}
+            />
+          );
+        })}
+      </>
+    );
+  };
 
   const shareable =
     !isUser && msg.content.trim().length > 0 && Boolean(onShare);
@@ -7420,12 +7233,12 @@ function CoachBubble({
           const practiceStripped = extractPracticeTags(msg.content).stripped;
           const { prefix, insights, suffix } = parseInsights(practiceStripped);
           if (insights.length === 0) {
-            return renderMarkdownProse(practiceStripped);
+            return renderProseWithLines(practiceStripped);
           }
           return (
             <>
               {prefix.trim() && renderMarkdownProse(prefix)}
-              <DarkInsightCarousel
+              <DarkInsightStack
                 insights={insights}
                 renderInline={renderInline}
                 onMoveClick={(moveNum, isBlack) => {
@@ -7444,8 +7257,12 @@ function CoachBubble({
                 enginePositions={enginePositions}
                 loadedGame={loadedGame}
                 onJumpToPly={onMoveRefClick}
+                gameSans={gameSans}
+                rootFen={rootFen}
+                playerColor={playerColor ?? null}
+                onShowLinePly={onShowLinePly}
               />
-              {suffix.trim() && renderMarkdownProse(suffix)}
+              {suffix.trim() && renderProseWithLines(suffix)}
             </>
           );
         })()}
@@ -8429,6 +8246,11 @@ export default function AnalysisPage() {
               : null,
             openingName:
               headers.Opening?.trim() || detectedOpening?.name || null,
+            playerColor: playerSide
+              ? playerSide.color === "white"
+                ? "w"
+                : "b"
+              : null,
           }),
     [
       hasGame,
@@ -8438,6 +8260,7 @@ export default function AnalysisPage() {
       currentPly,
       headers.Opening,
       detectedOpening,
+      playerSide,
     ]
   );
 
@@ -8768,6 +8591,14 @@ export default function AnalysisPage() {
   // from currentFen so the live candidate list updates on the new position.
   const [takeoverPreview, setTakeoverPreview] =
     useState<ExplorationPreview | null>(null);
+  // Where the coach last moved the board, so the reader can get back. Set
+  // when a follow-up's question named a move (the server's `anchor`) and
+  // the board was elsewhere; cleared as soon as the board moves again.
+  const [coachJump, setCoachJump] = useState<{
+    fromPly: number;
+    toPly: number;
+    label: string;
+  } | null>(null);
 
   // Desync fix (companion to the ae4cf45 replay fix): navigating game history
   // (arrows / move-history strip) advances `currentPly` → `currentFen`, but the
@@ -8788,6 +8619,9 @@ export default function AnalysisPage() {
       return;
     }
     setTakeoverPreview(null);
+  }, [currentPly]);
+  useEffect(() => {
+    setCoachJump((j) => (j && j.toPly !== currentPly ? null : j));
   }, [currentPly]);
 
   // Arrow toggle state (Engine best / Most common / Game played / Maia)
@@ -9327,6 +9161,38 @@ export default function AnalysisPage() {
     [allMoves, currentPly, displayFen, rootFen]
   );
 
+  // A proof line's "show this on the board": the game's own continuation is
+  // the mainline, so the cursor moves; an engine line branches off the
+  // mainline at its anchor and rides the exploration preview, exactly like
+  // a green move link, so the banner, the eval bar and Esc all work.
+  const handleShowLinePly = useCallback(
+    (line: CoachLine, k: number) => {
+      if (line.kind === "played") {
+        setTakeoverPreview(null);
+        setCurrentPly(line.anchorPly + Math.max(0, Math.min(k, line.sans.length)));
+        return;
+      }
+      if (k <= 0) {
+        setTakeoverPreview(null);
+        setCurrentPly(line.anchorPly);
+        return;
+      }
+      const preview = buildLinePreview(
+        allMoves,
+        line.anchorPly,
+        line.sans.slice(0, k),
+        rootFen
+      );
+      if (!preview) return;
+      if (line.anchorPly !== currentPly) {
+        keepPreviewOnPlySyncRef.current = true;
+      }
+      setCurrentPly(line.anchorPly);
+      setTakeoverPreview(preview);
+    },
+    [allMoves, currentPly, rootFen]
+  );
+
   // User makes a move on the board directly (interactive in takeover mode)
   const handleBoardMove = useCallback(
     (orig: string, dest: string) => {
@@ -9491,6 +9357,18 @@ export default function AnalysisPage() {
                 { ...last, content: correctedText },
               ];
             });
+          },
+          // The answer is about a move the question named: put that
+          // position on the board, and leave a way back.
+          onAnchor: (anchor) => {
+            if (anchor.ply === currentPly) return;
+            setCoachJump({
+              fromPly: currentPly,
+              toPly: anchor.ply,
+              label: `${anchor.moveNumber}${anchor.color === "b" ? "..." : "."} ${anchor.san}`,
+            });
+            setTakeoverPreview(null);
+            setCurrentPly(anchor.ply);
           },
           // D4: no `done` event arrived — the answer is a fragment.
           onTruncated: () => {
@@ -10066,6 +9944,18 @@ export default function AnalysisPage() {
               ];
             });
           },
+          // The answer is about a move the question named: put that
+          // position on the board, and leave a way back.
+          onAnchor: (anchor) => {
+            if (anchor.ply === currentPly) return;
+            setCoachJump({
+              fromPly: currentPly,
+              toPly: anchor.ply,
+              label: `${anchor.moveNumber}${anchor.color === "b" ? "..." : "."} ${anchor.san}`,
+            });
+            setTakeoverPreview(null);
+            setCurrentPly(anchor.ply);
+          },
           // D4: no `done` event arrived — the answer is a fragment.
           onTruncated: () => {
             setMessages((prev) => {
@@ -10218,6 +10108,18 @@ export default function AnalysisPage() {
                 { ...last, content: correctedText },
               ];
             });
+          },
+          // The answer is about a move the question named: put that
+          // position on the board, and leave a way back.
+          onAnchor: (anchor) => {
+            if (anchor.ply === currentPly) return;
+            setCoachJump({
+              fromPly: currentPly,
+              toPly: anchor.ply,
+              label: `${anchor.moveNumber}${anchor.color === "b" ? "..." : "."} ${anchor.san}`,
+            });
+            setTakeoverPreview(null);
+            setCurrentPly(anchor.ply);
           },
           // D4: no `done` event arrived — the answer is a fragment.
           onTruncated: () => {
@@ -10519,7 +10421,9 @@ export default function AnalysisPage() {
         );
         return;
       }
-      setInput(s);
+      // A chip is a question, not a draft: tapping it asks it. (It used to
+      // fill the composer and wait for a second tap on Send.)
+      void handleSendRef.current?.(s);
     },
     [messages, currentPly, displayFen, triggerPuzzleFetch]
   );
@@ -10892,6 +10796,16 @@ export default function AnalysisPage() {
                   onReturn={returnToAnchor}
                 />
               )}
+              {!drillState && !takeoverPreview && coachJump && (
+                <CoachJumpBanner
+                  jump={coachJump}
+                  onBack={() => {
+                    const from = coachJump.fromPly;
+                    setCoachJump(null);
+                    setCurrentPly(from);
+                  }}
+                />
+              )}
               <ErrorBoundary name="preview-analysis-board">
                 <BoardArea
                   fen={displayFen}
@@ -11060,6 +10974,7 @@ export default function AnalysisPage() {
                           allMoves={allMoves}
                           rootFen={rootFen}
                           onMoveRefClick={handleCoachMoveRef}
+                          onShowLinePly={handleShowLinePly}
                           playerSide={playerSide}
                           sideUiEligible={!isPuzzleMode && allMoves.length > 0}
                           onChoosePlayerSide={handleChoosePlayerSide}

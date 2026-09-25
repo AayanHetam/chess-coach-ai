@@ -1,6 +1,6 @@
 # /analysis coach conversation rework
 
-**Shipped:** 2026-09-25, branch `claude/sleepy-pasteur-rz21ea`. **Status:** built and verified locally (tsc, vitest, Playwright against a dev server with stubbed coach endpoints); the new follow-up prompt has NOT been run against a live model — see "Before this goes live".
+**Shipped:** 2026-09-25, branch `claude/sleepy-pasteur-rz21ea`, four passes. **Status:** built and verified locally (tsc, vitest, Playwright against a dev server with stubbed coach endpoints); the new follow-up prompt has NOT been run against a live model — see "Before this goes live".
 
 ## The diagnosis it answers
 
@@ -28,6 +28,16 @@ The turn-1 card follows the same order and hides nothing: intent and problem abo
 
 A review cards three moves of a forty-move game; the rest had a glyph. The per-move analysis card (`MoveAnalysisCard.tsx` over `moveAnalysis.ts`) sits at the top of the coach panel and follows the board: for the move on the board it gives the verdict, the evaluation before and after, what the move does in the line story's words, a plain sentence on why it works or does not, and, when the engine preferred something else, that line drawn and playable. It is built from the engine data and chess.js, so it exists for every ply, the opponent's included, the moment Stockfish finishes, and it never says what the board does not back. "Ask Masti about this move" sends the question, and the anchor takes the coach to that move.
 
+## One board, one conversation (2026-09-25, fourth pass)
+
+The words were fixed; the page around them was not. With the coach at 44px, a status line, a tab strip, a "This move" card, a side-question card, a book-exit card, a puzzle-recommendation card, bordered key-moment cards inside a bubble inside a stack, a beam running round the panel, and a strip of eight buttons and four chips under the board, the transcript had a quarter of a desktop screen and almost none of a phone's. The rebuild makes the page what it is: a board and a conversation.
+
+- **Left column.** Board, the evaluation arc as a bare scrubber, and one strip of fixed height: step buttons, the move with its verdict and evals, "Ask Masti", the board menu (flip, reset, the arrow overlays with Maia's Elo, copy link), then the move's sentence and the engine's line. The exploring and coach-jump states sit in the strip's first row in place of the move label, at the same height; they were banners above the board, which resized the board each time a line opened. Stepping through the game moves nothing but the pieces (the e2e spec holds the strip's height to ±2px across the start position, a blunder and an exploration).
+- **Right column.** One header row: Masti, his attitude, and Coach / Moves / Masters / Lines as words. The transcript is the whole column: coach messages as prose beside his face, user messages as a soft bubble, no panel chrome, no animation. The side question and side line are part of the greeting, the book-exit note is its second paragraph, the puzzle-recommendation card is gone from this page. Suggestions are one row that scrolls sideways.
+- **Lines.** One row of moves, Play, and under it one fact at a time (the first move's at rest, the current move's while it plays) with the ledger on the right. The chip-per-ply rendering put eight captions on screen for one line and was most of what made a card feel crowded.
+- **Key moments** are passages of the message separated by rules: move and verdict, lede, Idea and Problem, the line, Solution and Outcome, the lesson. "What happened in the game" and "Practice …" are text links; the Threats and Piece-roles reveals are not rendered any more.
+- **Phone.** Below `lg` the panel is a screen tall instead of a fixed 600px box, so scrolling the board away leaves the conversation filling the viewport; a tap on a line's Play scrolls the board back into view.
+
 ## What shipped, by file
 
 Server (`/api/chat` fast path):
@@ -42,13 +52,13 @@ Server (`/api/chat` fast path):
 
 Client (`/analysis`):
 
-- `src/components/preview-analysis/ProofLine.tsx` — the line as chips with captions, eval chip, ledger, Play/Pause/Back. Stops playing when the reader touches anything else.
+- `src/components/preview-analysis/ProofLine.tsx` — the line as one row of moves with Play, a caption row (one fact at a time) and the ledger. Stops playing when the reader touches anything else.
 - `src/components/preview-analysis/coachLines.ts` — `engineLineAt`, `playedLineAt`, `splitProseByLineTokens`.
 - `src/lib/coach/lineCaptions.ts` — `captionLine` over `buildLineStory` (client-side chess.js), ledger in the second person for the player's lines.
 - `src/components/preview-analysis/coachMoveRefs.ts` — `buildLinePreview` (no tolerance window: an illegal ply in an engine line is corrupt data, not a typo).
-- `src/components/preview-analysis/moveAnalysis.ts` + `MoveAnalysisCard.tsx` — the analysis of every move (`analyzeMoveAt`, `describeMove`), mounted in `CoachPanel` above the transcript.
+- `src/components/preview-analysis/moveAnalysis.ts` + `MoveAnalysisCard.tsx` — the analysis of every move (`analyzeMoveAt`, `describeMove`); the card is the fixed-height strip under the board (nav buttons, label / verdict / evals or the exploring and coach-jump states, Ask Masti, board menu, sentence, engine line).
 - `src/components/preview-analysis/insightWhy.ts` — cuts a card's [WHY] body into lead (Idea + Problem), lesson (the closing takeaway, label stripped) and rest (Solution, Outcome, the middle), for labelled and flowing bodies alike.
-- `AnalysisImpl.tsx` — `DarkInsightStack` replaces the carousel; the card shows the lead, draws the engine line, shows the rest and the lesson as a `CoachNote`, and folds only the game's continuation behind a "What happened" pill; follow-up paragraphs opening with "Lesson:" / "Your turn:" render as the same note; `InsightBodyText` drops line tokens (the card owns them); follow-up prose renders tokens as proof lines; `handleShowLinePly` (played lines move the cursor, engine lines ride the exploration preview); `CoachJumpBanner` + `coachJump` state; `onAnchor` in `streamCoachReply`; header; chips send on tap; markdown: nested elements are no longer tokenized twice (the "🔍 🔍" bug), `**bold**` is mapped, and a leading move number is escaped so "6. Na3 walked past…" is prose, not a list.
+- `AnalysisImpl.tsx` — `ViewSwitch`, `CoachHeader`, `BoardNav`, `BoardMenu`, `ExploringState` / `CoachJumpState` replace the tab strip, the panel header, the navigator, the arrow-toggle row and the two banners; `CoachPanel` is chrome-less; `DarkInsightStack` replaces the carousel; the card shows the lead, draws the engine line, shows the rest and the lesson as a `CoachNote`, and folds only the game's continuation behind a "What happened" pill; follow-up paragraphs opening with "Lesson:" / "Your turn:" render as the same note; `InsightBodyText` drops line tokens (the card owns them); follow-up prose renders tokens as proof lines; `handleShowLinePly` (played lines move the cursor, engine lines ride the exploration preview); `CoachJumpBanner` + `coachJump` state; `onAnchor` in `streamCoachReply`; header; chips send on tap; markdown: nested elements are no longer tokenized twice (the "🔍 🔍" bug), `**bold**` is mapped, and a leading move number is escaped so "6. Na3 walked past…" is prose, not a list.
 - `generateSuggestions.ts` — `playerColor` filter.
 
 Tests: `questionAnchor`, `followUpContext`, `lineCaptions`, `followUpReferee.anchor`, `followUpPrompt` snapshots, route tests (prompt selection, history trim, anchor with the pipeline on and off), `coachMoveRefs` (`buildLinePreview`), `generateSuggestions` colour filter, and `tests/e2e/local/coach-proof-line.spec.ts` (the card's line, Play → Exploring banner, the follow-up's two lines and the jump banner with its way back).
@@ -58,7 +68,7 @@ Tests: `questionAnchor`, `followUpContext`, `lineCaptions`, `followUpReferee.anc
 1. **Run the follow-up prompt against a live model.** Extend `scripts/eval/followup_story_probe.ts` to the new prompt and gate on: median words of model prose ≤ 80, verdict-first, referee drops per 100 sentences, and the helpfulness jury (`helpfulnessJudge.ts`) at or above baseline. The prompt was written to the measured failure modes but its outputs were not observed here (no API key in this environment). `COACH_FOLLOWUP_PROMPT=legacy` is the one-line rollback if it disappoints.
 2. **Check `[CONTINUATION]` / `[PLAYED]` emission rates.** If the model rarely emits the tokens, the proof is missing from follow-ups; the fix is prompt-side (an example) or route-side (append the anchor's engine line token when the answer names the move and carries none).
 3. **Turn-1 prompt is untouched.** The verbalizer charter still asks for `[THREATS]` and `[ROLES]` and both continuation tokens; the client now folds the sections and ignores the Maia token. Retiring them from the charter and gold examples needs the CI-4 gates re-run (`contract_ci4_gates.ts`), which needs an API key.
-4. **Mobile.** The coach panel is still a fixed 600px box under the board; the proof lines wrap cleanly there and the jump banner sits above the board, but board and text are not on screen together. A bottom sheet is the next layout step.
+4. **Mobile.** The panel is now a screen tall under the board and the board scrolls back into view when a line is played, but board and text are still not on screen together. A bottom sheet, or a board that shrinks while the reader is in the conversation, is the next layout step.
 
 ## Not done, on purpose
 

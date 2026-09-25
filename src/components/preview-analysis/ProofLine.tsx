@@ -5,20 +5,26 @@
  *
  * The coach's proof is a sequence of moves. Prose about a sequence of moves
  * is the slowest way to read one and the easiest place for a model to be
- * wrong, so the coach panel draws it: one chip per ply with what that ply
- * DOES (a check, a capture, the fork it creates, what it leaves hanging —
- * computed by lineCaptions.ts from the same chess.js the engine lines came
- * through), the material the line ends on, the engine's evaluation, and a
- * Play control that steps the main board through it. Tapping any chip puts
- * that position on the board.
+ * wrong, so the coach panel draws it: the moves on one quiet row, the
+ * material the line ends on, and a Play control that steps the main board
+ * through it. Under the row, one line of plain words says what the move on
+ * the board does (a check, a capture, the fork it creates, what it leaves
+ * hanging — computed by lineCaptions.ts from the same chess.js the engine
+ * lines came through): the first move's fact at rest, the current move's
+ * while the line plays or after a move is tapped.
+ *
+ * It used to be a boxed row of chips, every ply with its caption inline,
+ * which put eight captions on screen for one line and was most of what made
+ * a card feel crowded. Now a line reads like a line of moves; the facts are
+ * there one at a time.
  *
  * Nothing here is written by the model: the moves are the engine's or the
  * game's, the captions are board arithmetic. It renders the same for a card
- * on turn 1 and a follow-up that cites a line.
+ * on turn 1, a follow-up that cites a line, and the strip under the board.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Tooltip } from "@mui/material";
-import { Pause, Play, RotateCcw } from "lucide-react";
+import { Pause, Play } from "lucide-react";
 import { captionLine } from "@/lib/coach/lineCaptions";
 import type { CoachLine } from "./coachLines";
 
@@ -32,26 +38,18 @@ export interface ProofLineProps {
    * read-only.
    */
   onShowPly?: (line: CoachLine, k: number) => void;
-  /** Header label; defaults by kind. */
+  /** Leading label; defaults by kind. */
   label?: string;
   /** Milliseconds per ply while playing. */
   stepMs?: number;
+  /** Keep the caption row's height when it is empty (fixed-height strips). */
+  reserveCaption?: boolean;
   "data-testid"?: string;
 }
 
 const ACCENT = {
-  engine: {
-    fg: "#86efac",
-    bg: "rgba(52,211,153,0.08)",
-    border: "rgba(52,211,153,0.28)",
-    chip: "rgba(52,211,153,0.16)",
-  },
-  played: {
-    fg: "#FB923C",
-    bg: "rgba(251,146,60,0.08)",
-    border: "rgba(251,146,60,0.28)",
-    chip: "rgba(251,146,60,0.16)",
-  },
+  engine: "#86efac",
+  played: "#FB923C",
 } as const;
 
 const MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
@@ -62,6 +60,7 @@ export function ProofLine({
   onShowPly,
   label,
   stepMs = 800,
+  reserveCaption = false,
   "data-testid": testId = "proof-line",
 }: ProofLineProps) {
   const accent = ACCENT[line.kind];
@@ -134,244 +133,203 @@ export function ProofLine({
 
   const atEnd = shown !== null && shown >= total;
 
+  // One fact at a time: the move on the board while the line is being
+  // walked, otherwise the line's first move, which is the one the coach's
+  // sentence is about.
+  const captionPly =
+    shown !== null && shown > 0
+      ? captions.plies[Math.min(shown, total) - 1]
+      : captions.plies[0];
+  const captionText = captionPly
+    ? `${captionPly.mover === "w" || captionPly === captions.plies[0] ? captionPly.label : ""}${captionPly.san} ${captionPly.caption || "a quiet move"}`
+    : "";
+
   return (
-    <Box
-      ref={rootRef}
-      data-testid={testId}
-      sx={{
-        mt: 1,
-        borderRadius: "0.7rem",
-        background: accent.bg,
-        border: `1px solid ${accent.border}`,
-        px: 1.1,
-        py: 0.85,
-      }}
-    >
-      {/* Header: label · eval · depth · play */}
+    <Box ref={rootRef} data-testid={testId} sx={{ mt: 0.75, minWidth: 0 }}>
       <Box
-        sx={{ display: "flex", alignItems: "center", gap: 0.75, minHeight: 24 }}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          minHeight: 24,
+          minWidth: 0,
+        }}
       >
         <Box
+          component="span"
           sx={{
-            fontSize: "0.64rem",
+            fontSize: "0.62rem",
             fontWeight: 800,
             letterSpacing: "0.12em",
             textTransform: "uppercase",
-            color: accent.fg,
+            color: accent,
             whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
         >
           {heading}
         </Box>
-        {line.evalDisplay && (
-          <Tooltip
-            title={
-              line.kind === "engine"
-                ? "Engine evaluation of this line"
-                : "Evaluation after these moves"
-            }
-          >
-            <Box
-              component="span"
-              data-testid={`${testId}-eval`}
-              sx={{
-                fontFamily: MONO,
-                fontSize: "0.72rem",
-                fontWeight: 700,
-                color: "rgba(255,255,255,0.86)",
-                background: "rgba(255,255,255,0.07)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: "999px",
-                px: 0.8,
-                py: 0.1,
-              }}
-            >
-              {line.evalDisplay}
-            </Box>
-          </Tooltip>
-        )}
-        {typeof line.depth === "number" && (
-          <Box
-            component="span"
-            sx={{
-              fontFamily: MONO,
-              fontSize: "0.62rem",
-              color: "rgba(255,255,255,0.35)",
-            }}
-          >
-            d{line.depth}
-          </Box>
-        )}
-        <Box sx={{ flex: 1 }} />
-        {interactive && (
-          <Box sx={{ display: "flex", gap: 0.4 }}>
-            {shown !== null && shown > 0 && !playing && (
-              <Tooltip title="Back to the start of the line">
+        {/* The moves, one row, never wrapped: a long line scrolls sideways
+            under the finger rather than stacking into a block. */}
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            alignItems: "baseline",
+            gap: 0.75,
+            overflowX: "auto",
+            whiteSpace: "nowrap",
+            scrollbarWidth: "none",
+            "&::-webkit-scrollbar": { display: "none" },
+            fontFamily: MONO,
+            fontSize: "0.84rem",
+            color: "rgba(255,255,255,0.88)",
+          }}
+        >
+          {captions.plies.map((p, i) => {
+            const k = i + 1;
+            const active = shown === k;
+            const showNumber = p.mover === "w" || i === 0;
+            return (
+              <Tooltip
+                key={`${p.san}-${i}`}
+                title={p.full || "a quiet move"}
+                enterDelay={600}
+              >
                 <Box
-                  component="button"
-                  type="button"
-                  aria-label="Back to the start of the line"
-                  onClick={() => show(0)}
-                  sx={controlSx(accent.fg)}
-                >
-                  <RotateCcw size={12} />
-                </Box>
-              </Tooltip>
-            )}
-            <Tooltip
-              title={
-                playing
-                  ? "Pause"
-                  : atEnd
-                    ? "Play the line again"
-                    : "Play the line on the board"
-              }
-            >
-              <Box
-                component="button"
-                type="button"
-                data-testid={`${testId}-play`}
-                aria-label={
-                  playing ? "Pause the line" : "Play the line on the board"
-                }
-                onClick={() => {
-                  if (playing) stop();
-                  else {
-                    if (atEnd) show(0);
-                    setPlaying(true);
+                  component={interactive ? "button" : "span"}
+                  type={interactive ? "button" : undefined}
+                  data-testid={`${testId}-ply`}
+                  aria-pressed={interactive ? active : undefined}
+                  onClick={
+                    interactive
+                      ? () => {
+                          stop();
+                          show(k);
+                        }
+                      : undefined
                   }
-                }}
-                sx={{ ...controlSx(accent.fg), px: 0.9, gap: 0.45 }}
-              >
-                {playing ? <Pause size={12} /> : <Play size={12} />}
-                <Box
-                  component="span"
                   sx={{
-                    fontSize: "0.68rem",
+                    font: "inherit",
                     fontWeight: 700,
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  {playing ? "Pause" : "Play"}
-                </Box>
-              </Box>
-            </Tooltip>
-          </Box>
-        )}
-      </Box>
-
-      {/* The plies: one chip each, with what the move does */}
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.75 }}>
-        {captions.plies.map((p, i) => {
-          const k = i + 1;
-          const active = shown === k;
-          const showNumber = p.mover === "w" || i === 0;
-          return (
-            <Tooltip
-              key={`${p.san}-${i}`}
-              title={p.full || "a quiet move"}
-              enterDelay={500}
-            >
-              <Box
-                component={interactive ? "button" : "span"}
-                type={interactive ? "button" : undefined}
-                data-testid={`${testId}-ply`}
-                aria-pressed={interactive ? active : undefined}
-                onClick={
-                  interactive
-                    ? () => {
-                        stop();
-                        show(k);
-                      }
-                    : undefined
-                }
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "baseline",
-                  gap: 0.5,
-                  maxWidth: "100%",
-                  px: 0.75,
-                  py: 0.35,
-                  borderRadius: "0.5rem",
-                  border: `1px solid ${active ? accent.fg : "rgba(255,255,255,0.08)"}`,
-                  background: active ? accent.chip : "rgba(0,0,0,0.22)",
-                  color: "rgba(255,255,255,0.9)",
-                  cursor: interactive ? "pointer" : "default",
-                  font: "inherit",
-                  textAlign: "left",
-                  transition: "background 140ms ease, border-color 140ms ease",
-                  "&:hover": interactive ? { borderColor: accent.fg } : {},
-                }}
-              >
-                <Box
-                  component="span"
-                  sx={{
-                    fontFamily: MONO,
-                    fontSize: "0.82rem",
-                    fontWeight: 700,
-                    whiteSpace: "nowrap",
-                    color: active ? accent.fg : "inherit",
+                    color: active ? accent : "inherit",
+                    background: "none",
+                    border: 0,
+                    p: 0,
+                    m: 0,
+                    cursor: interactive ? "pointer" : "default",
+                    textDecoration: active ? "underline" : "none",
+                    textUnderlineOffset: "3px",
+                    borderRadius: "3px",
+                    "&:hover": interactive ? { color: accent } : {},
                   }}
                 >
                   {showNumber ? p.label : ""}
                   {p.san}
                 </Box>
-                {p.caption && (
-                  <Box
-                    component="span"
-                    sx={{
-                      fontSize: "0.72rem",
-                      color: "rgba(255,255,255,0.6)",
-                      lineHeight: 1.3,
-                    }}
-                  >
-                    {p.caption}
-                  </Box>
-                )}
-              </Box>
-            </Tooltip>
-          );
-        })}
-        {captions.ledger && (
-          <Box
-            component="span"
-            data-testid={`${testId}-ledger`}
-            sx={{
-              display: "inline-flex",
-              alignItems: "center",
-              px: 0.6,
-              py: 0.35,
-              fontSize: "0.74rem",
-              color: accent.fg,
-              fontWeight: 600,
-            }}
+              </Tooltip>
+            );
+          })}
+        </Box>
+        {interactive && (
+          <Tooltip
+            title={
+              playing
+                ? "Pause"
+                : atEnd
+                  ? "Play the line again"
+                  : "Play the line on the board"
+            }
           >
-            → {captions.ledger}
-            {captions.sacrifice ? ", the payoff lies beyond these moves" : ""}
-          </Box>
+            <Box
+              component="button"
+              type="button"
+              data-testid={`${testId}-play`}
+              aria-label={
+                playing ? "Pause the line" : "Play the line on the board"
+              }
+              onClick={() => {
+                if (playing) stop();
+                else {
+                  if (atEnd) show(0);
+                  setPlaying(true);
+                }
+              }}
+              sx={{
+                flexShrink: 0,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.45,
+                height: 24,
+                px: 0.9,
+                borderRadius: "999px",
+                border: `1px solid ${accent}55`,
+                background: "transparent",
+                color: accent,
+                cursor: "pointer",
+                font: "inherit",
+                fontSize: "0.68rem",
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                transition: "background 140ms ease",
+                "&:hover": { background: `${accent}1f` },
+              }}
+            >
+              {playing ? <Pause size={11} /> : <Play size={11} />}
+              {playing ? "Pause" : "Play"}
+            </Box>
+          </Tooltip>
         )}
       </Box>
+      {/* One fact at a time on the left; where the line ends up, on the
+          right. The ledger used to close the moves row, where a long line
+          pushed it out of sight. */}
+      {(captionText || captions.ledger || reserveCaption) && (
+        <Box
+          sx={{
+            mt: 0.25,
+            minHeight: reserveCaption ? "1.3em" : 0,
+            display: "flex",
+            alignItems: "baseline",
+            gap: 1.5,
+            fontSize: "0.76rem",
+            lineHeight: 1.3,
+          }}
+        >
+          <Box
+            data-testid={`${testId}-caption`}
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              color: "rgba(255,255,255,0.55)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {captionText}
+          </Box>
+          {captions.ledger && (
+            <Box
+              component="span"
+              data-testid={`${testId}-ledger`}
+              sx={{
+                flexShrink: 0,
+                fontWeight: 600,
+                color: accent,
+                opacity: 0.9,
+                whiteSpace: "nowrap",
+              }}
+            >
+              → {captions.ledger}
+              {captions.sacrifice ? ", the payoff lies beyond these moves" : ""}
+            </Box>
+          )}
+        </Box>
+      )}
     </Box>
   );
-}
-
-function controlSx(color: string) {
-  return {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 26,
-    height: 24,
-    px: 0.5,
-    borderRadius: "999px",
-    border: `1px solid ${color}55`,
-    background: "rgba(0,0,0,0.25)",
-    color,
-    cursor: "pointer",
-    font: "inherit",
-    transition: "background 140ms ease",
-    "&:hover": { background: `${color}22` },
-  } as const;
 }
 
 export default ProofLine;

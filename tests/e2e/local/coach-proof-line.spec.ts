@@ -5,10 +5,11 @@ import { stubSignedIn } from "../helpers";
  * The proof line and the question anchor, on the real page.
  *
  * A key moment on turn 1 draws the engine's line from the client's own
- * Stockfish data as move chips with what each move does, and Play steps the
- * main board through it. A follow-up that cites a line with a token on a
- * line of its own gets the same treatment, and a follow-up whose question
- * named a move moves the board to that move, with a way back.
+ * Stockfish data as one row of moves with what the move on the board does
+ * under it, and Play steps the main board through it. A follow-up that
+ * cites a line with a token on a line of its own gets the same treatment,
+ * and a follow-up whose question named a move moves the board to that
+ * move, with a way back in the strip under the board.
  *
  * No LLM is reached: the review and the follow-up are stubbed. The engine
  * is NOT blocked — the lines come from it — so the spec waits for the
@@ -113,14 +114,17 @@ test.describe("coach proof lines", () => {
     await composer.fill("analyse this game");
     await composer.press("Enter");
 
-    // The card leads with the proof: the engine's line, with captions and a ledger.
+    // The passage carries the proof: the engine's line as one row of moves,
+    // the first move's fact under it, and the ledger at the end.
     const cardLine = page.getByTestId("insight-engine-line").first();
     await expect(cardLine).toBeVisible({ timeout: 30_000 });
     const plies = cardLine.getByTestId("insight-engine-line-ply");
     expect(await plies.count()).toBeGreaterThanOrEqual(2);
     await expect(plies.first()).toContainText("8.Qxc1");
-    await expect(plies.first()).toContainText("queen");
+    await expect(cardLine.getByTestId("insight-engine-line-caption")).toContainText("queen");
     await expect(page.getByTestId("insight-engine-line-ledger").first()).toContainText(/queen up/);
+    // No chips, no box, no eval badge on the line: one row of moves.
+    await expect(cardLine.getByTestId("insight-engine-line-eval")).toHaveCount(0);
     // One line, not the old pair of identical "Engine line" / "Maia line" boxes.
     await expect(page.getByText("Maia line")).toHaveCount(0);
     // Nothing about the move is hidden: the intent and the problem above
@@ -134,11 +138,13 @@ test.describe("coach proof lines", () => {
     await expect(page.getByText("Full explanation")).toHaveCount(0);
 
     // Every move is analysed, not just the key moments: step to the end of
-    // the game and back to the blunder, and the panel says what each move
-    // does, what the engine preferred, and lets the coach be asked.
+    // the game and back to the blunder, and the strip under the board says
+    // what each move does, what the engine preferred, and lets the coach be
+    // asked. It is one block of fixed height, so the board never moves.
     await page.getByTestId("coach-title").click();
-    await page.keyboard.press("End");
     const moveCard = page.getByTestId("move-analysis");
+    const stripHeightAtStart = (await moveCard.boundingBox())!.height;
+    await page.keyboard.press("End");
     await expect(moveCard.getByTestId("move-analysis-label")).toHaveText("10... e5");
     for (let i = 0; i < 5; i++) await page.keyboard.press("ArrowLeft");
     await expect(moveCard.getByTestId("move-analysis-label")).toHaveText("8. Nc7+");
@@ -146,30 +152,38 @@ test.describe("coach proof lines", () => {
     await expect(moveCard.getByTestId("move-analysis-sentence")).toContainText("check");
     await expect(moveCard.getByTestId("move-analysis-sentence")).toContainText("The engine preferred 8. Qxc1");
     await expect(moveCard.getByTestId("move-analysis-line").getByTestId("move-analysis-line-ply").first()).toContainText("8.Qxc1");
+    await expect(moveCard.getByTestId("move-analysis-ask")).toBeVisible();
+    expect(Math.abs((await moveCard.boundingBox())!.height - stripHeightAtStart)).toBeLessThanOrEqual(2);
     await page.keyboard.press("ArrowLeft");
     await expect(moveCard.getByTestId("move-analysis-label")).toHaveText("7... Qxc1");
     await page.keyboard.press("Home");
-    await expect(moveCard).toHaveCount(0);
+    await expect(moveCard.getByTestId("move-analysis-label")).toHaveText("Start");
+    await expect(moveCard.getByTestId("move-analysis-verdict")).toHaveCount(0);
+    expect(Math.abs((await moveCard.boundingBox())!.height - stripHeightAtStart)).toBeLessThanOrEqual(2);
 
-    // Play: the board branches off the mainline at the move and shows the line.
+    // Play: the board branches off the mainline at the move and shows the
+    // line; the strip's first row says so and offers the way back, in place
+    // of the move label, at the same height.
     await page.getByTestId("insight-engine-line-play").first().click();
     await expect(page.getByText("Exploring").first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId("exploration-path")).toContainText("Qxc1");
     await expect(page.getByText(/Back to move 7/)).toBeVisible();
+    await expect(moveCard.getByTestId("move-analysis-label")).toHaveCount(0);
+    expect(Math.abs((await moveCard.boundingBox())!.height - stripHeightAtStart)).toBeLessThanOrEqual(2);
     // Typing stops the line and leaves the board alone. (focus, not click:
     // the dev overlay of `next dev` sits over the composer and blocks a
     // click, and a production build has no overlay to worry about.)
     await composer.focus();
 
     // A follow-up that names a move: the answer's lines are drawn, and the
-    // board goes to the move with a way back.
+    // board goes to the move with a way back in the strip under the board.
     await composer.fill("Why was 8. Nc7+ a mistake?");
     await composer.press("Enter");
     const banner = page.getByTestId("coach-jump-banner");
     await expect(banner).toBeVisible({ timeout: 30_000 });
     await expect(banner).toContainText("8. Nc7+");
     await expect(page.getByTestId("proof-line")).toHaveCount(2, { timeout: 10_000 });
-    await expect(page.getByText("In the game")).toBeVisible();
+    await expect(page.getByText("In the game", { exact: true })).toBeVisible();
     // The teaching notes wear their eyebrows.
     await expect(page.getByTestId("coach-note-lesson")).toContainText("list every capture your opponent has in reply");
     await expect(page.getByTestId("coach-note-lesson")).not.toContainText("Lesson:");
@@ -178,5 +192,13 @@ test.describe("coach proof lines", () => {
     // The way back.
     await banner.getByRole("button", { name: /Back to/ }).click();
     await expect(banner).toHaveCount(0);
+    await expect(moveCard.getByTestId("move-analysis-label")).toBeVisible();
+
+    // The page is one board and one conversation: no tab strip, the views a
+    // word away in the header, and the coach's answers are prose beside
+    // Masti's face rather than bordered boxes.
+    await expect(page.getByRole("tab", { name: "Moves" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Coach" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByText("Quick check")).toHaveCount(0);
   });
 });

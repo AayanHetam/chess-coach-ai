@@ -1,23 +1,34 @@
 "use client";
 
 /**
- * The analysis of the move on the board, for every move.
+ * The strip under the board: where the board is, and what the move there
+ * does.
  *
- * Sits at the top of the coach panel and follows the cursor: step through
- * the game and each move gets its verdict, its evaluation before and after,
- * what it does in plain words, and, when the engine preferred something
- * else, that line drawn and playable. Built from the engine data and
- * chess.js (moveAnalysis.ts), so it is there for all eighty moves of a game
- * and never says anything the board does not back. "Ask Masti" hands the
- * move to the coach for the why behind the facts.
+ * One block, always the same height, so stepping through a game moves
+ * nothing but the pieces:
+ *
+ *   [⏮ ◀ ▶ ⏭]  8. Nc7+  ?? Blunder  +2.48 → −1.34        [Ask Masti] [⋯]
+ *   Gives check; forks the king on e8 and the rook on a8. This is where it
+ *   went wrong. The engine preferred 8. Qxc1, which takes the queen on c1.
+ *   ENGINE PREFERRED  8.Qxc1 Rb8 9.Qf4 Nf6 …  → White ends a queen up  ▶ Play
+ *   8.Qxc1 takes the queen on c1
+ *
+ * The first row's label gives way to the board's state when it is off the
+ * mainline ("Exploring 8.Qxc1 Rb8 · Back to move 7", "Showing 8. Nc7+, the
+ * move you asked about · Back to move 10"), which used to be two banners
+ * that dropped in above the board and resized it.
+ *
+ * The analysis itself is moveAnalysis.ts over the engine data the client
+ * already holds: it exists for every ply, the opponent's included, and never
+ * says what the board does not back. "Ask Masti" hands the move to the
+ * coach for the why behind the facts. The page supplies the navigation
+ * buttons and the board menu; this component owns the words.
  */
 import React, { useMemo } from "react";
 import { Box, Tooltip } from "@mui/material";
 import { MessageCircle } from "lucide-react";
 import { MoveClassification } from "@/types/enums";
 import type { PositionEval } from "@/types/eval";
-import { MastiAvatar } from "@/components/masti";
-import { classificationMood } from "@/components/masti/mood";
 import { ProofLine } from "./ProofLine";
 import type { CoachLine } from "./coachLines";
 import { analyzeMoveAt, type MoveAnalysis } from "./moveAnalysis";
@@ -87,6 +98,18 @@ export interface MoveAnalysisCardProps {
   onAsk?: (question: string) => void;
   /** True while the coach is answering; the ask button waits. */
   busy?: boolean;
+  /** True while Stockfish is still working through the game. */
+  analyzing?: boolean;
+  /** The board's navigation buttons, at the left of the first row. */
+  nav?: React.ReactNode;
+  /** The board menu, at the right of the first row. */
+  menu?: React.ReactNode;
+  /**
+   * Replaces the move label while the board is off the mainline: the
+   * exploration path with its way back, or the coach's jump with its way
+   * back. Same row, same height, so the board below never moves.
+   */
+  state?: React.ReactNode;
 }
 
 function questionFor(a: MoveAnalysis): string {
@@ -106,6 +129,14 @@ function questionFor(a: MoveAnalysis): string {
   return `What was the idea behind ${a.label}?`;
 }
 
+/** "8. Nc7+" / "8... Kd8" for a ply the engine has not reached yet. */
+function fallbackLabel(gameSans: readonly string[], ply: number): string {
+  if (ply < 1 || ply > gameSans.length) return "Start";
+  const index = ply - 1;
+  const moveNumber = Math.floor(index / 2) + 1;
+  return `${moveNumber}${index % 2 === 0 ? "." : "..."} ${gameSans[index]}`;
+}
+
 export function MoveAnalysisCard({
   gameSans,
   positions,
@@ -115,159 +146,207 @@ export function MoveAnalysisCard({
   onShowLinePly,
   onAsk,
   busy,
+  analyzing,
+  nav,
+  menu,
+  state,
 }: MoveAnalysisCardProps) {
   const analysis = useMemo(
     () => analyzeMoveAt(gameSans, positions, ply, rootFen, playerColor),
     [gameSans, positions, ply, rootFen, playerColor]
   );
-  if (!analysis) return null;
 
-  const cls = analysis.classification;
+  const cls = analysis?.classification ?? null;
   const style = (cls && STYLE[cls]) || null;
-  const mover =
-    analysis.byPlayer === null
-      ? "unknown"
-      : analysis.byPlayer
-        ? "player"
-        : "opponent";
-  const mood = classificationMood(cls ?? "", mover);
+  const label = analysis?.label ?? fallbackLabel(gameSans, ply);
+
+  const sentence = analysis
+    ? analysis.sentence
+    : ply === 0
+      ? gameSans.length > 0
+        ? "Step through the game and this line says what each move does, what it cost, and what the engine preferred."
+        : ""
+      : analyzing
+        ? "Stockfish has not reached this move yet."
+        : "";
 
   return (
     <Box
       data-testid="move-analysis"
-      sx={{
-        px: 2.25,
-        py: 1.5,
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-        background: "rgba(0,0,0,0.18)",
-        position: "relative",
-        zIndex: 1,
-      }}
+      sx={{ mt: { xs: 1.25, lg: 1 }, px: 0.25, minWidth: 0 }}
     >
-      {/* Header: move · verdict · eval · Masti's face */}
+      {/* Row 1: where the board is. */}
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
-          gap: 0.9,
-          flexWrap: "wrap",
+          gap: { xs: 0.75, sm: 1 },
+          minHeight: 34,
+          minWidth: 0,
         }}
       >
+        {/* On a phone the row cannot hold the step buttons AND an exploring
+            state with its way back, so while the board is off the mainline
+            the buttons yield the row to the state; they are back the moment
+            the reader is. Beside a board there is room for both. */}
         <Box
           sx={{
-            fontSize: "0.62rem",
-            fontWeight: 800,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            color: "rgba(255,255,255,0.45)",
+            display: state ? { xs: "none", md: "contents" } : "contents",
           }}
         >
-          This move
+          {nav}
         </Box>
         <Box
-          data-testid="move-analysis-label"
           sx={{
-            fontFamily: MONO,
-            fontSize: "0.95rem",
-            fontWeight: 700,
-            color: "rgba(255,255,255,0.94)",
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 0.9,
+            overflow: "hidden",
           }}
         >
-          {analysis.label}
+          {state ?? (
+            <>
+              <Box
+                component="span"
+                data-testid="move-analysis-label"
+                sx={{
+                  fontFamily: MONO,
+                  fontSize: "0.92rem",
+                  fontWeight: 700,
+                  color: "rgba(255,255,255,0.94)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {label}
+              </Box>
+              {style && (
+                <Box
+                  component="span"
+                  data-testid="move-analysis-verdict"
+                  sx={{
+                    color: style.color,
+                    fontSize: "0.74rem",
+                    fontWeight: 700,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {style.glyph ? `${style.glyph} ` : ""}
+                  {style.label}
+                </Box>
+              )}
+              {analysis?.evalBefore && analysis?.evalAfter && (
+                <Tooltip title="Engine evaluation before and after the move, from White's side">
+                  <Box
+                    component="span"
+                    sx={{
+                      display: { xs: "none", sm: "inline" },
+                      fontFamily: MONO,
+                      fontSize: "0.74rem",
+                      color: "rgba(255,255,255,0.5)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {analysis.evalBefore} → {analysis.evalAfter}
+                  </Box>
+                </Tooltip>
+              )}
+            </>
+          )}
         </Box>
-        {style && (
-          <Box
-            data-testid="move-analysis-verdict"
-            sx={{
-              px: 0.8,
-              py: 0.2,
-              borderRadius: "999px",
-              background: `${style.color}22`,
-              border: `1px solid ${style.color}55`,
-              color: style.color,
-              fontSize: "0.7rem",
-              fontWeight: 700,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {style.glyph ? `${style.glyph} ` : ""}
-            {style.label}
-          </Box>
-        )}
-        {analysis.evalBefore && analysis.evalAfter && (
-          <Tooltip title="Engine evaluation before and after the move, from White's side">
+        {onAsk && analysis && !state && (
+          <Tooltip title="Ask Masti about this move">
             <Box
-              component="span"
+              component="button"
+              type="button"
+              data-testid="move-analysis-ask"
+              aria-label="Ask Masti about this move"
+              disabled={busy}
+              onClick={() => onAsk(questionFor(analysis))}
               sx={{
-                fontFamily: MONO,
-                fontSize: "0.74rem",
-                color: "rgba(255,255,255,0.55)",
+                flexShrink: 0,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                height: 28,
+                px: { xs: 0.75, sm: 1 },
+                borderRadius: "999px",
+                border: "1px solid rgba(249,115,22,0.35)",
+                background: "rgba(249,115,22,0.08)",
+                color: "#FB923C",
+                font: "inherit",
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                cursor: busy ? "default" : "pointer",
+                opacity: busy ? 0.5 : 1,
+                transition: "background 140ms ease",
+                "&:hover": busy ? {} : { background: "rgba(249,115,22,0.18)" },
               }}
             >
-              {analysis.evalBefore} → {analysis.evalAfter}
+              <MessageCircle size={13} />
+              <Box
+                component="span"
+                sx={{ display: { xs: "none", sm: "inline" } }}
+              >
+                Ask Masti
+              </Box>
             </Box>
           </Tooltip>
         )}
-        <Box sx={{ flex: 1 }} />
-        <MastiAvatar mood={mood} size={24} ring={false} decorative />
+        {menu}
       </Box>
 
-      {/* What the move does, and why it works or does not. */}
-      <Tooltip title={analysis.captionFull || ""} enterDelay={600}>
+      {/* Row 2: what the move does, and why it works or does not. Reserved
+          for three lines so a longer sentence never pushes the page. */}
+      <Tooltip title={analysis?.captionFull || ""} enterDelay={600}>
         <Box
           data-testid="move-analysis-sentence"
           sx={{
-            mt: 0.75,
+            mt: 0.5,
             fontSize: "0.86rem",
             lineHeight: 1.5,
-            color: "rgba(255,255,255,0.88)",
+            color: analysis
+              ? "rgba(255,255,255,0.88)"
+              : "rgba(255,255,255,0.45)",
+            // A hard height, not a minimum: the strip's whole point is that
+            // it never changes size as the cursor moves. Four lines on a
+            // phone, three beside a board.
+            height: { xs: "6em", lg: "4.5em" },
+            display: "-webkit-box",
+            WebkitLineClamp: { xs: 4, lg: 3 },
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
           }}
         >
-          {analysis.sentence}
+          {sentence}
         </Box>
       </Tooltip>
 
-      {/* The engine's line, when it preferred something else. */}
-      {analysis.engineLine && (
+      {/* Rows 3–4: the engine's line when it preferred something else, with
+          its caption row. The same height when there is nothing to draw. */}
+      {analysis?.engineLine ? (
         <ProofLine
           line={analysis.engineLine}
           playerColor={playerColor}
           onShowPly={onShowLinePly}
           label="Engine preferred"
+          reserveCaption
           data-testid="move-analysis-line"
         />
-      )}
-
-      {onAsk && (
-        <Box sx={{ mt: 0.9, display: "flex", justifyContent: "flex-end" }}>
-          <Box
-            component="button"
-            type="button"
-            data-testid="move-analysis-ask"
-            disabled={busy}
-            onClick={() => onAsk(questionFor(analysis))}
-            sx={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 0.6,
-              px: 1.1,
-              py: 0.45,
-              borderRadius: "999px",
-              border: "1px solid rgba(249,115,22,0.35)",
-              background: "rgba(249,115,22,0.1)",
-              color: "#FB923C",
-              font: "inherit",
-              fontSize: "0.74rem",
-              fontWeight: 700,
-              cursor: busy ? "default" : "pointer",
-              opacity: busy ? 0.5 : 1,
-              transition: "background 140ms ease",
-              "&:hover": busy ? {} : { background: "rgba(249,115,22,0.18)" },
-            }}
-          >
-            <MessageCircle size={13} />
-            Ask Masti about this move
-          </Box>
+      ) : (
+        <Box
+          sx={{
+            mt: 0.75,
+            minHeight: "calc(24px + 1.3em + 2px)",
+            fontSize: "0.76rem",
+            lineHeight: "24px",
+            color: "rgba(255,255,255,0.4)",
+          }}
+        >
+          {analysis
+            ? "The engine's own choice, so there is no other line to show."
+            : ""}
         </Box>
       )}
     </Box>

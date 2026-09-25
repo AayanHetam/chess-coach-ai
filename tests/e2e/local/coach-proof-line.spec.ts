@@ -123,17 +123,33 @@ test.describe("coach proof lines", () => {
     await expect(page.getByTestId("insight-engine-line-ledger").first()).toContainText(/queen up/);
     // One line, not the old pair of identical "Engine line" / "Maia line" boxes.
     await expect(page.getByText("Maia line")).toHaveCount(0);
-    // The card teaches at a glance: the intent and the problem above the
-    // line, the lesson under it; the solution and the outcome wait behind
-    // "Full explanation".
+    // Nothing about the move is hidden: the intent and the problem above
+    // the line, the solution and the outcome under it, then the lesson.
     await expect(page.getByTestId("insight-lead")).toContainText("You saw the knight fork");
     await expect(page.getByTestId("insight-lead")).toContainText("The queen on c1 was hanging");
+    await expect(page.getByTestId("insight-rest")).toContainText("takes the queen immediately");
+    await expect(page.getByTestId("insight-rest")).toContainText("The fork was real, but the free queen was bigger.");
     await expect(page.getByTestId("insight-lesson")).toContainText("collect the most valuable free piece");
     await expect(page.getByTestId("insight-lesson")).not.toContainText("The takeaway");
-    await expect(page.getByText("takes the queen immediately")).toHaveCount(0);
-    await page.getByText("Full explanation").click();
-    await expect(page.getByText("takes the queen immediately")).toBeVisible();
-    await expect(page.getByText("The fork was real, but the free queen was bigger.")).toBeVisible();
+    await expect(page.getByText("Full explanation")).toHaveCount(0);
+
+    // Every move is analysed, not just the key moments: step to the end of
+    // the game and back to the blunder, and the panel says what each move
+    // does, what the engine preferred, and lets the coach be asked.
+    await page.getByTestId("coach-title").click();
+    await page.keyboard.press("End");
+    const moveCard = page.getByTestId("move-analysis");
+    await expect(moveCard.getByTestId("move-analysis-label")).toHaveText("10... e5");
+    for (let i = 0; i < 5; i++) await page.keyboard.press("ArrowLeft");
+    await expect(moveCard.getByTestId("move-analysis-label")).toHaveText("8. Nc7+");
+    await expect(moveCard.getByTestId("move-analysis-verdict")).toContainText("Blunder");
+    await expect(moveCard.getByTestId("move-analysis-sentence")).toContainText("check");
+    await expect(moveCard.getByTestId("move-analysis-sentence")).toContainText("The engine preferred 8. Qxc1");
+    await expect(moveCard.getByTestId("move-analysis-line").getByTestId("move-analysis-line-ply").first()).toContainText("8.Qxc1");
+    await page.keyboard.press("ArrowLeft");
+    await expect(moveCard.getByTestId("move-analysis-label")).toHaveText("7... Qxc1");
+    await page.keyboard.press("Home");
+    await expect(moveCard).toHaveCount(0);
 
     // Play: the board branches off the mainline at the move and shows the line.
     await page.getByTestId("insight-engine-line-play").first().click();

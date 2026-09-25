@@ -38,6 +38,7 @@ import {
 } from "@/components/preview-analysis/coachMoveRefs";
 import { ProofLine } from "@/components/preview-analysis/ProofLine";
 import { splitInsightWhy } from "@/components/preview-analysis/insightWhy";
+import { MoveAnalysisCard } from "@/components/preview-analysis/MoveAnalysisCard";
 import {
   engineLineAt,
   playedLineAt,
@@ -4541,9 +4542,15 @@ function CoachPanel({
   mood,
   moodPulse,
   onShowLinePly,
+  currentPly,
+  positions,
 }: {
   /** Put a ply of a proof line on the main board. */
   onShowLinePly?: (line: CoachLine, k: number) => void;
+  /** The board cursor, for the analysis of the move on the board. */
+  currentPly?: number;
+  /** Engine positions WITH classifications, for the same. */
+  positions?: PositionEval[] | null;
   /**
    * Masti's face in the header, decided by the page from what it already
    * knows (coach working, engine running, the current move's verdict, the
@@ -4669,6 +4676,7 @@ function CoachPanel({
     [personalityId]
   );
   const [personalityMenuOpen, setPersonalityMenuOpen] = useState(false);
+  const panelSans = useMemo(() => (allMoves ?? []).map((m) => m.san), [allMoves]);
   // Stable identity for BookExitCard: a fresh array per render made its
   // effect refetch on every engine tick (see the note in BookExitCard).
   const bookExitSans = useMemo(
@@ -4922,6 +4930,21 @@ function CoachPanel({
           })}
         </Menu>
       </Box>
+
+      {/* The move on the board, analysed — for every move, from the engine
+          data, as the reader steps through the game. */}
+      {typeof currentPly === "number" && panelSans.length > 0 && (
+        <MoveAnalysisCard
+          gameSans={panelSans}
+          positions={positions ?? enginePositions}
+          ply={currentPly}
+          rootFen={rootFen}
+          playerColor={playerSide ? (playerSide.color === "white" ? "w" : "b") : null}
+          onShowLinePly={onShowLinePly}
+          onAsk={signedOut ? undefined : onSuggestion}
+          busy={isThinking || analysisActive}
+        />
+      )}
 
       {/* Messages */}
       <Box
@@ -6190,13 +6213,12 @@ function DarkInsightCard({
   /** Put a ply of a proof line on the main board. */
   onShowLinePly?: (line: CoachLine, k: number) => void;
 }) {
-  // What a coach says first is the intent and the reason it failed, and what
-  // they say last is the lesson to carry into the next game. So the card
-  // shows, in this order: the headline, the Idea and the Problem, the
-  // engine's line drawn with what each move does, and the lesson. The
-  // Solution and the Outcome — the line already shows the solution — wait
-  // behind "Full explanation". Every word on screen teaches something.
-  const [showWhy, setShowWhy] = useState(false);
+  // Nothing about the move is hidden. The card reads in a coach's order:
+  // the headline, the Idea and the Problem, the engine's line drawn with
+  // what each move does, the Solution and the Outcome in the coach's words
+  // under the line they describe, then the lesson to carry into the next
+  // game. Only the side facts (threats, piece roles, the concept) sit
+  // behind pills.
   const why = useMemo(() => splitInsightWhy(insight.why), [insight.why]);
   const [showPlayed, setShowPlayed] = useState(false);
   const [showThreats, setShowThreats] = useState(false);
@@ -6458,6 +6480,20 @@ function DarkInsightCard({
         />
       )}
 
+      {/* The solution and the outcome, in the coach's words, under the line
+          they describe. */}
+      {why.rest && (
+        <Box sx={{ mt: 1 }} data-testid="insight-rest">
+          <InsightBodyText
+            text={why.rest}
+            renderInline={renderInline}
+            enginePositions={enginePositions}
+            loadedGame={loadedGame}
+            onJumpToPly={onJumpToPly}
+          />
+        </Box>
+      )}
+
       {/* The lesson: the pattern to carry into the next game. */}
       {why.lesson && (
         <CoachNote label="Lesson" renderInline={renderInline} data-testid="insight-lesson">
@@ -6471,13 +6507,6 @@ function DarkInsightCard({
         spacing={0.75}
         sx={{ mt: 1.25, flexWrap: "wrap", gap: 0.6 }}
       >
-        {why.rest && (
-          <Pill
-            label={showWhy ? "Hide" : "Full explanation"}
-            active={showWhy}
-            onClick={() => setShowWhy((v) => !v)}
-          />
-        )}
         {playedLine && (
           <Pill
             label="What happened"
@@ -6546,15 +6575,6 @@ function DarkInsightCard({
         </Box>
       )}
 
-      {showWhy && why.rest && (
-        <Reveal
-          title={
-            insight.bestMove ? `Best move: ${insight.bestMove}` : "Explanation"
-          }
-          body={why.rest}
-          onClose={() => setShowWhy(false)}
-        />
-      )}
       {showThreats && insight.threats && (
         <Reveal
           title="Threats"
@@ -11094,6 +11114,8 @@ export default function AnalysisPage() {
                           rootFen={rootFen}
                           onMoveRefClick={handleCoachMoveRef}
                           onShowLinePly={handleShowLinePly}
+                          currentPly={currentPly}
+                          positions={classifiedPositions ?? enginePositions}
                           playerSide={playerSide}
                           sideUiEligible={!isPuzzleMode && allMoves.length > 0}
                           onChoosePlayerSide={handleChoosePlayerSide}

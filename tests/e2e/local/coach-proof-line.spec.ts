@@ -33,6 +33,9 @@ const REVIEW = [
   "[WHY]",
   "Idea: You saw the knight fork on c7 hitting the king and the rook on a8.",
   "Problem: The queen on c1 was hanging with no defenders, and 8. Qxc1 simply takes it.",
+  "Solution: 8. Qxc1 takes the queen immediately, and after Rb8 9. Qf4 you are a full queen ahead.",
+  "Outcome: The fork was real, but the free queen was bigger.",
+  "The takeaway: collect the most valuable free piece before you start a combination.",
   "[CONTINUATION:8:w]",
   "[MAIA_CONTINUATION:8:w]",
   "[/WHY]",
@@ -43,12 +46,14 @@ const REVIEW = [
 ].join("\n");
 
 const FOLLOWUP = [
-  "It forks, but you were forking a rook when a queen was free: 8. Qxc1 takes it.",
+  "You saw the fork, and forks are worth seeing. But 7... Qxc1 left Black's queen with no defender, so 8. Qxc1 wins a queen outright, while the fork hands Black a check that wins yours back.",
   "",
   "[CONTINUATION:8:w]",
   "[PLAYED:8:w]",
   "",
-  "Before a forcing move, count what is already hanging.",
+  "Lesson: a forcing move is only as good as what it leaves behind. Before a check or a fork, list every capture your opponent has in reply.",
+  "",
+  "Your turn: after 8. Nc7+ Kd8 9. Nxa8, which check does Black have?",
 ].join("\n");
 
 async function stubCoach(page: Page) {
@@ -118,8 +123,17 @@ test.describe("coach proof lines", () => {
     await expect(page.getByTestId("insight-engine-line-ledger").first()).toContainText(/queen up/);
     // One line, not the old pair of identical "Engine line" / "Maia line" boxes.
     await expect(page.getByText("Maia line")).toHaveCount(0);
-    // The written explanation is folded behind its pill.
-    await expect(page.getByText("Show what was missed")).toBeVisible();
+    // The card teaches at a glance: the intent and the problem above the
+    // line, the lesson under it; the solution and the outcome wait behind
+    // "Full explanation".
+    await expect(page.getByTestId("insight-lead")).toContainText("You saw the knight fork");
+    await expect(page.getByTestId("insight-lead")).toContainText("The queen on c1 was hanging");
+    await expect(page.getByTestId("insight-lesson")).toContainText("collect the most valuable free piece");
+    await expect(page.getByTestId("insight-lesson")).not.toContainText("The takeaway");
+    await expect(page.getByText("takes the queen immediately")).toHaveCount(0);
+    await page.getByText("Full explanation").click();
+    await expect(page.getByText("takes the queen immediately")).toBeVisible();
+    await expect(page.getByText("The fork was real, but the free queen was bigger.")).toBeVisible();
 
     // Play: the board branches off the mainline at the move and shows the line.
     await page.getByTestId("insight-engine-line-play").first().click();
@@ -140,7 +154,10 @@ test.describe("coach proof lines", () => {
     await expect(banner).toContainText("8. Nc7+");
     await expect(page.getByTestId("proof-line")).toHaveCount(2, { timeout: 10_000 });
     await expect(page.getByText("In the game")).toBeVisible();
-    await expect(page.getByText(/count what is already hanging/)).toBeVisible();
+    // The teaching notes wear their eyebrows.
+    await expect(page.getByTestId("coach-note-lesson")).toContainText("list every capture your opponent has in reply");
+    await expect(page.getByTestId("coach-note-lesson")).not.toContainText("Lesson:");
+    await expect(page.getByTestId("coach-note-your-turn")).toContainText("which check does Black have");
 
     // The way back.
     await banner.getByRole("button", { name: /Back to/ }).click();

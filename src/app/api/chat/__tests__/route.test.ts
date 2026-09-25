@@ -496,7 +496,7 @@ describe("chat route: follow-up prompt", () => {
     });
     await POST(makeRequest(fastPathBody()));
     const args = mockCallLLM.mock.calls[0][0];
-    expect(args.system).toContain("1. VERDICT");
+    expect(args.system).toContain("1. THE IDEA, THEN WHAT HAPPENS");
     expect(args.system).toContain("GRANDMASTER ATTITUDE");
     expect(args.system).not.toContain("REVIEW_PROMPT_STABLE");
     expect(args.system).not.toContain("[INSIGHT:");

@@ -21,15 +21,29 @@ describe("getFollowUpSystemPromptStable — invariants", () => {
 
   it("is a fraction of the turn-1 prompt", () => {
     // The turn-1 stable block is ~27k characters. This one has to stay small
-    // enough that its whole job — the shape and the budget — is legible.
-    expect(out.length).toBeLessThan(6000);
+    // enough that its whole job — the shape, the budget and the teaching
+    // rules — is legible: a quarter of it, attitude included.
+    expect(out.length).toBeLessThan(7500);
   });
 
-  it("states the word budget and the three-part shape", () => {
+  it("states the word budget and the teaching shape", () => {
     expect(out).toContain(`at most ${FOLLOWUP_WORD_BUDGET} words`);
-    expect(out).toContain("1. VERDICT");
+    expect(out).toContain("1. THE IDEA, THEN WHAT HAPPENS");
     expect(out).toContain("2. PROOF");
     expect(out).toContain("3. LESSON");
+    expect(out).toContain("4. YOUR TURN");
+  });
+
+  it("asks for a lesson with a trigger, not a maxim, and marks it for the client", () => {
+    expect(out).toContain('starts with "Lesson:"');
+    expect(out).toContain("a habit with a trigger, not a maxim");
+    expect(out).toContain("Name the pattern");
+    expect(out).toContain('Start it with "Your turn:"');
+  });
+
+  it("wants causes, never the number", () => {
+    expect(out).toContain("Causes, never the number");
+    expect(out).toContain("what the move was for");
   });
 
   it("teaches the two line tokens the client renders", () => {
@@ -74,7 +88,7 @@ describe("getFollowUpSystemPromptStable — invariants", () => {
   });
 
   it("pins the constants the route relies on", () => {
-    expect(FOLLOWUP_PROMPT_VERSION).toBe("1.0");
+    expect(FOLLOWUP_PROMPT_VERSION).toBe("1.1");
     expect(FOLLOWUP_MAX_TOKENS).toBeGreaterThan(300);
     expect(FOLLOWUP_MAX_TOKENS).toBeLessThan(3000);
   });

@@ -37,6 +37,7 @@ import {
   playSanOnFen,
 } from "@/components/preview-analysis/coachMoveRefs";
 import { ProofLine } from "@/components/preview-analysis/ProofLine";
+import { splitInsightWhy } from "@/components/preview-analysis/insightWhy";
 import {
   engineLineAt,
   playedLineAt,
@@ -6084,6 +6085,64 @@ function InsightBodyText({
   );
 }
 
+// ─── CoachNote ───────────────────────────────────────────────────────────
+// A labelled teaching note: "LESSON" over the pattern and the check to run
+// next time, "YOUR TURN" over a question the player can answer from the
+// board. The same block under a key-moment card and in a follow-up bubble,
+// so the lesson looks like the lesson wherever it appears.
+const NOTE_TONES: Record<string, { fg: string; bg: string; border: string }> = {
+  lesson: { fg: "#FB923C", bg: "rgba(251,146,60,0.07)", border: "rgba(251,146,60,0.28)" },
+  "your turn": { fg: "#86efac", bg: "rgba(52,211,153,0.07)", border: "rgba(52,211,153,0.28)" },
+};
+
+function CoachNote({
+  label,
+  children,
+  renderInline,
+  "data-testid": testId,
+}: {
+  label: string;
+  children: string;
+  renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
+  "data-testid"?: string;
+}) {
+  const tone = NOTE_TONES[label.toLowerCase()] ?? NOTE_TONES.lesson;
+  return (
+    <Box
+      data-testid={testId}
+      sx={{
+        mt: 1,
+        px: 1.1,
+        py: 0.8,
+        borderRadius: "0.7rem",
+        background: tone.bg,
+        border: `1px solid ${tone.border}`,
+        display: "grid",
+        gridTemplateColumns: "auto 1fr",
+        columnGap: 1.1,
+        alignItems: "baseline",
+      }}
+    >
+      <Box
+        sx={{
+          fontSize: "0.62rem",
+          fontWeight: 800,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: tone.fg,
+          whiteSpace: "nowrap",
+          pt: 0.15,
+        }}
+      >
+        {label}
+      </Box>
+      <Box sx={{ fontSize: "0.86rem", lineHeight: 1.5, color: "rgba(255,255,255,0.9)" }}>
+        {renderInline(children)}
+      </Box>
+    </Box>
+  );
+}
+
 // ─── DarkInsightCard ─────────────────────────────────────────────────────
 // Dark-themed counterpart to production's InsightCard
 // (src/components/AICoachInsights.tsx). Same parsed InsightData shape via
@@ -6131,12 +6190,14 @@ function DarkInsightCard({
   /** Put a ply of a proof line on the main board. */
   onShowLinePly?: (line: CoachLine, k: number) => void;
 }) {
-  // The card leads with the proof, not the prose: headline, then the
-  // engine's line drawn with what each move does, then the reveals. The
-  // written explanation sits behind "Show what was missed" — the headline
-  // is written as a non-spoiler, and with the line on screen the reader
-  // already sees the answer; the words are there for whoever wants them.
+  // What a coach says first is the intent and the reason it failed, and what
+  // they say last is the lesson to carry into the next game. So the card
+  // shows, in this order: the headline, the Idea and the Problem, the
+  // engine's line drawn with what each move does, and the lesson. The
+  // Solution and the Outcome — the line already shows the solution — wait
+  // behind "Full explanation". Every word on screen teaches something.
   const [showWhy, setShowWhy] = useState(false);
+  const why = useMemo(() => splitInsightWhy(insight.why), [insight.why]);
   const [showPlayed, setShowPlayed] = useState(false);
   const [showThreats, setShowThreats] = useState(false);
   const [showRoles, setShowRoles] = useState(false);
@@ -6364,6 +6425,19 @@ function DarkInsightCard({
         </Typography>
       )}
 
+      {/* The intent and the reason: "you wanted X, but Y". */}
+      {why.lead && (
+        <Box sx={{ mt: 1 }} data-testid="insight-lead">
+          <InsightBodyText
+            text={why.lead}
+            renderInline={renderInline}
+            enginePositions={enginePositions}
+            loadedGame={loadedGame}
+            onJumpToPly={onJumpToPly}
+          />
+        </Box>
+      )}
+
       {/* The proof: the engine's line from this position, drawn rather than
           described, playable on the board. */}
       {engineLine && (
@@ -6384,21 +6458,22 @@ function DarkInsightCard({
         />
       )}
 
+      {/* The lesson: the pattern to carry into the next game. */}
+      {why.lesson && (
+        <CoachNote label="Lesson" renderInline={renderInline} data-testid="insight-lesson">
+          {why.lesson}
+        </CoachNote>
+      )}
+
       {/* Reveal pills */}
       <Stack
         direction="row"
         spacing={0.75}
         sx={{ mt: 1.25, flexWrap: "wrap", gap: 0.6 }}
       >
-        {insight.why && (
+        {why.rest && (
           <Pill
-            label={
-              showWhy
-                ? "Hide"
-                : isNegative
-                  ? "Show what was missed"
-                  : "Show why this works"
-            }
+            label={showWhy ? "Hide" : "Full explanation"}
             active={showWhy}
             onClick={() => setShowWhy((v) => !v)}
           />
@@ -6471,12 +6546,12 @@ function DarkInsightCard({
         </Box>
       )}
 
-      {showWhy && insight.why && (
+      {showWhy && why.rest && (
         <Reveal
           title={
             insight.bestMove ? `Best move: ${insight.bestMove}` : "Explanation"
           }
-          body={insight.why}
+          body={why.rest}
           onClose={() => setShowWhy(false)}
         />
       )}
@@ -7147,16 +7222,60 @@ function CoachBubble({
   // drawn from the client's own engine data, the prose around it stays
   // markdown. A token the client cannot resolve yet (engine still running)
   // simply disappears — the literal never reaches the reader.
+  // A paragraph the coach opens with "Lesson:" or "Your turn:" is a
+  // teaching note (the follow-up prompt asks for exactly these labels);
+  // it gets the same eyebrow block a key-moment card's lesson has.
+  const NOTE_RE = /^\*{0,2}(Lesson|Your turn)\*{0,2}\s*:\s*\*{0,2}([\s\S]+)$/i;
+  const renderProseWithNotes = (text: string): React.ReactNode => {
+    const paragraphs = text.split(/\n{2,}/);
+    if (!paragraphs.some((p) => NOTE_RE.test(p.trim()))) {
+      return renderMarkdownProse(text);
+    }
+    const out: React.ReactNode[] = [];
+    let plain: string[] = [];
+    const flush = () => {
+      if (plain.length > 0) {
+        out.push(
+          <Fragment key={`p${out.length}`}>
+            {renderMarkdownProse(plain.join("\n\n"))}
+          </Fragment>
+        );
+        plain = [];
+      }
+    };
+    for (const p of paragraphs) {
+      const m = NOTE_RE.exec(p.trim());
+      if (!m) {
+        plain.push(p);
+        continue;
+      }
+      flush();
+      const label = /^your/i.test(m[1]) ? "Your turn" : "Lesson";
+      out.push(
+        <CoachNote
+          key={`n${out.length}`}
+          label={label}
+          renderInline={renderInline}
+          data-testid={label === "Lesson" ? "coach-note-lesson" : "coach-note-your-turn"}
+        >
+          {m[2].replace(/\*{2}$/, "").trim()}
+        </CoachNote>
+      );
+    }
+    flush();
+    return <>{out}</>;
+  };
+
   const renderProseWithLines = (text: string): React.ReactNode => {
     const parts = splitProseByLineTokens(text);
     if (parts.length === 1 && parts[0].kind === "text") {
-      return renderMarkdownProse(parts[0].text);
+      return renderProseWithNotes(parts[0].text);
     }
     return (
       <>
         {parts.map((part, i) => {
           if (part.kind === "text") {
-            return <Fragment key={i}>{renderMarkdownProse(part.text)}</Fragment>;
+            return <Fragment key={i}>{renderProseWithNotes(part.text)}</Fragment>;
           }
           const { token } = part;
           if (token.kind === "maia") return null;

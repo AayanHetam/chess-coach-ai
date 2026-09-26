@@ -38,6 +38,21 @@ The words were fixed; the page around them was not. With the coach at 44px, a st
 - **Key moments** are passages of the message separated by rules: move and verdict, lede, Idea and Problem, the line, Solution and Outcome, the lesson. "What happened in the game" and "Practice …" are text links; the Threats and Piece-roles reveals are not rendered any more.
 - **Phone.** Below `lg` the panel is a screen tall instead of a fixed 600px box, so scrolling the board away leaves the conversation filling the viewport; a tap on a line's Play scrolls the board back into view.
 
+## Live test on production (2026-09-26)
+
+Signed in as a throwaway account on chessmasti.com (build 5702466), the knight-fork game, the review, then four follow-ups against Haiku with prompt 1.1:
+
+| Question | Words | Structure | Accuracy |
+|---|---|---|---|
+| Why was 8. Nc7+ a mistake? | 207 | Lesson, Your turn, line drawn, no filler opener | "8... Kxc7" invented in Your turn |
+| What should I have played on move 8? | 197 | Lesson, line drawn | the same invented move, "the only way" |
+| Walk me through 8. Qxc1 | 231 | Lesson, line drawn | the same invented move; "slightly worse for White" when the line is +2.84 |
+| Was 6. Na3 a mistake? | 181 | Lesson, line drawn, board jumped to move 6 | correct |
+
+What improved held (no banned openers, tokens emitted every time, anchors right). What did not: the 100-word budget was ignored (about the same length as the old prompt's 236 / 207), and the model borrowed "Kxc7", real one move later in the 9. Nxa8 line, for move 8. The referee accepted any move that appeared anywhere in the licensed lines, whatever its number, and a line that opened "8. Qxc1 Kxc7 …" lost its "8. " to the list-bullet stripper, so the moves fell back to that pool. The old prompt's recorded answers did not make the mistake.
+
+Fixed the same day: the referee reads numbered moves at their own ply and a sentence's moves as a line (`followUpReferee.plies.test.ts` holds the three live sentences), the anchor block labels the engine line with its rating, says the played move is not in it, shows the asked alternative's board and forbids borrowing other moments' lines, and prompt 1.2 forbids narrating a line's moves in prose and makes the budget a hard total. Length remains the open problem: a prose budget is advisory to Haiku, and structured output per field is the reliable fix.
+
 ## What shipped, by file
 
 Server (`/api/chat` fast path):
@@ -65,7 +80,7 @@ Tests: `questionAnchor`, `followUpContext`, `lineCaptions`, `followUpReferee.anc
 
 ## Before this goes live
 
-1. **Run the follow-up prompt against a live model.** Extend `scripts/eval/followup_story_probe.ts` to the new prompt and gate on: median words of model prose ≤ 80, verdict-first, referee drops per 100 sentences, and the helpfulness jury (`helpfulnessJudge.ts`) at or above baseline. The prompt was written to the measured failure modes but its outputs were not observed here (no API key in this environment). `COACH_FOLLOWUP_PROMPT=legacy` is the one-line rollback if it disappoints.
+1. **Run the follow-up prompt against a live model on more than one game.** Done once on production for the knight-fork game (above); the second real fixture and the other eight remain. Extend `scripts/eval/followup_story_probe.ts` to the new prompt and gate on: median words of model prose ≤ 80, verdict-first, referee drops per 100 sentences, and the helpfulness jury (`helpfulnessJudge.ts`) at or above baseline. The prompt was written to the measured failure modes but its outputs were not observed here (no API key in this environment). `COACH_FOLLOWUP_PROMPT=legacy` is the one-line rollback if it disappoints.
 2. **Check `[CONTINUATION]` / `[PLAYED]` emission rates.** If the model rarely emits the tokens, the proof is missing from follow-ups; the fix is prompt-side (an example) or route-side (append the anchor's engine line token when the answer names the move and carries none).
 3. **Turn-1 prompt is untouched.** The verbalizer charter still asks for `[THREATS]` and `[ROLES]` and both continuation tokens; the client now folds the sections and ignores the Maia token. Retiring them from the charter and gold examples needs the CI-4 gates re-run (`contract_ci4_gates.ts`), which needs an API key.
 4. **Mobile.** The panel is now a screen tall under the board and the board scrolls back into view when a line is played, but board and text are still not on screen together. A bottom sheet, or a board that shrinks while the reader is in the conversation, is the next layout step.

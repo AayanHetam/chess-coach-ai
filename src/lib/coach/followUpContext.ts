@@ -137,6 +137,49 @@ function renderLine(
 /**
  * Everything the model may say about the move the question names.
  */
+/**
+ * The engine's line from the position before the anchored move, as SAN, at
+ * most LINE_PLIES long; empty without a real evaluation there.
+ */
+export function anchorEngineLine(
+  anchor: QuestionAnchor,
+  gameEval: GameEvalLike | undefined
+): string[] {
+  const before = gameEval?.positions?.[anchor.index];
+  const pvUci = before?.lines?.[0]?.pv ?? [];
+  if (pvUci.length === 0 || !realEval(before?.lines?.[0])) return [];
+  try {
+    return convertPvToSan(anchor.fenBefore, pvUci).slice(0, LINE_PLIES);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The lines the referee may accept as sequences for this move, with the
+ * ply each starts from. The game's own moves need no entry.
+ */
+export function anchorLicensedLines(
+  anchor: QuestionAnchor,
+  gameEval: GameEvalLike | undefined
+): { startFen: string; startPly: number; sans: string[] }[] {
+  const line = anchorEngineLine(anchor, gameEval);
+  return line.length > 0
+    ? [{ startFen: anchor.fenBefore, startPly: anchor.index, sans: line }]
+    : [];
+}
+
+/** The board after the alternative the question asked about, when it is legal. */
+export function anchorAlternativeFen(anchor: QuestionAnchor): string | null {
+  if (!anchor.askedSan) return null;
+  try {
+    const g = new Chess(anchor.fenBefore);
+    return g.move(anchor.askedSan) ? g.fen() : null;
+  } catch {
+    return null;
+  }
+}
+
 export function buildAnchorBlock(
   anchor: QuestionAnchor,
   playedMoves: readonly string[],
@@ -188,15 +231,7 @@ export function buildAnchorBlock(
       bestSan = null;
     }
   }
-  const pvUci = before?.lines?.[0]?.pv ?? [];
-  let lineSan: string[] = [];
-  if (pvUci.length > 0 && realEval(before?.lines?.[0])) {
-    try {
-      lineSan = convertPvToSan(anchor.fenBefore, pvUci).slice(0, LINE_PLIES);
-    } catch {
-      lineSan = [];
-    }
-  }
+  const lineSan = anchorEngineLine(anchor, gameEval);
   if (
     bestSan &&
     bestSan.replace(/[+#]/g, "") !== anchor.san.replace(/[+#]/g, "")
@@ -206,14 +241,25 @@ export function buildAnchorBlock(
     out.push("The move played was the engine's preferred move.");
   }
   if (lineSan.length > 0) {
+    // The line's rating is the rating of the position it starts from; said
+    // next to the line so the number after the played move is never read as
+    // the alternative's. And the played move is not in it: live, the coach
+    // once had Black "recapture on c7" in a line where the knight never went
+    // there.
+    const rated = evalBefore
+      ? ` (the engine rates this line ${evalBefore}, White's perspective)`
+      : "";
     out.push(
-      `Engine line from before the move: ${renderLine(anchor.moveNumber, anchor.color === "w", lineSan)}`
+      `Engine line from before the move${rated}: ${renderLine(anchor.moveNumber, anchor.color === "w", lineSan)}`
     );
     const story = storyLines(anchor.fenBefore, lineSan);
     if (story.length > 0) {
       out.push("  what the engine line does:");
       for (const l of story) out.push(`    - ${l}`);
     }
+    out.push(
+      `  This line replaces ${label}: ${anchor.san} is not played in it.`
+    );
   }
 
   // What the game did from there, told the same way.
@@ -253,6 +299,20 @@ export function buildAnchorBlock(
     out.push(`  White pieces: ${pmAfter.white}`);
     out.push(`  Black pieces: ${pmAfter.black}`);
   }
+  // The alternative the question named gets its own board, so an answer
+  // about it is not written from the board after the move that was played.
+  const altFen = anchorAlternativeFen(anchor);
+  const pmAlt = altFen ? pieceMap(altFen) : null;
+  if (altFen && pmAlt) {
+    out.push(
+      `Board AFTER ${anchor.moveNumber}${anchor.color === "w" ? "." : "..."} ${anchor.askedSan} instead (the alternative asked about, ${pmAlt.toMove} to move):`
+    );
+    out.push(`  White pieces: ${pmAlt.white}`);
+    out.push(`  Black pieces: ${pmAlt.black}`);
+  }
+  out.push(
+    "The lines above are the only lines for this move. A move from another key moment's line belongs to that move, not to this one."
+  );
   out.push(
     "Use only these facts for this move. Do not read or reconstruct the board from the move list."
   );

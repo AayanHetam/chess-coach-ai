@@ -65,6 +65,26 @@ export interface FollowUpRefereeInput {
    * explain through. Same pool the contract's stories feed.
    */
   extraLicensedText?: string;
+  /**
+   * The ply (half-moves played) of `activeFen`, when known. With it, a
+   * sentence's unnumbered moves are read as a line walked from the board
+   * under discussion, and matched against the licensed lines at that ply.
+   */
+  activePly?: number;
+  /**
+   * Lines the reply may cite as sequences, each with the ply it starts
+   * from: the anchor's engine line (followUpContext.ts). The review's own
+   * lines come from the contract.
+   */
+  extraLines?: readonly LicensedLine[];
+}
+
+/** A licensed line and where in the game it starts. */
+export interface LicensedLine {
+  startFen: string;
+  /** Half-moves played before the line's first move. */
+  startPly: number;
+  sans: readonly string[];
 }
 
 export interface FollowUpRefereeDrop {
@@ -91,32 +111,86 @@ interface KeywordFamily {
 }
 const FAMILIES: KeywordFamily[] = [
   { name: "fork", re: /\bfork(?:s|ed|ing)?\b/i, poolRoots: ["fork"] },
-  { name: "double attack", re: /\bdouble attack\b/i, poolRoots: ["fork", "double attack"] },
-  { name: "pin", re: /\bpin(?:s|ned|ning)?\b/i, poolRoots: ["pin"], board: "pin" },
+  {
+    name: "double attack",
+    re: /\bdouble attack\b/i,
+    poolRoots: ["fork", "double attack"],
+  },
+  {
+    name: "pin",
+    re: /\bpin(?:s|ned|ning)?\b/i,
+    poolRoots: ["pin"],
+    board: "pin",
+  },
   { name: "skewer", re: /\bskewer(?:s|ed|ing)?\b/i, poolRoots: ["skewer"] },
-  { name: "discovered", re: /\bdiscover(?:ed|y)\b/i, poolRoots: ["discover", "uncovers"] },
+  {
+    name: "discovered",
+    re: /\bdiscover(?:ed|y)\b/i,
+    poolRoots: ["discover", "uncovers"],
+  },
   { name: "trapped", re: /\btrapped\b/i, poolRoots: ["trapped", "traps"] },
-  { name: "hanging", re: /\bhanging\b/i, poolRoots: ["hanging", "en prise", "undefended", "can now be taken", "can be recaptured"], board: "hanging" },
-  { name: "back rank", re: /\bback[- ]rank\b/i, poolRoots: ["back-rank", "back rank"] },
-  { name: "mate threat", re: /\b(?:(?:check)?mat(?:e|ing) threat|threat(?:en|ens|ening) (?:an? )?(?:immediate |quick |forced )?(?:check)?mate)\b/i, poolRoots: ["threatens mate", "mate threat", "allows mate", "back-rank mate", "checkmate"] },
-  { name: "removes the defender", re: /\bremov(?:e|es|ing) the defender\b/i, poolRoots: ["removes the"] },
+  {
+    name: "hanging",
+    re: /\bhanging\b/i,
+    poolRoots: [
+      "hanging",
+      "en prise",
+      "undefended",
+      "can now be taken",
+      "can be recaptured",
+    ],
+    board: "hanging",
+  },
+  {
+    name: "back rank",
+    re: /\bback[- ]rank\b/i,
+    poolRoots: ["back-rank", "back rank"],
+  },
+  {
+    name: "mate threat",
+    re: /\b(?:(?:check)?mat(?:e|ing) threat|threat(?:en|ens|ening) (?:an? )?(?:immediate |quick |forced )?(?:check)?mate)\b/i,
+    poolRoots: [
+      "threatens mate",
+      "mate threat",
+      "allows mate",
+      "back-rank mate",
+      "checkmate",
+    ],
+  },
+  {
+    name: "removes the defender",
+    re: /\bremov(?:e|es|ing) the defender\b/i,
+    poolRoots: ["removes the"],
+  },
 ];
 
 /** A move in notation. Pawn moves are only taken as moves when cued (a move number or a move verb) — bare "e5" is a square. */
-const SAN_CORE = "(?:[NBRQK][a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?|[a-h]x[a-h][1-8](?:=[NBRQ])?[+#]?)";
+const SAN_CORE =
+  "(?:[NBRQK][a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?|[a-h]x[a-h][1-8](?:=[NBRQ])?[+#]?)";
 const PAWN_SAN = "(?:[a-h][1-8](?:=[NBRQ])?[+#]?)";
 const SAN_TOKEN_RE = new RegExp(
   `(?<![A-Za-z0-9])(?:(\\d+)(\\.{1,3})\\s*)?(${SAN_CORE})(?![A-Za-z0-9])` +
     `|(?<![A-Za-z0-9])(\\d+)(\\.{1,3})\\s*(${PAWN_SAN})(?![A-Za-z0-9])` +
     `|\\b(?:play|played|plays|playing|move|moves|with|after|instead of|rather than|try|consider)\\s+(${PAWN_SAN})(?![A-Za-z0-9])`,
-  "g",
+  "g"
 );
-const EVAL_RE = /(?<![A-Za-z0-9.])([+-]\d+(?:\.\d{1,2})?|M[+-]?\d+)(?![A-Za-z0-9.%])/g;
+const EVAL_RE =
+  /(?<![A-Za-z0-9.])([+-]\d+(?:\.\d{1,2})?|M[+-]?\d+)(?![A-Za-z0-9.%])/g;
 /** "your queen on c1", "White's rook on a1", "the knight on f6", "Black's king at g8" */
-const PIECE_ON_SQUARE_RE = /\b(?:(white|black|your|my|their|opponent'?s|the opponent'?s)\s+(?:own\s+)?)?(pawn|knight|bishop|rook|queen|king)\s+(?:on|at)\s+([a-h][1-8])\b/gi;
-const PIECE_LETTER: Record<string, string> = { pawn: "p", knight: "n", bishop: "b", rook: "r", queen: "q", king: "k" };
+const PIECE_ON_SQUARE_RE =
+  /\b(?:(white|black|your|my|their|opponent'?s|the opponent'?s)\s+(?:own\s+)?)?(pawn|knight|bishop|rook|queen|king)\s+(?:on|at)\s+([a-h][1-8])\b/gi;
+const PIECE_LETTER: Record<string, string> = {
+  pawn: "p",
+  knight: "n",
+  bishop: "b",
+  rook: "r",
+  queen: "q",
+  king: "k",
+};
 
 const stripSan = (s: string) => s.replace(/[+#!?]/g, "").toLowerCase();
+/** A line that opens with a move ("Qxc1 …", "e5 …"), for telling a move number from a list number. */
+const MOVE_START_RE = new RegExp(`^(?:${SAN_CORE}|${PAWN_SAN})(?![A-Za-z0-9])`);
 
 function evalKey(display: string): string | null {
   const m = /^([+-])(\d+(?:\.\d+)?)$/.exec(display.trim());
@@ -126,36 +200,110 @@ function evalKey(display: string): string | null {
   return null;
 }
 
-export function refereeFollowUp(input: FollowUpRefereeInput): FollowUpRefereeResult {
+export function refereeFollowUp(
+  input: FollowUpRefereeInput
+): FollowUpRefereeResult {
   const { reply, compact, activeFen, moveHistory } = input;
-  if (!compact) return { text: reply, applied: false, sentences: 0, dropped: [] };
+  if (!compact)
+    return { text: reply, applied: false, sentences: 0, dropped: [] };
 
   // ── Licence pools ──────────────────────────────────────────────────────────
   const poolText = [
-    ...compact.insights.flatMap((i) => [...i.allowedTacticalKeywords, ...i.motifSayables, ...(i.bestLineStory ?? []), ...(i.gameStory ?? []), ...(i.relationalSayables ?? [])]),
+    ...compact.insights.flatMap((i) => [
+      ...i.allowedTacticalKeywords,
+      ...i.motifSayables,
+      ...(i.bestLineStory ?? []),
+      ...(i.gameStory ?? []),
+      ...(i.relationalSayables ?? []),
+    ]),
     input.extraLicensedText ?? "",
   ]
     .join(" | ")
     .toLowerCase();
   const sanPool = new Set<string>();
   for (const m of moveHistory) sanPool.add(stripSan(m));
-  const STORY_SAN_RE = new RegExp(`(?<![A-Za-z0-9])(?:\\d+\\.{1,3}\\s*)?(${SAN_CORE}|${PAWN_SAN})(?![A-Za-z0-9])`, "g");
+  const STORY_SAN_RE = new RegExp(
+    `(?<![A-Za-z0-9])(?:\\d+\\.{1,3}\\s*)?(${SAN_CORE}|${PAWN_SAN})(?![A-Za-z0-9])`,
+    "g"
+  );
   for (const i of compact.insights) {
     sanPool.add(stripSan(i.playedSan));
     if (i.bestSan) sanPool.add(stripSan(i.bestSan));
     for (const s of i.bestLineSan) sanPool.add(stripSan(s));
     for (const line of [...(i.bestLineStory ?? []), ...(i.gameStory ?? [])]) {
-      for (const tok of Array.from(line.matchAll(STORY_SAN_RE))) sanPool.add(stripSan(tok[1]));
+      for (const tok of Array.from(line.matchAll(STORY_SAN_RE)))
+        sanPool.add(stripSan(tok[1]));
     }
   }
   // The anchor block's engine line and game continuation are licensed moves
   // too — the model was told to explain through them.
   for (const line of (input.extraLicensedText ?? "").split("\n")) {
-    for (const tok of Array.from(line.matchAll(STORY_SAN_RE))) sanPool.add(stripSan(tok[1]));
+    for (const tok of Array.from(line.matchAll(STORY_SAN_RE)))
+      sanPool.add(stripSan(tok[1]));
   }
+  // ── Lines as positions ───────────────────────────────────────────────────
+  // Every licensed line laid out ply by ply: "<ply>:<san>" → the board after
+  // that move. A numbered move in the reply is checked here, at its own
+  // number, so a move that is real in one key moment's line cannot be
+  // borrowed for another move number. Live, 2026-09-26: "8... Kxc7" — real
+  // at move 9 in the 9. Nxa8 line, impossible at move 8 — passed three
+  // times because the pool above knows moves, not plies.
+  const lineAfter = new Map<string, string>();
+  const addLine = (
+    startFen: string,
+    startPly: number,
+    sans: readonly string[]
+  ) => {
+    let g: Chess;
+    try {
+      g = new Chess(startFen);
+    } catch {
+      return;
+    }
+    let ply = startPly;
+    for (const san of sans) {
+      try {
+        if (!g.move(san)) return;
+      } catch {
+        return;
+      }
+      lineAfter.set(`${ply}:${stripSan(san)}`, g.fen());
+      ply += 1;
+    }
+  };
+  try {
+    addLine(getFenAtHalfMove(moveHistory as string[], 0), 0, moveHistory);
+  } catch {
+    /* no game to walk */
+  }
+  for (const i of compact.insights) {
+    addLine(
+      i.fenBefore,
+      (i.moveNumber - 1) * 2 + (i.color === "b" ? 1 : 0),
+      i.bestLineSan
+    );
+  }
+  for (const l of input.extraLines ?? [])
+    addLine(l.startFen, l.startPly, l.sans);
+  const applySan = (fen: string, san: string): string | null => {
+    try {
+      const g = new Chess(fen);
+      return g.move(san) ? g.fen() : null;
+    } catch {
+      return null;
+    }
+  };
+
   const evalPool = new Set<string>();
-  for (const i of compact.insights) for (const d of [i.evalBeforeDisplay, i.evalAfterDisplay]) { const k = evalKey(d); if (k) evalPool.add(k); }
-  for (const d of input.licensedEvals ?? []) { const k = evalKey(d); if (k) evalPool.add(k); }
+  for (const i of compact.insights)
+    for (const d of [i.evalBeforeDisplay, i.evalAfterDisplay]) {
+      const k = evalKey(d);
+      if (k) evalPool.add(k);
+    }
+  for (const d of input.licensedEvals ?? []) {
+    const k = evalKey(d);
+    if (k) evalPool.add(k);
+  }
 
   let boardHanging = false;
   let boardPin = false;
@@ -170,9 +318,17 @@ export function refereeFollowUp(input: FollowUpRefereeInput): FollowUpRefereeRes
   // Every position a follow-up may legitimately describe: the board under
   // discussion plus each reviewed move's before/after boards.
   const boards: Chess[] = [];
-  for (const fen of [activeFen, ...(input.extraFens ?? []), ...compact.insights.flatMap((i) => [i.fenBefore, i.fenAfter])]) {
+  for (const fen of [
+    activeFen,
+    ...(input.extraFens ?? []),
+    ...compact.insights.flatMap((i) => [i.fenBefore, i.fenAfter]),
+  ]) {
     if (!fen) continue;
-    try { boards.push(new Chess(fen)); } catch { /* skip */ }
+    try {
+      boards.push(new Chess(fen));
+    } catch {
+      /* skip */
+    }
   }
   const playerColor = compact.playerColor === "b" ? "b" : "w";
   const claimedColor = (word: string | undefined): "w" | "b" | null => {
@@ -180,30 +336,36 @@ export function refereeFollowUp(input: FollowUpRefereeInput): FollowUpRefereeRes
     if (w === "white") return "w";
     if (w === "black") return "b";
     if (w === "your") return playerColor;
-    if (w === "their" || w.includes("opponent")) return playerColor === "w" ? "b" : "w";
+    if (w === "their" || w.includes("opponent"))
+      return playerColor === "w" ? "b" : "w";
     return null;
   };
   /** True iff SOME licensed board has that piece (and colour, when claimed) on that square. */
-  const pieceStands = (color: "w" | "b" | null, piece: string, square: string): boolean =>
+  const pieceStands = (
+    color: "w" | "b" | null,
+    piece: string,
+    square: string
+  ): boolean =>
     boards.some((b) => {
       const p = b.get(square as never);
-      return !!p && p.type === PIECE_LETTER[piece] && (color === null || p.color === color);
+      return (
+        !!p &&
+        p.type === PIECE_LETTER[piece] &&
+        (color === null || p.color === color)
+      );
     });
-
-  const legalAt = (fen: string, san: string): boolean => {
-    try {
-      return !!new Chess(fen).move(san);
-    } catch {
-      return false;
-    }
-  };
 
   // ── Sentence by sentence, line by line (keeps bullets and paragraphs) ─────
   const dropped: FollowUpRefereeDrop[] = [];
   let sentenceCount = 0;
   const keptLines: string[] = [];
   for (const rawLine of reply.split("\n")) {
-    const bullet = /^(\s*(?:[-*•]|\d+[.)])\s+)/.exec(rawLine)?.[1] ?? "";
+    let bullet = /^(\s*(?:[-*•]|\d+[.)])\s+)/.exec(rawLine)?.[1] ?? "";
+    // "8. Qxc1 Kxc7 — …" opens with a move number, not a list marker. Taking
+    // the "8. " as a bullet left "Qxc1 Kxc7" unnumbered, and unnumbered
+    // moves fall back to the pool: the live "Kxc7" escaped exactly there.
+    if (/\d/.test(bullet) && MOVE_START_RE.test(rawLine.slice(bullet.length)))
+      bullet = "";
     const body = rawLine.slice(bullet.length);
     if (body.trim().length === 0) {
       keptLines.push(rawLine);
@@ -225,7 +387,10 @@ export function refereeFollowUp(input: FollowUpRefereeInput): FollowUpRefereeRes
             fam.poolRoots.some((r) => poolText.includes(r)) ||
             (fam.board === "hanging" && boardHanging) ||
             (fam.board === "pin" && boardPin);
-          if (!licensed) { reason = `tactical:${fam.name}`; break; }
+          if (!licensed) {
+            reason = `tactical:${fam.name}`;
+            break;
+          }
         }
       }
 
@@ -233,29 +398,80 @@ export function refereeFollowUp(input: FollowUpRefereeInput): FollowUpRefereeRes
         for (const m of Array.from(sentence.matchAll(PIECE_ON_SQUARE_RE))) {
           const piece = m[2].toLowerCase();
           const square = m[3].toLowerCase();
-          if (!pieceStands(claimedColor(m[1]), piece, square)) { reason = `piece:${m[0]}`; break; }
+          if (!pieceStands(claimedColor(m[1]), piece, square)) {
+            reason = `piece:${m[0]}`;
+            break;
+          }
         }
       }
 
       if (!reason) {
-        let running = activeFen;
+        // A sentence's moves are read as a line: from the board under
+        // discussion, or from the first numbered move it names. A numbered
+        // move is licensed only at its own number — a licensed line's move
+        // there (the game's included), a legal alternative there, or the
+        // next move of the line the sentence is already walking. Once the
+        // sentence has placed itself in a line, its unnumbered moves are that
+        // line's next moves, never a bare pool match.
+        let running: { fen: string; ply: number | null } = {
+          fen: activeFen,
+          ply: input.activePly ?? null,
+        };
+        let inSequence = false;
         for (const m of Array.from(sentence.matchAll(SAN_TOKEN_RE))) {
           const san = m[3] ?? m[6] ?? m[7];
           const num = m[1] ?? m[4];
           const dots = m[2] ?? m[5];
           if (!san) continue;
           const key = stripSan(san);
-          if (sanPool.has(key)) continue;
           if (num !== undefined) {
-            const ply = (Number(num) - 1) * 2 + (dots && dots.length >= 3 ? 1 : 0);
+            const ply =
+              (Number(num) - 1) * 2 + (dots && dots.length >= 3 ? 1 : 0);
+            const after = lineAfter.get(`${ply}:${key}`);
+            if (after) {
+              running = { fen: after, ply: ply + 1 };
+              inSequence = true;
+              continue;
+            }
             let fenAtPly: string | null = null;
-            try { fenAtPly = getFenAtHalfMove(moveHistory as string[], ply); } catch { fenAtPly = null; }
-            if (fenAtPly && legalAt(fenAtPly, san)) continue;
+            try {
+              fenAtPly = getFenAtHalfMove(moveHistory as string[], ply);
+            } catch {
+              fenAtPly = null;
+            }
+            const alt = fenAtPly ? applySan(fenAtPly, san) : null;
+            if (alt) {
+              running = { fen: alt, ply: ply + 1 };
+              inSequence = true;
+              continue;
+            }
+            if (running.ply === ply) {
+              const next = applySan(running.fen, san);
+              if (next) {
+                running = { fen: next, ply: ply + 1 };
+                inSequence = true;
+                continue;
+              }
+            }
+            reason = `san:${san}`;
+            break;
           }
-          if (legalAt(running, san)) {
-            try { const g = new Chess(running); g.move(san); running = g.fen(); } catch { /* keep running */ }
+          const next = applySan(running.fen, san);
+          if (next) {
+            running = {
+              fen: next,
+              ply: running.ply === null ? null : running.ply + 1,
+            };
             continue;
           }
+          if (running.ply !== null) {
+            const lineNext = lineAfter.get(`${running.ply}:${key}`);
+            if (lineNext) {
+              running = { fen: lineNext, ply: running.ply + 1 };
+              continue;
+            }
+          }
+          if (!inSequence && sanPool.has(key)) continue;
           reason = `san:${san}`;
           break;
         }
@@ -264,7 +480,10 @@ export function refereeFollowUp(input: FollowUpRefereeInput): FollowUpRefereeRes
       if (!reason && evalPool.size > 0) {
         for (const m of Array.from(sentence.matchAll(EVAL_RE))) {
           const k = evalKey(m[1]);
-          if (k && !evalPool.has(k)) { reason = `eval:${m[1]}`; break; }
+          if (k && !evalPool.has(k)) {
+            reason = `eval:${m[1]}`;
+            break;
+          }
         }
       }
 
@@ -274,7 +493,10 @@ export function refereeFollowUp(input: FollowUpRefereeInput): FollowUpRefereeRes
     if (kept.length > 0) keptLines.push(`${bullet}${kept.join(" ")}`);
   }
 
-  let text = keptLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  let text = keptLines
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
   if (text.length === 0) text = FOLLOWUP_REFEREE_FALLBACK;
   return { text, applied: true, sentences: sentenceCount, dropped };
 }

@@ -248,9 +248,23 @@ function renderLine(startMoveNumber: number, startsWhite: boolean, san: string[]
  * That is the honest degradation the founder chose for turn 1 (drop or rewrite
  * an unverifiable claim, never hedge it into mush) carried into turn 2.
  */
+/**
+ * The move a follow-up is about (questionAnchor.ts). With a focus the block
+ * gives the engine line and its story for that move alone; every other
+ * finding keeps its verdict and evals and has its line withheld. Live
+ * (2026-09-26) an answer about 8. Nc7+ borrowed "9...Kxc7" from the move-9
+ * finding's line and read it as the reply to 8. Qxc1: the other moments'
+ * lines were the only place it could have come from.
+ */
+export interface ContractFocus {
+  moveNumber: number;
+  color: "w" | "b";
+}
+
 export function renderContractCompact(
   cc: CompactContract,
-  maxChars: number = CONTRACT_COMPACT_MAX_CHARS
+  maxChars: number = CONTRACT_COMPACT_MAX_CHARS,
+  focus?: ContractFocus
 ): string {
   if (cc.insights.length === 0 && !cc.resultText) return "";
 
@@ -273,6 +287,15 @@ export function renderContractCompact(
       "\"fact contract\" or \"provided facts\" in your reply. The player is talking to " +
       "their coach. Say \"the engine line runs...\", never \"according to the contract\"."
   );
+  if (focus) {
+    const focusName = `move ${focus.moveNumber} (${focus.color === "w" ? "White" : "Black"})`;
+    head.push(
+      `The question is about ${focusName}. Only that move's engine line is given this turn, ` +
+        "below or in the MOVE UNDER DISCUSSION block; every other finding keeps its verdict and " +
+        "evals and its line is withheld. A move from a line you cannot see is not a move you can " +
+        "name, and a move from one finding's line never belongs to another move."
+    );
+  }
   // Rendered only when at least one story made it in (below) — a block with
   // no stories needs no instructions about them, and the header must stay
   // small enough to fit the tightest budgets the tests pin.
@@ -293,9 +316,17 @@ export function renderContractCompact(
     .join(" · ");
   if (summary) head.push(summary);
 
+  const isFocused = (ins: CompactInsight): boolean =>
+    !!focus && ins.moveNumber === focus.moveNumber && ins.color === focus.color;
+  // The focused finding first, so the budget below can never drop it.
+  const ordered = focus
+    ? [...cc.insights.filter(isFocused), ...cc.insights.filter((i) => !isFocused(i))]
+    : cc.insights;
+
   const blocks: string[] = [];
   const storyExtras: string[] = [];
-  for (const ins of cc.insights) {
+  for (const ins of ordered) {
+    const showLine = !focus || isFocused(ins);
     const lines: string[] = [];
     const extra: string[] = [];
     const shown =
@@ -313,8 +344,12 @@ export function renderContractCompact(
     const after = ins.evalAfterDisplay || "no eval";
     lines.push(`  eval ${before} → ${after} (${ins.severityDropCp}cp)`);
     if (ins.bestLineSan.length > 0) {
-      const rendered = renderLine(ins.moveNumber, ins.color === "w", ins.bestLineSan);
-      lines.push(`  engine line: ${rendered}${ins.bestLineTruncated ? " (line continues)" : ""}`);
+      if (showLine) {
+        const rendered = renderLine(ins.moveNumber, ins.color === "w", ins.bestLineSan);
+        lines.push(`  engine line: ${rendered}${ins.bestLineTruncated ? " (line continues)" : ""}`);
+      } else {
+        lines.push("  engine line: withheld this turn (the question is about another move)");
+      }
     }
     if (ins.allowedTacticalKeywords.length > 0) {
       lines.push(`  may name: ${ins.allowedTacticalKeywords.join(", ")}`);
@@ -322,11 +357,11 @@ export function renderContractCompact(
     if (ins.motifSayables.length > 0) {
       lines.push(`  confirmed: ${ins.motifSayables.join("; ")}`);
     }
-    if ((ins.bestLineStory ?? []).length > 0) {
+    if (showLine && (ins.bestLineStory ?? []).length > 0) {
       extra.push("  what the engine line does:");
       for (const l of ins.bestLineStory) extra.push(`    - ${l}`);
     }
-    if ((ins.gameStory ?? []).length > 0) {
+    if (showLine && (ins.gameStory ?? []).length > 0) {
       extra.push("  what the game did next:");
       for (const l of ins.gameStory) extra.push(`    - ${l}`);
     }

@@ -22,6 +22,7 @@ import {
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/contexts/AuthContext";
 import PlatformRatingCard from "./PlatformRatingCard";
+import DeleteAccountSection from "./DeleteAccountSection";
 import type {
   CoachTone,
   PlayingStyle,
@@ -473,6 +474,12 @@ export default function ProfileDialog({
                 </Stack>
               </Box>
             </Box>
+
+            <Divider />
+
+            {/* Last in the tab on purpose — a destructive control should not
+                sit above the fields people came here to edit. */}
+            <DeleteAccountSection />
           </Stack>
         )}
 

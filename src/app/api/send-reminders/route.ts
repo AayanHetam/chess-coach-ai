@@ -54,6 +54,7 @@ export async function GET(req: Request) {
   const pushReady = isPushConfigured();
   let considered = 0;
   let emailSent = 0;
+  let emailSuppressed = 0;
   let pushSent = 0;
   let pushPruned = 0;
   let skipped = 0;
@@ -131,13 +132,17 @@ export async function GET(req: Request) {
         continue;
       }
       try {
-        await sendDailyReminderEmail({
+        const outcome = await sendDailyReminderEmail({
           to: u.email,
           displayName: u.displayName,
           streak: u.currentStreak,
           unsubscribeUrl: unsubscribeUrl(u.uid),
         });
-        emailSent += 1;
+        // "suppressed" is the suppression list doing its job, not a failure —
+        // counted separately so a run that mails nobody is distinguishable
+        // from a run that failed to mail anybody.
+        if (outcome === "suppressed") emailSuppressed += 1;
+        else emailSent += 1;
       } catch (err) {
         failed += 1;
         console.error("[send-reminders] email failed for", u.uid, err);
@@ -151,6 +156,7 @@ export async function GET(req: Request) {
         detail: String(err),
         considered,
         emailSent,
+        emailSuppressed,
         pushSent,
         pushPruned,
         skipped,
@@ -164,6 +170,7 @@ export async function GET(req: Request) {
     ok: true,
     considered,
     emailSent,
+    emailSuppressed,
     pushSent,
     pushPruned,
     skipped,

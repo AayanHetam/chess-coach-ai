@@ -17,6 +17,19 @@ vi.mock("@/lib/tracking/purge", () => ({ purgeUserData: mockPurge }));
 
 const deletedOrder: string[] = [];
 
+/**
+ * Document payloads by path. The account doc must carry `handleLower`, because
+ * that field is the ONLY link from a uid to its `handles/{canonical}`
+ * reservation — the reason the reservation survived every deletion until
+ * 2026-09-16.
+ */
+const DOC_DATA: Record<string, Record<string, unknown>> = {
+  "users/u1": { email: "someone@example.com", handleLower: "lazerwizard" },
+  "handles/lazerwizard": { uid: "u1", display: "LazerWizard" },
+};
+const dataFor = (path: string) =>
+  DOC_DATA[path] ?? { email: "someone@example.com" };
+
 /** Minimal Firestore Admin double: enough shape for the traversal under test. */
 function makeDb(fixture: Record<string, string[]>) {
   const makeDoc = (path: string): Record<string, unknown> => ({
@@ -28,7 +41,7 @@ function makeDb(fixture: Record<string, string[]>) {
       collection: (name: string) => makeCollection(`${path}/${name}`),
     },
     exists: true,
-    data: () => ({ email: "someone@example.com" }),
+    data: () => dataFor(path),
     get: vi.fn(),
   });
 
@@ -46,7 +59,7 @@ function makeDb(fixture: Record<string, string[]>) {
           ...(d.ref as Record<string, unknown>),
           get: async () => ({
             exists: (fixture[path] ?? []).includes(id ?? ""),
-            data: () => ({ email: "someone@example.com" }),
+            data: () => dataFor(`${path}/${id ?? "auto"}`),
             id,
           }),
         };
@@ -65,9 +78,14 @@ const FIXTURE = {
   "users/u1/chats/c1/messages": ["m1", "m2"],
   "users/u1/chats/c2/messages": ["m3"],
   "users/u1/puzzleSessions": ["p1"],
+  "users/u1/courseProgress": ["cp1", "cp2"],
+  "users/u1/trainer": ["progress"],
+  "users/u1/repertoire": ["bracket"],
   gameShares: ["s1"],
   scouts: ["sc1"],
   insights: ["i1"],
+  puzzleRushLeaderboard: ["u1"],
+  handles: ["lazerwizard"],
 };
 
 const { mockGetDb } = vi.hoisted(() => ({ mockGetDb: vi.fn() }));
@@ -114,9 +132,36 @@ describe("planUserDeletion — read-only survey", () => {
     expect(by["insights (sharerUid)"]).toBe(1);
   });
 
+  it("counts the stores that were missing until 2026-09-16", async () => {
+    // Each of these was written by a store that landed after this module and
+    // was never added to its list, so deletion left the data behind while
+    // reporting success. Regression guard, one surface per line.
+    const plan = await planUserDeletion("u1");
+    const by = Object.fromEntries(
+      plan.surfaces.map((s) => [s.surface, s.count])
+    );
+    expect(by["users/{uid}/courseProgress"]).toBe(2);
+    expect(by["users/{uid}/trainer"]).toBe(1);
+    expect(by["users/{uid}/repertoire"]).toBe(1);
+    // The public one: this row carries the player's handle on a world-readable
+    // leaderboard, so leaving it behind kept a deleted account publicly named.
+    expect(by["puzzleRushLeaderboard/{uid}"]).toBe(1);
+    // Reachable only via the account doc's handleLower.
+    expect(by["handles/{canonical}"]).toBe(1);
+  });
+
   it("totals what a human would otherwise have to add up", async () => {
     const plan = await planUserDeletion("u1");
-    expect(plan.totalDocs).toBe(1 + 3 + 2 + 3 + 1 + 1 + 1 + 1);
+    expect(plan.totalDocs).toBe(
+      // account + games + chats + messages + puzzleSessions
+      1 + 3 + 2 + 3 + 1 +
+        // courseProgress + trainer + repertoire
+        2 + 1 + 1 +
+        // gameShares + scouts + insights
+        1 + 1 + 1 +
+        // puzzleRushLeaderboard + handles
+        1 + 1
+    );
   });
 });
 
@@ -135,6 +180,26 @@ describe("executeUserDeletion", () => {
       .map((p) => /messages\//.test(p))
       .lastIndexOf(true);
     expect(lastMessage).toBeLessThan(firstChat);
+  });
+
+  it("releases the handle reservation and clears the public leaderboard row", async () => {
+    await executeUserDeletion("u1");
+    // A handle is a sign-in identifier here: an orphaned reservation both
+    // leaks the name the person chose and permanently blocks re-use.
+    expect(deletedOrder).toContain("handles/lazerwizard");
+    expect(deletedOrder).toContain("puzzleRushLeaderboard/u1");
+  });
+
+  it("does not delete a handle that now belongs to somebody else", async () => {
+    // Re-claimed after this account released it: deleting it here would take
+    // the handle away from its current owner.
+    DOC_DATA["handles/lazerwizard"] = { uid: "someone-else" };
+    try {
+      await executeUserDeletion("u1");
+      expect(deletedOrder).not.toContain("handles/lazerwizard");
+    } finally {
+      DOC_DATA["handles/lazerwizard"] = { uid: "u1", display: "LazerWizard" };
+    }
   });
 
   it("purges the Supabase tracking tables too", async () => {

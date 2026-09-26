@@ -53,6 +53,18 @@ export interface FollowUpRefereeInput {
   moveHistory: readonly string[];
   /** Extra eval strings the turn may quote (the per-move table the chat context carries). */
   licensedEvals?: readonly string[];
+  /**
+   * Further boards a piece-on-square claim may describe: the boards before
+   * and after the move the question named (questionAnchor.ts), which is not
+   * always a reviewed insight and so is not always in the contract.
+   */
+  extraFens?: readonly string[];
+  /**
+   * Extra text whose tactical words and moves license the reply — the anchor
+   * block (followUpContext.ts), whose line stories the model was told to
+   * explain through. Same pool the contract's stories feed.
+   */
+  extraLicensedText?: string;
 }
 
 export interface FollowUpRefereeDrop {
@@ -119,19 +131,27 @@ export function refereeFollowUp(input: FollowUpRefereeInput): FollowUpRefereeRes
   if (!compact) return { text: reply, applied: false, sentences: 0, dropped: [] };
 
   // ── Licence pools ──────────────────────────────────────────────────────────
-  const poolText = compact.insights
-    .flatMap((i) => [...i.allowedTacticalKeywords, ...i.motifSayables, ...(i.bestLineStory ?? []), ...(i.gameStory ?? []), ...(i.relationalSayables ?? [])])
+  const poolText = [
+    ...compact.insights.flatMap((i) => [...i.allowedTacticalKeywords, ...i.motifSayables, ...(i.bestLineStory ?? []), ...(i.gameStory ?? []), ...(i.relationalSayables ?? [])]),
+    input.extraLicensedText ?? "",
+  ]
     .join(" | ")
     .toLowerCase();
   const sanPool = new Set<string>();
   for (const m of moveHistory) sanPool.add(stripSan(m));
+  const STORY_SAN_RE = new RegExp(`(?<![A-Za-z0-9])(?:\\d+\\.{1,3}\\s*)?(${SAN_CORE}|${PAWN_SAN})(?![A-Za-z0-9])`, "g");
   for (const i of compact.insights) {
     sanPool.add(stripSan(i.playedSan));
     if (i.bestSan) sanPool.add(stripSan(i.bestSan));
     for (const s of i.bestLineSan) sanPool.add(stripSan(s));
     for (const line of [...(i.bestLineStory ?? []), ...(i.gameStory ?? [])]) {
-      for (const tok of Array.from(line.matchAll(new RegExp(`(?<![A-Za-z0-9])(?:\\d+\\.{1,3})?(${SAN_CORE}|${PAWN_SAN})(?![A-Za-z0-9])`, "g")))) sanPool.add(stripSan(tok[1]));
+      for (const tok of Array.from(line.matchAll(STORY_SAN_RE))) sanPool.add(stripSan(tok[1]));
     }
+  }
+  // The anchor block's engine line and game continuation are licensed moves
+  // too — the model was told to explain through them.
+  for (const line of (input.extraLicensedText ?? "").split("\n")) {
+    for (const tok of Array.from(line.matchAll(STORY_SAN_RE))) sanPool.add(stripSan(tok[1]));
   }
   const evalPool = new Set<string>();
   for (const i of compact.insights) for (const d of [i.evalBeforeDisplay, i.evalAfterDisplay]) { const k = evalKey(d); if (k) evalPool.add(k); }
@@ -150,7 +170,7 @@ export function refereeFollowUp(input: FollowUpRefereeInput): FollowUpRefereeRes
   // Every position a follow-up may legitimately describe: the board under
   // discussion plus each reviewed move's before/after boards.
   const boards: Chess[] = [];
-  for (const fen of [activeFen, ...compact.insights.flatMap((i) => [i.fenBefore, i.fenAfter])]) {
+  for (const fen of [activeFen, ...(input.extraFens ?? []), ...compact.insights.flatMap((i) => [i.fenBefore, i.fenAfter])]) {
     if (!fen) continue;
     try { boards.push(new Chess(fen)); } catch { /* skip */ }
   }

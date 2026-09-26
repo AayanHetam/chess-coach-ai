@@ -199,3 +199,33 @@ describe("generateSuggestions", () => {
     expect(textsSet.size).toBe(result.length);
   });
 });
+
+describe("generateSuggestions — the player's own moves", () => {
+  // 1. e4 e5 2. Nf3 Nc6: positions[2] is after Black's 1...e5, positions[3] after White's 2. Nf3.
+  const game = new Chess();
+  for (const m of ["e4", "e5", "Nf3", "Nc6"]) game.move(m);
+  const positions: PositionEval[] = [
+    makeEnginePos(),
+    makeEnginePos(),
+    makeEnginePos(MoveClassification.Blunder), // Black's 1...e5
+    makeEnginePos(MoveClassification.Brilliant), // White's 2. Nf3
+    makeEnginePos(),
+  ];
+
+  it("offers the opponent's blunder when the side is unknown, as before", () => {
+    const texts = generateSuggestions({ loadedGame: game, enginePositions: positions }).map((s) => s.text);
+    expect(texts).toContain("Walk me through the blunder at 1...e5");
+  });
+
+  it("never offers to walk the player through the opponent's blunder", () => {
+    const texts = generateSuggestions({ loadedGame: game, enginePositions: positions, playerColor: "w" }).map((s) => s.text);
+    expect(texts.some((t) => t.includes("1...e5"))).toBe(false);
+    expect(texts).toContain("Why was 2.Nf3 brilliant?");
+  });
+
+  it("finds the player's own blunder when they were Black", () => {
+    const texts = generateSuggestions({ loadedGame: game, enginePositions: positions, playerColor: "b" }).map((s) => s.text);
+    expect(texts).toContain("Walk me through the blunder at 1...e5");
+    expect(texts.some((t) => t.includes("brilliant"))).toBe(false);
+  });
+});

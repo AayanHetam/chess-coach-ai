@@ -480,3 +480,109 @@ describe("chat route: gameEval threading (γ-route, 2026-05-23)", () => {
     expect(capturedStockfishEval!.mate).toBeUndefined();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// The follow-up prompt and the question anchor
+// ─────────────────────────────────────────────────────────────────────
+
+describe("chat route: follow-up prompt", () => {
+  it("sends the follow-up prompt (verdict / proof / lesson) by default, not the review prompt", async () => {
+    disableFlag();
+    mockGetAnalysisContext.mockReturnValue({
+      ...happyContext(),
+      systemPromptStable: "REVIEW_PROMPT_STABLE",
+      systemPromptSuffix: "USER CONTEXT:\n- User rating: 1450",
+      personalityId: "grandmaster",
+    });
+    await POST(makeRequest(fastPathBody()));
+    const args = mockCallLLM.mock.calls[0][0];
+    expect(args.system).toContain("1. THE IDEA, THEN WHAT HAPPENS");
+    expect(args.system).toContain("GRANDMASTER ATTITUDE");
+    expect(args.system).not.toContain("REVIEW_PROMPT_STABLE");
+    expect(args.system).not.toContain("[INSIGHT:");
+    // The stored per-user tail still rides in the uncached suffix.
+    expect(args.systemSuffix).toContain("User rating: 1450");
+    expect(args.maxTokens).toBeLessThan(1000);
+  });
+
+  it("COACH_FOLLOWUP_PROMPT=legacy puts the review prompt back, with its output cap", async () => {
+    disableFlag();
+    vi.stubEnv("COACH_FOLLOWUP_PROMPT", "legacy");
+    mockGetAnalysisContext.mockReturnValue({
+      ...happyContext(),
+      systemPromptStable: "REVIEW_PROMPT_STABLE",
+      systemPromptSuffix: "USER CONTEXT:\n- User rating: 1450",
+    });
+    await POST(makeRequest(fastPathBody()));
+    const args = mockCallLLM.mock.calls[0][0];
+    expect(args.system).toBe("REVIEW_PROMPT_STABLE");
+    expect(args.maxTokens).toBe(3000);
+    expect(mockBuildCondensedContext).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not replay the whole transcript: the last four exchanges, starting on a user turn", async () => {
+    disableFlag();
+    const history = [];
+    for (let i = 0; i < 7; i++) {
+      history.push({ role: "user", content: `q${i}` });
+      history.push({ role: "assistant", content: `a${i}` });
+    }
+    await POST(makeRequest(fastPathBody({ conversationHistory: history })));
+    const args = mockCallLLM.mock.calls[0][0];
+    const contents = args.messages.map((m: { content: string }) => m.content);
+    // The review, then the last four exchanges, then the question.
+    expect(contents[0]).toBe("Solid opening choice.");
+    expect(contents).not.toContain("q2");
+    expect(contents).toContain("q3");
+    expect(contents[1]).toBe("q3");
+    expect(contents[contents.length - 1]).toBe("what was my biggest mistake?");
+  });
+});
+
+describe("chat route: question anchor", () => {
+  const GAME = ["e4", "c5", "Nf3", "Nc6", "d4", "cxd4", "Nxd4", "Qb6", "Nf3", "Qxb2", "Na3", "Qxa1", "Nb5", "Qxc1", "Nc7+", "Kd8"];
+
+  it("a question that names a move is grounded on that move, and the response says which", async () => {
+    disableFlag();
+    mockGetAnalysisContext.mockReturnValue({ ...happyContext(), playedMoves: GAME, moveCount: 8 });
+    const res = await POST(
+      makeRequest(fastPathBody({ userMessage: "Why was 8. Nc7+ a mistake?", fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", moveIndex: 0 })),
+    );
+    const json = await res.json();
+    expect(json.gameAnalysis.anchor).toEqual({ ply: 15, moveNumber: 8, color: "w", san: "Nc7+" });
+    // The position returned is the board after the move, not the client's start position.
+    expect(json.gameAnalysis.position).toMatch(/^r1b1kbnr\/ppNppppp/);
+    const args = mockCallLLM.mock.calls[0][0];
+    expect(args.systemSuffix).toContain("## MOVE UNDER DISCUSSION — 8. Nc7+ (White, the player's move)");
+    expect(args.systemSuffix).toContain("Board BEFORE 8. Nc7+");
+    expect(args.systemSuffix).toContain("Board AFTER 8. Nc7+");
+    expect(args.systemSuffix).not.toContain("CURRENTLY VIEWED POSITION");
+  });
+
+  it("a general question keeps the viewed board and carries no anchor", async () => {
+    disableFlag();
+    mockGetAnalysisContext.mockReturnValue({ ...happyContext(), playedMoves: GAME, moveCount: 8 });
+    const res = await POST(makeRequest(fastPathBody({ userMessage: "what should I study next?" })));
+    const json = await res.json();
+    expect(json.gameAnalysis.anchor).toBeUndefined();
+    const args = mockCallLLM.mock.calls[0][0];
+    expect(args.systemSuffix).toContain("CURRENTLY VIEWED POSITION");
+  });
+
+  it("with the pipeline on, the anchor moves the validators to the named move", async () => {
+    enableFlag();
+    mockGetAnalysisContext.mockReturnValue({ ...happyContext(), playedMoves: GAME, moveCount: 8 });
+    let captured: { fenBefore?: string; fenAfter?: string } | null = null;
+    mockFetchDataSources.mockImplementation(async (opts: unknown) => {
+      captured = opts as { fenBefore: string; fenAfter: string };
+      return happyDataSources();
+    });
+    mockClassifyQuestion.mockResolvedValue({ category: "position_analysis", confidence: 0.9, rationale: "t" });
+    const res = await POST(makeRequest(fastPathBody({ userMessage: "why was 8. Nc7+ bad?", moveIndex: 0 })));
+    const json = await res.json();
+    expect(json.gameAnalysis.anchor.ply).toBe(15);
+    expect(captured).not.toBeNull();
+    // fenAfter is the board after 8. Nc7+ (knight on c7, Black to move).
+    expect(captured!.fenAfter).toMatch(/^r1b1kbnr\/ppNppppp/);
+  });
+});

@@ -77,6 +77,14 @@ export interface FollowUpRefereeInput {
    * lines come from the contract.
    */
   extraLines?: readonly LicensedLine[];
+  /**
+   * Spans of the reply a validator contradicted (Mastermind
+   * `ValidatorIssue.llm_span`, error severity). The sentence holding one is
+   * dropped whatever else licenses it. This is what lets a draft the
+   * pipeline rejected be served instead of its template: the objection
+   * travels with the draft and lands on the sentence it was about.
+   */
+  flaggedSpans?: readonly string[];
 }
 
 /** A licensed line and where in the game it starts. */
@@ -198,6 +206,20 @@ function evalKey(display: string): string | null {
   const mate = /^M([+-]?)(\d+)$/.exec(display.trim());
   if (mate) return `M${mate[1] || "+"}${mate[2]}`;
   return null;
+}
+
+/**
+ * The shape two texts are compared in: whitespace collapsed, markdown
+ * emphasis and trailing punctuation off, lower case. A span an extractor
+ * model pulled out of the reply rarely keeps the reply's asterisks.
+ */
+function normalizeForMatch(s: string): string {
+  return s
+    .replace(/[*_`]/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/[\s.!?,;:]+$/g, "")
+    .trim()
+    .toLowerCase();
 }
 
 export function refereeFollowUp(
@@ -355,6 +377,30 @@ export function refereeFollowUp(
       );
     });
 
+  // ── Validator objections ──────────────────────────────────────────────────
+  // A span may be a phrase ("Black's queen is hanging"), a whole sentence, or
+  // several joined with " | " (the eval validator's supporting spans). Each
+  // piece is looked for inside a sentence, and a sentence inside a piece, so
+  // a span that ran across a boundary still lands on every sentence it
+  // covered.
+  const flaggedPieces: string[] = [];
+  for (const raw of input.flaggedSpans ?? []) {
+    for (const part of raw.split(" | ")) {
+      for (const piece of splitProseSentences(part)) {
+        const n = normalizeForMatch(piece);
+        if (n.length >= 4) flaggedPieces.push(n);
+      }
+    }
+  }
+  const isFlagged = (sentence: string): boolean => {
+    if (flaggedPieces.length === 0) return false;
+    const n = normalizeForMatch(sentence);
+    if (n.length === 0) return false;
+    return flaggedPieces.some(
+      (p) => n.includes(p) || (n.length >= 12 && p.includes(n))
+    );
+  };
+
   // ── Sentence by sentence, line by line (keeps bullets and paragraphs) ─────
   const dropped: FollowUpRefereeDrop[] = [];
   let sentenceCount = 0;
@@ -380,7 +426,11 @@ export function refereeFollowUp(
       let reason: string | null = null;
       const definitional = isDefinitionalSentence(sentence);
 
-      if (!definitional) {
+      // A validator's objection outranks every licence: the sentence it was
+      // about goes, definitional or not.
+      if (isFlagged(sentence)) reason = "validator";
+
+      if (!reason && !definitional) {
         for (const fam of FAMILIES) {
           if (!fam.re.test(sentence)) continue;
           const licensed =

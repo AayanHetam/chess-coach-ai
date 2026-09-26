@@ -14,6 +14,8 @@ import {
   vi,
 } from "vitest";
 import { NextRequest } from "next/server";
+import { toCompactContract } from "@/lib/contract/followUp";
+import { makeContract, makeInsight, lineFact } from "@/lib/contract/__tests__/insightFactory";
 
 const {
   mockLog,
@@ -352,6 +354,8 @@ describe("chat route: flag-on edge cases", () => {
     const json = await res.json();
     expect(json.gameAnalysis.pipeline.timedOut).toBe(true);
     expect(json.gameAnalysis.pipeline.finalOutcome).toBe("fallback_used");
+    // A timeout has no draft to serve: the template it is.
+    expect(json.gameAnalysis.pipeline.servedDraft).toBe(false);
   });
 });
 
@@ -518,6 +522,8 @@ describe("chat route: follow-up prompt", () => {
     expect(args.system).toBe("REVIEW_PROMPT_STABLE");
     expect(args.maxTokens).toBe(3000);
     expect(mockBuildCondensedContext).toHaveBeenCalledTimes(1);
+    // No budget reminder on the legacy path: the question travels alone.
+    expect(args.messages[args.messages.length - 1].content).toBe("what was my biggest mistake?");
   });
 
   it("does not replay the whole transcript: the last four exchanges, starting on a user turn", async () => {
@@ -535,7 +541,8 @@ describe("chat route: follow-up prompt", () => {
     expect(contents).not.toContain("q2");
     expect(contents).toContain("q3");
     expect(contents[1]).toBe("q3");
-    expect(contents[contents.length - 1]).toBe("what was my biggest mistake?");
+    // The question as typed, with the budget under it (the model's copy only).
+    expect(contents[contents.length - 1]).toMatch(/^what was my biggest mistake\?\n\n\[At most 100 words/);
   });
 });
 
@@ -584,5 +591,123 @@ describe("chat route: question anchor", () => {
     expect(captured).not.toBeNull();
     // fenAfter is the board after 8. Nc7+ (knight on c7, Black to move).
     expect(captured!.fenAfter).toMatch(/^r1b1kbnr\/ppNppppp/);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// 2026-09-26: the follow-up serves the model's draft over the pipeline's
+// template, and an anchored question gets a focused contract block.
+// ─────────────────────────────────────────────────────────────────────
+
+describe("chat route: a rejected draft is served over the pipeline's template", () => {
+  const compact = toCompactContract(makeContract([makeInsight({})]), ["M1"]);
+  const TEMPLATE =
+    "White is a touch worse here.\n\nWhat changed:\n- Black's king is less safe than before.";
+  const DRAFT =
+    "A sensible developing move. Black's king is in real trouble now.\n\nLesson: Develop first, then look for tactics.";
+  function rejected() {
+    return happyPipelineResult({
+      finalResponse: TEMPLATE,
+      finalOutcome: "fallback_used",
+      retryCount: 1,
+      lastDraft: DRAFT,
+      cumulativeIssues: [
+        {
+          check_name: "relational_claim_contradicted",
+          severity: "error",
+          llm_span: "Black's king is in real trouble now",
+          expected: {},
+          actual: {},
+          detail: "no attack on the king",
+        },
+      ],
+    });
+  }
+
+  it("the validators reject the draft → the draft is served, minus the contradicted sentence", async () => {
+    enableFlag();
+    mockGetAnalysisContext.mockReturnValue({ ...happyContext(), compactContract: compact });
+    mockRunValidationPipeline.mockResolvedValue(rejected());
+    const res = await POST(makeRequest(fastPathBody()));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.gameAnalysis.pipeline.finalOutcome).toBe("fallback_used");
+    expect(json.gameAnalysis.pipeline.servedDraft).toBe(true);
+    expect(json.gameAnalysis.analysis).not.toContain("What changed");
+    expect(json.gameAnalysis.analysis).toContain("A sensible developing move.");
+    expect(json.gameAnalysis.analysis).not.toContain("real trouble");
+    expect(json.gameAnalysis.analysis).toContain("Lesson: Develop first, then look for tactics.");
+  });
+
+  it("with no contract to referee against, the template stands", async () => {
+    enableFlag();
+    mockRunValidationPipeline.mockResolvedValue(rejected());
+    const res = await POST(makeRequest(fastPathBody()));
+    const json = await res.json();
+    expect(json.gameAnalysis.pipeline.servedDraft).toBe(false);
+    expect(json.gameAnalysis.analysis).toContain("What changed");
+  });
+
+  it("on the legacy prompt the template stands", async () => {
+    enableFlag();
+    vi.stubEnv("COACH_FOLLOWUP_PROMPT", "legacy");
+    mockGetAnalysisContext.mockReturnValue({ ...happyContext(), compactContract: compact });
+    mockRunValidationPipeline.mockResolvedValue(rejected());
+    const res = await POST(makeRequest(fastPathBody()));
+    const json = await res.json();
+    expect(json.gameAnalysis.pipeline.servedDraft).toBe(false);
+    expect(json.gameAnalysis.analysis).toContain("touch worse");
+  });
+
+  it("a draft that passed is served as itself, without the flagged spans of an earlier attempt", async () => {
+    enableFlag();
+    mockGetAnalysisContext.mockReturnValue({ ...happyContext(), compactContract: compact });
+    mockRunValidationPipeline.mockResolvedValue(
+      happyPipelineResult({
+        finalResponse: "Black's king is in real trouble now. Develop first.",
+        finalOutcome: "passed_after_retry",
+        retryCount: 1,
+        cumulativeIssues: rejected().cumulativeIssues,
+      }),
+    );
+    const res = await POST(makeRequest(fastPathBody()));
+    const json = await res.json();
+    expect(json.gameAnalysis.pipeline.servedDraft).toBe(false);
+    expect(json.gameAnalysis.analysis).toContain("real trouble");
+  });
+});
+
+describe("chat route: the contract block is focused on the move asked about", () => {
+  const GAME = ["e4", "c5", "Nf3", "Nc6", "d4", "cxd4", "Nxd4", "Qb6", "Nf3", "Qxb2", "Na3", "Qxa1", "Nb5", "Qxc1", "Nc7+", "Kd8"];
+  const other = makeInsight({
+    factIdPrefix: "M1",
+    moveNumber: 12,
+    color: "w",
+    colorName: "White",
+    playedSan: "Bd3",
+    bestSan: "Ne6",
+    lines: [lineFact("M1.pv0", ["Ne6", "Qd7", "Nxg7"], ["d4e6", "d8d7", "e6g7"], { cp: 320, display: "+3.20" })],
+  });
+  const compact = toCompactContract(makeContract([other]), ["M1"]);
+
+  it("an anchored question keeps the other findings' verdicts and evals but not their lines", async () => {
+    disableFlag();
+    mockGetAnalysisContext.mockReturnValue({ ...happyContext(), playedMoves: GAME, moveCount: 8, compactContract: compact });
+    await POST(makeRequest(fastPathBody({ userMessage: "Why was 8. Nc7+ a mistake?", moveIndex: 0 })));
+    const args = mockCallLLM.mock.calls[0][0];
+    expect(args.systemSuffix).toContain("move 12 White played Bd3");
+    expect(args.systemSuffix).toContain("-2.12"); // its eval after the move
+    expect(args.systemSuffix).not.toContain("12.Ne6");
+    expect(args.systemSuffix).toContain("engine line: withheld this turn");
+    expect(args.systemSuffix).toContain("The question is about move 8 (White)");
+  });
+
+  it("a general question gets the whole block", async () => {
+    disableFlag();
+    mockGetAnalysisContext.mockReturnValue({ ...happyContext(), playedMoves: GAME, moveCount: 8, compactContract: compact });
+    await POST(makeRequest(fastPathBody({ userMessage: "what should I study next?" })));
+    const args = mockCallLLM.mock.calls[0][0];
+    expect(args.systemSuffix).toContain("12.Ne6");
+    expect(args.systemSuffix).not.toContain("withheld");
   });
 });

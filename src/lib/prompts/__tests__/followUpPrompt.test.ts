@@ -5,6 +5,9 @@ import {
   FOLLOWUP_WORD_BUDGET,
   getFollowUpPromptMode,
   getFollowUpSystemPromptStable,
+  followUpTurnReminder,
+  isWalkthroughQuestion,
+  FOLLOWUP_WALKTHROUGH_WORD_BUDGET,
 } from "../followUpPrompt";
 import { coachPersonalities } from "@/config/coachPersonalities";
 
@@ -28,6 +31,10 @@ describe("getFollowUpSystemPromptStable — invariants", () => {
 
   it("states the word budget and the teaching shape", () => {
     expect(out).toContain(`at most ${FOLLOWUP_WORD_BUDGET} words`);
+    // The count the model can actually keep is a count of sentences.
+    expect(out).toContain("Two or three sentences");
+    expect(out).toContain("One or two sentences");
+    expect(out).toContain("The shape is the count");
     expect(out).toContain("1. THE IDEA, THEN WHAT HAPPENS");
     expect(out).toContain("2. PROOF");
     expect(out).toContain("3. LESSON");
@@ -97,7 +104,7 @@ describe("getFollowUpSystemPromptStable — invariants", () => {
   });
 
   it("pins the constants the route relies on", () => {
-    expect(FOLLOWUP_PROMPT_VERSION).toBe("1.2");
+    expect(FOLLOWUP_PROMPT_VERSION).toBe("1.3");
     expect(FOLLOWUP_MAX_TOKENS).toBeGreaterThan(300);
     expect(FOLLOWUP_MAX_TOKENS).toBeLessThan(3000);
   });
@@ -119,5 +126,48 @@ describe("getFollowUpPromptMode", () => {
   it("anything else is the new prompt", () => {
     vi.stubEnv("COACH_FOLLOWUP_PROMPT", "v2");
     expect(getFollowUpPromptMode()).toBe("v1");
+  });
+});
+
+describe("followUpTurnReminder", () => {
+  it("repeats the budget under an ordinary question", () => {
+    const r = followUpTurnReminder("Why was 8. Nc7+ a mistake?");
+    expect(r).toContain(`At most ${FOLLOWUP_WORD_BUDGET} words`);
+    expect(r).toMatch(/^\[.*\]$/);
+    expect(r).not.toContain(`${FOLLOWUP_WALKTHROUGH_WORD_BUDGET} words`);
+  });
+
+  it("allows the walkthrough budget when the player asks to be walked through", () => {
+    expect(followUpTurnReminder("walk me through the engine line")).toContain(
+      `At most ${FOLLOWUP_WALKTHROUGH_WORD_BUDGET} words`
+    );
+    expect(followUpTurnReminder("Explain it step by step please")).toContain(
+      `At most ${FOLLOWUP_WALKTHROUGH_WORD_BUDGET} words`
+    );
+  });
+
+  it("mandates no part a question may not need", () => {
+    // A factual question gets no Lesson and a greeting gets no token: the
+    // reminder caps, it never demands.
+    const r = followUpTurnReminder("what opening was this?");
+    expect(r).toContain("if a line proves it");
+    expect(r).toContain("if there is one to teach");
+  });
+});
+
+describe("isWalkthroughQuestion", () => {
+  it("reads the phrasings that ask for the longer form", () => {
+    for (const q of [
+      "Walk me through the line",
+      "can you walk through what happens after Qxc1?",
+      "explain the whole line step-by-step",
+      "take me through the entire line",
+    ])
+      expect(isWalkthroughQuestion(q), q).toBe(true);
+  });
+
+  it("and nothing else", () => {
+    for (const q of ["Why was 8. Nc7+ a mistake?", "what should I study?", "thanks!"])
+      expect(isWalkthroughQuestion(q), q).toBe(false);
   });
 });

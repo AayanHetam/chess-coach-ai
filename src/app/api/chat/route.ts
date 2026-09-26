@@ -16,6 +16,7 @@ import {
   FOLLOWUP_PROMPT_VERSION,
   getFollowUpPromptMode,
   getFollowUpSystemPromptStable,
+  followUpTurnReminder,
 } from "@/lib/prompts/followUpPrompt";
 import { resolveQuestionAnchor } from "@/lib/coach/questionAnchor";
 import {
@@ -107,7 +108,13 @@ function refereeChatReply(
     activePly?: number;
     /** The anchor's engine line, for numbered moves cited from it. */
     lines?: readonly LicensedLine[];
-  }
+  },
+  /**
+   * Spans a Mastermind validator contradicted in this very reply, when the
+   * reply is a draft the pipeline rejected: the referee drops the sentence
+   * each one is about.
+   */
+  flaggedSpans?: readonly string[]
 ): string {
   if (!context.compactContract) return reply;
   try {
@@ -127,6 +134,7 @@ function refereeChatReply(
       extraLicensedText: anchorLicence?.text,
       activePly: anchorLicence?.activePly,
       extraLines: anchorLicence?.lines,
+      flaggedSpans,
     });
     if (result.dropped.length > 0) {
       log.info("followup_referee_dropped", {
@@ -305,8 +313,18 @@ export async function POST(request: NextRequest) {
       // degraded source forbids. Absent (legacy-served review, or a context
       // cached before this landed) it renders to "" and the turn behaves
       // exactly as before.
+      // With an anchor the block is focused: the engine line and its story
+      // for the move asked about alone, the other findings' verdicts and
+      // evals without their lines (followUp.ts, ContractFocus). Live, the
+      // other moments' lines were where a borrowed "9...Kxc7" came from.
       const contractBlock = context.compactContract
-        ? renderContractCompact(context.compactContract)
+        ? renderContractCompact(
+            context.compactContract,
+            undefined,
+            anchor
+              ? { moveNumber: anchor.moveNumber, color: anchor.color }
+              : undefined
+          )
         : "";
 
       // The follow-up prompt (followUpPrompt.ts): the verdict / proof /
@@ -338,8 +356,9 @@ export async function POST(request: NextRequest) {
         useFollowUpPrompt || context.systemPromptStable
           ? `${context.systemPromptSuffix ?? ""}\n\n${condensedContext}`.trim()
           : condensedContext;
-      // Output cap. The follow-up prompt budgets 80 words; the cap is several
-      // times that so only a runaway answer is ever cut mid-sentence.
+      // Output cap. The follow-up prompt budgets FOLLOWUP_WORD_BUDGET words;
+      // the cap is several times that so only a runaway answer is ever cut
+      // mid-sentence.
       const outputCap = useFollowUpPrompt ? FOLLOWUP_MAX_TOKENS : 3000;
 
       const nonSystemMessages: LLMMessage[] = [];
@@ -400,8 +419,16 @@ export async function POST(request: NextRequest) {
         nonSystemMessages.push(...kept);
       }
 
-      // Current user message
-      nonSystemMessages.push({ role: "user", content: userMessage });
+      // The player's question, with the budget under it on the follow-up
+      // path (followUpPrompt.ts): the model's copy of the turn only. The
+      // transcript the client keeps, the anchor and the referee all see the
+      // question as typed.
+      nonSystemMessages.push({
+        role: "user",
+        content: useFollowUpPrompt
+          ? `${userMessage}\n\n${followUpTurnReminder(userMessage)}`
+          : userMessage,
+      });
 
       const systemText = cachedSystemPrompt;
       // What the client needs to put the discussed position on the board,
@@ -552,8 +579,43 @@ export async function POST(request: NextRequest) {
             );
           }
 
+          // The pipeline's fallback is a template about the position ("What
+          // changed: … What to look at: …") that answers no question. It was
+          // built for the review, where a template beats a hallucinated
+          // card. The follow-up reply has a sentence-level referee of its
+          // own, so when the validators rejected the model's draft the draft
+          // is served instead, minus every sentence a validator contradicted
+          // (the spans ride with the issues), and the referee licenses the
+          // rest. A pipeline that timed out or never got a draft, the legacy
+          // prompt, and a context with no contract to referee against still
+          // serve the template. Live (2026-09-26) the template stood in for
+          // two of six answers.
+          const isFallbackUsed =
+            pipelineResult.finalOutcome === "fallback_used";
+          const draft =
+            useFollowUpPrompt &&
+            isFallbackUsed &&
+            !pipelineResult.timedOut &&
+            context.compactContract
+              ? pipelineResult.lastDraft
+              : undefined;
+          const flaggedSpans = draft
+            ? pipelineResult.cumulativeIssues
+                .filter((i) => i.severity === "error")
+                .map((i) => i.llm_span)
+                .filter((span) => typeof span === "string" && span.length > 0)
+            : undefined;
+          if (draft) {
+            log.info("followup_draft_served", {
+              requestId,
+              retryCount: pipelineResult.retryCount,
+              issues: pipelineResult.cumulativeIssues.map((i) => i.check_name),
+            });
+          }
           const rawContent =
-            pipelineResult.finalResponse || "I couldn't generate a response.";
+            draft ||
+            pipelineResult.finalResponse ||
+            "I couldn't generate a response.";
           const validation = validateAIResponse(rawContent, activeFen);
 
           forwardPipelineTelemetryForRoute({
@@ -579,10 +641,9 @@ export async function POST(request: NextRequest) {
           // buildFallbackResponse prose cites pre-move position state by
           // design (role changes from featureDelta), while validateAIResponse
           // checks against post-move FEN → systematic false positive.
-          const isFallbackUsed =
-            pipelineResult.finalOutcome === "fallback_used";
+          const servedTemplate = isFallbackUsed && !draft;
           const usePositionAnchoredAnnotation =
-            !isFallbackUsed &&
+            !servedTemplate &&
             POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category);
           return NextResponse.json({
             gameAnalysis: {
@@ -593,7 +654,8 @@ export async function POST(request: NextRequest) {
                 context,
                 activeFen,
                 requestId,
-                anchorLicence
+                anchorLicence,
+                flaggedSpans
               ),
               position: activeFen,
               ...anchorFields,
@@ -603,6 +665,9 @@ export async function POST(request: NextRequest) {
               pipeline: {
                 finalOutcome: pipelineResult.finalOutcome,
                 retryCount: pipelineResult.retryCount,
+                // True when the validators' rejected draft was served,
+                // refereed, in place of the template.
+                servedDraft: !!draft,
                 totalCostUsd: pipelineResult.totalCostUsd,
                 category: prep.category,
                 classifierConfidence: prep.classifierConfidence,

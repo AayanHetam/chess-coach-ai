@@ -30,7 +30,7 @@
  */
 import { getPersonalityById } from "@/config/coachPersonalities";
 
-export const FOLLOWUP_PROMPT_VERSION = "1.1";
+export const FOLLOWUP_PROMPT_VERSION = "1.2";
 
 /** Words of the model's own prose in an answer about a move; tokens and notation excluded. */
 export const FOLLOWUP_WORD_BUDGET = 100;
@@ -74,11 +74,11 @@ THE SHAPE OF EVERY ANSWER (no exceptions)
 2. PROOF. Show the line instead of describing it. Put one of these tokens on a line of its own and the app draws the moves, what each move does, and the evaluation:
    [CONTINUATION:<moveNumber>:<color>] — the engine's best line from the position before that move. [CONTINUATION:8:w] is the line instead of White's 8th move.
    [PLAYED:<moveNumber>:<color>] — what the game actually did from that position. [PLAYED:8:w] shows White's 8th move and what followed.
-   At most two tokens per answer, each on its own line, nothing else on that line. Never write out a sequence of moves yourself. Name at most one move per sentence, always with its number ("8. Qxc1", "8... Kd8"), and only a move that appears in the facts below.
+   At most two tokens per answer, each on its own line, nothing else on that line. The app draws every move of the line, so never write the line's moves in prose: no "after Kxc7, then Bd3", no "the line continues with". A sentence holds at most one move, always with its number ("8. Qxc1", "8... Kd8"), and only a move that the facts give for THIS move. A move from another key moment's line is not a move here.
 3. LESSON. A paragraph that starts with "Lesson:". Name the pattern, then give the one check the player can run before a move like this in the next game — a habit with a trigger, not a maxim. "Before any check or fork, list every capture your opponent has in reply, and take what is already hanging first" teaches; "be careful with forcing moves" does not. At most ${FOLLOWUP_LESSON_WORD_BUDGET} words. Required when the question is about a mistake, a missed chance or a plan; skip it for a factual question.
 4. YOUR TURN (optional). At most one question back, only after a lesson, only a chess question the player can answer from the board on screen, and only when the facts below let you check their answer ("Black has just checked on d1: which recapture keeps your rook safe?"). Start it with "Your turn:". Never a check-in ("does that make sense?"), never a question about a position the facts do not cover.
 
-BUDGET: at most ${FOLLOWUP_WORD_BUDGET} words of your own prose in an answer; ${FOLLOWUP_WALKTHROUGH_WORD_BUDGET} when the player asks to be walked through something. Tokens and move notation do not count. Nothing after the lesson or the question: no summary, no offer of more. Depth is the player's to ask for.
+BUDGET: at most ${FOLLOWUP_WORD_BUDGET} words in the whole answer, a hard limit, the Lesson and Your turn included; ${FOLLOWUP_WALKTHROUGH_WORD_BUDGET} when the player asks to be walked through something. Tokens and move notation do not count. Count before you answer; over the limit, cut from part 1, never from the Lesson. Nothing after the lesson or the question: no summary, no offer of more. Depth is the player's to ask for.
 
 NEVER WRITE: "Great question", "You're absolutely right", "Let me break down", "Let's dive in", "Does that clarify", "Does that make sense", "The pattern to remember:", "Key lesson:", "In summary", a markdown heading, a bullet list, an emoji. Bold at most once, for the one move or idea that matters.
 

@@ -6,7 +6,10 @@ import {
 } from "@/lib/analysisContextCache";
 import { buildFenPositionFacts } from "@/lib/mastermind/positionFacts";
 import { renderContractCompact } from "@/lib/contract/followUp";
-import { refereeFollowUp } from "@/lib/contract/followUpReferee";
+import {
+  refereeFollowUp,
+  type LicensedLine,
+} from "@/lib/contract/followUpReferee";
 import { FOLLOWUP_REDUCED_GROUNDING_NOTE } from "@/lib/prompts/followupGrounding";
 import {
   FOLLOWUP_MAX_TOKENS,
@@ -17,6 +20,8 @@ import {
 import { resolveQuestionAnchor } from "@/lib/coach/questionAnchor";
 import {
   buildAnchorBlock,
+  anchorAlternativeFen,
+  anchorLicensedLines,
   buildFollowUpCondensedContext,
 } from "@/lib/coach/followUpContext";
 import { buildRelationalFacts } from "@/lib/relational/relationalFactsBuilder";
@@ -82,7 +87,11 @@ const FOLLOWUP_HISTORY_MESSAGES = 8;
  */
 function refereeChatReply(
   reply: string,
-  context: { compactContract?: import("@/lib/contract/followUp").CompactContract; compactGameContext?: string; playedMoves?: string[] },
+  context: {
+    compactContract?: import("@/lib/contract/followUp").CompactContract;
+    compactGameContext?: string;
+    playedMoves?: string[];
+  },
   activeFen: string,
   requestId: string,
   /**
@@ -91,13 +100,22 @@ function refereeChatReply(
    * words, exactly as a reviewed insight's do. Without this, a follow-up
    * about a move that was never a card had every board claim deleted.
    */
-  anchorLicence?: { fens: readonly string[]; text: string },
+  anchorLicence?: {
+    fens: readonly string[];
+    text: string;
+    /** The ply of `activeFen`, so a sentence's moves are read as a line from it. */
+    activePly?: number;
+    /** The anchor's engine line, for numbered moves cited from it. */
+    lines?: readonly LicensedLine[];
+  }
 ): string {
   if (!context.compactContract) return reply;
   try {
     const evalSource = `${context.compactGameContext ?? ""}\n${anchorLicence?.text ?? ""}`;
     const licensedEvals = Array.from(
-      evalSource.matchAll(/(?<![A-Za-z0-9.])([+-]\d+(?:\.\d{1,2})?|M[+-]?\d+)(?![A-Za-z0-9.%])/g),
+      evalSource.matchAll(
+        /(?<![A-Za-z0-9.])([+-]\d+(?:\.\d{1,2})?|M[+-]?\d+)(?![A-Za-z0-9.%])/g
+      )
     ).map((m) => m[1]);
     const result = refereeFollowUp({
       reply,
@@ -107,6 +125,8 @@ function refereeChatReply(
       licensedEvals,
       extraFens: anchorLicence?.fens,
       extraLicensedText: anchorLicence?.text,
+      activePly: anchorLicence?.activePly,
+      extraLines: anchorLicence?.lines,
     });
     if (result.dropped.length > 0) {
       log.info("followup_referee_dropped", {
@@ -126,7 +146,10 @@ export async function POST(request: NextRequest) {
   // AI is switched off on purpose (see lib/coach/aiAvailability). Refuse
   // BEFORE any work, auth or spend, and with a code that says "off", not
   // "broken" — the difference decides whether the user retries forever.
-  { const refusal = await aiRefusal(); if (refusal) return refusal; }
+  {
+    const refusal = await aiRefusal();
+    if (refusal) return refusal;
+  }
   const guard = await requireSession();
   if ("response" in guard) return guard.response;
   // Same `reportFatal` helper as /api/enhanced-analysis: fire a structured
@@ -208,7 +231,9 @@ export async function POST(request: NextRequest) {
       let effectiveMoveIndex = moveIndex;
 
       const playerColorLetter: "w" | "b" =
-        context.playerColor === "b" || context.playerColor === "black" ? "b" : "w";
+        context.playerColor === "b" || context.playerColor === "black"
+          ? "b"
+          : "w";
       const followUpMode = getFollowUpPromptMode();
       const useFollowUpPrompt = followUpMode === "v1";
 
@@ -222,7 +247,7 @@ export async function POST(request: NextRequest) {
         userMessage,
         context.playedMoves ?? [],
         playerColorLetter,
-        moveIndex,
+        moveIndex
       );
       if (anchor) {
         activeFen = anchor.fenAfter;
@@ -243,12 +268,14 @@ export async function POST(request: NextRequest) {
             anchor,
             context.playedMoves ?? [],
             context.gameEval as never,
-            playerColorLetter,
+            playerColorLetter
           );
           const relationalAfter = buildRelationalFacts(anchor.fenAfter).summary;
           perTurnFacts = [
             anchorBlock,
-            relationalAfter ? `VERIFIED POSITION FACTS after ${anchor.san}:\n${relationalAfter}` : "",
+            relationalAfter
+              ? `VERIFIED POSITION FACTS after ${anchor.san}:\n${relationalAfter}`
+              : "",
           ]
             .filter(Boolean)
             .join("\n\n");
@@ -388,12 +415,35 @@ export async function POST(request: NextRequest) {
               san: anchor.san,
               ...(anchor.askedSan ? { askedSan: anchor.askedSan } : {}),
             },
-            followUpPrompt: useFollowUpPrompt ? FOLLOWUP_PROMPT_VERSION : "legacy",
+            followUpPrompt: useFollowUpPrompt
+              ? FOLLOWUP_PROMPT_VERSION
+              : "legacy",
           }
-        : { followUpPrompt: useFollowUpPrompt ? FOLLOWUP_PROMPT_VERSION : "legacy" };
+        : {
+            followUpPrompt: useFollowUpPrompt
+              ? FOLLOWUP_PROMPT_VERSION
+              : "legacy",
+          };
+      const altFen = anchor ? anchorAlternativeFen(anchor) : null;
       const anchorLicence = anchor
-        ? { fens: [anchor.fenBefore, anchor.fenAfter], text: anchorBlock }
-        : undefined;
+        ? {
+            fens: [
+              anchor.fenBefore,
+              anchor.fenAfter,
+              ...(altFen ? [altFen] : []),
+            ],
+            text: anchorBlock,
+            activePly: anchor.ply,
+            lines: anchorLicensedLines(anchor, context.gameEval as never),
+          }
+        : {
+            fens: [],
+            text: "",
+            activePly:
+              typeof effectiveMoveIndex === "number"
+                ? effectiveMoveIndex
+                : undefined,
+          };
 
       // Stage B insertion (§3.7.9 chat-equivalent of A): single env read.
       const { validatorsEnabled } = getMastermindEnv();
@@ -543,7 +593,7 @@ export async function POST(request: NextRequest) {
                 context,
                 activeFen,
                 requestId,
-                anchorLicence,
+                anchorLicence
               ),
               position: activeFen,
               ...anchorFields,
@@ -613,7 +663,7 @@ export async function POST(request: NextRequest) {
             context,
             activeFen,
             requestId,
-            anchorLicence,
+            anchorLicence
           ),
           position: activeFen,
           ...anchorFields,

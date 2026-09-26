@@ -10,22 +10,47 @@ import {
 
 // Fixture 07: 8. Nc7+ forks king and rook while Black's queen on c1 hangs to 8. Qxc1.
 const MOVES = [
-  "e4", "c5", "Nf3", "Nc6", "d4", "cxd4", "Nxd4", "Qb6",
-  "Nf3", "Qxb2", "Na3", "Qxa1", "Nb5", "Qxc1", "Nc7+", "Kd8",
-  "Nxa8", "Qxd1+", "Kxd1", "e5",
+  "e4",
+  "c5",
+  "Nf3",
+  "Nc6",
+  "d4",
+  "cxd4",
+  "Nxd4",
+  "Qb6",
+  "Nf3",
+  "Qxb2",
+  "Na3",
+  "Qxa1",
+  "Nb5",
+  "Qxc1",
+  "Nc7+",
+  "Kd8",
+  "Nxa8",
+  "Qxd1+",
+  "Kxd1",
+  "e5",
 ];
 
 /** A gameEval with a real line at every position; move 8 carries the engine's Qxc1 line. */
 function gameEval() {
   const positions = MOVES.map((_, i) => ({
-    lines: [{ cp: i < 14 ? 284 : -211, depth: 16, multiPv: 1, pv: [] as string[] }],
+    lines: [
+      { cp: i < 14 ? 284 : -211, depth: 16, multiPv: 1, pv: [] as string[] },
+    ],
     bestMove: "N/A",
     moveClassification: i === 15 ? "blunder" : "good",
   }));
-  positions.push({ lines: [{ cp: -540, depth: 16, multiPv: 1, pv: [] }], bestMove: "N/A", moveClassification: "good" });
+  positions.push({
+    lines: [{ cp: -540, depth: 16, multiPv: 1, pv: [] }],
+    bestMove: "N/A",
+    moveClassification: "good",
+  });
   // Position before 8. Nc7+ (index 14): the engine wants d1c1 and runs Qxc1 Rb8 Qf4 f6.
   positions[14] = {
-    lines: [{ cp: 284, depth: 16, multiPv: 1, pv: ["d1c1", "a8b8", "c1f4", "f7f6"] }],
+    lines: [
+      { cp: 284, depth: 16, multiPv: 1, pv: ["d1c1", "a8b8", "c1f4", "f7f6"] },
+    ],
     bestMove: "d1c1",
     moveClassification: "good",
   };
@@ -53,24 +78,40 @@ function ctx(over: Partial<AnalysisContext> = {}): AnalysisContext {
 }
 
 describe("buildAnchorBlock — the move the question names", () => {
-  const anchor = resolveQuestionAnchor("Why was 8. Nc7+ a mistake?", MOVES, "w")!;
+  const anchor = resolveQuestionAnchor(
+    "Why was 8. Nc7+ a mistake?",
+    MOVES,
+    "w"
+  )!;
   const block = buildAnchorBlock(anchor, MOVES, gameEval() as never, "w");
 
   it("names the move, whose it was, and both evals in the table's own format", () => {
-    expect(block).toContain("## MOVE UNDER DISCUSSION — 8. Nc7+ (White, the player's move)");
+    expect(block).toContain(
+      "## MOVE UNDER DISCUSSION — 8. Nc7+ (White, the player's move)"
+    );
     expect(block).toContain("Eval before the move: +2.84. After it: -2.11.");
   });
 
   it("carries the engine's preferred move and its line, narrated ply by ply", () => {
     expect(block).toContain("Engine's preferred move here: Qxc1.");
-    expect(block).toContain("Engine line from before the move: 8. Qxc1 Rb8 9. Qf4 f6");
+    expect(block).toContain(
+      "Engine line from before the move (the engine rates this line +2.84, White's perspective): 8. Qxc1 Rb8 9. Qf4 f6"
+    );
+    expect(block).toContain(
+      "This line replaces 8. Nc7+: Nc7+ is not played in it."
+    );
+    expect(block).toContain(
+      "A move from another key moment's line belongs to that move, not to this one."
+    );
     expect(block).toContain("what the engine line does:");
     // The first ply of the story is the capture of the queen.
     expect(block).toMatch(/8\.Qxc1 — .*queen/);
   });
 
   it("carries what the game did next, told the same way", () => {
-    expect(block).toContain("What the game did next: 8. Nc7+ Kd8 9. Nxa8 Qxd1+ 10. Kxd1 e5");
+    expect(block).toContain(
+      "What the game did next: 8. Nc7+ Kd8 9. Nxa8 Qxd1+ 10. Kxd1 e5"
+    );
     expect(block).toContain("what these moves do:");
     expect(block).toMatch(/8\.Nc7\+ — .*check/);
   });
@@ -85,10 +126,19 @@ describe("buildAnchorBlock — the move the question names", () => {
     expect(block.split("Board AFTER")[1]).toMatch(/White pieces: .*Nc7/);
   });
 
-  it("says when the question is about an alternative", () => {
+  it("says when the question is about an alternative, and shows its board", () => {
     const alt = resolveQuestionAnchor("why not 8. Qxc1?", MOVES, "w")!;
-    expect(buildAnchorBlock(alt, MOVES, gameEval() as never, "w")).toContain(
-      "The player asks about Qxc1 as an alternative at this point.",
+    const block = buildAnchorBlock(alt, MOVES, gameEval() as never, "w");
+    expect(block).toContain(
+      "The player asks about Qxc1 as an alternative at this point."
+    );
+    // The alternative's own board, so the answer is not written from the
+    // board after the move that was played.
+    expect(block).toContain(
+      "Board AFTER 8. Qxc1 instead (the alternative asked about, Black to move):"
+    );
+    expect(block.split("Board AFTER 8. Qxc1 instead")[1]).toMatch(
+      /White pieces: .*Qc1/
     );
   });
 
@@ -103,7 +153,9 @@ describe("buildAnchorBlock — the move the question names", () => {
 
   it("marks the opponent's move as theirs", () => {
     const a = resolveQuestionAnchor("what about 7... Qxc1?", MOVES, "w")!;
-    expect(buildAnchorBlock(a, MOVES, gameEval() as never, "w")).toContain("(Black, the opponent's move)");
+    expect(buildAnchorBlock(a, MOVES, gameEval() as never, "w")).toContain(
+      "(Black, the opponent's move)"
+    );
   });
 });
 
@@ -136,7 +188,9 @@ describe("buildFollowUpCondensedContext", () => {
   it("is the overview, the PGN, the windowed table and the worst moves — no final-position piece map", () => {
     const out = buildFollowUpCondensedContext(ctx(), 15);
     expect(out).toContain("## THIS GAME");
-    expect(out).toContain("Player: White · Skill: intermediate · 10 full moves");
+    expect(out).toContain(
+      "Player: White · Skill: intermediate · 10 full moves"
+    );
     expect(out).toContain("## MOVES PLAYED (PGN)");
     expect(out).toContain("## MOVE TABLE");
     expect(out).toContain("## TOP MISTAKES");
@@ -151,6 +205,8 @@ describe("buildFollowUpCondensedContext", () => {
   });
 
   it("points at the review without replaying it", () => {
-    expect(buildFollowUpCondensedContext(ctx(), null)).toContain("first message in this conversation");
+    expect(buildFollowUpCondensedContext(ctx(), null)).toContain(
+      "first message in this conversation"
+    );
   });
 });

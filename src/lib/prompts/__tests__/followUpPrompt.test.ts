@@ -65,7 +65,12 @@ describe("getFollowUpSystemPromptStable — invariants", () => {
   });
 
   it("bans the openers and closers the real answers carried", () => {
-    for (const phrase of ["Great question", "You're absolutely right", "Does that clarify", "The pattern to remember:"]) {
+    for (const phrase of [
+      "Great question",
+      "You're absolutely right",
+      "Does that clarify",
+      "The pattern to remember:",
+    ]) {
       expect(out).toContain(phrase);
     }
   });
@@ -77,18 +82,22 @@ describe("getFollowUpSystemPromptStable — invariants", () => {
   });
 
   it("wears the attitude", () => {
-    expect(getFollowUpSystemPromptStable("grandmaster")).toContain("GRANDMASTER ATTITUDE");
-    expect(getFollowUpSystemPromptStable("rival")).not.toContain("GRANDMASTER ATTITUDE");
+    expect(getFollowUpSystemPromptStable("grandmaster")).toContain(
+      "GRANDMASTER ATTITUDE"
+    );
+    expect(getFollowUpSystemPromptStable("rival")).not.toContain(
+      "GRANDMASTER ATTITUDE"
+    );
   });
 
   it("falls back to the default attitude for an unknown id", () => {
     expect(getFollowUpSystemPromptStable("not-a-personality")).toBe(
-      getFollowUpSystemPromptStable("friendly"),
+      getFollowUpSystemPromptStable("friendly")
     );
   });
 
   it("pins the constants the route relies on", () => {
-    expect(FOLLOWUP_PROMPT_VERSION).toBe("1.1");
+    expect(FOLLOWUP_PROMPT_VERSION).toBe("1.2");
     expect(FOLLOWUP_MAX_TOKENS).toBeGreaterThan(300);
     expect(FOLLOWUP_MAX_TOKENS).toBeLessThan(3000);
   });

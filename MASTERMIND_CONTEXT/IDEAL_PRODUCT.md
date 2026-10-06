@@ -20,7 +20,7 @@ A coach who studied your game before you sat down. He shows you, on the board, w
 4. **Proof over assertion.** Every concrete claim carries something the player can play through or see. When a claim cannot be proved from what the coach has, he says what he would need, in one clause, and answers from what he does have.
 5. **Teach the transfer.** A mistake is named as a pattern, with a trigger and a check, and it is tracked across games. The point of a review is the next game.
 6. **The player's depth.** The default answer is short. Depth is one tap or one question away and is never withheld.
-7. **Masti is the coach.** Warm, reactive, funny when it fits, never childish. He is not a mascot standing beside a coach.
+7. **Masti is the coach, and there is one of him.** Warm, reactive, funny when it fits, never childish. He is not a mascot standing beside a coach. The seven attitudes are retired: one voice, calibrated by the player's level, with no picker.
 
 ## The experience, in scenes
 
@@ -30,7 +30,7 @@ Before any model text, the player sees the board at the decisive moment, the eva
 
 ### Scene 2: the turning points
 
-Each key moment is a scene on the board, not a card in a list. The board jumps there. The move the player played is drawn in one colour and the move they missed in another. The eval bar swings. Two short lines: what you meant, and what it actually did. Under them, the proof line with a Play control and one plain-words caption per move as it plays. One tap opens the why, the solution and the outcome. A "Lesson" note names the pattern and the check. Masti asks one diagnosing question ("What did you think Black's threat was here?") and the lesson changes with the answer. Four chips: Play it, What if, Quiz me, Defend it.
+Each key moment is a scene on the board, not a card in a list. The board jumps there. The move the player played is drawn in one colour and the move they missed in another. The eval bar swings. Two short lines: what you meant, and what it actually did. Under them, the proof line with a Play control and one plain-words caption per move as it plays. One tap opens the why, the solution and the outcome. A "Lesson" note names the pattern and the check. At the decisive moment Masti asks one diagnosing question ("What did you think Black's threat was here?") and the lesson changes with the answer. The other moments offer the question as a chip. Four chips: Play it, What if, Quiz me, Defend it.
 
 ### Scene 3: any move
 
@@ -50,17 +50,17 @@ A coach with one game and one hour runs through a known set of moves. Each one i
 
 | The coach's move | In the ideal? | How, and what it needs |
 | --- | --- | --- |
-| Checks the preparation: where the player or the opponent left theory | In | The opening intent. The book edge is a fact from the master tree, shown on the arc and on the board at that move. |
-| Explains the opening's why: where the pieces belong, which pawn breaks, which plans follow from the structure | In | The opening and plan intents, as teaching claims drawn on the board (target squares, breaks, routes). Needs a per-opening plan source beyond the corpus, which is the first thing the pathway must price. |
+| Checks the preparation: where the player or the opponent left theory | In, on request only | The opening intent, and never pushed. Most players do not need theory help, and a review that opens with "you left book on move 6" is the wrong first sentence for them. The book edge is a fact from the master tree, available when asked, and never a key moment by itself. |
+| Explains the opening's why: where the pieces belong, which pawn breaks, which plans follow from the structure | In, on request only | The opening and plan intents, as teaching claims drawn on the board (target squares, breaks, routes). Needs a per-opening plan source beyond the corpus, which the pathway must price. Same rule: answered when asked, never volunteered in the review. |
 | Pinpoints the two or three turning points | In, exists | Scene 2. |
-| Diagnoses the thought process: "What were you calculating?" "What did you think the threat was?" | In, new | The coach asks at each key moment. The player's reply is classified into a root cause (a blind spot for a move type, rushing, misjudging the position, a calculation slip) and the lesson and the homework follow the cause, not the eval drop. This is the single biggest gap between the product and a coach. |
+| Diagnoses the thought process: "What were you calculating?" "What did you think the threat was?" | In, new | The coach asks at the decisive moment by default, and the other key moments carry a "Why did I play this?" chip that asks it on demand. The player's reply is classified into a root cause (a blind spot for a move type, rushing, misjudging the position, a calculation slip) and the lesson and the homework follow the cause, not the eval drop. This is the single biggest gap between the product and a coach. |
 | Translates the evaluation into human terms | In | A number is never shown alone. Each eval carries its positional reason, computed from the position (a trapped piece, a weak colour complex, an open file), in the moment's "what happens" line. |
 | What-if drills: "You played Ne4. What if Rc1? Calculate three moves." | In | The quiz and what-if intents. The player plays their line on the board, the engine checks it, the coach says where it diverges. |
 | Active defence training: sets up the position before the blunder and plays the winning side | In | Sparring mode (below). The coach plays the winning side at a chosen strength, the player defends, Masti comments. |
 | Points out missed structural ideas: colour complexes, outposts, open files | In | The plan and concept intents, from computed positional facts, drawn as highlights. |
-| Connects the structure to a master game | Later | Needs a structure-indexed game database. The master tree covers openings only. A candidate for cutting if the index is expensive. |
-| Reviews time management from the clocks | In, when clocks exist | Chess.com and Lichess PGNs carry per-move clock comments. Time spent is drawn on the arc. Two practical errors are flagged: a long think in a forced sequence, an instant move in a complex position. |
-| Assesses tilt: a blunder followed by a collapse | In | Detectable from the eval trajectory and the clocks (a second error within two moves of the first, a speed-up after losing material). One moment in the review and a line in the recap. |
+| Connects the structure to a master game | Later (decided 2026-10-06) | Needs a large fetched master-game repository with a structure index. The master tree covers openings only. Out of the first build. |
+| Reviews time management from the clocks | Out (decided 2026-10-06) | Removed from the ideal. |
+| Assesses tilt: a blunder followed by a collapse | Out (decided 2026-10-06) | Removed from the ideal. |
 | Prescribes targeted homework | In | Scene 5. A drill set built from this game's positions and the diagnosed cause, run in puzzle mode, tracked by spaced repetition. |
 
 Out of the ideal: anything that needs the coach to have watched the player think in real time (a live session's body language, a spoken calculation). The diagnosing question is the product's substitute.
@@ -76,7 +76,7 @@ Out of the ideal: anything that needs the coach to have watched the player think
 | Compare | "Nf3 or Nc3 here?" | Two lines side by side, the plan each supports, which the engine prefers and by how much. |
 | Plan | "What's my plan in this position?" | The strategic read: targets, pawn breaks, piece routes, drawn as arrows and highlighted squares, ending in the first concrete move. |
 | Perspective | "Look at it from Black's side." "What was my opponent thinking?" | The same quality of answer with every fact re-read for the other colour, including the opponent's best and worst moments. |
-| Opening | "What opening was this? Where did I leave theory?" | The name, the main ideas for both sides, the move where the game left book, and what to study. |
+| Opening | "What opening was this? Where did I leave theory?" | The name, the main ideas for both sides, the move where the game left book, and what to study. Only when asked. The review never leads with theory. |
 | Endgame | "How do I win this rook endgame?" | The technique, the key squares, the winning plan, and the exact result when a tablebase can give one. |
 | Concept | "What is a minority attack?" | The definition in plain words, with this game's example when one exists, labelled as teaching. |
 | Action | "Flip the board." "Go to move 20." "Play the line again." | The action happens. One line acknowledges it. |
@@ -85,9 +85,8 @@ Out of the ideal: anything that needs the coach to have watched the player think
 | Quiz | "Test me." | A position from this game. The player moves on the board and is graded against the engine. |
 | Diagnose (the coach asks) | "What did you think my opponent's threat was?" | The player answers in words or by pointing at the board. The coach names the root cause and the lesson follows from it. |
 | Defend it | "Let me defend from before the blunder." | Sparring mode from the position before the mistake, the coach on the winning side, Masti commenting on each defensive try. |
-| Time | "Where did I waste time?" | Time per move on the arc, the long think in a forced line and the instant move in a complex one, each as a moment. Only when the PGN carries clocks. |
-| Master game | "Show me how a master handled this structure." | A master game with the same structure, stepped through on the board. Later: needs a structure index. |
-| Progress | "Am I improving? What should I work on?" | Patterns across games, with numbers that are real, and one thing to practise. |
+| Master game | "Show me how a master handled this structure." | A master game with the same structure, stepped through on the board. Later: needs a fetched master repository with a structure index. |
+| Progress | "Am I improving? What should I work on?" | Patterns across the player's recent games on chess.com or Lichess, with numbers that are real, and one thing to practise. |
 | Preference | "Keep it short from now on." "Always coach me as Black." | Remembered for the session and offered as a saved preference. |
 
 ### What the coach can do
@@ -129,7 +128,7 @@ An answer is one to three moments. Anything beyond the two lines per moment is b
 | Puzzle | The position as a puzzle: the toolbar, the hint stages, the coach bubble, the session rail | The `/puzzles` components | Solved or given up. The result enters the conversation as a moment ("Solved in two tries. The first try hung the rook."). |
 | Sparring | The position as a game: the clock optional, the opponent at a chosen strength on the winning side | The `/play` components | Resigned, drawn, won, or stopped. The result and the critical moment of the sparring game enter the conversation. |
 | Walkthrough | The board stepping through a line with one caption per move, pausing where the player should think | The proof line's Play control, extended | The line ends. The transcript keeps the walkthrough as one collapsible moment. |
-| Explorer | The opening tree and master games at the move where the game left book | The Masters and Moves views that already exist as words in the header | The player taps back, or asks a question, which returns to Review with the answer. |
+| Explorer | The opening tree at the move where the game left book, only when the player asks for it | The Masters and Moves views that already exist as words in the header | The player taps back, or asks a question, which returns to Review with the answer. |
 | Recap | The patterns, the habit, the drill set, the trend | New | Leaves to the drill set (puzzle mode) or closes the session. |
 
 Transition rules:
@@ -143,7 +142,7 @@ Transition rules:
 ## Presentation grammar
 
 - **Board first.** Two arrow colours (yours, the engine's), highlighted squares for threats and targets, an eval bar that animates between moments, the material ledger. The board is the diagram. There are no inline mini boards.
-- **Captions, not paragraphs.** At rest a moment shows two lines. The why, the solution and the outcome open on a tap.
+- **Captions, not paragraphs.** At rest a moment shows two lines, and every line earns its place by saying something the board cannot show. A line that restates the arrow is cut. The why, the solution and the outcome open on a tap.
 - **Every move is tappable,** wherever it appears, and tapping moves the board.
 - **Phone first.** The board and the current caption are on screen together, always. The transcript scrolls beneath a board that shrinks while the player reads, or in a sheet that rises over it.
 - **One board, one conversation.** Two columns on desktop, nothing above the board, nothing pinned above the transcript, nothing under the board that changes height. (The current layout rule, kept.)
@@ -161,7 +160,7 @@ Today the coach is forbidden from saying anything the review did not prove, and 
 ## Memory and progression
 
 - **Within a session:** the side, the depth, standing preferences, what has already been explained.
-- **Across games:** the top three recurring patterns, the openings played, the habit being practised, the trend.
+- **Across games:** the player's chess.com or Lichess account is the repository. The coach fetches recent games from the platform (the scout and rating code already talk to both APIs), computes the top three recurring patterns, the openings played and the trend, and stores only what consent allows. The product never asks the player to build a game library by hand.
 - **Calibrated by level,** same product, different default depth: beginners get safety and counting, intermediates get the opponent's forcing replies, advanced players get candidate moves and the critical line.
 
 ## Speed
@@ -192,16 +191,20 @@ A 60-question test set across the intents above, on ten real games at four ratin
 - Every key moment carries a diagnosing question, and the drill set at the end is built from this game.
 - Entering and leaving a mode keeps the board in place, with no layout shift (the CLS budget the e2e suite already holds).
 
-## Open decisions for the founder
+## Decisions taken (2026-10-06)
 
-1. **Sparring** is in, as a mode built from `/play`. Decided 2026-10-06 with the mode model above.
-2. **Cross-game memory** needs stored game history per user. How much should the coach remember, and should the player see what he remembers?
-3. **The seven attitudes:** keep them, or fold them into one Masti with a tone setting?
-4. **Opening knowledge:** which source does the coach cite, the master tree we already ship, the Lichess explorer, or both?
-5. **How much text is too much on a phone:** two lines per moment, or one?
-6. **Master games:** a structure-indexed database is a project of its own. Keep the row as "later", or cut it from the ideal?
-7. **The diagnosing question:** asked at every key moment, or only at the decisive one? Every moment is more coaching and more friction.
-8. **Time and tilt:** shown in the review by default when clocks exist, or only when asked?
+1. **Sparring** is in, as a mode built from `/play`.
+2. **Cross-game memory** comes from the player's chess.com or Lichess account, fetched, with nothing to build by hand. Master games, when they come, come from a large fetched repository.
+3. **One Masti.** The seven attitudes are retired as confusing.
+4. **Opening theory is never pushed.** Most players do not need it. It is answered when asked and is never a key moment on its own.
+5. **Two lines per moment,** and every line must be purposeful.
+6. **Master games** are later.
+7. **The diagnosing question** is asked at the decisive moment by default and offered as a chip at the other key moments. (Open to change: see below.)
+8. **Time management and tilt** are removed.
+
+## Still open
+
+- **The diagnosing question's cadence.** Asking at every key moment is more coaching and more friction, since each question stops the review until the player answers or skips. The default above asks once, at the moment that decided the game, and leaves the others one tap away. Change it if the once-per-game feels thin.
 
 ## Next
 

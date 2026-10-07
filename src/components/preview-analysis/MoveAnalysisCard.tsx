@@ -28,6 +28,7 @@ import React, { useMemo } from "react";
 import { Box, Tooltip } from "@mui/material";
 import { MessageCircle } from "lucide-react";
 import { MoveClassification } from "@/types/enums";
+import { renderMoveLinkedText } from "./moveLinker";
 import type { PositionEval } from "@/types/eval";
 import { ProofLine } from "./ProofLine";
 import type { CoachLine } from "./coachLines";
@@ -96,6 +97,12 @@ export interface MoveAnalysisCardProps {
   onShowLinePly?: (line: CoachLine, k: number) => void;
   /** Send a question about this move to the coach. */
   onAsk?: (question: string) => void;
+  /**
+   * Fired when the reader taps a move written in the sentence ("The engine
+   * preferred 8. Qxc1"): a played move jumps the board there, an alternative
+   * loads as an exploration preview. The same linker the coach bubble uses.
+   */
+  onMoveRef?: (ply: number, playSan?: string) => void;
   /** True while the coach is answering; the ask button waits. */
   busy?: boolean;
   /** True while Stockfish is still working through the game. */
@@ -145,6 +152,7 @@ export function MoveAnalysisCard({
   playerColor,
   onShowLinePly,
   onAsk,
+  onMoveRef,
   busy,
   analyzing,
   nav,
@@ -160,6 +168,7 @@ export function MoveAnalysisCard({
   const style = (cls && STYLE[cls]) || null;
   const label = analysis?.label ?? fallbackLabel(gameSans, ply);
 
+  const linkable = useMemo(() => gameSans.map((san) => ({ san })), [gameSans]);
   const sentence = analysis
     ? analysis.sentence
     : ply === 0
@@ -319,7 +328,15 @@ export function MoveAnalysisCard({
             overflow: "hidden",
           }}
         >
-          {sentence}
+          {analysis && onMoveRef
+            ? renderMoveLinkedText(sentence, {
+                allMoves: linkable,
+                rootFen,
+                onMoveRefClick: onMoveRef,
+                // The sentence already says what the move is; no glyph.
+                marker: false,
+              })
+            : sentence}
         </Box>
       </Tooltip>
 

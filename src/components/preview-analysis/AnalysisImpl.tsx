@@ -32,8 +32,6 @@ import {
 import { fetchExplorer } from "@/lib/master/explorerClient";
 import { fenAtPly, stepBackPreview } from "@/lib/master/exploration";
 import {
-  findAllMoveRefs,
-  resolveMoveRef,
   plyBeforeMove,
   buildRecommendedPreview,
   buildLinePreview,
@@ -59,6 +57,7 @@ import {
 import BookExitCard from "@/components/analysis/BookExitCard";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 import { ChessgroundBoardPlaceholder } from "@/components/ui/ChessgroundBoardPlaceholder";
+import { renderMoveLinkedText } from "./moveLinker";
 import {
   DEFAULT_ARROW_TOGGLES,
   ARROW_PALETTE,
@@ -6266,124 +6265,24 @@ function CoachBubble({
     [allMoves]
   );
 
-  // Renderer: handles bold (**…**) AND inline move references (24.Rxd4 →
-  // clickable, board jumps on click). `forceRecommended` lets a caller
-  // (e.g. InsightBodyText rendering a SOLUTION/OUTCOME-labeled body row)
-  // pre-mark every move ref as recommended, bypassing the contextBefore
-  // regex check. Necessary because the round-2 smoke test surfaced that
-  // structured-card content like `SOLUTION: 7. dxe5 wins the pawn` never
-  // had "best was" / "should have" in its lookback window, so the green
-  // 🔍 tag never fired even when the move clearly was the recommended one.
+  // Renderer: bold (**…**) and tappable move references (24.Rxd4 →
+  // clickable, board jumps on click), from moveLinker.tsx. It used to be a
+  // closure here, so only the bubble's text could carry tappable moves;
+  // the strip under the board now links the same way. `forceRecommended`
+  // lets a caller (e.g. InsightBodyText rendering a SOLUTION/OUTCOME-labeled
+  // body row) pre-mark every move ref as recommended, bypassing the
+  // contextBefore regex check.
   const renderInline = (
     text: string,
     forceRecommended = false
-  ): React.ReactNode[] => {
-    const boldParts = text.split(/(\*\*[^*]+\*\*)/g);
-    const out: React.ReactNode[] = [];
-    boldParts.forEach((part, boldIdx) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
-        out.push(
-          <Box
-            key={`b${boldIdx}`}
-            component="span"
-            sx={{
-              fontWeight: 700,
-              color: isUser ? "#FED7AA" : "#FB923C",
-            }}
-          >
-            {part.slice(2, -2)}
-          </Box>
-        );
-        return;
-      }
-      // G7: production-parity 4-tier move-reference parser. Each match is
-      // styled either as "recommended" (green, click → explore the
-      // alternative) or "navigate" (orange, click → jump to that ply).
-      if (!allMoves || !onMoveRefClick) {
-        out.push(<span key={`t${boldIdx}`}>{part}</span>);
-        return;
-      }
-      const refs = findAllMoveRefs(part, forceRecommended);
-      if (refs.length === 0) {
-        out.push(<span key={`t${boldIdx}`}>{part}</span>);
-        return;
-      }
-      let lastIdx = 0;
-      for (const ref of refs) {
-        if (ref.start > lastIdx) {
-          out.push(
-            <span key={`${boldIdx}t${lastIdx}`}>
-              {part.slice(lastIdx, ref.start)}
-            </span>
-          );
-        }
-        // Founder bug 2026-09-05: "you should have played 7.Qxe7" linked to
-        // the game's 8.Qxe7. The link now follows what the click will DO
-        // (resolveMoveRef): a move played exactly where the coach says is a
-        // jump; a move that is legal at that position but was not played
-        // there is an alternative and loads onto the board as a preview,
-        // however the prose was worded; only a move that is illegal there
-        // (a real move-number typo) falls back to the nearby-ply window.
-        const resolution = resolveMoveRef(allMoves, ref, rootFen);
-        if (resolution) {
-          const hypothetical = resolution.kind === "hypothetical";
-          const ply = hypothetical ? resolution.anchorPly : resolution.ply;
-          const playSan = hypothetical ? resolution.san : undefined;
-          const recColor = "#86efac"; // light green for an alternative to explore
-          const navColor = isUser ? "#FED7AA" : "#FB923C";
-          out.push(
-            <Box
-              key={`${boldIdx}m${ref.start}`}
-              component="span"
-              onClick={() => onMoveRefClick(ply, playSan)}
-              title={
-                hypothetical
-                  ? `Alternative: ${ref.san} — shows the position after it`
-                  : `Jump to ${ref.moveNumber}${
-                      ref.isBlack ? "..." : "."
-                    } ${ref.san}`
-              }
-              sx={{
-                color: hypothetical ? recColor : navColor,
-                cursor: "pointer",
-                fontWeight: 700,
-                textDecoration: "underline",
-                textDecorationStyle: "dotted",
-                textDecorationColor: hypothetical
-                  ? "rgba(134,239,172,0.5)"
-                  : isUser
-                    ? "rgba(254,215,170,0.5)"
-                    : "rgba(251,146,60,0.5)",
-                px: 0.35,
-                borderRadius: "3px",
-                transition: "all 140ms ease",
-                "&:hover": {
-                  textDecorationStyle: "solid",
-                  background: hypothetical
-                    ? "rgba(34,197,94,0.16)"
-                    : isUser
-                      ? "rgba(255,255,255,0.1)"
-                      : "rgba(249,115,22,0.14)",
-                },
-              }}
-            >
-              {hypothetical ? "🔍 " : ""}
-              {ref.full}
-            </Box>
-          );
-        } else {
-          out.push(<span key={`${boldIdx}m${ref.start}`}>{ref.full}</span>);
-        }
-        lastIdx = ref.end;
-      }
-      if (lastIdx < part.length) {
-        out.push(
-          <span key={`${boldIdx}t${lastIdx}end`}>{part.slice(lastIdx)}</span>
-        );
-      }
+  ): React.ReactNode[] =>
+    renderMoveLinkedText(text, {
+      allMoves,
+      rootFen,
+      onMoveRefClick,
+      isUser,
+      forceRecommended,
     });
-    return out;
-  };
 
   // ─── Markdown prose renderer ────────────────────────────────────────────
   // The coach prompt does not currently forbid markdown, the few-shot
@@ -10655,6 +10554,7 @@ export default function AnalysisPage() {
                   }
                   onShowLinePly={handleShowLinePly}
                   onAsk={!authLoading && !user ? undefined : handleSuggestion}
+                  onMoveRef={handleCoachMoveRef}
                   busy={isThinking || analysisActive}
                   analyzing={analysisActive}
                   nav={

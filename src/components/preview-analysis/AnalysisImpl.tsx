@@ -99,7 +99,6 @@ import {
   Masti,
   MastiAvatar,
   analysisMood,
-  coachErrorMood,
   useStickyMood,
   type CoachErrorKind,
   type MastiMood,
@@ -168,6 +167,15 @@ import { resolveUserRating } from "@/lib/coach/userRating";
 import { buildAnalysisRequestBody } from "@/lib/coach/analysisRequestBody";
 import { buildChatRequestBody } from "@/lib/coach/chatRequestBody";
 import { buildConversationHistory } from "@/lib/coach/conversationHistory";
+import {
+  CoachApiError,
+  CoachAuthError,
+  patchLastCoachMessage,
+  runCoachReply,
+  type CoachReplyAnchor,
+  type CoachReplyPhase,
+  type CoachReplySink,
+} from "./coachReply";
 import { FlagButton } from "@/components/intern/FlagButton";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -466,13 +474,6 @@ async function fetchAdaptivePuzzles(
   }
 }
 
-class CoachAuthError extends Error {}
-class CoachApiError extends Error {
-  constructor(public status: number) {
-    super(`Coach API returned ${status}`);
-  }
-}
-
 /** Build a one-line position context blurb to embed in the user's message.
  *  The /api/chat schema doesn't allow `role: "system"` from clients
  *  (Phase 1.4 hardening) — so we inline the FEN + recent moves into the
@@ -582,12 +583,7 @@ async function streamCoachReply(params: {
    * The move the server resolved the question to (questionAnchor.ts), so
    * the board can show the position the answer is about.
    */
-  onAnchor?: (anchor: {
-    ply: number;
-    moveNumber: number;
-    color: "w" | "b";
-    san: string;
-  }) => void;
+  onAnchor?: (anchor: CoachReplyAnchor) => void;
   signal?: AbortSignal;
 }): Promise<string> {
   const {
@@ -7487,7 +7483,7 @@ export default function AnalysisPage() {
   // compose the system prompt (perspective, addressing, accuracy/Elo
   // overview). Without them the LLM drops to a generic reply tone — visibly
   // less specific than the prod surface. Recompute once per relevant input
-  // change so the three streamCoachReply call sites can spread it.
+  // change so the three coach-reply call sites can spread it.
   const coachExtras = useMemo(() => {
     // The user's side. An explicit/inferred answer (playerSide) wins; the
     // board orientation is only the last-resort assumption when the side
@@ -7750,9 +7746,7 @@ export default function AnalysisPage() {
   // Masti's view of a coach request: "waiting" is the gap between send and
   // the first token (the "give me a minute" the user is waiting on),
   // "streaming" is tokens arriving. UI state only; no new fetches or retries.
-  const [coachPhase, setCoachPhase] = useState<
-    "idle" | "waiting" | "streaming"
-  >("idle");
+  const [coachPhase, setCoachPhase] = useState<CoachReplyPhase>("idle");
   const [lastCoachError, setLastCoachError] = useState<CoachErrorKind | null>(
     null
   );
@@ -8742,6 +8736,25 @@ export default function AnalysisPage() {
     setCurrentPly(currentPly - 1);
   }, [takeoverPreview, allMoves, rootFen, currentFen, currentPly]);
 
+  // The page's side of a coach reply (coachReply.ts): the setters the one
+  // helper drives for all three ways of asking. Setters are stable, so the
+  // sink is made once.
+  const coachSink = useMemo<CoachReplySink>(
+    () => ({
+      patchLastCoach: (patch) =>
+        setMessages((prev) => patchLastCoachMessage(prev, patch)),
+      setThinking: setIsThinking,
+      setPhase: setCoachPhase,
+      setError: setLastCoachError,
+      jumpTo: (jump) => {
+        setCoachJump(jump);
+        setTakeoverPreview(null);
+        setCurrentPly(jump.toPly);
+      },
+    }),
+    []
+  );
+
   const handleTakeoverSendToCoach = useCallback(
     async (message: string, candidate?: MasterCandidate) => {
       // The reply streams into the Coach tab, so show it. This used to leave
@@ -8755,125 +8768,38 @@ export default function AnalysisPage() {
         ...prev,
         { role: "user", content: message, ply: currentPly },
       ]);
-      setIsThinking(true);
-      setCoachPhase("waiting");
-      // The error face describes the latest request only.
-      setLastCoachError(null);
-
       // Build a rich insight card we'll attach to the coach's response —
       // structured data the LLM doesn't have direct access to.
       const insight = candidate ? masterLineInsight(candidate) : undefined;
 
       // Add placeholder coach message (with insight already attached) that
-      // streamCoachReply will fill in delta-by-delta.
+      // the reply fills in delta-by-delta.
       setMessages((prev) => [
         ...prev,
         { role: "coach", content: "", ply: currentPly, insight },
       ]);
 
-      let accumulated = "";
-      try {
-        await streamCoachReply({
-          prevMessages: prevForApi,
-          userText: message,
-          fen: displayFen,
-          currentPly,
-          allMoves,
-          loadedGame,
-          enginePositions,
-          gameEvalFull,
-          contextIdRef: coachContextIdRef,
-          ...coachExtras,
-          onDelta: (chunk) => {
-            if (accumulated.length === 0) setCoachPhase("streaming");
-            accumulated += chunk;
-            setMessages((prev) => {
-              if (prev.length === 0) return prev;
-              const last = prev[prev.length - 1];
-              if (last.role !== "coach") return prev;
-              return [...prev.slice(0, -1), { ...last, content: accumulated }];
-            });
-          },
-          // D1: the server's corrected text replaces the raw stream, so the
-          // corrected copy is what gets replayed on the next turn.
-          onCorrected: (correctedText) => {
-            accumulated = correctedText;
-            setMessages((prev) => {
-              if (prev.length === 0) return prev;
-              const last = prev[prev.length - 1];
-              if (last.role !== "coach") return prev;
-              return [
-                ...prev.slice(0, -1),
-                { ...last, content: correctedText },
-              ];
-            });
-          },
-          // The answer is about a move the question named: put that
-          // position on the board, and leave a way back.
-          onAnchor: (anchor) => {
-            if (anchor.ply === currentPly) return;
-            setCoachJump({
-              fromPly: currentPly,
-              toPly: anchor.ply,
-              label: `${anchor.moveNumber}${anchor.color === "b" ? "..." : "."} ${anchor.san}`,
-            });
-            setTakeoverPreview(null);
-            setCurrentPly(anchor.ply);
-          },
-          // D4: no `done` event arrived — the answer is a fragment.
-          onTruncated: () => {
-            setMessages((prev) => {
-              if (prev.length === 0) return prev;
-              const last = prev[prev.length - 1];
-              if (last.role !== "coach") return prev;
-              return [
-                ...prev.slice(0, -1),
-                { ...last, incomplete: true, mascot: "nervous" },
-              ];
-            });
-          },
-        });
-      } catch (err) {
-        setLastCoachError(
-          err instanceof CoachAuthError
-            ? "auth"
-            : err instanceof CoachApiError
-              ? "api"
-              : "network"
-        );
-        const errorText =
-          err instanceof CoachAuthError
-            ? "**Sign-in required** — the coach needs a free account. Use **Sign in** above and ask again."
-            : err instanceof CoachApiError
-              ? `**Coach is offline** (HTTP ${err.status}).`
-              : "**Network error** reaching the coach.";
-        setMessages((prev) => {
-          if (prev.length === 0) return prev;
-          const last = prev[prev.length - 1];
-          if (last.role !== "coach") return prev;
-          return [
-            ...prev.slice(0, -1),
-            // D3: the banner overwrites the streamed text in place. Without
-            // this flag the model reads "**Coach is offline** (HTTP 502)" as
-            // something IT said on its previous turn.
-            {
-              ...last,
-              content: errorText,
-              synthetic: true,
-              incomplete: undefined,
-              // A sign-in wall is a nervous face; an outage is a dizzy one.
-              mascot: coachErrorMood(
-                err instanceof CoachAuthError ? "auth" : "api"
-              ),
-            },
-          ];
-        });
-      } finally {
-        setIsThinking(false);
-        setCoachPhase("idle");
-      }
+      await runCoachReply({
+        stream: (reply) =>
+          streamCoachReply({
+            prevMessages: prevForApi,
+            userText: message,
+            fen: displayFen,
+            currentPly,
+            allMoves,
+            loadedGame,
+            enginePositions,
+            gameEvalFull,
+            contextIdRef: coachContextIdRef,
+            ...coachExtras,
+            ...reply,
+          }),
+        fromPly: currentPly,
+        site: "takeover",
+        sink: coachSink,
+      });
     },
-    [messages, currentPly, displayFen, allMoves, handleTabChange]
+    [messages, currentPly, displayFen, allMoves, handleTabChange, coachSink]
   );
 
   // Played SAN — what was played at the CURRENT canonical position (for the
@@ -9393,132 +9319,51 @@ export default function AnalysisPage() {
         { role: "user", content: text, ply },
         { role: "coach", content: "", ply },
       ]);
-      setIsThinking(true);
-      setCoachPhase("waiting");
-      // The error face describes the latest request only.
-      setLastCoachError(null);
-
       // Compute the FEN AT this ply (not at the current display position),
       // replaying from the game's root so FEN-loaded games are correct.
       const { board: g } = replayFromRoot(allMoves, ply, rootFen);
       const fenAtPly = g.fen();
 
-      let accumulated = "";
-      try {
-        await streamCoachReply({
-          prevMessages: prevForApi,
-          userText: text,
-          fen: fenAtPly,
-          currentPly: ply,
-          allMoves,
-          loadedGame,
-          enginePositions,
-          gameEvalFull,
-          contextIdRef: coachContextIdRef,
-          ...coachExtras,
-          onDelta: (chunk) => {
-            if (accumulated.length === 0) setCoachPhase("streaming");
-            accumulated += chunk;
-            setMessages((prev) => {
-              if (prev.length === 0) return prev;
-              const last = prev[prev.length - 1];
-              if (last.role !== "coach") return prev;
-              return [...prev.slice(0, -1), { ...last, content: accumulated }];
-            });
-          },
-          // D1: the server's corrected text replaces the raw stream, so the
-          // corrected copy is what gets replayed on the next turn.
-          onCorrected: (correctedText) => {
-            accumulated = correctedText;
-            setMessages((prev) => {
-              if (prev.length === 0) return prev;
-              const last = prev[prev.length - 1];
-              if (last.role !== "coach") return prev;
-              return [
-                ...prev.slice(0, -1),
-                { ...last, content: correctedText },
-              ];
-            });
-          },
-          // The answer is about a move the question named: put that
-          // position on the board, and leave a way back.
-          onAnchor: (anchor) => {
-            if (anchor.ply === currentPly) return;
-            setCoachJump({
-              fromPly: currentPly,
-              toPly: anchor.ply,
-              label: `${anchor.moveNumber}${anchor.color === "b" ? "..." : "."} ${anchor.san}`,
-            });
-            setTakeoverPreview(null);
-            setCurrentPly(anchor.ply);
-          },
-          // D4: no `done` event arrived — the answer is a fragment.
-          onTruncated: () => {
-            setMessages((prev) => {
-              if (prev.length === 0) return prev;
-              const last = prev[prev.length - 1];
-              if (last.role !== "coach") return prev;
-              return [
-                ...prev.slice(0, -1),
-                { ...last, incomplete: true, mascot: "nervous" },
-              ];
-            });
-          },
-        });
-        const tags = extractPracticeTags(accumulated).tags;
-        if (tags.length > 0) {
-          const coachMsgIdx = prevForApi.length + 1;
-          const first = tags[0];
-          setTimeout(
-            () =>
-              triggerPuzzleFetch(
-                coachMsgIdx,
-                first.theme,
-                first.displayTheme,
-                fenAtPly
-              ),
-            0
-          );
-        }
-      } catch (err) {
-        setLastCoachError(
-          err instanceof CoachAuthError
-            ? "auth"
-            : err instanceof CoachApiError
-              ? "api"
-              : "network"
-        );
-        const errorText =
-          err instanceof CoachAuthError
-            ? "**Sign-in required** — the coach needs a free account. Use **Sign in** above and ask again."
-            : err instanceof CoachApiError
-              ? `**Coach is offline** (HTTP ${err.status}).`
-              : "**Network error** reaching the coach.";
-        setMessages((prev) => {
-          if (prev.length === 0) return prev;
-          const last = prev[prev.length - 1];
-          if (last.role !== "coach") return prev;
-          // D3: see above — a UI banner is not model output.
-          return [
-            ...prev.slice(0, -1),
-            {
-              ...last,
-              content: errorText,
-              synthetic: true,
-              incomplete: undefined,
-              // A sign-in wall is a nervous face; an outage is a dizzy one.
-              mascot: coachErrorMood(
-                err instanceof CoachAuthError ? "auth" : "api"
-              ),
-            },
-          ];
-        });
-      } finally {
-        setIsThinking(false);
-        setCoachPhase("idle");
-      }
+      await runCoachReply({
+        stream: (reply) =>
+          streamCoachReply({
+            prevMessages: prevForApi,
+            userText: text,
+            fen: fenAtPly,
+            currentPly: ply,
+            allMoves,
+            loadedGame,
+            enginePositions,
+            gameEvalFull,
+            contextIdRef: coachContextIdRef,
+            ...coachExtras,
+            ...reply,
+          }),
+        // The way back from an anchor jump is the ply the cursor held when
+        // the move was tapped, as it was, not the move itself.
+        fromPly: currentPly,
+        site: "move",
+        sink: coachSink,
+        onDone: (accumulated) => {
+          const tags = extractPracticeTags(accumulated).tags;
+          if (tags.length > 0) {
+            const coachMsgIdx = prevForApi.length + 1;
+            const first = tags[0];
+            setTimeout(
+              () =>
+                triggerPuzzleFetch(
+                  coachMsgIdx,
+                  first.theme,
+                  first.displayTheme,
+                  fenAtPly
+                ),
+              0
+            );
+          }
+        },
+      });
     },
-    [allMoves, isThinking, messages, triggerPuzzleFetch]
+    [allMoves, isThinking, messages, triggerPuzzleFetch, coachSink]
   );
 
   // G6 auto-fire infrastructure: a ref to the latest handleSend so we can
@@ -9562,139 +9407,55 @@ export default function AnalysisPage() {
         { role: "coach", content: "", ply: currentPly },
       ]);
       setInput("");
-      setIsThinking(true);
-      setCoachPhase("waiting");
-      // The error face describes the latest request only.
-      setLastCoachError(null);
-
-      let accumulated = "";
-      try {
-        await streamCoachReply({
-          prevMessages: prevForApi,
-          userText: text,
-          fen: displayFen,
-          currentPly,
-          allMoves,
-          loadedGame,
-          enginePositions,
-          gameEvalFull,
-          contextIdRef: coachContextIdRef,
-          ...coachExtras,
-          onDelta: (chunk) => {
-            if (accumulated.length === 0) setCoachPhase("streaming");
-            accumulated += chunk;
-            // Update the last coach message in-place
-            setMessages((prev) => {
-              if (prev.length === 0) return prev;
-              const last = prev[prev.length - 1];
-              if (last.role !== "coach") return prev;
-              return [...prev.slice(0, -1), { ...last, content: accumulated }];
-            });
-          },
-          // D1: the server's corrected text replaces the raw stream, so the
-          // corrected copy is what gets replayed on the next turn.
-          onCorrected: (correctedText) => {
-            accumulated = correctedText;
-            setMessages((prev) => {
-              if (prev.length === 0) return prev;
-              const last = prev[prev.length - 1];
-              if (last.role !== "coach") return prev;
-              return [
-                ...prev.slice(0, -1),
-                { ...last, content: correctedText },
-              ];
-            });
-          },
-          // The answer is about a move the question named: put that
-          // position on the board, and leave a way back.
-          onAnchor: (anchor) => {
-            if (anchor.ply === currentPly) return;
-            setCoachJump({
-              fromPly: currentPly,
-              toPly: anchor.ply,
-              label: `${anchor.moveNumber}${anchor.color === "b" ? "..." : "."} ${anchor.san}`,
-            });
-            setTakeoverPreview(null);
-            setCurrentPly(anchor.ply);
-          },
-          // D4: no `done` event arrived — the answer is a fragment.
-          onTruncated: () => {
-            setMessages((prev) => {
-              if (prev.length === 0) return prev;
-              const last = prev[prev.length - 1];
-              if (last.role !== "coach") return prev;
-              return [
-                ...prev.slice(0, -1),
-                { ...last, incomplete: true, mascot: "nervous" },
-              ];
-            });
-          },
-        });
-        // After stream completes, scan for [PRACTICE:...] tags and trigger
-        // a real /api/similar-puzzles fetch per tag. The coach's tag persists
-        // in the message content but CoachBubble strips it from display.
-        const tags = extractPracticeTags(accumulated).tags;
-        if (tags.length > 0) {
-          const coachMsgIdx = prevForApi.length + 1; // user, then coach
-          const first = tags[0]; // multi-tag pack support is a follow-up
-          setTimeout(
-            () =>
-              triggerPuzzleFetch(
-                coachMsgIdx,
-                first.theme,
-                first.displayTheme,
-                displayFen
-              ),
-            0
-          );
-        }
-        // G6: autoAnalyze completion gate. When the reply contains any
-        // [INSIGHT:...] tag, transition the state machine to "done" so
-        // the input unlocks. Mirrors AICoachChat.tsx:2038-2047.
-        if (
-          (autoAnalyzeState === "pending" ||
-            autoAnalyzeState === "sent-awaiting-insights") &&
-          extractInsightTags(accumulated).insights.length > 0
-        ) {
-          setAutoAnalyzeState("done");
-        }
-      } catch (err) {
-        setLastCoachError(
-          err instanceof CoachAuthError
-            ? "auth"
-            : err instanceof CoachApiError
-              ? "api"
-              : "network"
-        );
-        const errorText =
-          err instanceof CoachAuthError
-            ? "**Sign-in required** — the coach endpoint is auth-gated. Sign in on chessmasti.com and refresh."
-            : err instanceof CoachApiError
-              ? `**Coach is offline** (HTTP ${err.status}). The LLM provider returned an error — try again in a moment.`
-              : "**Network error** reaching the coach. Try again?";
-        setMessages((prev) => {
-          if (prev.length === 0) return prev;
-          const last = prev[prev.length - 1];
-          if (last.role !== "coach") return prev;
-          // D3: see above — a UI banner is not model output.
-          return [
-            ...prev.slice(0, -1),
-            {
-              ...last,
-              content: errorText,
-              synthetic: true,
-              incomplete: undefined,
-              // A sign-in wall is a nervous face; an outage is a dizzy one.
-              mascot: coachErrorMood(
-                err instanceof CoachAuthError ? "auth" : "api"
-              ),
-            },
-          ];
-        });
-      } finally {
-        setIsThinking(false);
-        setCoachPhase("idle");
-      }
+      await runCoachReply({
+        stream: (reply) =>
+          streamCoachReply({
+            prevMessages: prevForApi,
+            userText: text,
+            fen: displayFen,
+            currentPly,
+            allMoves,
+            loadedGame,
+            enginePositions,
+            gameEvalFull,
+            contextIdRef: coachContextIdRef,
+            ...coachExtras,
+            ...reply,
+          }),
+        fromPly: currentPly,
+        site: "send",
+        sink: coachSink,
+        onDone: (accumulated) => {
+          // After stream completes, scan for [PRACTICE:...] tags and trigger
+          // a real /api/similar-puzzles fetch per tag. The coach's tag persists
+          // in the message content but CoachBubble strips it from display.
+          const tags = extractPracticeTags(accumulated).tags;
+          if (tags.length > 0) {
+            const coachMsgIdx = prevForApi.length + 1; // user, then coach
+            const first = tags[0]; // multi-tag pack support is a follow-up
+            setTimeout(
+              () =>
+                triggerPuzzleFetch(
+                  coachMsgIdx,
+                  first.theme,
+                  first.displayTheme,
+                  displayFen
+                ),
+              0
+            );
+          }
+          // G6: autoAnalyze completion gate. When the reply contains any
+          // [INSIGHT:...] tag, transition the state machine to "done" so
+          // the input unlocks. Mirrors AICoachChat.tsx:2038-2047.
+          if (
+            (autoAnalyzeState === "pending" ||
+              autoAnalyzeState === "sent-awaiting-insights") &&
+            extractInsightTags(accumulated).insights.length > 0
+          ) {
+            setAutoAnalyzeState("done");
+          }
+        },
+      });
     },
     [
       input,
@@ -9708,6 +9469,7 @@ export default function AnalysisPage() {
       loadedGame,
       enginePositions,
       analysisActive,
+      coachSink,
     ]
   );
 

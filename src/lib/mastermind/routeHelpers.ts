@@ -286,14 +286,16 @@ export async function prepareMastermindContext(
     : await classifyQuestion({
           question: opts.userMessage,
         }).catch((err) => {
+          const timedOut = err instanceof Error && err.name === "ClassifierTimeoutError";
           log.warn("mastermind classifier failed", {
             err: err instanceof Error ? err.message : String(err),
+            timedOut,
             correlation_id: opts.correlationId,
           });
           return {
             category: DEFAULT_LOW_CONFIDENCE_CATEGORY,
             confidence: 0,
-            rationale: "classifier_call_threw",
+            rationale: timedOut ? "classifier_timeout" : "classifier_call_threw",
           };
         });
 

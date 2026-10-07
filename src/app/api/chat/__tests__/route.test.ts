@@ -637,6 +637,8 @@ describe("chat route: question anchor", () => {
     );
     const json = await res.json();
     expect(json.gameAnalysis.anchor).toEqual({ ply: 15, moveNumber: 8, color: "w", san: "Nc7+" });
+    // The shadow router's reading rides beside the anchor (nothing is served differently on it).
+    expect(json.gameAnalysis.intent).toEqual({ intent: "verdict", rule: "verdict:anchor" });
     // The position returned is the board after the move, not the client's start position.
     expect(json.gameAnalysis.position).toMatch(/^r1b1kbnr\/ppNppppp/);
     const args = mockCallLLM.mock.calls[0][0];
@@ -652,8 +654,37 @@ describe("chat route: question anchor", () => {
     const res = await POST(makeRequest(fastPathBody({ userMessage: "what should I study next?" })));
     const json = await res.json();
     expect(json.gameAnalysis.anchor).toBeUndefined();
+    expect(json.gameAnalysis.intent).toEqual({ intent: "progress", rule: "progress" });
     const args = mockCallLLM.mock.calls[0][0];
     expect(args.systemSuffix).toContain("CURRENTLY VIEWED POSITION");
+  });
+
+  it("the intent is logged on the anchor line and echoed on the pipeline branch too", async () => {
+    enableFlag();
+    mockGetAnalysisContext.mockReturnValue({ ...happyContext(), playedMoves: GAME, moveCount: 8 });
+    const res = await POST(makeRequest(fastPathBody({ userMessage: "what was my biggest mistake?" })));
+    const json = await res.json();
+    expect(json.gameAnalysis.intent).toEqual({ intent: "unknown", rule: "none" });
+    const anchorLog = mockLog.info.mock.calls.find((call) => call[0] === "followup_anchor");
+    expect(anchorLog).toBeDefined();
+    expect(anchorLog![1]).toMatchObject({ matched: null, ply: null, intent: "unknown", intentRule: "none" });
+    // The router is shadow: the classifier still decided the category.
+    expect(mockClassifyQuestion).toHaveBeenCalledTimes(1);
+    expect(json.gameAnalysis.pipeline.category).toBe("improvement_strategy");
+  });
+
+  it("a classifier that times out routes the turn to the default category and says so", async () => {
+    enableFlag();
+    mockClassifyQuestion.mockRejectedValue(Object.assign(new Error("classifier timed out after 3000ms"), { name: "ClassifierTimeoutError" }));
+    const res = await POST(makeRequest(fastPathBody()));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(mockRunValidationPipeline).toHaveBeenCalledTimes(1);
+    expect(json.gameAnalysis.pipeline.category).toBe("meta_motivational");
+    expect(json.gameAnalysis.pipeline.classifierCostUsd).toBe(0);
+    const warn = mockLog.warn.mock.calls.find((call) => call[0] === "mastermind classifier failed");
+    expect(warn).toBeDefined();
+    expect(warn![1]).toMatchObject({ timedOut: true });
   });
 
   it("with the pipeline on, the anchor moves the validators to the named move", async () => {

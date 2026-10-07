@@ -4,6 +4,7 @@ import {
   CategorizedQuestion,
   DEFAULT_LOW_CONFIDENCE_CATEGORY,
   CLASSIFIER_LOW_CONFIDENCE_THRESHOLD,
+  CLASSIFIER_TIMEOUT_MS,
   QUESTION_CATEGORIES,
   isQuestionCategory,
   estimateHaikuCost,
@@ -136,6 +137,45 @@ describe("classifyQuestion: the parser's cost rides on the result", () => {
     });
     expect(r.category).toBe("game_review");
     expect("costUsd" in r).toBe(false);
+  });
+});
+
+describe("classifyQuestion: the abort", () => {
+  it("hands the parser an abort signal and times out with a named error", async () => {
+    let sawSignal = false;
+    const parser: ParserCall = ({ signal }) =>
+      new Promise((_, reject) => {
+        sawSignal = !!signal;
+        signal?.addEventListener("abort", () =>
+          reject(Object.assign(new Error("aborted"), { name: "AbortError" })),
+        );
+      });
+    await expect(
+      classifyQuestion({ question: "anything", parseCall: parser, timeoutMs: 10 }),
+    ).rejects.toMatchObject({ name: "ClassifierTimeoutError" });
+    expect(sawSignal).toBe(true);
+  });
+
+  it("a parser that answers in time is unaffected", async () => {
+    const r = await classifyQuestion({
+      question: "Why did I lose this rook ending?",
+      parseCall: mockParser({ category: "game_review", confidence: 0.95, rationale: "x" }),
+      timeoutMs: 1000,
+    });
+    expect(r.category).toBe("game_review");
+  });
+
+  it("a parser error that is not the timeout is rethrown as it is", async () => {
+    const parser: ParserCall = async () => {
+      throw new Error("provider down");
+    };
+    await expect(
+      classifyQuestion({ question: "anything", parseCall: parser, timeoutMs: 1000 }),
+    ).rejects.toThrow("provider down");
+  });
+
+  it("defaults to the three-second bound", () => {
+    expect(CLASSIFIER_TIMEOUT_MS).toBe(3000);
   });
 });
 

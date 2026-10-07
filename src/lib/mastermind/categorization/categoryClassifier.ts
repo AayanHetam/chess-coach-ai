@@ -30,6 +30,23 @@ export interface CategorizedQuestion {
 export const CLASSIFIER_LOW_CONFIDENCE_THRESHOLD = 0.5;
 
 /**
+ * How long the classifier may take before the turn stops waiting for it.
+ * It runs before the data fetch and the validators on every validated
+ * follow-up, with no bound until 2026-10-07: a slow Haiku answer was a
+ * slow follow-up. Past this the call is aborted and the prep routes the
+ * turn to the default category, as it already does when the call throws.
+ */
+export const CLASSIFIER_TIMEOUT_MS = 3_000;
+
+/** Thrown by classifyQuestion when the parser did not answer within the timeout. */
+export class ClassifierTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`classifier timed out after ${timeoutMs}ms`);
+    this.name = "ClassifierTimeoutError";
+  }
+}
+
+/**
  * Default fallback when the parser returns malformed output or the parsed
  * confidence falls below the threshold. `meta_motivational` is chosen because
  * it carries the lowest citation-rate floor (20%) per §5.3.2 — an ambiguous
@@ -75,7 +92,7 @@ export function estimateHaikuCost(r: LLMResult): number {
   );
 }
 
-export const defaultClassifierParserCall: ParserCall = async ({ system, user }) => {
+export const defaultClassifierParserCall: ParserCall = async ({ system, user, signal }) => {
   const result = await callLLM({
     tier: "fast",
     system,
@@ -83,6 +100,7 @@ export const defaultClassifierParserCall: ParserCall = async ({ system, user }) 
     temperature: 0,
     maxTokens: 200,
     cacheSystem: true,
+    signal,
   });
   // The route records its own calls. The classifier's was the one call
   // that never reached the process totals.
@@ -119,6 +137,8 @@ export interface ClassifyQuestionOpts {
   question: string;
   parseCall?: ParserCall;
   lowConfidenceThreshold?: number;
+  /** Abort the parser call after this long; CLASSIFIER_TIMEOUT_MS by default. */
+  timeoutMs?: number;
 }
 
 /**
@@ -139,11 +159,27 @@ export async function classifyQuestion(
 ): Promise<CategorizedQuestion> {
   const parseCall = opts.parseCall ?? defaultClassifierParserCall;
   const threshold = opts.lowConfidenceThreshold ?? CLASSIFIER_LOW_CONFIDENCE_THRESHOLD;
+  const timeoutMs = opts.timeoutMs ?? CLASSIFIER_TIMEOUT_MS;
 
-  const result = await parseCall({
-    system: CATEGORY_CLASSIFIER_SYSTEM,
-    user: buildCategoryClassifierUserTurn(opts.question),
-  });
+  // The abort travels to the provider call as its fetch signal, so a slow
+  // answer is cut off rather than merely ignored, and callLLM does not fall
+  // back to OpenAI on an abort (it checks the signal before retrying).
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  (timer as unknown as { unref?: () => void }).unref?.();
+  let result: Awaited<ReturnType<ParserCall>>;
+  try {
+    result = await parseCall({
+      system: CATEGORY_CLASSIFIER_SYSTEM,
+      user: buildCategoryClassifierUserTurn(opts.question),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (controller.signal.aborted) throw new ClassifierTimeoutError(timeoutMs);
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   const parsed = tryParse(result.raw);
   const costUsd =

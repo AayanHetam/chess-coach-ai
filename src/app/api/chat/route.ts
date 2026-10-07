@@ -19,6 +19,7 @@ import {
   followUpTurnReminder,
 } from "@/lib/prompts/followUpPrompt";
 import { resolveQuestionAnchor } from "@/lib/coach/questionAnchor";
+import { resolveQuestionIntent } from "@/lib/coach/questionIntent";
 import {
   buildAnchorBlock,
   anchorAlternativeFen,
@@ -264,6 +265,15 @@ export async function POST(request: NextRequest) {
         activeFen = anchor.fenAfter;
         effectiveMoveIndex = anchor.ply;
       }
+      // What the player is asking for (questionIntent.ts), by rule where a
+      // rule can be sure. SHADOW: logged and echoed beside the anchor so the
+      // distribution can be measured, and nothing served differently. The
+      // classifier below keeps deciding the validators' category.
+      const intent = resolveQuestionIntent(userMessage, {
+        anchor,
+        moves: context.playedMoves ?? [],
+        playerColor: playerColorLetter,
+      });
 
       // Per-turn oracle facts for the position under discussion. The system
       // prompt forbids any attack/capture/pin/fork claim not present in a
@@ -300,14 +310,14 @@ export async function POST(request: NextRequest) {
       } catch {
         // oracle failure — proceed without per-turn facts (legacy behavior)
       }
-      if (anchor) {
-        log.info("followup_anchor", {
-          requestId: extractRequestId(request.headers),
-          matched: anchor.matched,
-          ply: anchor.ply,
-          askedSan: anchor.askedSan ?? null,
-        });
-      }
+      log.info("followup_anchor", {
+        requestId: extractRequestId(request.headers),
+        matched: anchor?.matched ?? null,
+        ply: anchor?.ply ?? null,
+        askedSan: anchor?.askedSan ?? null,
+        intent: intent.intent,
+        intentRule: intent.rule,
+      });
 
       // PR-CI-6a — follow-up grounding. When the review above was served
       // through the enforced contract path, the SAME facts that survived the
@@ -436,24 +446,23 @@ export async function POST(request: NextRequest) {
       const systemText = cachedSystemPrompt;
       // What the client needs to put the discussed position on the board,
       // and what the referee needs to license claims about it.
-      const anchorFields = anchor
-        ? {
-            anchor: {
-              ply: anchor.ply,
-              moveNumber: anchor.moveNumber,
-              color: anchor.color,
-              san: anchor.san,
-              ...(anchor.askedSan ? { askedSan: anchor.askedSan } : {}),
-            },
-            followUpPrompt: useFollowUpPrompt
-              ? FOLLOWUP_PROMPT_VERSION
-              : "legacy",
-          }
-        : {
-            followUpPrompt: useFollowUpPrompt
-              ? FOLLOWUP_PROMPT_VERSION
-              : "legacy",
-          };
+      const anchorFields = {
+        ...(anchor
+          ? {
+              anchor: {
+                ply: anchor.ply,
+                moveNumber: anchor.moveNumber,
+                color: anchor.color,
+                san: anchor.san,
+                ...(anchor.askedSan ? { askedSan: anchor.askedSan } : {}),
+              },
+            }
+          : {}),
+        // The shadow router's reading of the question; the client ignores it
+        // today, and the synthetic tester can count it.
+        intent,
+        followUpPrompt: useFollowUpPrompt ? FOLLOWUP_PROMPT_VERSION : "legacy",
+      };
       const altFen = anchor ? anchorAlternativeFen(anchor) : null;
       const anchorLicence = anchor
         ? {

@@ -26,8 +26,41 @@ const PGN = [
   "1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 Qb6 5. Nf3 Qxb2 6. Na3 Qxa1 7. Nb5 Qxc1 8. Nc7+ Kd8 9. Nxa8 Qxd1+ 10. Kxd1 e5 0-1",
 ].join("\n");
 
-const REVIEW =
-  "The fork was tempting, but 8. Qxc1 simply takes the queen on c1.";
+/**
+ * A review with one key moment whose concept link offers practice: that is
+ * how a drill starts from the conversation ("Practice back rank mate"
+ * fetches a pack, and "Big board" puts a puzzle on the main board).
+ */
+const REVIEW = [
+  "The fork was tempting, but 8. Qxc1 simply takes the queen on c1.",
+  "",
+  "[INSIGHT:8:w:blunder:+2.84:-2.11:Nc7+:Qxc1]",
+  "You spotted a fork, but the free queen was the bigger prize.",
+  "[WHY]",
+  "Idea: You saw the knight fork on c7 hitting the king and the rook on a8.",
+  "Problem: The queen on c1 was hanging with no defenders.",
+  "Solution: 8. Qxc1 takes the queen immediately.",
+  "Outcome: A full queen ahead instead of a lost knight.",
+  "The takeaway: collect the most valuable free piece before you start a combination.",
+  "[/WHY]",
+  "[CONCEPT:backRankMate:Back Rank Mate]",
+  "When the king is boxed in by its own pawns, a rook on the last rank ends the game.",
+  "[/CONCEPT]",
+  "[/INSIGHT]",
+].join("\n");
+
+/** One back-rank puzzle: Black's setup move h7h6, then White's Re8 mates. */
+const PUZZLE_PACK = {
+  puzzles: [
+    {
+      puzzleId: "e2e-back-rank",
+      fen: "6k1/5ppp/8/8/8/8/5PPP/4R1K1 b - - 0 1",
+      moves: "h7h6 e1e8",
+      rating: 1200,
+      themes: ["backRankMate", "mateIn1"],
+    },
+  ],
+};
 
 const FOLLOWUP =
   "You saw the fork, but the queen on c1 was free for the taking.\n\nLesson: take what is hanging before you start a combination.";
@@ -38,6 +71,14 @@ async function stubEverything(page: Page) {
   await stubMaiaHealthy(page);
   await page.route("**/api/mistake-puzzles", (r) =>
     r.fulfill({ json: { puzzles: [], recommendations: [] } })
+  );
+  // The practice link's pack: signed-in readers go through adaptive-puzzles
+  // first, then similar-puzzles; both answer with the same one puzzle.
+  await page.route("**/api/adaptive-puzzles", (r) =>
+    r.fulfill({ json: PUZZLE_PACK })
+  );
+  await page.route("**/api/similar-puzzles", (r) =>
+    r.fulfill({ json: PUZZLE_PACK })
   );
   // 1.e4 c5 2.Nf3 is inside the shipped tree; past it the route answers
   // "out of book", which is what the Masters view shows for most plies.
@@ -179,5 +220,31 @@ test.describe("the board's rectangle", () => {
       Math.abs((await strip.boundingBox())!.height - stripBox.height)
     ).toBeLessThanOrEqual(2);
     expectSameRect(rest, await boardRect(page), "stepping to the end");
+
+    // A drill: the practice link fetches a pack, "Big board" puts the puzzle
+    // on the main board, and the drill's status takes the strip's first row
+    // at the row's own height. The banner that used to drop in above the
+    // board is gone, so the board does not move; nor does it on the way back.
+    await page.getByText("Practice back rank mate").click();
+    await page.getByText("Back-rank mate", { exact: true }).first().click();
+    // The button's accessible name is its tooltip; the pack shows one per
+    // puzzle row and one in the expanded solver.
+    await page
+      .getByRole("button", { name: "Load this position onto the main board" })
+      .first()
+      .click();
+    const drill = page.getByTestId("drill-strip-state");
+    await expect(drill).toBeVisible({ timeout: 10_000 });
+    await expect(drill).toContainText("Drill 1 of 1");
+    expectSameRect(rest, await boardRect(page), "entering a drill");
+    expect(
+      Math.abs((await strip.boundingBox())!.height - stripBox.height)
+    ).toBeLessThanOrEqual(2);
+    // The way back wears its tooltip as its accessible name.
+    await page.getByRole("button", { name: /Leave the drill/ }).click();
+    await expect(drill).toHaveCount(0);
+    expectSameRect(rest, await boardRect(page), "leaving a drill");
+    // The outcome is in the conversation, not above the board.
+    await expect(page.getByText(/Drill left at puzzle 1 of 1/)).toBeVisible();
   });
 });

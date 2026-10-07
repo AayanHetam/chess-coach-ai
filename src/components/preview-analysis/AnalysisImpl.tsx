@@ -1033,6 +1033,8 @@ interface DrillState {
   status: "solving" | "wrong" | "solved" | "complete";
   wrongAttempts: number;
   lastMove: { from: string; to: string } | null;
+  /** Puzzles solved so far, for the outcome the coach reports. */
+  solvedCount: number;
   savedPly: number;
   savedOrientation: "white" | "black";
 }
@@ -1807,272 +1809,6 @@ function EngineSettingsPopover({
         </Stack>
       </Box>
     </Modal>
-  );
-}
-
-function DrillBanner({
-  state,
-  onExit,
-  onRestart,
-  onSkip,
-}: {
-  state: DrillState;
-  onExit: () => void;
-  onRestart: () => void;
-  onSkip: () => void;
-}) {
-  const total = state.puzzles.length;
-  const puzzle = state.puzzles[state.currentIndex];
-  const isComplete = state.status === "complete";
-  const isWrong = state.status === "wrong";
-  const isSolved = state.status === "solved";
-
-  // Accent color shifts with status — purple = drill, green = solved, red = wrong
-  const accent = isComplete
-    ? "#22c55e"
-    : isSolved
-      ? "#22c55e"
-      : isWrong
-        ? "#ef4444"
-        : "#A855F7";
-  const accentSoft = isComplete
-    ? "rgba(34,197,94,0.12)"
-    : isSolved
-      ? "rgba(34,197,94,0.12)"
-      : isWrong
-        ? "rgba(239,68,68,0.12)"
-        : "rgba(168,85,247,0.12)";
-  const accentBorder = isComplete
-    ? "rgba(34,197,94,0.35)"
-    : isSolved
-      ? "rgba(34,197,94,0.35)"
-      : isWrong
-        ? "rgba(239,68,68,0.4)"
-        : "rgba(168,85,247,0.35)";
-
-  return (
-    <motion.div
-      key="drill-banner"
-      initial={{ opacity: 0, y: -6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.28, ease: [0.22, 0.61, 0.36, 1] }}
-      style={{ marginBottom: 12 }}
-    >
-      <Box
-        sx={{
-          px: 2,
-          py: 1.5,
-          borderRadius: "1rem",
-          background: `linear-gradient(135deg, ${accentSoft}, rgba(20,22,28,0.6))`,
-          backdropFilter: "blur(12px) saturate(150%)",
-          WebkitBackdropFilter: "blur(12px) saturate(150%)",
-          border: `1px solid ${accentBorder}`,
-          display: "flex",
-          alignItems: "center",
-          gap: 1.5,
-          flexWrap: { xs: "wrap", md: "nowrap" },
-        }}
-      >
-        <Box
-          sx={{
-            width: 32,
-            height: 32,
-            flexShrink: 0,
-            borderRadius: "10px",
-            background: accentSoft,
-            border: `1px solid ${accentBorder}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {isComplete ? (
-            <Flame size={16} color={accent} />
-          ) : (
-            <Lightbulb size={16} color={accent} />
-          )}
-        </Box>
-
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Typography
-              sx={{
-                fontSize: "0.7rem",
-                fontWeight: 700,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-                color: accent,
-                lineHeight: 1,
-              }}
-            >
-              {isComplete
-                ? "Drill complete"
-                : `Drill · puzzle ${state.currentIndex + 1} of ${total}`}
-            </Typography>
-            {!isComplete && (
-              <Stack direction="row" spacing={0.5}>
-                {state.puzzles.map((_, i) => (
-                  <Box
-                    key={i}
-                    sx={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background:
-                        i < state.currentIndex
-                          ? "#22c55e"
-                          : i === state.currentIndex
-                            ? accent
-                            : "rgba(255,255,255,0.18)",
-                    }}
-                  />
-                ))}
-              </Stack>
-            )}
-          </Stack>
-          <Typography
-            sx={{
-              mt: 0.5,
-              fontSize: "0.88rem",
-              fontWeight: 600,
-              color: "rgba(255,255,255,0.92)",
-              lineHeight: 1.2,
-            }}
-          >
-            {isComplete
-              ? "Three for three — nice work."
-              : isSolved
-                ? `${puzzle?.title ?? "Puzzle"} — solved`
-                : isWrong
-                  ? "Not the move — try again."
-                  : (puzzle?.title ?? "Puzzle")}
-          </Typography>
-          {!isComplete && puzzle && state.status === "solving" && (
-            <Typography
-              sx={{
-                mt: 0.25,
-                fontSize: "0.74rem",
-                color: "rgba(255,255,255,0.55)",
-                lineHeight: 1.35,
-              }}
-            >
-              {puzzle.hint}
-            </Typography>
-          )}
-          {!isComplete &&
-            state.status === "solving" &&
-            state.wrongAttempts >= 2 && (
-              <Typography
-                sx={{
-                  mt: 0.25,
-                  fontSize: "0.72rem",
-                  color: "rgba(239,68,68,0.85)",
-                  fontStyle: "italic",
-                }}
-              >
-                Stuck? Skip ahead, or ask Masti
-                {/* "on the right" only reads right on viewports where the
-                    right-column tabs actually sit to the right of the
-                    board. On xs the page stacks vertically so the coach
-                    is below, not next to, the drill banner. */}
-                <Box
-                  component="span"
-                  sx={{ display: { xs: "inline", lg: "none" } }}
-                >
-                  {" "}
-                  below
-                </Box>
-                <Box
-                  component="span"
-                  sx={{ display: { xs: "none", lg: "inline" } }}
-                >
-                  {" "}
-                  on the right
-                </Box>
-                .
-              </Typography>
-            )}
-        </Box>
-
-        <Stack
-          direction="row"
-          spacing={1}
-          alignItems="center"
-          sx={{ flexShrink: 0 }}
-        >
-          {!isComplete && state.wrongAttempts >= 2 && (
-            <Button
-              size="small"
-              onClick={onSkip}
-              sx={{
-                px: 1.25,
-                py: 0.5,
-                borderRadius: "0.6rem",
-                fontSize: "0.74rem",
-                fontWeight: 600,
-                color: "rgba(255,255,255,0.6)",
-                textTransform: "none",
-                "&:hover": {
-                  background: "rgba(255,255,255,0.05)",
-                  color: "rgba(255,255,255,0.85)",
-                },
-              }}
-            >
-              Skip
-            </Button>
-          )}
-          {isComplete && (
-            <Button
-              size="small"
-              startIcon={<RotateCw size={14} />}
-              onClick={onRestart}
-              sx={{
-                px: 1.5,
-                py: 0.5,
-                borderRadius: "0.6rem",
-                fontSize: "0.78rem",
-                fontWeight: 700,
-                background: "rgba(168,85,247,0.18)",
-                border: "1px solid rgba(168,85,247,0.4)",
-                color: "#E9D5FF",
-                "&:hover": {
-                  background: "rgba(168,85,247,0.3)",
-                  borderColor: "rgba(168,85,247,0.6)",
-                },
-              }}
-            >
-              More puzzles
-            </Button>
-          )}
-          <Button
-            size="small"
-            startIcon={<ArrowLeft size={14} />}
-            onClick={onExit}
-            sx={{
-              px: 1.5,
-              py: 0.5,
-              borderRadius: "0.6rem",
-              fontSize: "0.78rem",
-              fontWeight: 700,
-              background: isComplete
-                ? "linear-gradient(135deg, #F97316, #FB923C)"
-                : "rgba(255,255,255,0.05)",
-              border: isComplete
-                ? "1px solid rgba(249,115,22,0.4)"
-                : "1px solid rgba(255,255,255,0.12)",
-              color: isComplete ? "#0A0A0A" : "rgba(255,255,255,0.92)",
-              "&:hover": {
-                background: isComplete
-                  ? "linear-gradient(135deg, #FB923C, #FCD34D)"
-                  : "rgba(255,255,255,0.08)",
-              },
-            }}
-          >
-            Return to game
-          </Button>
-        </Stack>
-      </Box>
-    </motion.div>
   );
 }
 
@@ -3313,6 +3049,138 @@ function ExploringState({
         {anchor.color === null
           ? "Back to start"
           : `Back to move ${anchor.moveNum}`}
+      </BackButton>
+    </>
+  );
+}
+
+/**
+ * A drill is on the board. Its status lives in the strip's first row, at
+ * the row's own height, like the exploring state and the coach's jump: the
+ * banner that used to drop in above the board resized it on every drill.
+ * The puzzle's hint is the row's tooltip; a stuck solver gets a Skip.
+ */
+function DrillStripState({
+  state,
+  onExit,
+  onRestart,
+  onSkip,
+}: {
+  state: DrillState;
+  onExit: () => void;
+  onRestart: () => void;
+  onSkip: () => void;
+}) {
+  const total = state.puzzles.length;
+  const puzzle = state.puzzles[state.currentIndex];
+  const isComplete = state.status === "complete";
+  const isWrong = state.status === "wrong";
+  const isSolved = state.status === "solved";
+  const accent =
+    isComplete || isSolved ? "#22c55e" : isWrong ? "#ef4444" : "#A855F7";
+  const saved = plyToMoveDisplay(state.savedPly);
+  const text = isComplete
+    ? `${state.solvedCount} of ${total} solved${
+        state.solvedCount === total ? ". Nice work." : "."
+      }`
+    : isSolved
+      ? `${puzzle?.title ?? "Puzzle"}: solved`
+      : isWrong
+        ? "Not the move. Try again."
+        : (puzzle?.title ?? "Puzzle");
+  return (
+    <>
+      <Box
+        component="span"
+        data-testid="drill-strip-state"
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 0.5,
+          flexShrink: 0,
+          color: accent,
+          fontSize: "0.64rem",
+          fontWeight: 800,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {isComplete ? <Flame size={12} /> : <Lightbulb size={12} />}
+        <span>
+          {isComplete
+            ? "Drill complete"
+            : `Drill ${state.currentIndex + 1} of ${total}`}
+        </span>
+      </Box>
+      <Typography
+        data-testid="drill-strip-text"
+        title={!isComplete && puzzle ? puzzle.hint : undefined}
+        sx={{
+          flex: 1,
+          minWidth: 44,
+          fontSize: "0.82rem",
+          fontWeight: 600,
+          color: "rgba(255,255,255,0.88)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {text}
+      </Typography>
+      {!isComplete && state.wrongAttempts >= 2 && (
+        <Button
+          size="small"
+          onClick={onSkip}
+          sx={{
+            flexShrink: 0,
+            px: 1,
+            py: 0.2,
+            minWidth: 0,
+            borderRadius: "999px",
+            fontSize: "0.72rem",
+            fontWeight: 700,
+            textTransform: "none",
+            color: "rgba(255,255,255,0.6)",
+            "&:hover": {
+              background: "rgba(255,255,255,0.06)",
+              color: "rgba(255,255,255,0.85)",
+            },
+          }}
+        >
+          Skip
+        </Button>
+      )}
+      {isComplete && (
+        <Button
+          size="small"
+          startIcon={<RotateCw size={12} />}
+          onClick={onRestart}
+          sx={{
+            flexShrink: 0,
+            px: 1,
+            py: 0.2,
+            minWidth: 0,
+            borderRadius: "999px",
+            fontSize: "0.72rem",
+            fontWeight: 700,
+            textTransform: "none",
+            whiteSpace: "nowrap",
+            color: "#E9D5FF",
+            background: "rgba(168,85,247,0.18)",
+            border: "1px solid rgba(168,85,247,0.4)",
+            "&:hover": { background: "rgba(168,85,247,0.3)" },
+          }}
+        >
+          More puzzles
+        </Button>
+      )}
+      <BackButton
+        onClick={onExit}
+        tooltip="Leave the drill and put the board back where you were"
+      >
+        {saved.color === null ? "Back to start" : `Back to move ${saved.moveNum}`}
       </BackButton>
     </>
   );
@@ -9157,6 +9025,7 @@ export default function AnalysisPage() {
         status: "solving",
         wrongAttempts: 0,
         lastMove: null,
+        solvedCount: 0,
         savedPly: currentPly,
         savedOrientation: boardOrientation,
       });
@@ -9165,15 +9034,54 @@ export default function AnalysisPage() {
     [boardOrientation, currentPly, takeoverMode, bumpBoardSync]
   );
 
+  // The drill's outcome, as one short coach message at the ply the board
+  // goes back to. UI-authored (synthetic), so it is never replayed to the
+  // model as something it said; it is what the drill banner used to say
+  // above the board, now in the conversation where it can be read later.
+  const appendDrillOutcome = useCallback(
+    (state: DrillState, event: "solved" | "skipped" | "complete" | "exit") => {
+      const total = state.puzzles.length;
+      const puzzle = state.puzzles[state.currentIndex];
+      const title = puzzle?.title ?? "Puzzle";
+      const content =
+        event === "complete"
+          ? `Drill complete: ${state.solvedCount} of ${total} solved.${
+              state.solvedCount === total ? " Nice work." : ""
+            }`
+          : event === "solved"
+            ? `Puzzle ${state.currentIndex + 1} of ${total} solved: ${title}.`
+            : event === "skipped"
+              ? `Puzzle ${state.currentIndex + 1} of ${total} skipped: ${title}.`
+              : `Drill left at puzzle ${state.currentIndex + 1} of ${total}, ${state.solvedCount} solved. Back at ${
+                  plyToMoveDisplay(state.savedPly).label === "Start"
+                    ? "the start"
+                    : `move ${plyToMoveDisplay(state.savedPly).moveNum}`
+                }.`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "coach",
+          content,
+          synthetic: true,
+          ply: state.savedPly,
+          mascot:
+            event === "complete" || event === "solved" ? "excited" : "idea",
+        },
+      ]);
+    },
+    []
+  );
+
   const exitDrill = useCallback(() => {
     setDrillState((prev) => {
       if (!prev) return prev;
       setCurrentPly(prev.savedPly);
       setBoardOrientation(prev.savedOrientation);
+      if (prev.status !== "complete") appendDrillOutcome(prev, "exit");
       return null;
     });
     bumpBoardSync();
-  }, [bumpBoardSync]);
+  }, [bumpBoardSync, appendDrillOutcome]);
 
   const restartDrill = useCallback(() => {
     setDrillState((prev) => {
@@ -9190,17 +9098,21 @@ export default function AnalysisPage() {
         status: "solving",
         wrongAttempts: 0,
         lastMove: null,
+        solvedCount: 0,
       };
     });
     bumpBoardSync();
   }, [bumpBoardSync]);
 
-  const advanceDrill = useCallback(() => {
+  const advanceDrill = useCallback((reason: "solved" | "skipped" = "solved") => {
     setDrillState((prev) => {
       if (!prev) return prev;
+      appendDrillOutcome(prev, reason);
       const nextIndex = prev.currentIndex + 1;
       if (nextIndex >= prev.puzzles.length) {
-        return { ...prev, status: "complete" };
+        const done: DrillState = { ...prev, status: "complete" };
+        appendDrillOutcome(done, "complete");
+        return done;
       }
       const next = prev.puzzles[nextIndex];
       const orient: "white" | "black" =
@@ -9217,7 +9129,7 @@ export default function AnalysisPage() {
       };
     });
     bumpBoardSync();
-  }, [bumpBoardSync]);
+  }, [bumpBoardSync, appendDrillOutcome]);
 
   // User moves a piece while a drill is in flight. Validate against the
   // puzzle solution: correct → auto-play opponent's reply (if any) then
@@ -9280,6 +9192,7 @@ export default function AnalysisPage() {
                 currentFen: afterUserFen,
                 currentMoveIndex: newIdx,
                 status: "solved",
+                solvedCount: prev.solvedCount + 1,
                 lastMove: { from: orig, to: dest },
               }
             : prev
@@ -9333,6 +9246,7 @@ export default function AnalysisPage() {
             currentFen: g.fen(),
             currentMoveIndex: newMoveIdx,
             status: oppSolved ? "solved" : "solving",
+            solvedCount: oppSolved ? prev.solvedCount + 1 : prev.solvedCount,
             lastMove: { from: oppFrom, to: oppTo },
           };
         });
@@ -10477,14 +10391,6 @@ export default function AnalysisPage() {
               }}
               ref={boardColumnRef}
             >
-              {drillState && (
-                <DrillBanner
-                  state={drillState}
-                  onExit={exitDrill}
-                  onRestart={restartDrill}
-                  onSkip={advanceDrill}
-                />
-              )}
               <ErrorBoundary name="preview-analysis-board">
                 <BoardArea
                   fen={displayFen}
@@ -10577,12 +10483,19 @@ export default function AnalysisPage() {
                     />
                   }
                   state={
-                    !drillState && takeoverPreview ? (
+                    drillState ? (
+                      <DrillStripState
+                        state={drillState}
+                        onExit={exitDrill}
+                        onRestart={restartDrill}
+                        onSkip={() => advanceDrill("skipped")}
+                      />
+                    ) : takeoverPreview ? (
                       <ExploringState
                         preview={takeoverPreview}
                         onReturn={returnToAnchor}
                       />
-                    ) : !drillState && coachJump ? (
+                    ) : coachJump ? (
                       <CoachJumpState
                         jump={coachJump}
                         onBack={() => {

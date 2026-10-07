@@ -1,16 +1,17 @@
 import { test, expect, type Page } from "@playwright/test";
 
 /**
- * "Where you left what players at your level play", on /analysis.
+ * The book-exit note ("where you left what players at your level play") is
+ * no longer part of the greeting on /analysis.
  *
- * The walk and the route are unit-tested. What no unit test can show is that
- * the panel is WIRED — that a loaded game reaches it with the right colour, and
- * that the five outcomes render as five different things on a real page.
- *
- * The second test is the one that matters. "We have no data past move 4" and
- * "you left the book at move 4" are opposite statements about the reader, and
- * the whole feature is worthless — worse than absent — if they ever read as
- * each other in the browser.
+ * Until 2026-10-07 it was the greeting's second paragraph, gated on the
+ * reader's colour, and this spec pinned its five outcomes on the page. The
+ * ideal coach never pushes opening theory (IDEAL_PRODUCT.md, decision 4:
+ * "Many users don't even need help on theory"), so the note left the
+ * greeting; the component, the books and the route stay for the moment the
+ * player asks about the opening, and the walk and the route keep their unit
+ * tests. What this spec now pins is the absence: a game that would have
+ * drawn the note loads under a greeting that says nothing about the book.
  */
 
 const ME = "Lazer_Wizard";
@@ -24,9 +25,11 @@ const PGN = [
 ].join("\n");
 
 async function stubAccount(page: Page) {
-  await page.context().addCookies([
-    { name: "cm_consent", value: "accepted", domain: "127.0.0.1", path: "/" },
-  ]);
+  await page
+    .context()
+    .addCookies([
+      { name: "cm_consent", value: "accepted", domain: "127.0.0.1", path: "/" },
+    ]);
   // The side inference reads the handle out of localStorage, not out of the
   // profile — `chesscomUsername` on the account is not one of the candidates it
   // checks. Seeding the key the page actually reads is the difference between
@@ -58,128 +61,25 @@ async function stubAccount(page: Page) {
   );
 }
 
-const corpus = {
-  band: "improving",
-  source: "Lichess rated blitz and rapid, 2025-11",
-  games: 232933,
-  maxPly: 14,
-  minGames: 10,
-  minShare: 0.02,
-};
-
-async function openGame(page: Page) {
-  await page.goto("/analysis?pgn=" + encodeURIComponent(PGN));
-  await expect(page.getByTestId("book-exit")).toBeVisible({ timeout: 45_000 });
-}
-
-test("names the move, the level, and what that level plays instead", async ({ page }) => {
-  await stubAccount(page);
-  await page.route("**/api/book-exit", (r) =>
-    r.fulfill({
-      json: {
-        band: "improving",
-        corpus,
-        exit: {
-          outcome: "left",
-          ply: 6,
-          moveNumber: 4,
-          san: "b4",
-          common: [
-            { san: "c3", perMille: 640 },
-            { san: "O-O", perMille: 180 },
-            { san: "d3", perMille: 70 },
-          ],
-          depth: 6,
-          transposes: false,
-        },
-      },
-    })
-  );
-
-  await openGame(page);
-  const card = page.getByTestId("book-exit");
-  await expect(card.getByText("Move 4: you played b4.")).toBeVisible();
-  // The population, named. "People at your level" over somebody else's numbers
-  // is the one thing this panel must never do.
-  await expect(card.getByText(/players rated 1200–1599/)).toBeVisible();
-  await expect(card.getByText("c3")).toBeVisible();
-  await expect(card.getByText("64%")).toBeVisible();
-  // And it never calls the move a mistake. No engine was consulted.
-  await expect(card.getByText(/not a mistake/i)).toBeVisible();
-});
-
-test("having no data does not read as having left the book", async ({ page }) => {
-  await stubAccount(page);
-  await page.route("**/api/book-exit", (r) =>
-    r.fulfill({
-      json: {
-        band: "improving",
-        corpus,
-        exit: {
-          outcome: "thin",
-          ply: 6,
-          moveNumber: 4,
-          san: "b4",
-          common: [],
-          depth: 6,
-          transposes: false,
-        },
-      },
-    })
-  );
-
-  await openGame(page);
-  const card = page.getByTestId("book-exit");
-  await expect(card.getByText(/no data past move 4/i)).toBeVisible();
-  // The collapse this feature exists to avoid, asserted at the level a reader
-  // sees: nothing here may say they played it, or left anything.
-  // The headline shape, specifically. A bare /you played/ also matches the
-  // disclaimer's "not a comment on how you played", which would make this
-  // assertion pass or fail on wording rather than on the claim.
-  await expect(card.getByText(/Move \d+: you played/)).toHaveCount(0);
-  await expect(card.getByText(/left the book/i)).toHaveCount(0);
-  await expect(card.getByText(/not a comment on how you played/i)).toBeVisible();
-});
-
-test("an opponent leaving first is reported as theirs", async ({ page }) => {
-  await stubAccount(page);
-  await page.route("**/api/book-exit", (r) =>
-    r.fulfill({
-      json: {
-        band: "improving",
-        corpus,
-        exit: {
-          outcome: "opponent-left",
-          ply: 7,
-          moveNumber: 4,
-          san: "Bxb4",
-          common: [{ san: "Nxb4", perMille: 500 }],
-          depth: 7,
-          transposes: false,
-        },
-      },
-    })
-  );
-
-  await openGame(page);
-  const card = page.getByTestId("book-exit");
-  await expect(card.getByText(/Your opponent left the book first/)).toBeVisible();
-  await expect(card.getByText(/Move \d+: you played/)).toHaveCount(0);
-});
-
-test("asks once per game, however often the page re-renders", async ({ page }) => {
-  // 2026-09-06: production logged 1,000 POSTs to /api/book-exit in 49 seconds
-  // from one signed-out reader — the card's effect was keyed on an array the
-  // parent rebuilt on every engine tick. A signed-out reader gets a 401 and the
-  // panel is simply absent; that must cost ONE request per game, not one per
-  // render. The engine runs during this wait, so the page re-renders plenty.
+test("the greeting says nothing about the book, whoever played", async ({
+  page,
+}) => {
   await stubAccount(page);
   let calls = 0;
-  await page.route("**/api/book-exit", (r) => {
-    calls++;
-    return r.fulfill({ status: 401, json: { error: "not signed in" } });
+  await page.route("**/api/book-exit**", (r) => {
+    calls += 1;
+    return r.fulfill({ json: {} });
   });
-  await page.goto("/analysis?pgn=" + encodeURIComponent(PGN));
-  await page.waitForTimeout(15_000);
-  expect(calls).toBeLessThanOrEqual(1);
+  await page.goto(`/analysis?pgn=${encodeURIComponent(PGN)}`);
+  // The side is inferred from the handle, so the old gate would have opened.
+  await expect(
+    page.getByText(`${ME} vs opponent`).filter({ visible: true }).first()
+  ).toBeVisible({
+    timeout: 30_000,
+  });
+  await page.waitForTimeout(1500);
+  await expect(page.getByTestId("book-exit")).toHaveCount(0);
+  await expect(page.getByText(/left the book/i)).toHaveCount(0);
+  await expect(page.getByText(/Move \d+: you played/)).toHaveCount(0);
+  expect(calls).toBe(0);
 });

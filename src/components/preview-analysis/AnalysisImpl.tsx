@@ -54,10 +54,10 @@ import {
   type PlayerSide,
   type PlayerSideColor,
 } from "@/components/preview-analysis/playerSide";
-import BookExitCard from "@/components/analysis/BookExitCard";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 import { ChessgroundBoardPlaceholder } from "@/components/ui/ChessgroundBoardPlaceholder";
 import { renderMoveLinkedText } from "./moveLinker";
+import { buildGameStory } from "@/lib/coach/gameStory";
 import {
   DEFAULT_ARROW_TOGGLES,
   ARROW_PALETTE,
@@ -1072,6 +1072,13 @@ interface CoachMessage {
    * derives one (a fragment is nervous, an answer is an idea).
    */
   mascot?: MastiMood;
+  /**
+   * The greeting a freshly loaded game arrives under. It is rewritten once
+   * the engine lands with the game's story line (gameStory.ts), and while
+   * it tells that story the review's own one-line intro is not shown: the
+   * scene has been set.
+   */
+  arrival?: { told: boolean };
 }
 
 // The cold-start chat. `synthetic: true` keeps it out of conversationHistory
@@ -4353,12 +4360,6 @@ function CoachPanel({
     [onChangeInput]
   );
 
-  // Stable identity for BookExitCard: a fresh array per render made its
-  // effect refetch on every engine tick (see the note in BookExitCard).
-  const bookExitSans = useMemo(
-    () => (allMoves ?? []).map((mv) => mv.san),
-    [allMoves]
-  );
   const playerColor: "w" | "b" | null = playerSide
     ? playerSide.color === "white"
       ? "w"
@@ -4386,18 +4387,11 @@ function CoachPanel({
       ) : onChoosePlayerSide ? (
         <PlayerSideAsk onChoose={onChoosePlayerSide} />
       ) : null}
-      {/* Where this game left what players at the reader's own level play.
-          Gated on playerSide because the answer is per COLOUR: without it
-          we would have to guess whose moves to judge, and guessing wrong
-          reports the opponent's departure as the reader's. The note fetches
-          its own answer and renders nothing at all when it has none. */}
-      {playerSide && bookExitSans.length > 0 && (
-        <BookExitCard
-          sans={bookExitSans}
-          side={playerSide.color}
-          variant="plain"
-        />
-      )}
+      {/* The book-exit note ("where this game left what players at your
+          level play") used to be the greeting's second paragraph. Opening
+          theory is never pushed (IDEAL_PRODUCT.md, decision 4): the
+          component, the books and the route stay for the moment the
+          player asks about the opening. */}
     </Box>
   ) : null;
 
@@ -6544,9 +6538,13 @@ function CoachBubble({
             if (insights.length === 0) {
               return renderProseWithLines(practiceStripped);
             }
+            // The review's one-line intro ("Let's walk through the key
+            // moments.") repeats a scene the arrival greeting already set
+            // from the engine data; with the story told, the cards speak.
+            const introTold = !!allMessages?.[0]?.arrival?.told;
             return (
               <>
-                {prefix.trim() && renderMarkdownProse(prefix)}
+                {prefix.trim() && !introTold && renderMarkdownProse(prefix)}
                 <DarkInsightStack
                   insights={insights}
                   renderInline={renderInline}
@@ -7861,6 +7859,55 @@ export default function AnalysisPage() {
         ]
       : EMPTY_STATE_MESSAGES
   );
+
+  // The arrival: once the engine has seen the game, the greeting says what
+  // happened in it (gameStory.ts) in place of "Loaded W vs B". Rewritten
+  // again when the side ask is answered, so "your move" replaces a name.
+  // Only the first message, only while it is the arrival greeting, and only
+  // when the line would change, so this never fights a restored transcript.
+  useEffect(() => {
+    if (!classifiedPositions || isPuzzleMode) return;
+    const headers = loadedGame.header();
+    const story = buildGameStory({
+      positions: classifiedPositions,
+      sans: loadedGame.history(),
+      white: headers.White,
+      black: headers.Black,
+      result: headers.Result,
+      playerColor: playerSide
+        ? playerSide.color === "white"
+          ? "w"
+          : "b"
+        : null,
+      declaredDepth: gameEvalFull?.settings.depth ?? null,
+    });
+    const content = `**${story.names}**${story.summary} Step through the moves and the line under the board says what each one does. Ask me anything, or start with **Analyze my game** for the moments that decided it.`;
+    const mascot: MastiMood =
+      story.terminal && playerSide
+        ? analysisMood({
+            thinking: false,
+            streaming: false,
+            coachError: null,
+            aiDisabled: false,
+            hasGame: true,
+            engineRunning: false,
+            terminal: story.terminal === "1/2-1/2" ? "½-½" : story.terminal,
+            playerColor: playerSide.color,
+            classification: null,
+            mover: "unknown",
+          })
+        : "wave";
+    setMessages((prev) => {
+      const first = prev[0];
+      if (!first || first.role !== "coach" || !first.arrival) return prev;
+      if (first.content === content && first.mascot === mascot) return prev;
+      return [
+        { ...first, content, mascot, arrival: { told: true } },
+        ...prev.slice(1),
+      ];
+    });
+  }, [classifiedPositions, loadedGame, playerSide, gameEvalFull, isPuzzleMode]);
+
   const [input, setInput] = useState(
     promptParam ? decodeURIComponent(promptParam) : ""
   );
@@ -7992,6 +8039,11 @@ export default function AnalysisPage() {
             ply: 0,
             synthetic: true,
             mascot: "wave",
+            // A real game (both players named, no custom greeting) gets the
+            // story line once the engine has seen it.
+            ...(!opts?.greeting && newHeaders.White && newHeaders.Black
+              ? { arrival: { told: false } }
+              : {}),
           },
         ]);
       }

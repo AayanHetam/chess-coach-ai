@@ -5646,6 +5646,11 @@ function DarkInsightCard({
 }) {
   const why = useMemo(() => splitInsightWhy(insight.why), [insight.why]);
   const [showPlayed, setShowPlayed] = useState(false);
+  // The solution and the outcome wait behind a tap (2026-10-07). The
+  // 2026-09-25 decision was that a key moment hides nothing; on a phone
+  // the two extra paragraphs put the lesson and the next moment off the
+  // first screen, and the line under the lead already shows the solution.
+  const [showRest, setShowRest] = useState(false);
 
   const cls = (insight.classification ?? "").toLowerCase() as MoveLabel;
   const color = CLASSIFICATION_COLORS[cls] ?? "rgba(255,255,255,0.4)";
@@ -5824,8 +5829,8 @@ function DarkInsightCard({
       )}
 
       {/* The solution and the outcome, in the coach's words, under the line
-          they describe. */}
-      {why.rest && (
+          they describe, once asked for. */}
+      {why.rest && showRest && (
         <Box sx={{ mt: 0.75 }} data-testid="insight-rest">
           <InsightBodyText
             text={why.rest}
@@ -5848,7 +5853,7 @@ function DarkInsightCard({
         </CoachNote>
       )}
 
-      {(playedLine || canPractice) && (
+      {(why.rest || playedLine || canPractice) && (
         <Box
           sx={{
             mt: 1,
@@ -5858,6 +5863,11 @@ function DarkInsightCard({
             alignItems: "center",
           }}
         >
+          {why.rest && (
+            <TextLink onClick={() => setShowRest((v) => !v)}>
+              {showRest ? "Hide the solution" : "Solution and outcome"}
+            </TextLink>
+          )}
           {playedLine && (
             <TextLink onClick={() => setShowPlayed((v) => !v)}>
               {showPlayed ? "Hide what happened" : "What happened in the game"}

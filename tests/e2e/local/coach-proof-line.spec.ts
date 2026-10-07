@@ -63,7 +63,7 @@ async function stubCoach(page: Page) {
   // that is a 503, which is fine in production but paints the dev overlay
   // over the page. An empty answer keeps the spec about the coach panel.
   await page.route("**/api/mistake-puzzles", (r) =>
-    r.fulfill({ json: { puzzles: [], recommendations: [] } }),
+    r.fulfill({ json: { puzzles: [], recommendations: [] } })
   );
   await page.route("**/api/enhanced-analysis", async (route) => {
     const body =
@@ -104,12 +104,17 @@ test.describe("coach proof lines", () => {
 
     // The composer unlocks only once Stockfish has evaluated the game —
     // which is also when the proof lines have data to draw from.
-    const composer = page.getByPlaceholder("Ask anything about this position...");
+    const composer = page.getByPlaceholder(
+      "Ask anything about this position..."
+    );
     const ready = await composer
       .waitFor({ state: "visible", timeout: 180_000 })
       .then(() => true)
       .catch(() => false);
-    test.skip(!ready, "Stockfish never finished on this machine — the line helpers are unit-tested");
+    test.skip(
+      !ready,
+      "Stockfish never finished on this machine — the line helpers are unit-tested"
+    );
 
     await composer.fill("analyse this game");
     await composer.press("Enter");
@@ -121,20 +126,44 @@ test.describe("coach proof lines", () => {
     const plies = cardLine.getByTestId("insight-engine-line-ply");
     expect(await plies.count()).toBeGreaterThanOrEqual(2);
     await expect(plies.first()).toContainText("8.Qxc1");
-    await expect(cardLine.getByTestId("insight-engine-line-caption")).toContainText("queen");
-    await expect(page.getByTestId("insight-engine-line-ledger").first()).toContainText(/queen up/);
+    await expect(
+      cardLine.getByTestId("insight-engine-line-caption")
+    ).toContainText("queen");
+    await expect(
+      page.getByTestId("insight-engine-line-ledger").first()
+    ).toContainText(/queen up/);
     // No chips, no box, no eval badge on the line: one row of moves.
-    await expect(cardLine.getByTestId("insight-engine-line-eval")).toHaveCount(0);
+    await expect(cardLine.getByTestId("insight-engine-line-eval")).toHaveCount(
+      0
+    );
     // One line, not the old pair of identical "Engine line" / "Maia line" boxes.
     await expect(page.getByText("Maia line")).toHaveCount(0);
-    // Nothing about the move is hidden: the intent and the problem above
-    // the line, the solution and the outcome under it, then the lesson.
-    await expect(page.getByTestId("insight-lead")).toContainText("You saw the knight fork");
-    await expect(page.getByTestId("insight-lead")).toContainText("The queen on c1 was hanging");
-    await expect(page.getByTestId("insight-rest")).toContainText("takes the queen immediately");
-    await expect(page.getByTestId("insight-rest")).toContainText("The fork was real, but the free queen was bigger.");
-    await expect(page.getByTestId("insight-lesson")).toContainText("collect the most valuable free piece");
-    await expect(page.getByTestId("insight-lesson")).not.toContainText("The takeaway");
+    // The intent and the problem above the line, the lesson under it; the
+    // solution and the outcome wait behind one text link (2026-10-07: the
+    // line already shows the solution, and on a phone the two paragraphs
+    // pushed the lesson off the first screen).
+    await expect(page.getByTestId("insight-lead")).toContainText(
+      "You saw the knight fork"
+    );
+    await expect(page.getByTestId("insight-lead")).toContainText(
+      "The queen on c1 was hanging"
+    );
+    await expect(page.getByTestId("insight-rest")).toHaveCount(0);
+    await page.getByText("Solution and outcome", { exact: true }).click();
+    await expect(page.getByTestId("insight-rest")).toContainText(
+      "takes the queen immediately"
+    );
+    await expect(page.getByTestId("insight-rest")).toContainText(
+      "The fork was real, but the free queen was bigger."
+    );
+    await page.getByText("Hide the solution", { exact: true }).click();
+    await expect(page.getByTestId("insight-rest")).toHaveCount(0);
+    await expect(page.getByTestId("insight-lesson")).toContainText(
+      "collect the most valuable free piece"
+    );
+    await expect(page.getByTestId("insight-lesson")).not.toContainText(
+      "The takeaway"
+    );
     await expect(page.getByText("Full explanation")).toHaveCount(0);
 
     // Every move is analysed, not just the key moments: step to the end of
@@ -145,31 +174,58 @@ test.describe("coach proof lines", () => {
     const moveCard = page.getByTestId("move-analysis");
     const stripHeightAtStart = (await moveCard.boundingBox())!.height;
     await page.keyboard.press("End");
-    await expect(moveCard.getByTestId("move-analysis-label")).toHaveText("10... e5");
+    await expect(moveCard.getByTestId("move-analysis-label")).toHaveText(
+      "10... e5"
+    );
     for (let i = 0; i < 5; i++) await page.keyboard.press("ArrowLeft");
-    await expect(moveCard.getByTestId("move-analysis-label")).toHaveText("8. Nc7+");
-    await expect(moveCard.getByTestId("move-analysis-verdict")).toContainText("Blunder");
-    await expect(moveCard.getByTestId("move-analysis-sentence")).toContainText("check");
-    await expect(moveCard.getByTestId("move-analysis-sentence")).toContainText("The engine preferred 8. Qxc1");
-    await expect(moveCard.getByTestId("move-analysis-line").getByTestId("move-analysis-line-ply").first()).toContainText("8.Qxc1");
+    await expect(moveCard.getByTestId("move-analysis-label")).toHaveText(
+      "8. Nc7+"
+    );
+    await expect(moveCard.getByTestId("move-analysis-verdict")).toContainText(
+      "Blunder"
+    );
+    await expect(moveCard.getByTestId("move-analysis-sentence")).toContainText(
+      "check"
+    );
+    await expect(moveCard.getByTestId("move-analysis-sentence")).toContainText(
+      "The engine preferred 8. Qxc1"
+    );
+    await expect(
+      moveCard
+        .getByTestId("move-analysis-line")
+        .getByTestId("move-analysis-line-ply")
+        .first()
+    ).toContainText("8.Qxc1");
     await expect(moveCard.getByTestId("move-analysis-ask")).toBeVisible();
-    expect(Math.abs((await moveCard.boundingBox())!.height - stripHeightAtStart)).toBeLessThanOrEqual(2);
+    expect(
+      Math.abs((await moveCard.boundingBox())!.height - stripHeightAtStart)
+    ).toBeLessThanOrEqual(2);
     await page.keyboard.press("ArrowLeft");
-    await expect(moveCard.getByTestId("move-analysis-label")).toHaveText("7... Qxc1");
+    await expect(moveCard.getByTestId("move-analysis-label")).toHaveText(
+      "7... Qxc1"
+    );
     await page.keyboard.press("Home");
-    await expect(moveCard.getByTestId("move-analysis-label")).toHaveText("Start");
+    await expect(moveCard.getByTestId("move-analysis-label")).toHaveText(
+      "Start"
+    );
     await expect(moveCard.getByTestId("move-analysis-verdict")).toHaveCount(0);
-    expect(Math.abs((await moveCard.boundingBox())!.height - stripHeightAtStart)).toBeLessThanOrEqual(2);
+    expect(
+      Math.abs((await moveCard.boundingBox())!.height - stripHeightAtStart)
+    ).toBeLessThanOrEqual(2);
 
     // Play: the board branches off the mainline at the move and shows the
     // line; the strip's first row says so and offers the way back, in place
     // of the move label, at the same height.
     await page.getByTestId("insight-engine-line-play").first().click();
-    await expect(page.getByText("Exploring").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Exploring").first()).toBeVisible({
+      timeout: 10_000,
+    });
     await expect(page.getByTestId("exploration-path")).toContainText("Qxc1");
     await expect(page.getByText(/Back to move 7/)).toBeVisible();
     await expect(moveCard.getByTestId("move-analysis-label")).toHaveCount(0);
-    expect(Math.abs((await moveCard.boundingBox())!.height - stripHeightAtStart)).toBeLessThanOrEqual(2);
+    expect(
+      Math.abs((await moveCard.boundingBox())!.height - stripHeightAtStart)
+    ).toBeLessThanOrEqual(2);
     // Typing stops the line and leaves the board alone. (focus, not click:
     // the dev overlay of `next dev` sits over the composer and blocks a
     // click, and a production build has no overlay to worry about.)
@@ -182,12 +238,20 @@ test.describe("coach proof lines", () => {
     const banner = page.getByTestId("coach-jump-banner");
     await expect(banner).toBeVisible({ timeout: 30_000 });
     await expect(banner).toContainText("8. Nc7+");
-    await expect(page.getByTestId("proof-line")).toHaveCount(2, { timeout: 10_000 });
+    await expect(page.getByTestId("proof-line")).toHaveCount(2, {
+      timeout: 10_000,
+    });
     await expect(page.getByText("In the game", { exact: true })).toBeVisible();
     // The teaching notes wear their eyebrows.
-    await expect(page.getByTestId("coach-note-lesson")).toContainText("list every capture your opponent has in reply");
-    await expect(page.getByTestId("coach-note-lesson")).not.toContainText("Lesson:");
-    await expect(page.getByTestId("coach-note-your-turn")).toContainText("which check does Black have");
+    await expect(page.getByTestId("coach-note-lesson")).toContainText(
+      "list every capture your opponent has in reply"
+    );
+    await expect(page.getByTestId("coach-note-lesson")).not.toContainText(
+      "Lesson:"
+    );
+    await expect(page.getByTestId("coach-note-your-turn")).toContainText(
+      "which check does Black have"
+    );
 
     // The way back.
     await banner.getByRole("button", { name: /Back to/ }).click();
@@ -198,7 +262,10 @@ test.describe("coach proof lines", () => {
     // word away in the header, and the coach's answers are prose beside
     // Masti's face rather than bordered boxes.
     await expect(page.getByRole("tab", { name: "Moves" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Coach" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tab", { name: "Coach" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
     await expect(page.getByText("Quick check")).toHaveCount(0);
   });
 });

@@ -24,6 +24,8 @@ The first cut leaned on the verdict: "it forks, but a queen was free" plus a max
 
 The turn-1 card follows the same order and hides nothing: intent and problem above the line, the solution and the outcome under it, then the lesson. `insightWhy.ts` makes the cut from the body the verbalizer already writes, so no prompt change was needed there.
 
+*Reversed on 2026-10-07 (PR 1.7 of the ideal pathway): the solution and the outcome now wait behind a "Solution and outcome" text link in the card's link row. The line under the lead already shows the solution, and on a phone the two paragraphs put the lesson and the next moment off the first screen. The intent, the problem, the line and the lesson stay open; the test id of the folded section is unchanged.*
+
 ## Every move, not three (2026-09-25, third pass)
 
 A review cards three moves of a forty-move game; the rest had a glyph. The per-move analysis card (`MoveAnalysisCard.tsx` over `moveAnalysis.ts`) sits at the top of the coach panel and follows the board: for the move on the board it gives the verdict, the evaluation before and after, what the move does in the line story's words, a plain sentence on why it works or does not, and, when the engine preferred something else, that line drawn and playable. It is built from the engine data and chess.js, so it exists for every ply, the opponent's included, the moment Stockfish finishes, and it never says what the board does not back. "Ask Masti about this move" sends the question, and the anchor takes the coach to that move.

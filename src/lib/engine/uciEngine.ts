@@ -1,8 +1,10 @@
 import { EngineName } from "@/types/enums";
 import {
   EvaluateGameParams,
+  EvaluateMovesParams,
   EvaluatePositionWithUpdateParams,
   GameEval,
+  MovesEval,
   PositionEval,
 } from "@/types/eval";
 import {
@@ -10,6 +12,10 @@ import {
   parseEvaluationResults,
 } from "./helpers/parseResults";
 import { computeAccuracy } from "./helpers/accuracy";
+import {
+  normaliseAskedMoves,
+  parseMovesResults,
+} from "./helpers/parseMovesResults";
 import { getIsStalemate, getWhoIsCheckmated } from "../chess";
 import { getLichessEval } from "../lichess";
 import { getMovesClassification } from "./helpers/moveClassification";
@@ -595,6 +601,57 @@ export class UciEngine {
 
     // The cloud may have won while the local search was still deepening.
     return publisher.best() ?? localEval;
+  }
+
+  /**
+   * Score the asked moves in ONE search at ONE depth: UCI `searchmoves`
+   * restricts the root to those moves and MultiPV equal to their number
+   * gives each its own line, so an asked alternative and the engine's best
+   * are measured by the same search and their difference means something.
+   * Ported from the openings builder (scripts/openings/build-eval-gaps.mjs),
+   * where it scores setup moves the engine would never rank on its own.
+   *
+   * The table is cleared first. A what-if is asked about a position the
+   * review swept on a warm table, and the pathway's rule is that the cold
+   * pair is compared with itself and never subtracted from a warm number
+   * (p99 disagreement for the same position measured at 367 cp). `cold` on
+   * the result says so to every consumer.
+   *
+   * `onPartial` fires at each completed depth once every asked move has a
+   * line, so the first evaluation can be drawn in well under the time the
+   * final depth takes on a phone. Never with a move missing: a partial that
+   * scores one move and not the other would invite exactly the subtraction
+   * this method exists to prevent.
+   */
+  public async evaluateMoves({
+    fen,
+    moves,
+    depth = 16,
+    onPartial,
+  }: EvaluateMovesParams): Promise<MovesEval> {
+    this.throwErrorIfNotReady();
+    const asked = normaliseAskedMoves(fen, moves);
+
+    await this.stopAllCurrentJobs();
+    await this.setMultiPv(asked.length);
+    await this.sendCommandsToEachWorker(["ucinewgame", "isready"], "readyok");
+
+    let partialDepth = 0;
+    const onNewMessage = onPartial
+      ? (messages: string[]) => {
+          const partial = parseMovesResults(messages, fen, asked);
+          if (partial.missing.length > 0 || partial.depth <= partialDepth) return;
+          partialDepth = partial.depth;
+          onPartial(partial);
+        }
+      : undefined;
+
+    const results = await this.sendCommands(
+      [`position fen ${fen}`, `go depth ${depth} searchmoves ${asked.join(" ")}`],
+      "bestmove",
+      onNewMessage
+    );
+    return parseMovesResults(results, fen, asked);
   }
 
   public async getEngineNextMove(

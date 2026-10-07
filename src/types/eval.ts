@@ -54,6 +54,58 @@ export interface GameEval {
   settings: EngineSettings;
 }
 
+/**
+ * One asked move, scored by `UciEngine.evaluateMoves`.
+ *
+ * SCORE CONVENTION: `cp` and `mate` are WHITE-RELATIVE, exactly like every
+ * `LineEval` (positive favours White whoever is to move, a positive mate is
+ * White delivering it). The engine reports side-to-move scores and the parser
+ * flips them for Black, as parseEvaluationResults does. The three regimes on
+ * the repo's screens (the review's warm sweep, the live effect's deeper
+ * number, this cold pair) share the convention and must still never be
+ * subtracted across each other; see NullMoveProbe in lib/intent.
+ */
+export interface MoveEval {
+  /** The move as asked, UCI (chess.js spelling: e1g1 for castling). */
+  uci: string;
+  san: string;
+  cp?: number;
+  mate?: number;
+  depth: number;
+  /** The engine's line, UCI, the asked move first. */
+  pv: string[];
+}
+
+export interface MovesEval {
+  fen: string;
+  /** The shallowest depth among the scored moves; 0 when none scored. */
+  depth: number;
+  /** Scored moves, best for the side to move first. */
+  moves: MoveEval[];
+  /** Asked moves the engine returned no line for. Reported, never invented. */
+  missing: string[];
+  /** The engine's preferred move among those asked, UCI, from its `bestmove`. */
+  bestMove?: string;
+  source: "local";
+  /**
+   * The search ran on a cleared transposition table, so the asked moves are
+   * comparable with each other and with nothing measured on a warm table.
+   */
+  cold: true;
+}
+
+export interface EvaluateMovesParams {
+  fen: string;
+  /** The moves to score, UCI, each legal at `fen`; 1 to 10 of them (the MultiPV bound). */
+  moves: string[];
+  depth?: number;
+  /**
+   * Called at every depth the search completes with every asked move scored,
+   * so a first evaluation can be drawn before the final one lands.
+   */
+  onPartial?: (partial: MovesEval) => void;
+}
+
 export interface EvaluatePositionWithUpdateParams {
   fen: string;
   depth?: number;

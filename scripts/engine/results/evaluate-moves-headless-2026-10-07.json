@@ -1,0 +1,702 @@
+{
+  "date": "2026-10-07",
+  "engine": "Stockfish 17 Lite WASM",
+  "workerFile": "stockfish-17-lite-single.js",
+  "scoreConvention": "side-to-move as the engine reports it; evaluateMoves flips to White-relative",
+  "machine": {
+    "platform": "linux",
+    "cpus": 4,
+    "node": "v22.22.0"
+  },
+  "depths": [
+    12,
+    13,
+    16
+  ],
+  "invariantFailures": 0,
+  "byDepth": {
+    "12": {
+      "searches": 4,
+      "msMin": 18,
+      "msMedian": 105,
+      "msMax": 146
+    },
+    "13": {
+      "searches": 4,
+      "msMin": 20,
+      "msMedian": 58,
+      "msMax": 315
+    },
+    "16": {
+      "searches": 4,
+      "msMin": 28,
+      "msMedian": 277,
+      "msMax": 873
+    }
+  },
+  "results": [
+    {
+      "case": "07 before 8.Nc7+ (White): the played move and the engine's best",
+      "fen": "r1b1kbnr/pp1ppppp/2n5/1N6/4P3/5N2/P1P2PPP/2qQKB1R w Kkq - 0 8",
+      "asked": [
+        "b5c7",
+        "d1c1"
+      ],
+      "depth": 12,
+      "ms": 105,
+      "ok": true,
+      "missing": [],
+      "extra": [],
+      "shallow": [],
+      "bestmove": "d1c1",
+      "slots": [
+        1,
+        2
+      ],
+      "scored": [
+        {
+          "uci": "d1c1",
+          "depth": 12,
+          "slot": 1,
+          "kind": "cp",
+          "value": 251,
+          "pv": [
+            "d1c1",
+            "a8b8",
+            "c1f4",
+            "g8f6",
+            "f1d3",
+            "d7d6"
+          ]
+        },
+        {
+          "uci": "b5c7",
+          "depth": 12,
+          "slot": 2,
+          "kind": "cp",
+          "value": -97,
+          "pv": [
+            "b5c7",
+            "e8d8",
+            "d1c1",
+            "d8c7",
+            "f1b5",
+            "e7e5"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "07 before 8.Nc7+ (White): the played move and the engine's best",
+      "fen": "r1b1kbnr/pp1ppppp/2n5/1N6/4P3/5N2/P1P2PPP/2qQKB1R w Kkq - 0 8",
+      "asked": [
+        "b5c7",
+        "d1c1"
+      ],
+      "depth": 13,
+      "ms": 58,
+      "ok": true,
+      "missing": [],
+      "extra": [],
+      "shallow": [],
+      "bestmove": "d1c1",
+      "slots": [
+        1,
+        2
+      ],
+      "scored": [
+        {
+          "uci": "d1c1",
+          "depth": 13,
+          "slot": 1,
+          "kind": "cp",
+          "value": 260,
+          "pv": [
+            "d1c1",
+            "a8b8",
+            "c1f4",
+            "g8f6",
+            "f1d3",
+            "d7d6"
+          ]
+        },
+        {
+          "uci": "b5c7",
+          "depth": 13,
+          "slot": 2,
+          "kind": "cp",
+          "value": -97,
+          "pv": [
+            "b5c7",
+            "e8d8",
+            "d1c1",
+            "d8c7",
+            "f1b5",
+            "e7e5"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "07 before 8.Nc7+ (White): the played move and the engine's best",
+      "fen": "r1b1kbnr/pp1ppppp/2n5/1N6/4P3/5N2/P1P2PPP/2qQKB1R w Kkq - 0 8",
+      "asked": [
+        "b5c7",
+        "d1c1"
+      ],
+      "depth": 16,
+      "ms": 277,
+      "ok": true,
+      "missing": [],
+      "extra": [],
+      "shallow": [],
+      "bestmove": "d1c1",
+      "slots": [
+        1,
+        2
+      ],
+      "scored": [
+        {
+          "uci": "d1c1",
+          "depth": 16,
+          "slot": 1,
+          "kind": "cp",
+          "value": 248,
+          "pv": [
+            "d1c1",
+            "a8b8",
+            "f1d3",
+            "a7a6",
+            "b5c7",
+            "e8d8"
+          ]
+        },
+        {
+          "uci": "b5c7",
+          "depth": 16,
+          "slot": 2,
+          "kind": "cp",
+          "value": -120,
+          "pv": [
+            "b5c7",
+            "e8d8",
+            "d1c1",
+            "d8c7",
+            "f1b5",
+            "f7f6"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "07 after 8.Nc7+ (Black to move): the sign check",
+      "fen": "r1b1kbnr/ppNppppp/2n5/8/4P3/5N2/P1P2PPP/2qQKB1R b Kkq - 1 8",
+      "asked": [
+        "e8d8"
+      ],
+      "depth": 12,
+      "ms": 18,
+      "ok": true,
+      "missing": [],
+      "extra": [],
+      "shallow": [],
+      "bestmove": "e8d8",
+      "slots": [
+        1
+      ],
+      "scored": [
+        {
+          "uci": "e8d8",
+          "depth": 12,
+          "slot": 1,
+          "kind": "cp",
+          "value": 151,
+          "pv": [
+            "e8d8",
+            "c7e6",
+            "f7e6",
+            "d1c1",
+            "d8e8",
+            "h2h4"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "07 after 8.Nc7+ (Black to move): the sign check",
+      "fen": "r1b1kbnr/ppNppppp/2n5/8/4P3/5N2/P1P2PPP/2qQKB1R b Kkq - 1 8",
+      "asked": [
+        "e8d8"
+      ],
+      "depth": 13,
+      "ms": 45,
+      "ok": true,
+      "missing": [],
+      "extra": [],
+      "shallow": [],
+      "bestmove": "e8d8",
+      "slots": [
+        1
+      ],
+      "scored": [
+        {
+          "uci": "e8d8",
+          "depth": 13,
+          "slot": 1,
+          "kind": "cp",
+          "value": 158,
+          "pv": [
+            "e8d8",
+            "c7e6",
+            "f7e6",
+            "d1c1",
+            "d8e8",
+            "h2h4"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "07 after 8.Nc7+ (Black to move): the sign check",
+      "fen": "r1b1kbnr/ppNppppp/2n5/8/4P3/5N2/P1P2PPP/2qQKB1R b Kkq - 1 8",
+      "asked": [
+        "e8d8"
+      ],
+      "depth": 16,
+      "ms": 126,
+      "ok": true,
+      "missing": [],
+      "extra": [],
+      "shallow": [],
+      "bestmove": "e8d8",
+      "slots": [
+        1
+      ],
+      "scored": [
+        {
+          "uci": "e8d8",
+          "depth": 16,
+          "slot": 1,
+          "kind": "cp",
+          "value": 141,
+          "pv": [
+            "e8d8",
+            "d1c1",
+            "d8c7",
+            "f1b5",
+            "g8f6",
+            "b5c6"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "Ruy Lopez after 3.Bb5: three book replies",
+      "fen": "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "asked": [
+        "a7a6",
+        "g8f6",
+        "f8c5"
+      ],
+      "depth": 12,
+      "ms": 146,
+      "ok": true,
+      "missing": [],
+      "extra": [],
+      "shallow": [],
+      "bestmove": "a7a6",
+      "slots": [
+        1,
+        2,
+        3
+      ],
+      "scored": [
+        {
+          "uci": "g8f6",
+          "depth": 12,
+          "slot": 3,
+          "kind": "cp",
+          "value": -55,
+          "pv": [
+            "g8f6",
+            "e1g1",
+            "f8c5",
+            "b1c3",
+            "d7d6",
+            "d2d4"
+          ]
+        },
+        {
+          "uci": "f8c5",
+          "depth": 12,
+          "slot": 2,
+          "kind": "cp",
+          "value": -50,
+          "pv": [
+            "f8c5",
+            "e1g1",
+            "g8e7",
+            "c2c3",
+            "d7d5",
+            "f3e5"
+          ]
+        },
+        {
+          "uci": "a7a6",
+          "depth": 12,
+          "slot": 1,
+          "kind": "cp",
+          "value": -29,
+          "pv": [
+            "a7a6",
+            "b5a4",
+            "g8f6",
+            "e1g1",
+            "b7b5",
+            "a4b3"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "Ruy Lopez after 3.Bb5: three book replies",
+      "fen": "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "asked": [
+        "a7a6",
+        "g8f6",
+        "f8c5"
+      ],
+      "depth": 13,
+      "ms": 315,
+      "ok": true,
+      "missing": [],
+      "extra": [],
+      "shallow": [],
+      "bestmove": "a7a6",
+      "slots": [
+        1,
+        2,
+        3
+      ],
+      "scored": [
+        {
+          "uci": "g8f6",
+          "depth": 13,
+          "slot": 2,
+          "kind": "cp",
+          "value": -61,
+          "pv": [
+            "g8f6",
+            "e1g1",
+            "f8c5",
+            "f3e5",
+            "c6d4",
+            "e5d3"
+          ]
+        },
+        {
+          "uci": "f8c5",
+          "depth": 13,
+          "slot": 3,
+          "kind": "cp",
+          "value": -62,
+          "pv": [
+            "f8c5",
+            "e1g1",
+            "g8f6",
+            "f3e5",
+            "c6d4",
+            "e5d3"
+          ]
+        },
+        {
+          "uci": "a7a6",
+          "depth": 13,
+          "slot": 1,
+          "kind": "cp",
+          "value": -38,
+          "pv": [
+            "a7a6",
+            "b5a4",
+            "g8f6",
+            "e1g1",
+            "b7b5",
+            "a4b3"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "Ruy Lopez after 3.Bb5: three book replies",
+      "fen": "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "asked": [
+        "a7a6",
+        "g8f6",
+        "f8c5"
+      ],
+      "depth": 16,
+      "ms": 873,
+      "ok": true,
+      "missing": [],
+      "extra": [],
+      "shallow": [],
+      "bestmove": "a7a6",
+      "slots": [
+        1,
+        2,
+        3
+      ],
+      "scored": [
+        {
+          "uci": "g8f6",
+          "depth": 16,
+          "slot": 2,
+          "kind": "cp",
+          "value": -38,
+          "pv": [
+            "g8f6",
+            "e1g1",
+            "f6e4",
+            "f1e1",
+            "e4d6",
+            "b5f1"
+          ]
+        },
+        {
+          "uci": "f8c5",
+          "depth": 16,
+          "slot": 3,
+          "kind": "cp",
+          "value": -47,
+          "pv": [
+            "f8c5",
+            "e1g1",
+            "d7d6",
+            "c2c3",
+            "a7a6",
+            "b5a4"
+          ]
+        },
+        {
+          "uci": "a7a6",
+          "depth": 16,
+          "slot": 1,
+          "kind": "cp",
+          "value": -26,
+          "pv": [
+            "a7a6",
+            "b5a4",
+            "g8f6",
+            "e1g1",
+            "f6e4",
+            "d2d4"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "K+P v K: three king-and-pawn tries",
+      "fen": "8/8/8/4k3/8/8/4P3/4K3 w - - 0 1",
+      "asked": [
+        "e2e4",
+        "e1d2",
+        "e1f2"
+      ],
+      "depth": 12,
+      "ms": 25,
+      "ok": true,
+      "missing": [],
+      "extra": [],
+      "shallow": [],
+      "bestmove": "e1d2",
+      "slots": [
+        1,
+        2,
+        3
+      ],
+      "scored": [
+        {
+          "uci": "e1f2",
+          "depth": 12,
+          "slot": 2,
+          "kind": "cp",
+          "value": 3,
+          "pv": [
+            "e1f2",
+            "e5f4",
+            "e2e3",
+            "f4e4",
+            "f2e2",
+            "e4f5"
+          ]
+        },
+        {
+          "uci": "e1d2",
+          "depth": 12,
+          "slot": 1,
+          "kind": "cp",
+          "value": 4,
+          "pv": [
+            "e1d2",
+            "e5e4",
+            "e2e3",
+            "e4f5",
+            "d2d3",
+            "f5e5"
+          ]
+        },
+        {
+          "uci": "e2e4",
+          "depth": 12,
+          "slot": 3,
+          "kind": "cp",
+          "value": 0,
+          "pv": [
+            "e2e4",
+            "e5e4",
+            "e1e2",
+            "e4d5",
+            "e2f3",
+            "d5e5"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "K+P v K: three king-and-pawn tries",
+      "fen": "8/8/8/4k3/8/8/4P3/4K3 w - - 0 1",
+      "asked": [
+        "e2e4",
+        "e1d2",
+        "e1f2"
+      ],
+      "depth": 13,
+      "ms": 20,
+      "ok": true,
+      "missing": [],
+      "extra": [],
+      "shallow": [],
+      "bestmove": "e1f2",
+      "slots": [
+        1,
+        2,
+        3
+      ],
+      "scored": [
+        {
+          "uci": "e1f2",
+          "depth": 13,
+          "slot": 1,
+          "kind": "cp",
+          "value": 4,
+          "pv": [
+            "e1f2",
+            "e5f4",
+            "e2e3",
+            "f4e5",
+            "f2f3",
+            "e5f5"
+          ]
+        },
+        {
+          "uci": "e1d2",
+          "depth": 13,
+          "slot": 2,
+          "kind": "cp",
+          "value": 3,
+          "pv": [
+            "e1d2",
+            "e5e4",
+            "e2e3",
+            "e4f5",
+            "d2d3",
+            "f5e5"
+          ]
+        },
+        {
+          "uci": "e2e4",
+          "depth": 13,
+          "slot": 3,
+          "kind": "cp",
+          "value": 1,
+          "pv": [
+            "e2e4",
+            "e5e4",
+            "e1e2",
+            "e4d5",
+            "e2d3",
+            "d5c5"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "K+P v K: three king-and-pawn tries",
+      "fen": "8/8/8/4k3/8/8/4P3/4K3 w - - 0 1",
+      "asked": [
+        "e2e4",
+        "e1d2",
+        "e1f2"
+      ],
+      "depth": 16,
+      "ms": 28,
+      "ok": true,
+      "missing": [],
+      "extra": [],
+      "shallow": [],
+      "bestmove": "e1d2",
+      "slots": [
+        1,
+        2,
+        3
+      ],
+      "scored": [
+        {
+          "uci": "e1f2",
+          "depth": 16,
+          "slot": 2,
+          "kind": "cp",
+          "value": 3,
+          "pv": [
+            "e1f2",
+            "e5f4",
+            "e2e3",
+            "f4e5",
+            "f2f3",
+            "e5f5"
+          ]
+        },
+        {
+          "uci": "e1d2",
+          "depth": 16,
+          "slot": 1,
+          "kind": "cp",
+          "value": 3,
+          "pv": [
+            "e1d2",
+            "e5d4",
+            "e2e3",
+            "d4e4",
+            "d2e2",
+            "e4e5"
+          ]
+        },
+        {
+          "uci": "e2e4",
+          "depth": 16,
+          "slot": 3,
+          "kind": "cp",
+          "value": 1,
+          "pv": [
+            "e2e4",
+            "e5e4",
+            "e1e2",
+            "e4f4",
+            "e2d3",
+            "f4f3"
+          ]
+        }
+      ]
+    }
+  ]
+}

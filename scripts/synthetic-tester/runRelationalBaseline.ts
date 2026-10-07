@@ -53,6 +53,7 @@ function parseArgs(argv: string[]): Args {
     maxCost: parseFloat(get("max-cost") || "8"),
     depth: parseInt(get("depth") || "12", 10),
     limit: parseInt(get("limit") || String(RELATIONAL_FIXTURES.length), 10),
+    // Ignored by the server when COACH_ONE_MASTI is on (one Masti voice).
     personality: get("personality") || "friendly",
     out: get("out"),
     flagshipUsd: parseFloat(get("flagship-usd") || "0.08"),

@@ -288,6 +288,7 @@ async function runLive(args: Args): Promise<void> {
     selectCardInsights,
     VERBALIZER_PROMPT_VERSION,
   } = await import("@/lib/prompts/verbalizerPrompt");
+  const { isOneMasti } = await import("@/lib/prompts/mastiVoice");
 
   const fixtures = loadFixtures(args.only);
   console.log(`\n=== Mode B (live): verbalizer-4.0 ENFORCED AFTER measurement over ${fixtures.length} fixtures ===`);
@@ -539,6 +540,9 @@ async function runLive(args: Args): Promise<void> {
     mode: "verbalizer_4.0_enforced_AFTER",
     model: { generator: generatorModel, judge: judgeModel },
     verbalizerPromptVersion: VERBALIZER_PROMPT_VERSION,
+    // The voice the run was prompted in: a keyed run with the one Masti
+    // voice on is not comparable to one with the attitudes (mastiVoice.ts).
+    oneMasti: isOneMasti(),
     legacyPromptVersion: PROMPT_VERSION,
     fixtures: perGame.length,
     userMessage: USER_MESSAGE,

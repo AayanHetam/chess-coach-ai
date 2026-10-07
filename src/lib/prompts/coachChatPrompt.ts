@@ -11,7 +11,7 @@
  * yet imported by any route handler.
  */
 
-import { getPersonalityById } from "@/config/coachPersonalities";
+import { coachVoiceFor } from "./mastiVoice";
 import { TACTICAL_THEMES } from "@/lib/chessPuzzlesService";
 
 /**
@@ -154,7 +154,10 @@ function deriveSkillTier(rating: number | undefined): SkillTier {
 export function getCoachChatSystemPromptParts(
   input: CoachChatPromptInput
 ): { stable: string; perUser: string } {
-  const personality = getPersonalityById(input.personalityId);
+  // The attitude the id names, or the one Masti voice under COACH_ONE_MASTI
+  // (mastiVoice.ts): the block under TONE AND STYLE is the only place the
+  // two differ, so a flag-off prompt is byte-identical to before the flag.
+  const voice = coachVoiceFor(input.personalityId);
   const tier = deriveSkillTier(input.userRating);
   const tierUpper = tier.toUpperCase();
 
@@ -457,7 +460,7 @@ INTERACTIVE ELEMENTS:
 - When suggesting a hypothetical move, clearly indicate it's an alternative and explain WHY using PV analysis
 - When discussing a specific position, reference it clearly and explain the plan
 
-${personality.systemPromptOverride}
+${voice.block}
 
 SLASH COMMANDS:
 The composer accepts /puzzle-generation, which pulls puzzles sharing the tactical pattern of the position the user is on and opens them as a practice run. It is run by the app, not by you — never claim to have run it, and never emit it as a token.

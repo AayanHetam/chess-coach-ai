@@ -4,7 +4,9 @@ import {
   PROMPT_VERSION,
   type CoachChatPromptInput,
 } from "../coachChatPrompt";
+import { afterEach, vi } from "vitest";
 import { coachPersonalities } from "@/config/coachPersonalities";
+import { MASTI_VOICE } from "../mastiVoice";
 
 // Phase 1 — pure-function snapshot tests for the coach chat system prompt.
 //
@@ -12,6 +14,11 @@ import { coachPersonalities } from "@/config/coachPersonalities";
 // readable; the snapshot files freeze the rendered prompt body so any
 // future drift fails CI loudly. The format-invariant assertions below
 // guard the bare minimum the front-end carousel parser depends on.
+//
+// One Masti (2026-10-07): the seven attitudes are retiring behind
+// COACH_ONE_MASTI, so the prompt is snapshotted ONCE, in the one voice
+// every attitude id now shares. The attitude path is pinned by content
+// while the flag is off, not by seven more snapshots of retiring text.
 
 const baseInput: CoachChatPromptInput = {
   personalityId: "friendly", // matches defaultPersonalityId
@@ -22,26 +29,45 @@ const baseInput: CoachChatPromptInput = {
   lichessUsername: "alice_lichess",
 };
 
-describe("getCoachChatSystemPrompt — snapshots per personality", () => {
-  for (const p of coachPersonalities) {
-    it(`matches snapshot for personality '${p.id}'`, () => {
-      const out = getCoachChatSystemPrompt({
-        ...baseInput,
-        personalityId: p.id,
-      });
-      expect(out).toMatchSnapshot();
-    });
-  }
-});
+describe("getCoachChatSystemPrompt — one Masti (COACH_ONE_MASTI)", () => {
+  afterEach(() => vi.unstubAllEnvs());
 
-describe("getCoachChatSystemPrompt — snapshots per skill tier", () => {
-  it.each<[string, number]>([
-    ["beginner", 800],
-    ["intermediate", 1300],
-    ["advanced", 2000],
-  ])("matches snapshot for tier %s (rating %d)", (_tier, rating) => {
-    const out = getCoachChatSystemPrompt({ ...baseInput, userRating: rating });
+  it("matches the one snapshot, in the one voice", () => {
+    vi.stubEnv("COACH_ONE_MASTI", "1");
+    const out = getCoachChatSystemPrompt(baseInput);
+    expect(out).toContain(MASTI_VOICE);
     expect(out).toMatchSnapshot();
+  });
+
+  it("every attitude id renders the identical prompt under the flag", () => {
+    vi.stubEnv("COACH_ONE_MASTI", "1");
+    const reference = getCoachChatSystemPrompt(baseInput);
+    for (const p of coachPersonalities) {
+      expect(getCoachChatSystemPrompt({ ...baseInput, personalityId: p.id }), p.id).toBe(reference);
+    }
+    expect(getCoachChatSystemPrompt({ ...baseInput, personalityId: "not-an-attitude" })).toBe(reference);
+  });
+
+  it("flag off, the attitude the id names still speaks, and the voice block does not", () => {
+    vi.stubEnv("COACH_ONE_MASTI", "");
+    const grandmaster = getCoachChatSystemPrompt({ ...baseInput, personalityId: "grandmaster" });
+    const friendly = getCoachChatSystemPrompt({ ...baseInput, personalityId: "friendly" });
+    expect(grandmaster).toContain("GRANDMASTER ATTITUDE");
+    expect(friendly).toContain("FRIENDLY MENTOR ATTITUDE");
+    expect(grandmaster).not.toContain(MASTI_VOICE);
+    expect(grandmaster).not.toBe(friendly);
+  });
+
+  it("the skill tiers still calibrate under the one voice", () => {
+    vi.stubEnv("COACH_ONE_MASTI", "1");
+    for (const [tier, rating] of [
+      ["BEGINNER", 800],
+      ["INTERMEDIATE", 1300],
+      ["ADVANCED", 2000],
+    ] as const) {
+      const out = getCoachChatSystemPrompt({ ...baseInput, userRating: rating });
+      expect(out).toContain(`Skill calibration tier: ${tier}`);
+    }
   });
 });
 

@@ -490,6 +490,7 @@ async function runLive(args: Args): Promise<void> {
     selectCardInsightsDetailed,
     VERBALIZER_PROMPT_VERSION,
   } = await import("@/lib/prompts/verbalizerPrompt");
+  const { isOneMasti } = await import("@/lib/prompts/mastiVoice");
 
   const fixtures = loadFixtures(args.only);
   console.log(
@@ -931,6 +932,7 @@ async function runLive(args: Args): Promise<void> {
     model: { generator: generatorModel, judge: judgeModel },
     verbalizerPromptVersion: VERBALIZER_PROMPT_VERSION,
     legacyPromptVersion: PROMPT_VERSION,
+    oneMasti: isOneMasti(),
     fixtures: fixtures.length,
     samplesPerFixture: args.samples,
     userMessage: USER_MESSAGE,

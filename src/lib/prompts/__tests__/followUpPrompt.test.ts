@@ -10,13 +10,22 @@ import {
   FOLLOWUP_WALKTHROUGH_WORD_BUDGET,
 } from "../followUpPrompt";
 import { coachPersonalities } from "@/config/coachPersonalities";
+import { MASTI_VOICE } from "../mastiVoice";
 
-describe("getFollowUpSystemPromptStable — snapshots per personality", () => {
-  for (const p of coachPersonalities) {
-    it(`matches snapshot for personality '${p.id}'`, () => {
-      expect(getFollowUpSystemPromptStable(p.id)).toMatchSnapshot();
-    });
-  }
+describe("getFollowUpSystemPromptStable — one Masti (COACH_ONE_MASTI)", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("matches the one snapshot, in the one voice, for every attitude id", () => {
+    vi.stubEnv("COACH_ONE_MASTI", "1");
+    const reference = getFollowUpSystemPromptStable("friendly");
+    expect(reference).toContain(MASTI_VOICE);
+    expect(reference).toContain("in the voice below");
+    expect(reference).not.toContain("attitude");
+    for (const p of coachPersonalities) {
+      expect(getFollowUpSystemPromptStable(p.id), p.id).toBe(reference);
+    }
+    expect(reference).toMatchSnapshot();
+  });
 });
 
 describe("getFollowUpSystemPromptStable — invariants", () => {

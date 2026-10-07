@@ -314,6 +314,7 @@ async function runLive(args: Args): Promise<void> {
     selectCardInsights,
     VERBALIZER_PROMPT_VERSION,
   } = await import("@/lib/prompts/verbalizerPrompt");
+  const { isOneMasti } = await import("@/lib/prompts/mastiVoice");
 
   const fixtures = loadFixtures(args.only, args.fixturesReal);
   console.log(
@@ -630,6 +631,9 @@ async function runLive(args: Args): Promise<void> {
       note: "usage-priced against llmPricing (generation + persona judge + ladder regenerations)",
     },
     verbalizerPromptVersion: VERBALIZER_PROMPT_VERSION,
+    // The voice the run was prompted in: a keyed run with the one Masti
+    // voice on is not comparable to one with the attitudes (mastiVoice.ts).
+    oneMasti: isOneMasti(),
     legacyPromptVersion: PROMPT_VERSION,
     fixtures: fixtures.length,
     samplesPerFixture: args.samples,

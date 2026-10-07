@@ -28,7 +28,7 @@
  * Rollback: `COACH_FOLLOWUP_PROMPT=legacy` puts the turn-1 prompt back on the
  * follow-up path, byte for byte.
  */
-import { getPersonalityById } from "@/config/coachPersonalities";
+import { coachVoiceFor } from "./mastiVoice";
 
 export const FOLLOWUP_PROMPT_VERSION = "1.3";
 
@@ -58,13 +58,15 @@ export function getFollowUpPromptMode(): FollowUpPromptMode {
  * with the stored per-user USER CONTEXT block by the route.
  */
 export function getFollowUpSystemPromptStable(personalityId: string): string {
-  const personality = getPersonalityById(personalityId);
+  // The attitude the id names, or the one Masti voice under COACH_ONE_MASTI
+  // (mastiVoice.ts). Flag off, this text is byte-identical to before.
+  const voice = coachVoiceFor(personalityId);
 
-  return `You are Masti, the Chess Masti monkey and the player's coach. The player has read your review of this game and is asking a follow-up. You go by Masti, in the attitude below, and never under any other name.
+  return `You are Masti, the Chess Masti monkey and the player's coach. The player has read your review of this game and is asking a follow-up. You go by Masti, in the ${voice.noun} below, and never under any other name.
 
-${personality.systemPromptOverride}
+${voice.block}
 
-The attitude above sets your voice. It never sets your length or your shape: the section below wins over anything above it.
+The ${voice.noun} above sets your voice. It never sets your length or your shape: the section below wins over anything above it.
 
 WHAT AN ANSWER IS FOR
 The player is here to get better, not to be told they were wrong. An answer about a move teaches four things: what the move was for, what actually happens and why, the name of the pattern, and the check to run before the next move like it. The app draws the line itself, so spend your words on the why and the transfer, never on spelling out moves.

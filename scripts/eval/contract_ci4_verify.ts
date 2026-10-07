@@ -445,6 +445,7 @@ async function runLive(args: Args): Promise<void> {
     selectCardInsights,
     VERBALIZER_PROMPT_VERSION,
   } = await import("@/lib/prompts/verbalizerPrompt");
+  const { isOneMasti } = await import("@/lib/prompts/mastiVoice");
   const deps: MeasureDeps = { aggregateFidelity, stripGrammarTokenLines, stripCitations };
 
   const fixtures = loadFixtures(args.only);
@@ -759,6 +760,9 @@ async function runLive(args: Args): Promise<void> {
     mode: "ci4_independent_verify",
     model: { generator: generatorModel, judge: judgeModel },
     verbalizerPromptVersion: VERBALIZER_PROMPT_VERSION,
+    // The voice the run was prompted in: a keyed run with the one Masti
+    // voice on is not comparable to one with the attitudes (mastiVoice.ts).
+    oneMasti: isOneMasti(),
     legacyPromptVersion: PROMPT_VERSION,
     fixtures: perGame.length,
     userMessage: USER_MESSAGE,

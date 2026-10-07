@@ -100,6 +100,8 @@ function parseArgs(argv: string[]): Args {
     dryRun: opts["dry-run"] === "true",
     maxCost: opts["max-cost"] ? parseFloat(opts["max-cost"]) : 5.0,
     seed,
+    // The attitude the server is asked for. With COACH_ONE_MASTI on it is
+    // ignored: every id gets the one Masti voice (lib/prompts/mastiVoice.ts).
     personality: opts.personality || "friendly",
     minPlies: opts["min-plies"] !== undefined ? parseInt(opts["min-plies"], 10) : 30,
     gamesFile: opts["games-file"],

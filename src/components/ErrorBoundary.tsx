@@ -23,8 +23,8 @@ interface ErrorBoundaryState {
  * instead of unmounting the entire component tree.
  *
  * Usage:
- *   <ErrorBoundary name="ai-coach">
- *     <AICoachChat />
+ *   <ErrorBoundary name="preview-analysis-board">
+ *     <Board />
  *   </ErrorBoundary>
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {

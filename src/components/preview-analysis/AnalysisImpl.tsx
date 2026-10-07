@@ -21,7 +21,6 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import { ThemeProvider, createTheme, useTheme } from "@mui/material/styles";
-import { motion } from "framer-motion";
 import {
   MasterGamesPanel,
   buildCandidatesFromApi,
@@ -170,12 +169,6 @@ import { buildAnalysisRequestBody } from "@/lib/coach/analysisRequestBody";
 import { buildChatRequestBody } from "@/lib/coach/chatRequestBody";
 import { buildConversationHistory } from "@/lib/coach/conversationHistory";
 import { FlagButton } from "@/components/intern/FlagButton";
-import {
-  coachPersonalities,
-  defaultPersonalityId,
-  getPersonalityById,
-} from "@/config/coachPersonalities";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { parseInsights, type InsightData } from "@/components/AICoachInsights";
@@ -572,10 +565,6 @@ async function streamCoachReply(params: {
   username?: string;
   chesscomUsername?: string;
   lichessUsername?: string;
-  /** Coach persona id ("friendly", "grandmaster", etc.). Server's
-   *  getCoachChatSystemPrompt() looks this up via getPersonalityById
-   *  and merges the persona's tone-and-style block into the prompt. */
-  personalityId?: string;
   onDelta: (chunk: string) => void;
   /**
    * D1: fired when the server shipped a CORRECTED analysis. The caller must
@@ -619,7 +608,6 @@ async function streamCoachReply(params: {
     username,
     chesscomUsername,
     lichessUsername,
-    personalityId,
     onDelta,
     onCorrected,
     onTruncated,
@@ -755,7 +743,6 @@ async function streamCoachReply(params: {
     username,
     chesscomUsername,
     lichessUsername,
-    personalityId,
     gameHeaders,
   });
 
@@ -7037,29 +7024,20 @@ function BoardMenu({
 }
 
 /**
- * The chat column's identity: Masti's face, his name and his attitude, in
- * one row with the view switch. The face is decided by the page from what
- * it already knows (coach working, engine running, the current move's
- * verdict, the result on the board) and defaults to a wave.
+ * The chat column's identity: Masti's face and his name, in one row with
+ * the view switch. The face is decided by the page from what it already
+ * knows (coach working, engine running, the current move's verdict, the
+ * result on the board) and defaults to a wave. There is one Masti: the
+ * attitude chip and its menu that sat beside the name went on 2026-10-07.
  */
 function CoachHeader({
   mood,
   moodPulse,
-  personalityId,
-  onChangePersonality,
 }: {
   mood?: MastiMood;
   /** Changes when the face should animate again. */
   moodPulse?: number;
-  personalityId?: string;
-  onChangePersonality?: (id: string) => void;
 }) {
-  const personality = useMemo(
-    () => getPersonalityById(personalityId ?? defaultPersonalityId),
-    [personalityId]
-  );
-  const [menuOpen, setMenuOpen] = useState(false);
-  const chipRef = useRef<HTMLDivElement>(null);
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
       <MastiAvatar
@@ -7082,136 +7060,6 @@ function CoachHeader({
       >
         Masti
       </Typography>
-      {onChangePersonality && (
-        <Tooltip title={`Masti's attitude: ${personality.title}`}>
-          <Box
-            ref={chipRef}
-            data-testid="coach-attitude-chip"
-            onClick={() => setMenuOpen((v) => !v)}
-            sx={{
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 0.35,
-              minWidth: 0,
-              color: "rgba(255,255,255,0.5)",
-              fontSize: "0.74rem",
-              fontWeight: 600,
-              "&:hover": { color: "#FB923C" },
-            }}
-          >
-            <Box
-              component="span"
-              sx={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                maxWidth: { xs: 96, sm: 140 },
-              }}
-            >
-              {personality.title.replace(/^The /, "")}
-            </Box>
-            <ChevronDown size={11} />
-          </Box>
-        </Tooltip>
-      )}
-      <Menu
-        anchorEl={chipRef.current}
-        open={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
-        slotProps={{
-          paper: { sx: { ...GLASS_MENU_PAPER, minWidth: 280, maxWidth: 320 } },
-        }}
-        MenuListProps={{ sx: { py: 0.5 } }}
-      >
-        <Box
-          sx={{
-            px: 1.75,
-            pt: 1,
-            pb: 0.5,
-            fontSize: "0.62rem",
-            fontWeight: 800,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            color: "rgba(255,255,255,0.42)",
-          }}
-        >
-          Masti&apos;s attitude
-        </Box>
-        {coachPersonalities.map((p) => {
-          const isActive = p.id === personality.id;
-          return (
-            <Box
-              key={p.id}
-              onClick={() => {
-                onChangePersonality?.(p.id);
-                setMenuOpen(false);
-              }}
-              sx={{
-                cursor: "pointer",
-                px: 1.75,
-                py: 1,
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 1.25,
-                transition: "background 160ms ease",
-                background: isActive ? "rgba(249,115,22,0.08)" : "transparent",
-                borderLeft: isActive
-                  ? "2px solid #FB923C"
-                  : "2px solid transparent",
-                "&:hover": {
-                  background: "rgba(249,115,22,0.12)",
-                },
-              }}
-            >
-              {/* Same monkey, a different face per attitude. Stills: seven
-                  animated faces in one menu would be a zoo. */}
-              <MastiAvatar
-                mood={p.mood}
-                size={32}
-                ring={isActive}
-                decorative
-                style={{ marginTop: 2 }}
-              />
-              <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Typography
-                  sx={{
-                    fontSize: "0.84rem",
-                    fontWeight: 700,
-                    color: isActive ? "#FB923C" : "rgba(255,255,255,0.92)",
-                    lineHeight: 1.2,
-                  }}
-                >
-                  {p.name}
-                  <Box
-                    component="span"
-                    sx={{
-                      ml: 0.6,
-                      fontSize: "0.7rem",
-                      fontWeight: 600,
-                      color: "rgba(255,255,255,0.42)",
-                    }}
-                  >
-                    {p.title}
-                  </Box>
-                </Typography>
-                <Typography
-                  sx={{
-                    fontSize: "0.74rem",
-                    color: "rgba(255,255,255,0.58)",
-                    lineHeight: 1.4,
-                    mt: 0.25,
-                  }}
-                >
-                  {p.description}
-                </Typography>
-              </Box>
-            </Box>
-          );
-        })}
-      </Menu>
     </Box>
   );
 }
@@ -7640,17 +7488,6 @@ export default function AnalysisPage() {
   // overview). Without them the LLM drops to a generic reply tone — visibly
   // less specific than the prod surface. Recompute once per relevant input
   // change so the three streamCoachReply call sites can spread it.
-  // Coach personality — final enhanced-analysis parity field. Persisted
-  // across sessions via localStorage so the user's chosen voice sticks.
-  // The picker UI sits in CoachPanel's header chip; this is the source
-  // of truth that flows into coachExtras → request body.
-  const [selectedPersonalityId, setSelectedPersonalityId] =
-    useLocalStorage<string>("cm-preview-personality", defaultPersonalityId);
-  const personality = useMemo(
-    () => getPersonalityById(selectedPersonalityId ?? defaultPersonalityId),
-    [selectedPersonalityId]
-  );
-
   const coachExtras = useMemo(() => {
     // The user's side. An explicit/inferred answer (playerSide) wins; the
     // board orientation is only the last-resort assumption when the side
@@ -7697,7 +7534,6 @@ export default function AnalysisPage() {
       username: user?.displayName ?? user?.email?.split("@")[0] ?? undefined,
       chesscomUsername,
       lichessUsername,
-      personalityId: personality.id,
       // T7 (SILENT_SUBSTITUTION_HANDOFF §4): whether an engine evaluation is
       // ever going to arrive. Carried here, alongside `userRating`, because
       // both are facts only the client holds and both were previously left to
@@ -7710,7 +7546,6 @@ export default function AnalysisPage() {
     profile,
     user?.displayName,
     user?.email,
-    personality.id,
     engineDataUnavailable,
   ]);
 
@@ -7924,12 +7759,7 @@ export default function AnalysisPage() {
 
   // Coach context cache — minted by the first /api/enhanced-analysis call,
   // reused on every follow-up /api/chat call. Reset on game change so the
-  // server doesn't return analysis grounded in the previous game. Also
-  // reset on personality change — the fast path (/api/chat) only sends
-  // contextId+userMessage+conversationHistory, so it'd silently keep the
-  // OLD personality's cached prompt until the user switched games. By
-  // dropping the contextId we force the next message back through the
-  // deep path, which re-mints context under the new persona.
+  // server doesn't return analysis grounded in the previous game.
   const coachContextIdRef = useRef<string | null>(null);
   // Also reset when the player's declared side changes: the deep-analysis
   // context (and the system prompt it caches) is composed for a specific
@@ -7937,7 +7767,7 @@ export default function AnalysisPage() {
   // wrong side until the next game load.
   useEffect(() => {
     coachContextIdRef.current = null;
-  }, [loadedGame, selectedPersonalityId, playerSide?.color]);
+  }, [loadedGame, playerSide?.color]);
 
   // User answered the "Which side were you playing?" ask (or hit the
   // switch chip). Flip the board to their side and persist per-game so a
@@ -8371,10 +8201,7 @@ export default function AnalysisPage() {
       classification: cls ? String(cls) : null,
       mover,
     });
-    // At rest, each attitude wears its own face: Grandmaster Masti thinks,
-    // Blitz Masti is fired up, Coach Masti waves. Every other state
-    // (thinking, streaming, an error, a classification, a result) wins.
-    return mood === "wave" ? personality.mood : mood;
+    return mood;
   }, [
     classifiedPositions,
     currentPly,
@@ -8385,7 +8212,6 @@ export default function AnalysisPage() {
     analysisActive,
     lastCoachError,
     displayTerminal,
-    personality.mood,
   ]);
   // Held for one animation loop so arrow-key scrubbing does not flicker.
   const coachMasti = useStickyMood(coachMood, 1400);
@@ -10600,8 +10426,6 @@ export default function AnalysisPage() {
                   <CoachHeader
                     mood={coachMasti.mood}
                     moodPulse={coachMasti.replayKey}
-                    personalityId={personality.id}
-                    onChangePersonality={(id) => setSelectedPersonalityId(id)}
                   />
                   <Box sx={{ flex: 1 }} />
                   <ViewSwitch active={rightTab} onChange={handleTabChange} />

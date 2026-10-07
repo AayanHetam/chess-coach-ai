@@ -16,8 +16,9 @@ import { aiRefusal } from "@/lib/coach/aiGate";
  * into one of a small set of actionable intents. This replaces brittle
  * keyword/regex heuristics for practice acceptance, off-topic detection, etc.
  *
- * The classifier is the first step in AICoachChat.handleSendMessage. Based on
- * the returned intent, the client either:
+ * The classifier was the first step of the legacy coach chat's send handler
+ * (AICoachChat, deleted 2026-10-07). Nothing calls it today. Based on the
+ * returned intent, that client either:
  *   - Fires the practice-fetch flow (accept_practice)
  *   - Acknowledges the decline (decline_practice)
  *   - Replies with a canned on-topic redirect (off_topic) — no big LLM call

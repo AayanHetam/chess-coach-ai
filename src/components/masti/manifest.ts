@@ -21,9 +21,9 @@
  *   thinking  the engine running, anything loading        (chin stroke)
  *   shocked   a blunder with no side known, their brilliancy (jaw drop)
  *   panic     the third puzzle miss in a row              (losing his mind)
- *   pointing  a hint, their blunder, Commentator at rest  (pointing)
- *   smug      Rival at rest                               (smirk)
- *   laughing  Buddy at rest                               (laughing)
+ *   pointing  a hint, their blunder                       (pointing)
+ *   smug      in the pack, handed out by no surface yet   (smirk)
+ *   laughing  in the pack, handed out by no surface yet   (laughing)
  *   banana    a rating gain in the session recap          (banana rating)
  */
 

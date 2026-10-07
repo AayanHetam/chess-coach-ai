@@ -47,16 +47,18 @@ describe("getCoachChatSystemPromptParts — split contract", () => {
     expect(aliceParts.perUser).not.toBe(bobParts.perUser);
   });
 
-  it("differs in stable when personalityId differs (different voice → different cached prefix)", () => {
+  it("shares the stable half across personalityIds (one Masti: one cached prefix for everyone)", () => {
     const friendly = getCoachChatSystemPromptParts({
       ...baseInput,
       personalityId: "friendly",
     });
+    // A retired attitude's id, still stored by an old client, resolves to
+    // the one entry: it must not mint a second prefix.
     const grandmaster = getCoachChatSystemPromptParts({
       ...baseInput,
       personalityId: "grandmaster",
     });
-    expect(friendly.stable).not.toBe(grandmaster.stable);
+    expect(grandmaster.stable).toBe(friendly.stable);
   });
 
   it("keeps the username out of the cached prefix", () => {

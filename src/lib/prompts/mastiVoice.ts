@@ -12,9 +12,10 @@
  * voice block below replaces the attitude override in both prompts (the
  * turn-1 manifesto and the follow-up prompt), whatever personalityId the
  * client sent, so every cached prompt prefix is shared by every user. With
- * the flag off (the default until the keyed persona run), the attitudes
- * serve byte for byte as before. The picker, the stored id and the
- * personality config's seven entries go in the client half.
+ * the flag off (the default until the keyed persona run), the attitude
+ * serves byte for byte as before. The client half went on 2026-10-07: the
+ * picker, the stored id and six of the seven entries, leaving
+ * coachPersonalities.ts a one-entry shim that every id resolves to.
  */
 import { getPersonalityById } from "@/config/coachPersonalities";
 

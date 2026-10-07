@@ -77,7 +77,6 @@ export interface AnalysisRequestBodyInput {
   username?: string;
   chesscomUsername?: string;
   lichessUsername?: string;
-  personalityId?: string;
   gameHeaders?: AnalysisGameHeaders;
 }
 
@@ -110,7 +109,6 @@ export function buildAnalysisRequestBody(
     username: input.username,
     chesscomUsername: input.chesscomUsername,
     lichessUsername: input.lichessUsername,
-    personalityId: input.personalityId,
     ...(hasAnyHeader ? { gameHeaders: input.gameHeaders } : {}),
     stream: true,
   };

@@ -576,12 +576,15 @@ describe("chat route: follow-up prompt", () => {
       ...happyContext(),
       systemPromptStable: "REVIEW_PROMPT_STABLE",
       systemPromptSuffix: "USER CONTEXT:\n- User rating: 1450",
+      // A context minted under a retired attitude id (one Masti, 2026-10-07)
+      // still gets the one attitude left.
       personalityId: "grandmaster",
     });
     await POST(makeRequest(fastPathBody()));
     const args = mockCallLLM.mock.calls[0][0];
     expect(args.system).toContain("1. THE IDEA, THEN WHAT HAPPENS");
-    expect(args.system).toContain("GRANDMASTER ATTITUDE");
+    expect(args.system).toContain("FRIENDLY MENTOR ATTITUDE");
+    expect(args.system).not.toContain("GRANDMASTER ATTITUDE");
     expect(args.system).not.toContain("REVIEW_PROMPT_STABLE");
     expect(args.system).not.toContain("[INSIGHT:");
     // The stored per-user tail still rides in the uncached suffix.

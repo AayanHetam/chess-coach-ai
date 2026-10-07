@@ -84,9 +84,9 @@ export const preloadedInsightAtom = atom<{
 //   sent-awaiting-insights:  auto-message has been sent, waiting for coach reply with [INSIGHT:...] tags
 //   done:                    insights received OR auto-flow skipped (e.g. refresh with existing chat)
 //
-// AICoachChat reads this to gate the input field and auto-send "analyze my
-// game" at the right moment. The chat input is disabled while state is
-// 'pending' or 'sent-awaiting-insights'.
+// The legacy coach chat (AICoachChat, deleted 2026-10-07) read this atom to
+// gate its input and auto-send "analyze my game". AnalysisImpl keeps the same
+// four states in local state (its G6 machine), so nothing reads the atom now.
 export type AutoAnalyzeState =
   | "idle"
   | "pending"

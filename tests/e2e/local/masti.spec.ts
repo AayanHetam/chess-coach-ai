@@ -91,20 +91,9 @@ test.describe("Masti on the coach surfaces", () => {
     await expect(header).toHaveAttribute("data-masti-avatar", "wave");
     // Masti is the coach, by name.
     await expect(page.getByTestId("coach-title")).toHaveText("Masti");
-    // Each attitude wears its own face: pick the Grandmaster and the header
-    // face leaves the wave for the thinking still. The chip lives in the
-    // coach panel, which the phone layout keeps behind a tab.
-    const chip = page.getByTestId("coach-attitude-chip");
-    if (await chip.isVisible()) {
-      await chip.click();
-      const menu = page.getByRole("menu");
-      await expect(menu.getByText("Masti's attitude")).toBeVisible();
-      await expect(menu.locator("[data-masti-avatar]")).toHaveCount(7);
-      await menu.getByText("Grandmaster Masti").click();
-      await expect(header).toHaveAttribute("data-masti-avatar", "thinking", {
-        timeout: 10_000,
-      });
-    }
+    // One Masti: there is no attitude to pick, so the header carries no
+    // chip and opens no menu, and the face at rest is the wave above.
+    await expect(page.getByTestId("coach-attitude-chip")).toHaveCount(0);
   });
 
   test("puzzles: the coach wears Masti and reads while the answer is shown", async ({

@@ -98,7 +98,6 @@ describe("buildAnalysisRequestBody — the rest of the contract is unchanged", (
       username: "alice",
       chesscomUsername: "alice_chess",
       lichessUsername: "alice_lichess",
-      personalityId: "grandmaster",
     });
     expect(body).toMatchObject({
       playerColor: "b",
@@ -107,8 +106,9 @@ describe("buildAnalysisRequestBody — the rest of the contract is unchanged", (
       username: "alice",
       chesscomUsername: "alice_chess",
       lichessUsername: "alice_lichess",
-      personalityId: "grandmaster",
     });
+    // One Masti (2026-10-07): the client no longer names an attitude.
+    expect(body).not.toHaveProperty("personalityId");
   });
 });
 

@@ -15,10 +15,11 @@ import { MASTI_VOICE } from "../mastiVoice";
 // future drift fails CI loudly. The format-invariant assertions below
 // guard the bare minimum the front-end carousel parser depends on.
 //
-// One Masti (2026-10-07): the seven attitudes are retiring behind
-// COACH_ONE_MASTI, so the prompt is snapshotted ONCE, in the one voice
-// every attitude id now shares. The attitude path is pinned by content
-// while the flag is off, not by seven more snapshots of retiring text.
+// One Masti (2026-10-07): the attitudes are retired. Six of the seven are
+// gone from the config; the Friendly Mentor stays as the one-entry shim the
+// flag-off prompt wears until COACH_ONE_MASTI is flipped for good. So the
+// prompt is snapshotted ONCE, in the one voice, and the shim path is pinned
+// by content, not by snapshots of retiring text.
 
 const baseInput: CoachChatPromptInput = {
   personalityId: "friendly", // matches defaultPersonalityId
@@ -28,6 +29,9 @@ const baseInput: CoachChatPromptInput = {
   chesscomUsername: "alice_chess",
   lichessUsername: "alice_lichess",
 };
+
+/** Retired attitude ids an old client or a cached context may still send. */
+const RETIRED_IDS = ["grandmaster", "tactical", "trash_talk", "chesstalker"];
 
 describe("getCoachChatSystemPrompt — one Masti (COACH_ONE_MASTI)", () => {
   afterEach(() => vi.unstubAllEnvs());
@@ -39,23 +43,27 @@ describe("getCoachChatSystemPrompt — one Masti (COACH_ONE_MASTI)", () => {
     expect(out).toMatchSnapshot();
   });
 
-  it("every attitude id renders the identical prompt under the flag", () => {
+  it("every id, a retired attitude's included, renders the identical prompt under the flag", () => {
     vi.stubEnv("COACH_ONE_MASTI", "1");
     const reference = getCoachChatSystemPrompt(baseInput);
-    for (const p of coachPersonalities) {
-      expect(getCoachChatSystemPrompt({ ...baseInput, personalityId: p.id }), p.id).toBe(reference);
+    const ids = [
+      ...coachPersonalities.map((p) => p.id),
+      ...RETIRED_IDS,
+      "not-an-attitude",
+    ];
+    for (const id of ids) {
+      expect(getCoachChatSystemPrompt({ ...baseInput, personalityId: id }), id).toBe(reference);
     }
-    expect(getCoachChatSystemPrompt({ ...baseInput, personalityId: "not-an-attitude" })).toBe(reference);
   });
 
-  it("flag off, the attitude the id names still speaks, and the voice block does not", () => {
+  it("flag off, the one attitude left speaks whatever the id, and the voice block does not", () => {
     vi.stubEnv("COACH_ONE_MASTI", "");
-    const grandmaster = getCoachChatSystemPrompt({ ...baseInput, personalityId: "grandmaster" });
     const friendly = getCoachChatSystemPrompt({ ...baseInput, personalityId: "friendly" });
-    expect(grandmaster).toContain("GRANDMASTER ATTITUDE");
     expect(friendly).toContain("FRIENDLY MENTOR ATTITUDE");
-    expect(grandmaster).not.toContain(MASTI_VOICE);
-    expect(grandmaster).not.toBe(friendly);
+    expect(friendly).not.toContain(MASTI_VOICE);
+    for (const id of RETIRED_IDS) {
+      expect(getCoachChatSystemPrompt({ ...baseInput, personalityId: id }), id).toBe(friendly);
+    }
   });
 
   it("the skill tiers still calibrate under the one voice", () => {

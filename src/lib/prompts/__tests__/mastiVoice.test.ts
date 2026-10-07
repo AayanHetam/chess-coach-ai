@@ -41,22 +41,24 @@ describe("the flag", () => {
     }
   });
 
-  it("off: the attitude the id names, with the default for an unknown id", () => {
+  it("off: the one attitude left, whatever the id", () => {
     vi.stubEnv("COACH_ONE_MASTI", "");
-    const grandmaster = coachVoiceFor("grandmaster");
-    expect(grandmaster.id).toBe("grandmaster");
-    expect(grandmaster.noun).toBe("attitude");
-    expect(grandmaster.block).toContain("GRANDMASTER ATTITUDE");
-    expect(coachVoiceFor("not-an-attitude").id).toBe("friendly");
+    for (const id of ["friendly", "grandmaster", "not-an-attitude"]) {
+      const voice = coachVoiceFor(id);
+      expect(voice.id, id).toBe("friendly");
+      expect(voice.noun, id).toBe("attitude");
+      expect(voice.block, id).toContain("FRIENDLY MENTOR ATTITUDE");
+    }
   });
 
   it("on: the one voice for every id", () => {
     vi.stubEnv("COACH_ONE_MASTI", "1");
-    for (const p of coachPersonalities) {
-      const voice = coachVoiceFor(p.id);
-      expect(voice.block, p.id).toBe(MASTI_VOICE);
-      expect(voice.id, p.id).toBe(ONE_MASTI_ID);
-      expect(voice.noun, p.id).toBe("voice");
+    const ids = [...coachPersonalities.map((p) => p.id), "grandmaster"];
+    for (const id of ids) {
+      const voice = coachVoiceFor(id);
+      expect(voice.block, id).toBe(MASTI_VOICE);
+      expect(voice.id, id).toBe(ONE_MASTI_ID);
+      expect(voice.noun, id).toBe("voice");
     }
   });
 });

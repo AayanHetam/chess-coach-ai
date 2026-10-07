@@ -97,12 +97,12 @@ describe("getFollowUpSystemPromptStable — invariants", () => {
     expect(out).not.toContain("undefined");
   });
 
-  it("wears the attitude", () => {
-    expect(getFollowUpSystemPromptStable("grandmaster")).toContain(
-      "GRANDMASTER ATTITUDE"
+  it("wears the one attitude left, whatever id the context stored", () => {
+    expect(getFollowUpSystemPromptStable("friendly")).toContain(
+      "FRIENDLY MENTOR ATTITUDE"
     );
-    expect(getFollowUpSystemPromptStable("rival")).not.toContain(
-      "GRANDMASTER ATTITUDE"
+    expect(getFollowUpSystemPromptStable("grandmaster")).toBe(
+      getFollowUpSystemPromptStable("friendly")
     );
   });
 

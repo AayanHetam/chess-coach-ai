@@ -7,53 +7,42 @@ import {
 import { isMastiMood } from "@/components/masti/manifest";
 
 const EMOJI = new RegExp("\\p{Extended_Pictographic}", "u");
-const OLD_NAMES = /Gelareh|Sloan|Blitz Master Mike|Professor Sam|Adrina|Liana|Chesstalker/;
+const OLD_NAMES =
+  /Gelareh|Sloan|Blitz Master Mike|Professor Sam|Adrina|Liana|Chesstalker/;
+/** The six attitudes retired on 2026-10-07. A stored id may still name one. */
+const RETIRED_IDS = [
+  "grandmaster",
+  "tactical",
+  "strategic",
+  "beginner",
+  "trash_talk",
+  "chesstalker",
+];
 
-describe("the coach personalities are Masti's attitudes", () => {
-  it("keeps the seven stable ids, in order", () => {
-    expect(coachPersonalities.map((p) => p.id)).toEqual([
-      "grandmaster",
-      "friendly",
-      "tactical",
-      "strategic",
-      "beginner",
-      "trash_talk",
-      "chesstalker",
-    ]);
-  });
-
-  it("names every attitude as a form of Masti", () => {
-    for (const p of coachPersonalities) {
-      expect(p.name, p.id).toMatch(/Masti/);
-      expect(p.name, p.id).not.toMatch(OLD_NAMES);
-    }
-  });
-
-  it("gives every attitude a real mood, and does not wear one face for all", () => {
-    for (const p of coachPersonalities) {
-      expect(isMastiMood(p.mood), p.id).toBe(true);
-    }
-    expect(new Set(coachPersonalities.map((p) => p.mood)).size).toBeGreaterThanOrEqual(5);
-  });
-
-  it("speaks as Masti in the greeting and the prompt override", () => {
-    for (const p of coachPersonalities) {
-      expect(p.greeting, p.id).toMatch(/Masti/);
-      expect(p.systemPromptOverride, p.id).toMatch(/You are Masti, the Chess Masti monkey/);
-      expect(p.systemPromptOverride, p.id).not.toMatch(OLD_NAMES);
-      expect(p.greeting, p.id).not.toMatch(OLD_NAMES);
-    }
-  });
-
-  it("shows no emoji in the picker copy", () => {
-    for (const p of coachPersonalities) {
-      expect(`${p.name} ${p.title} ${p.description}`, p.id).not.toMatch(EMOJI);
-    }
-  });
-
-  it("falls back to the friendly mentor", () => {
+describe("one Masti: the personality config is a one-entry shim", () => {
+  it("holds the one attitude the flag-off prompt still wears", () => {
+    expect(coachPersonalities.map((p) => p.id)).toEqual(["friendly"]);
     expect(defaultPersonalityId).toBe("friendly");
-    expect(getPersonalityById("not-an-attitude").id).toBe("friendly");
-    expect(getPersonalityById("grandmaster").mood).toBe("thinking");
+  });
+
+  it("speaks as Masti, wears a real face, and carries no old name or emoji", () => {
+    const [p] = coachPersonalities;
+    expect(p.name).toMatch(/Masti/);
+    expect(p.name).not.toMatch(EMOJI);
+    expect(p.name).not.toMatch(OLD_NAMES);
+    expect(isMastiMood(p.mood)).toBe(true);
+    expect(p.systemPromptOverride).toMatch(
+      /You are Masti, the Chess Masti monkey/
+    );
+    expect(p.systemPromptOverride).toContain("FRIENDLY MENTOR ATTITUDE");
+    expect(p.systemPromptOverride).not.toMatch(OLD_NAMES);
+  });
+
+  it("resolves every id, the retired ones included, to that entry", () => {
+    const friendly = getPersonalityById("friendly");
+    expect(friendly.id).toBe("friendly");
+    for (const id of [...RETIRED_IDS, "not-an-attitude", ""]) {
+      expect(getPersonalityById(id), id).toBe(friendly);
+    }
   });
 });

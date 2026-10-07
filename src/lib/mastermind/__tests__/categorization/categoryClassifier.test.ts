@@ -94,6 +94,51 @@ describe("classifyQuestion — six categories happy path", () => {
   });
 });
 
+describe("classifyQuestion: the parser's cost rides on the result", () => {
+  it("a confident classification carries the parser's costUsd", async () => {
+    const r = await classifyQuestion({
+      question: "Why did I lose this rook ending?",
+      parseCall: async () => ({
+        raw: JSON.stringify({ category: "game_review", confidence: 0.95, rationale: "x" }),
+        costUsd: 0.00042,
+      }),
+    });
+    expect(r.category).toBe("game_review");
+    expect(r.costUsd).toBe(0.00042);
+  });
+
+  it("the low-confidence default and the malformed default carry it too", async () => {
+    const low = await classifyQuestion({
+      question: "edge case",
+      parseCall: async () => ({
+        raw: JSON.stringify({ category: "position_analysis", confidence: 0.1, rationale: "x" }),
+        costUsd: 0.0005,
+      }),
+    });
+    expect(low.category).toBe(DEFAULT_LOW_CONFIDENCE_CATEGORY);
+    expect(low.costUsd).toBe(0.0005);
+
+    const malformed = await classifyQuestion({
+      question: "anything",
+      parseCall: async () => ({ raw: "not json", costUsd: 0.0006 }),
+    });
+    expect(malformed.category).toBe(DEFAULT_LOW_CONFIDENCE_CATEGORY);
+    expect(malformed.costUsd).toBe(0.0006);
+  });
+
+  it("a parser with no finite cost leaves costUsd off the result", async () => {
+    const r = await classifyQuestion({
+      question: "anything",
+      parseCall: async () => ({
+        raw: JSON.stringify({ category: "game_review", confidence: 0.9, rationale: "x" }),
+        costUsd: Number.NaN,
+      }),
+    });
+    expect(r.category).toBe("game_review");
+    expect("costUsd" in r).toBe(false);
+  });
+});
+
 describe("classifyQuestion — low confidence routes to default", () => {
   it("confidence below threshold routes to meta_motivational", async () => {
     const r = await classifyQuestion({

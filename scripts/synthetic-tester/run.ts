@@ -539,6 +539,9 @@ async function main() {
             context_id: contextId,
             analysis_latency_ms: firstRowOfGame ? analyzeRes.latencyMs : "",
             chat_latency_ms: chatRes.latencyMs,
+            chat_server_ms: chatRes.timing?.elapsedMs ?? "",
+            chat_llm_ms: chatRes.timing?.llmMs ?? "",
+            chat_prep_ms: chatRes.timing?.prepMs ?? "",
             model_chat: "claude-haiku-4-5",
             model_analysis: "claude-sonnet-4-6",
             personality_id: args.personality,
@@ -619,6 +622,9 @@ function buildErrorRow(opts: {
     context_id: opts.contextId || "",
     analysis_latency_ms: opts.analysisLatencyMs ?? "",
     chat_latency_ms: "",
+    chat_server_ms: "",
+    chat_llm_ms: "",
+    chat_prep_ms: "",
     model_chat: "claude-haiku-4-5",
     model_analysis: "claude-sonnet-4-6",
     personality_id: args.personality,
@@ -767,6 +773,8 @@ function buildTurnRow(args: {
   errorMessage?: string;
   /** Stage C pipeline metadata from the route response (Follow-up A). */
   pipeline?: import("./client").ChatMastiResponse["pipeline"];
+  /** The route's own timing for the turn, when the response carried it. */
+  timing?: import("./client").ChatMastiResponse["timing"];
   /** Follow-up B: position-anchored turn data (populated from the real
    *  game + stockfish checkpoint for game_review / position_analysis live
    *  turns). Blank for other categories. */
@@ -823,6 +831,9 @@ function buildTurnRow(args: {
     context_id: args.contextId ?? "",
     analysis_latency_ms: args.analysisLatencyMs ?? "",
     chat_latency_ms: args.latencyMs ?? "",
+    chat_server_ms: args.timing?.elapsedMs ?? "",
+    chat_llm_ms: args.timing?.llmMs ?? "",
+    chat_prep_ms: args.timing?.prepMs ?? "",
     model_chat: args.mockLlm ? "mock" : "claude-haiku-4-5",
     model_analysis: args.mockLlm ? "mock" : "claude-sonnet-4-6",
     personality_id: args.personality,
@@ -1167,6 +1178,7 @@ async function runCategoryDispatchFlow(opts: CategoryDispatchOpts): Promise<void
           latencyMs: chatRes.latencyMs,
           errorMessage: chatRes.ok ? "" : (chatRes.errorMessage ?? ""),
           pipeline: chatRes.pipeline,
+          timing: chatRes.timing,
           ply: cp.ply,
           fen: cp.state.fenAfter,
           lastMove: cp.state.sanMove,

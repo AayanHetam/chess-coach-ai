@@ -207,6 +207,38 @@ describe("chat route: flag-off invariants", () => {
     expect(mockFetchDataSources).not.toHaveBeenCalled();
   });
 
+  it("flag off, fast path → the response and the log carry the turn's timing", async () => {
+    disableFlag();
+    mockCallLLM.mockResolvedValue({
+      content: CHAT_RESPONSE,
+      inputTokens: 50,
+      outputTokens: 20,
+      elapsedMs: 123,
+      provider: "anthropic",
+    });
+    const res = await POST(makeRequest(fastPathBody()));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    const timing = json.gameAnalysis.timing;
+    // No prep ran (the classifier belongs to the validators) and nothing
+    // was retried; the LLM number is the provider's own elapsed time.
+    expect(timing).toMatchObject({ prepMs: 0, llmMs: 123, retryCount: 0 });
+    expect(typeof timing.elapsedMs).toBe("number");
+    expect(timing.elapsedMs).toBeGreaterThanOrEqual(0);
+    expect(typeof timing.refereeMs).toBe("number");
+    expect(timing.elapsedMs).toBeGreaterThanOrEqual(timing.refereeMs);
+    const timingLog = mockLog.info.mock.calls.find(
+      (call) => call[0] === "chat_fastpath_timing",
+    );
+    expect(timingLog).toBeDefined();
+    expect(timingLog![1]).toMatchObject({
+      branch: "flag-off",
+      provider: "anthropic",
+      llmMs: 123,
+      retryCount: 0,
+    });
+  });
+
   it("every follow-up declares its reduced grounding in the system suffix (T3 option A)", async () => {
     // The follow-up path fetches no fresh external evidence (chessdb / Maia /
     // tablebase) — by measured decision, not by accident. The prompt must SAY
@@ -253,6 +285,54 @@ describe("chat route: flag-on fast path", () => {
       finalOutcome: "passed_initial",
       category: "improvement_strategy",
     });
+  });
+
+  it("flag on + contextId → timing, retry count and the classifier's cost are reported", async () => {
+    enableFlag();
+    mockClassifyQuestion.mockResolvedValue({
+      category: "improvement_strategy",
+      confidence: 0.85,
+      rationale: "test",
+      costUsd: 0.0007,
+    });
+    mockRunValidationPipeline.mockResolvedValue({
+      ...happyPipelineResult(),
+      retryCount: 2,
+      finalOutcome: "passed_after_retry",
+    });
+    const res = await POST(makeRequest(fastPathBody()));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    const timing = json.gameAnalysis.timing;
+    expect(timing.retryCount).toBe(2);
+    for (const key of ["elapsedMs", "prepMs", "llmMs", "refereeMs"]) {
+      expect(typeof timing[key]).toBe("number");
+      expect(timing[key]).toBeGreaterThanOrEqual(0);
+    }
+    expect(timing.elapsedMs).toBeGreaterThanOrEqual(timing.llmMs);
+    // The classifier's own call sits beside the pipeline's total, so the
+    // total keeps its meaning (the validators' spend) and nothing is hidden.
+    expect(json.gameAnalysis.pipeline.classifierCostUsd).toBe(0.0007);
+    expect(json.gameAnalysis.pipeline.totalCostUsd).toBe(0.003);
+    expect(json.gameAnalysis.pipeline.retryCount).toBe(2);
+    const timingLog = mockLog.info.mock.calls.find(
+      (call) => call[0] === "chat_fastpath_timing",
+    );
+    expect(timingLog).toBeDefined();
+    expect(timingLog![1]).toMatchObject({
+      branch: "pipeline",
+      category: "improvement_strategy",
+      finalOutcome: "passed_after_retry",
+      retryCount: 2,
+      classifierCostUsd: 0.0007,
+    });
+  });
+
+  it("flag on + contextId → a classifier that reports no cost is counted as 0", async () => {
+    enableFlag();
+    const res = await POST(makeRequest(fastPathBody()));
+    const json = await res.json();
+    expect(json.gameAnalysis.pipeline.classifierCostUsd).toBe(0);
   });
 
   it("flag on + contextId → fetchDataSources called with opponentUsername=undefined per §3.4", async () => {

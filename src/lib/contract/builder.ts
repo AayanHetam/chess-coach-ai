@@ -46,8 +46,8 @@ import {
   buildExplanationSeed,
   convertPvToSan,
   describeMoveChange,
+  fensAlongGame,
   findBranchPoint,
-  getFenAtHalfMove,
   getMaterialBalance,
   sanPvToUci,
   uciToSan,
@@ -303,6 +303,9 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
   }
 
   // --- Move table ---
+  // One walk through the game for every FEN the builder needs: the
+  // per-ply replays this replaced were quadratic (see fensAlongGame).
+  const fens = fensAlongGame(moveHistory);
   const moveTable: MoveTableEntry[] = [];
   for (let i = 0; i < moveHistory.length; i++) {
     const base = {
@@ -325,8 +328,8 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
       });
       continue;
     }
-    const fenBefore = getFenAtHalfMove(moveHistory, i);
-    const fenAfter = getFenAtHalfMove(moveHistory, i + 1);
+    const fenBefore = fens[i];
+    const fenAfter = fens[i + 1];
     const evalBefore = positions![i];
     const evalAfter = positions![i + 1];
 
@@ -399,7 +402,7 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
 
   for (const ply of unionPlies) {
     const evalBefore = positions?.[ply];
-    const fenBefore = getFenAtHalfMove(moveHistory, ply);
+    const fenBefore = fens[ply];
     const sfCp = evalBefore?.lines?.[0]?.cp ?? null;
     const bestUci = evalBefore?.lines?.[0]?.pv?.[0] ?? null;
     const lc0Gate = shouldCallLc0(sfCp, evalBefore?.lines ?? []);
@@ -466,7 +469,7 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
     const cand = topCand ?? intelCand!;
     const playedSan = moveHistory[ply];
     const fenBefore = plan.fenBefore;
-    const fenAfter = topCand?.fenAfter ?? getFenAtHalfMove(moveHistory, ply + 1);
+    const fenAfter = topCand?.fenAfter ?? fens[ply + 1];
 
     const chessdbResult = (await chessdbByFen.get(fenBefore)!) ?? null;
     const lc0Result = plan.lc0Gate ? ((await lc0ByFen.get(fenBefore)!) ?? null) : null;
@@ -600,7 +603,7 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
       // Teaching spine inputs: one try/catch around BOTH computations, like
       // the legacy single try around buildTeachingSpine.
       try {
-        const spineFenAfter = getFenAtHalfMove(moveHistory, ply + 1);
+        const spineFenAfter = fens[ply + 1];
         const delta = compute_feature_delta(fenBefore, spineFenAfter, {
           pv: lines[0].pv ?? [],
         });

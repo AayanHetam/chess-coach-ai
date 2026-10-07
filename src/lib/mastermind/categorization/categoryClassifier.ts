@@ -1,4 +1,5 @@
 import { callLLM, LLMResult } from "@/lib/llmProvider";
+import { recordLLMCall } from "@/lib/llmStatsAggregator";
 import { ParserCall } from "../validators/evalClaim";
 import {
   CATEGORY_CLASSIFIER_SYSTEM,
@@ -17,6 +18,13 @@ export interface CategorizedQuestion {
   category: QuestionCategory;
   confidence: number;
   rationale: string;
+  /**
+   * What the classifier call cost, when a parser reported it. Until
+   * 2026-10-07 this was computed and dropped on the floor, so the one
+   * Haiku call every validated follow-up pays was invisible in every
+   * per-turn total.
+   */
+  costUsd?: number;
 }
 
 export const CLASSIFIER_LOW_CONFIDENCE_THRESHOLD = 0.5;
@@ -76,6 +84,9 @@ export const defaultClassifierParserCall: ParserCall = async ({ system, user }) 
     maxTokens: 200,
     cacheSystem: true,
   });
+  // The route records its own calls. The classifier's was the one call
+  // that never reached the process totals.
+  recordLLMCall(result);
   const costUsd = estimateHaikuCost(result);
   return { raw: result.content, costUsd, result };
 };
@@ -135,23 +146,29 @@ export async function classifyQuestion(
   });
 
   const parsed = tryParse(result.raw);
+  const costUsd =
+    typeof result.costUsd === "number" && Number.isFinite(result.costUsd)
+      ? result.costUsd
+      : undefined;
+  const withCost = (q: CategorizedQuestion): CategorizedQuestion =>
+    costUsd === undefined ? q : { ...q, costUsd };
   if (!parsed) {
-    return {
+    return withCost({
       category: DEFAULT_LOW_CONFIDENCE_CATEGORY,
       confidence: 0,
       rationale: "parser_json_invalid_or_unknown_category",
-    };
+    });
   }
 
   if (parsed.confidence < threshold) {
-    return {
+    return withCost({
       category: DEFAULT_LOW_CONFIDENCE_CATEGORY,
       confidence: parsed.confidence,
       rationale: `low_confidence_default (parser said "${parsed.category}" with confidence ${parsed.confidence}; routed to ${DEFAULT_LOW_CONFIDENCE_CATEGORY})`,
-    };
+    });
   }
 
-  return parsed;
+  return withCost(parsed);
 }
 
 export function isQuestionCategory(s: string): s is QuestionCategory {

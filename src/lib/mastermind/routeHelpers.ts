@@ -87,6 +87,8 @@ export interface MastermindPrepResult {
   classifierConfidence: number;
   moveCtx: MastermindMoveContext;
   prepMs: number;
+  /** The classifier's Haiku call, in dollars. 0 when no call was made. */
+  classifierCostUsd: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -361,6 +363,7 @@ export async function prepareMastermindContext(
     classifierConfidence: classifierResult.confidence,
     moveCtx,
     prepMs: Date.now() - t0,
+    classifierCostUsd: classifierResult.costUsd ?? 0,
   };
 }
 

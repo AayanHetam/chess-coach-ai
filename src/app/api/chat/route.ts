@@ -151,6 +151,9 @@ function refereeChatReply(
 }
 
 export async function POST(request: NextRequest) {
+  // Wall clock for the whole request: what the player waits for, auth and
+  // parsing included. Reported as `timing.elapsedMs` on the fast path.
+  const startedAt = Date.now();
   // AI is switched off on purpose (see lib/coach/aiAvailability). Refuse
   // BEFORE any work, auth or spend, and with a code that says "off", not
   // "broken" — the difference decides whether the user retries forever.
@@ -527,6 +530,7 @@ export async function POST(request: NextRequest) {
           // below preserves the non-null type (TS loses control-flow
           // narrowing across function boundaries).
           const dataSources = prep.dataSources;
+          const pipelineStartedAt = Date.now();
           let pipelineResult: PipelineResultWithTimeout;
           try {
             pipelineResult = await withPipelineTimeout(
@@ -590,6 +594,7 @@ export async function POST(request: NextRequest) {
           // prompt, and a context with no contract to referee against still
           // serve the template. Live (2026-09-26) the template stood in for
           // two of six answers.
+          const pipelineMs = Date.now() - pipelineStartedAt;
           const isFallbackUsed =
             pipelineResult.finalOutcome === "fallback_used";
           const draft =
@@ -645,26 +650,51 @@ export async function POST(request: NextRequest) {
           const usePositionAnchoredAnnotation =
             !servedTemplate &&
             POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category);
+          const refereeStartedAt = Date.now();
+          const analysis = refereeChatReply(
+            usePositionAnchoredAnnotation && !validation.isValid
+              ? validation.correctedResponse
+              : rawContent,
+            context,
+            activeFen,
+            requestId,
+            anchorLicence,
+            flaggedSpans
+          );
+          // Where the follow-up's time went. The response is not streamed,
+          // so elapsedMs is also the time to the first byte the client sees;
+          // llmMs covers the pipeline's generate / validate / regenerate.
+          const timing = {
+            elapsedMs: Date.now() - startedAt,
+            prepMs: prep.prepMs,
+            llmMs: pipelineMs,
+            refereeMs: Date.now() - refereeStartedAt,
+            retryCount: pipelineResult.retryCount,
+          };
+          log.info("chat_fastpath_timing", {
+            requestId,
+            branch: "pipeline",
+            category: prep.category,
+            finalOutcome: pipelineResult.finalOutcome,
+            timedOut: pipelineResult.timedOut,
+            classifierCostUsd: prep.classifierCostUsd,
+            ...timing,
+          });
           return NextResponse.json({
             gameAnalysis: {
-              analysis: refereeChatReply(
-                usePositionAnchoredAnnotation && !validation.isValid
-                  ? validation.correctedResponse
-                  : rawContent,
-                context,
-                activeFen,
-                requestId,
-                anchorLicence,
-                flaggedSpans
-              ),
+              analysis,
               position: activeFen,
               ...anchorFields,
               validationScore: validation.score,
               cached: false,
               fastPath: true,
+              timing,
               pipeline: {
                 finalOutcome: pipelineResult.finalOutcome,
                 retryCount: pipelineResult.retryCount,
+                // The classifier's own call, beside the pipeline's total so
+                // neither number changes meaning.
+                classifierCostUsd: prep.classifierCostUsd,
                 // True when the validators' rejected draft was served,
                 // refereed, in place of the template.
                 servedDraft: !!draft,
@@ -721,20 +751,39 @@ export async function POST(request: NextRequest) {
       // Light validation against the position under discussion
       const validation = validateAIResponse(rawContent, activeFen);
 
+      const refereeStartedAt = Date.now();
+      const analysis = refereeChatReply(
+        validation.isValid ? rawContent : validation.correctedResponse,
+        context,
+        activeFen,
+        requestId,
+        anchorLicence
+      );
+      // Same shape as the pipeline branch. No prep ran here (the classifier
+      // and the data fetch belong to the validators), so prepMs is 0.
+      const timing = {
+        elapsedMs: Date.now() - startedAt,
+        prepMs: 0,
+        llmMs: llmResult.elapsedMs,
+        refereeMs: Date.now() - refereeStartedAt,
+        retryCount: 0,
+      };
+      log.info("chat_fastpath_timing", {
+        requestId,
+        branch: "flag-off",
+        provider: llmResult.provider,
+        ...timing,
+      });
+
       return NextResponse.json({
         gameAnalysis: {
-          analysis: refereeChatReply(
-            validation.isValid ? rawContent : validation.correctedResponse,
-            context,
-            activeFen,
-            requestId,
-            anchorLicence
-          ),
+          analysis,
           position: activeFen,
           ...anchorFields,
           validationScore: validation.score,
           cached: false,
           fastPath: true,
+          timing,
         },
       });
     }

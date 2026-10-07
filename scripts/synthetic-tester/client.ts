@@ -58,6 +58,17 @@ export interface ChatMastiResponse {
   responseText?: string;
   validationScore?: number;
   latencyMs: number;
+  /** The route's own clock for a follow-up (gameAnalysis.timing): the
+   *  whole request, the validators' prep, the model call(s) and the
+   *  referee, plus how many regenerations the pipeline paid for. Beside
+   *  latencyMs it says how much of the wait was the network. */
+  timing?: {
+    elapsedMs?: number;
+    prepMs?: number;
+    llmMs?: number;
+    refereeMs?: number;
+    retryCount?: number;
+  };
   /** Stage C pipeline metadata captured from gameAnalysis.pipeline.
    *  Present when the route's flag-on path ran AND VERCEL_ENV=preview
    *  (production responses don't include telemetry). */
@@ -255,6 +266,7 @@ export async function chatFollowUp(args: ChatArgs): Promise<ChatMastiResponse> {
       gameAnalysis?: {
         analysis?: string;
         validationScore?: number;
+        timing?: ChatMastiResponse["timing"];
         pipeline?: {
           finalOutcome?: string;
           retryCount?: number;
@@ -273,6 +285,7 @@ export async function chatFollowUp(args: ChatArgs): Promise<ChatMastiResponse> {
       responseText: json.gameAnalysis?.analysis,
       validationScore: json.gameAnalysis?.validationScore,
       latencyMs,
+      timing: json.gameAnalysis?.timing,
       pipeline: json.gameAnalysis?.pipeline,
     };
   } catch (err) {

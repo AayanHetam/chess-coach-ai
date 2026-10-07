@@ -49,6 +49,12 @@ export interface Row {
   context_id: string;
   analysis_latency_ms: number | "";
   chat_latency_ms: number | "";
+  /** The route's own clock for the follow-up, when the response carried
+   *  it: whole request, model call(s), validators' prep. Blank for turns
+   *  answered before the route reported timing, and for errors. */
+  chat_server_ms: number | "";
+  chat_llm_ms: number | "";
+  chat_prep_ms: number | "";
   model_chat: string;
   model_analysis: string;
   personality_id: string;
@@ -81,6 +87,7 @@ const COLUMNS: Array<keyof Row> = [
   "eval_before_cp", "eval_after_cp", "swing_cp", "move_classification",
   "student_question", "chat_response",
   "context_id", "analysis_latency_ms", "chat_latency_ms",
+  "chat_server_ms", "chat_llm_ms", "chat_prep_ms",
   "model_chat", "model_analysis", "personality_id", "base_url",
   "validator_score", "validator_issue_count", "validator_issues_json",
   "prompt_tokens", "completion_tokens", "est_cost_usd",

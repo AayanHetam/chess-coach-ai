@@ -176,6 +176,30 @@ export function getFenAtHalfMove(moveHistory: string[], halfMoveIdx: number): st
 }
 
 /**
+ * Every FEN along the game in ONE walk. Entry k is the position after k
+ * half-moves, so the array has moveHistory.length + 1 entries and
+ * `fensAlongGame(h)[k] === getFenAtHalfMove(h, k)` for every k, including
+ * the break-on-illegal rule above: after the first move chess.js rejects,
+ * every later entry repeats the position reached.
+ *
+ * getFenAtHalfMove replays from the start on every call, which made the
+ * contract builder's per-ply loop quadratic: about a second of CPU on an
+ * 84-ply game before the first byte of the review could stream.
+ */
+export function fensAlongGame(moveHistory: readonly string[]): string[] {
+  const game = new Chess();
+  const fens: string[] = [game.fen()];
+  let broken = false;
+  for (let i = 0; i < moveHistory.length; i++) {
+    if (!broken) {
+      try { game.move(moveHistory[i]); } catch { broken = true; }
+    }
+    fens.push(game.fen());
+  }
+  return fens;
+}
+
+/**
  * Build a PGN string from move history
  */
 export function buildPgnFromMoves(moveHistory: string[]): string {

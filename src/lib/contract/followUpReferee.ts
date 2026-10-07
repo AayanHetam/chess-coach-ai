@@ -109,7 +109,10 @@ export interface FollowUpRefereeResult {
 }
 
 // ── Tactical vocabulary → what licenses it ─────────────────────────────────
-interface KeywordFamily {
+// Exported (with the token regexes below) for the moment checker
+// (lib/coach/momentChecks.ts), which judges a fielded answer by the same
+// vocabulary this referee judges a sentence by: one list, no drifting copy.
+export interface KeywordFamily {
   name: string;
   re: RegExp;
   /** Substrings of the contract's licence pool that back the word. */
@@ -117,7 +120,7 @@ interface KeywordFamily {
   /** Fresh board read that backs it, if any. */
   board?: "hanging" | "pin";
 }
-const FAMILIES: KeywordFamily[] = [
+export const TACTICAL_FAMILIES: KeywordFamily[] = [
   { name: "fork", re: /\bfork(?:s|ed|ing)?\b/i, poolRoots: ["fork"] },
   {
     name: "double attack",
@@ -176,18 +179,18 @@ const FAMILIES: KeywordFamily[] = [
 const SAN_CORE =
   "(?:[NBRQK][a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?|[a-h]x[a-h][1-8](?:=[NBRQ])?[+#]?)";
 const PAWN_SAN = "(?:[a-h][1-8](?:=[NBRQ])?[+#]?)";
-const SAN_TOKEN_RE = new RegExp(
+export const SAN_TOKEN_RE = new RegExp(
   `(?<![A-Za-z0-9])(?:(\\d+)(\\.{1,3})\\s*)?(${SAN_CORE})(?![A-Za-z0-9])` +
     `|(?<![A-Za-z0-9])(\\d+)(\\.{1,3})\\s*(${PAWN_SAN})(?![A-Za-z0-9])` +
     `|\\b(?:play|played|plays|playing|move|moves|with|after|instead of|rather than|try|consider)\\s+(${PAWN_SAN})(?![A-Za-z0-9])`,
   "g"
 );
-const EVAL_RE =
+export const EVAL_RE =
   /(?<![A-Za-z0-9.])([+-]\d+(?:\.\d{1,2})?|M[+-]?\d+)(?![A-Za-z0-9.%])/g;
 /** "your queen on c1", "White's rook on a1", "the knight on f6", "Black's king at g8" */
-const PIECE_ON_SQUARE_RE =
+export const PIECE_ON_SQUARE_RE =
   /\b(?:(white|black|your|my|their|opponent'?s|the opponent'?s)\s+(?:own\s+)?)?(pawn|knight|bishop|rook|queen|king)\s+(?:on|at)\s+([a-h][1-8])\b/gi;
-const PIECE_LETTER: Record<string, string> = {
+export const PIECE_LETTER: Record<string, string> = {
   pawn: "p",
   knight: "n",
   bishop: "b",
@@ -196,7 +199,7 @@ const PIECE_LETTER: Record<string, string> = {
   king: "k",
 };
 
-const stripSan = (s: string) => s.replace(/[+#!?]/g, "").toLowerCase();
+export const stripSan = (s: string) => s.replace(/[+#!?]/g, "").toLowerCase();
 /** A line that opens with a move ("Qxc1 …", "e5 …"), for telling a move number from a list number. */
 const MOVE_START_RE = new RegExp(`^(?:${SAN_CORE}|${PAWN_SAN})(?![A-Za-z0-9])`);
 
@@ -431,7 +434,7 @@ export function refereeFollowUp(
       if (isFlagged(sentence)) reason = "validator";
 
       if (!reason && !definitional) {
-        for (const fam of FAMILIES) {
+        for (const fam of TACTICAL_FAMILIES) {
           if (!fam.re.test(sentence)) continue;
           const licensed =
             fam.poolRoots.some((r) => poolText.includes(r)) ||

@@ -1,0 +1,149 @@
+{
+  "date": "2026-10-07",
+  "mode": "moment_checks_replay",
+  "sources": {
+    "followUps": {
+      "answers": "scripts/eval/results/followup-story-probe.json",
+      "fixtures": "src/lib/contract/__tests__/fixtures-real"
+    },
+    "cards": {
+      "reviews": "scripts/eval/results/contract-ci5-gates-2026-08-11.json",
+      "fixtures": "src/lib/contract/__tests__/fixtures"
+    }
+  },
+  "followUps": {
+    "moments": 8,
+    "omittedBy": {
+      "idea": 0,
+      "happens": 5,
+      "proof": 0,
+      "lesson": 2,
+      "question": 0
+    },
+    "reshapedBy": {
+      "idea": 0,
+      "happens": 8,
+      "proof": 0,
+      "lesson": 4,
+      "question": 0
+    },
+    "byCheck": {
+      "san_in_prose": 8,
+      "piece_on_square": 9,
+      "budget": 20,
+      "lesson_not_teaching": 3,
+      "eval_in_prose": 7,
+      "tactical_keyword": 1
+    },
+    "clean": 0,
+    "present": {
+      "idea": 8,
+      "happens": 8,
+      "proof": 0,
+      "lesson": 6,
+      "question": 0
+    },
+    "examples": {
+      "san_in_prose": [
+        "07_knight_fork without: The app draws the line; the prose may name only this moment's move (Nc7+ or Qxc1), not Rb8.",
+        "07_knight_fork with: The app draws the line; the prose may name only this moment's move (Nc7+ or Qxc1), not Kd8, Nxa8, Qxd1+, Rb8, Qf4.",
+        "07_knight_fork without: The app draws the line; the prose may name only this moment's move (Nc7+ or Qxc1), not Rb8, Qf4, Kd7."
+      ],
+      "piece_on_square": [
+        "07_knight_fork without: There is no white queen on c1: on this board c1 is a black queen.",
+        "07_knight_fork without: There is no white queen on c1: on this board c1 is a black queen.",
+        "07_knight_fork without: There is no black rook on c8: on this board c8 is a black bishop."
+      ],
+      "budget": [
+        "07_knight_fork without: What happens is at most 2 sentences; this is 9.",
+        "07_knight_fork without: The idea and what happens together are at most 45 words; they are 131.",
+        "07_knight_fork without: The lesson is at most 35 words; it is 45."
+      ],
+      "lesson_not_teaching": [
+        "07_knight_fork with: The lesson's check must name a pattern and a check for any game, with no square, move or evaluation in it; it carries the square c1.",
+        "10_queenless_endgame with: The lesson's pattern must name a pattern and a check for any game, with no square, move or evaluation in it; it carries the square e6.",
+        "10_queenless_endgame with: The lesson's check must name a pattern and a check for any game, with no square, move or evaluation in it; it carries the evaluation +0.63."
+      ],
+      "eval_in_prose": [
+        "10_queenless_endgame without: The evaluation +0.63 belongs to the line the app draws, not to the prose; say what the move does, never the number.",
+        "10_queenless_endgame without: The evaluation +0.63 belongs to the line the app draws, not to the prose; say what the move does, never the number.",
+        "10_queenless_endgame without: The evaluation -3.92 belongs to the line the app draws, not to the prose; say what the move does, never the number."
+      ],
+      "tactical_keyword": [
+        "10_queenless_endgame without: Nothing in the facts for this move confirms a mate threat; on this board the hanging pieces are none and the pinned pieces are none."
+      ]
+    },
+    "unmatched": 0
+  },
+  "cards": {
+    "moments": 57,
+    "omittedBy": {
+      "idea": 1,
+      "happens": 21,
+      "proof": 0,
+      "lesson": 5,
+      "question": 0
+    },
+    "reshapedBy": {
+      "idea": 10,
+      "happens": 56,
+      "proof": 0,
+      "lesson": 5,
+      "question": 0
+    },
+    "byCheck": {
+      "eval_in_prose": 70,
+      "piece_on_square": 7,
+      "budget": 101,
+      "san_in_prose": 16,
+      "lesson_not_teaching": 5,
+      "empty": 2,
+      "tactical_keyword": 15
+    },
+    "clean": 0,
+    "present": {
+      "idea": 56,
+      "happens": 56,
+      "proof": 57,
+      "lesson": 42,
+      "question": 0
+    },
+    "examples": {
+      "eval_in_prose": [
+        "01_mate_for_white_midgame#0 7...Ke6: The evaluation +2.50 belongs to the line the app draws, not to the prose; say what the move does, never the number.",
+        "01_mate_for_white_midgame#2 7...Ke6: The evaluation +2.50 belongs to the line the app draws, not to the prose; say what the move does, never the number.",
+        "01_mate_for_white_midgame#2 7...Ke6: The evaluation +2.50 belongs to the line the app draws, not to the prose; say what the move does, never the number."
+      ],
+      "piece_on_square": [
+        "01_mate_for_white_midgame#0 7...Ke6: There is no black bishop on c4: on this board c4 is a white bishop.",
+        "01_mate_for_white_midgame#1 7...Ke6: There is no black bishop on c4: on this board c4 is a white bishop.",
+        "01_mate_for_white_midgame#2 7...Ke6: There is no black bishop on c4: on this board c4 is a white bishop."
+      ],
+      "budget": [
+        "01_mate_for_white_midgame#0 7...Ke6: The idea and what happens together are at most 45 words; they are 83.",
+        "01_mate_for_white_midgame#1 7...Ke6: The idea and what happens together are at most 45 words; they are 63.",
+        "01_mate_for_white_midgame#2 7...Ke6: The idea is one sentence; this one is 2."
+      ],
+      "san_in_prose": [
+        "02_mate_for_black#0 8...Ng4: The app draws the line; the prose may name only this moment's move (Ng4 or Ba5+), not e5, Bd2, Bb4, Ba6.",
+        "02_mate_for_black#0 5...exd4: The app draws the line; the prose may name only this moment's move (exd4 or Ba3), not cxd4, cxd4.",
+        "02_mate_for_black#1 5...exd4: The app draws the line; the prose may name only this moment's move (exd4 or Ba3), not cxd4."
+      ],
+      "lesson_not_teaching": [
+        "03_sentinel_timeout#2 6.Nf3: The lesson's check must name a pattern and a check for any game, with no square, move or evaluation in it; it carries the square g5.",
+        "05_long_game_six_mistakes#0 11.Qc4: The lesson's check must name a pattern and a check for any game, with no square, move or evaluation in it; it carries the square a7, b5.",
+        "07_knight_fork#0 5.Nf3: The lesson's check must name a pattern and a check for any game, with no square, move or evaluation in it; it carries the square a6."
+      ],
+      "empty": [
+        "05_long_game_six_mistakes#0 36.Na7: What happens is missing: one line on what the opponent gets to do and why it works.",
+        "10_queenless_endgame#2 18.Ne6: The idea is missing: one line on what the move was for."
+      ],
+      "tactical_keyword": [
+        "05_long_game_six_mistakes#0 31.Rh2: Nothing in the facts for this move confirms a trapped; on this board the hanging pieces are a8, b7, h4, f3 and the pinned pieces are none.",
+        "05_long_game_six_mistakes#0 21.Bd5: Nothing in the facts for this move confirms a fork; on this board the hanging pieces are c8, f7, h6, e5, c4, e4, g3 and the pinned pieces are none.",
+        "05_long_game_six_mistakes#0 11.Qc4: Nothing in the facts for this move confirms a pin; on this board the hanging pieces are a7, b5 and the pinned pieces are none."
+      ]
+    },
+    "unmatched": 15
+  }
+}

@@ -303,14 +303,18 @@ test.describe("the board's rectangle", () => {
     test.skip(!on && !process.env.CI, "built without page actions");
     expect(on, "the CI legs build with page actions on").toBe(true);
     const rest = await boardRect(page);
+    // One more line with the acknowledgement than before the order: an
+    // earlier copy of the same words does not count.
     const say = async (text: string, ack: string | RegExp) => {
+      const lines = page.getByText(
+        ack,
+        typeof ack === "string" ? { exact: true } : {}
+      );
+      const before = await lines.count();
       await composer.fill(text);
       await composer.press("Enter");
-      await expect(
-        page
-          .getByText(ack, typeof ack === "string" ? { exact: true } : {})
-          .last()
-      ).toBeVisible({ timeout: 10_000 });
+      await expect(lines).toHaveCount(before + 1, { timeout: 10_000 });
+      await expect(lines.last()).toBeVisible();
     };
 
     // (The go-to first: with the side unknown, a flip changes whose move
@@ -352,10 +356,16 @@ test.describe("the board's rectangle", () => {
     );
     await expect(drill).toBeVisible();
     expectSameRect(rest, await boardRect(page), "an order refused in a drill");
+    // The side said during a drill takes the board when the drill is left.
+    await say("I was black", "Coaching you as Black.");
+    await expect(drill).toBeVisible();
     await composer.fill("back");
     await composer.press("Enter");
     await expect(drill).toHaveCount(0);
     await expect(page.getByText(/Drill left at puzzle 1 of 1/)).toBeVisible();
+    await expect(page.locator(".cg-wrap").first()).toHaveClass(
+      /orientation-black/
+    );
     expectSameRect(rest, await boardRect(page), "leaving a drill by order");
   });
 });

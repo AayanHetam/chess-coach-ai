@@ -200,6 +200,7 @@ describe.each([
       kind: "side",
       color: "b",
       bare: false,
+      declared: false,
     });
     expect(json.gameAnalysis.actions).toBeUndefined();
     expect(modelCalls()).toBe(0);
@@ -238,6 +239,19 @@ describe.each([
 
   it("a colour on its own is left to the page, which knows whether it asked", async () => {
     const json = await (await ask("black", withKinds)).json();
+    expect(modelCalls()).toBe(1);
+    expect(json.gameAnalysis.served).toBeUndefined();
+  });
+
+  it("a side statement from a page that cannot pick a side here (a puzzle, no moves) reaches the coach", async () => {
+    // The page lists no side kinds there, so the words are the coach's.
+    const json = await (
+      await ask("I'm playing black", {
+        pageActions: PAGE_TURN_KINDS.filter(
+          (k) => k !== "side" && k !== "my_side"
+        ),
+      })
+    ).json();
     expect(modelCalls()).toBe(1);
     expect(json.gameAnalysis.served).toBeUndefined();
   });

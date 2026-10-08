@@ -35,9 +35,12 @@ export interface ProofLineProps {
   /**
    * Put the position after the first `k` plies of the line on the board
    * (k = 0 is the position the line starts from). Absent, the line is
-   * read-only.
+   * read-only. `replay` plays this line again from its start through its
+   * own Play (so its highlight and caption follow the board), and says
+   * false once the line is gone from the page: the page keeps it to carry
+   * out a typed "play the line again".
    */
-  onShowPly?: (line: CoachLine, k: number) => void;
+  onShowPly?: (line: CoachLine, k: number, replay?: () => boolean) => void;
   /** Leading label; defaults by kind. */
   label?: string;
   /** Milliseconds per ply while playing. */
@@ -198,9 +201,29 @@ export function ProofLine({
   // The ply on the board, 1-based; 0 = the start position; null = untouched.
   const [shown, setShown] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
+  // Bumped to start the line again while it is already marked as playing.
+  const [run, setRun] = useState(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const onShowRef = useRef(onShowPly);
   onShowRef.current = onShowPly;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  // From the start, as the Play button does at the end of the line.
+  const replay = (): boolean => {
+    if (!mounted.current) return false;
+    if (timer.current) clearInterval(timer.current);
+    timer.current = null;
+    setShown(0);
+    onShowRef.current?.(line, 0, replay);
+    setPlaying(true);
+    setRun((r) => r + 1);
+    return true;
+  };
   const total = captions.plies.length;
   const interactive = !!onShowPly && total > 0;
 
@@ -212,7 +235,7 @@ export function ProofLine({
 
   const show = (k: number) => {
     setShown(k);
-    onShowRef.current?.(line, k);
+    onShowRef.current?.(line, k, replay);
   };
 
   useEffect(() => {
@@ -222,7 +245,7 @@ export function ProofLine({
     const tick = () => {
       k += 1;
       setShown(k);
-      onShowRef.current?.(line, k);
+      onShowRef.current?.(line, k, replay);
       if (k >= total) stop();
     };
     tick();
@@ -232,7 +255,7 @@ export function ProofLine({
       timer.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playing]);
+  }, [playing, run]);
 
   useEffect(() => () => stop(), []);
 

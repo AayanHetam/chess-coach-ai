@@ -164,15 +164,18 @@ test.describe("orders the page carries out itself", () => {
     const label = page.getByTestId("move-analysis-label");
     const board = page.locator(".cg-wrap").first();
     const rest = await boardRect(page);
+    // One more line with the acknowledgement than before the order: an
+    // earlier copy of the same words does not count.
     const say = async (text: string, ack: string | RegExp) => {
+      const lines = page.getByText(
+        ack,
+        typeof ack === "string" ? { exact: true } : {}
+      );
+      const before = await lines.count();
       await composer.fill(text);
       await composer.press("Enter");
-      // The newest line: an acknowledgement can repeat an earlier one.
-      await expect(
-        page
-          .getByText(ack, typeof ack === "string" ? { exact: true } : {})
-          .last()
-      ).toBeVisible({ timeout: 10_000 });
+      await expect(lines).toHaveCount(before + 1, { timeout: 10_000 });
+      await expect(lines.last()).toBeVisible();
       await expect(composer).toHaveValue("");
     };
 
@@ -193,9 +196,6 @@ test.describe("orders the page carries out itself", () => {
     await expect(label).toHaveText("41. Qf4");
     // "Back" right after a typed go-to returns to where it was typed.
     await say("back", "Back to 20... d4.");
-    await expect(
-      page.getByText("Back to 20... d4.", { exact: true })
-    ).toHaveCount(2);
     await expect(label).toHaveText("20... d4");
 
     // Not one request for any of it.
@@ -279,6 +279,65 @@ test.describe("orders the page carries out itself", () => {
     expect(seen.deep).toHaveLength(1);
     expect(seen.chat).toHaveLength(1);
     expectSameRect(rest, await boardRect(page));
+  });
+
+  test("an order the server answered itself is carried out by the page, with its own line", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    const seen = await stubCoach(page, LONG_REVIEW, { blockEngine: true });
+    await page.goto(`/analysis?pgn=${encodeURIComponent(LONG_PGN)}`);
+    const composer = page.getByPlaceholder(
+      "Ask anything — answering without engine analysis."
+    );
+    await expect(composer).toBeVisible({ timeout: 60_000 });
+    await skipUnlessOn(page);
+    await composer.fill("analyse this game");
+    await composer.press("Enter");
+    await expect(page.getByText(/kept the pieces breathing/)).toBeVisible({
+      timeout: 30_000,
+    });
+
+    // A server whose reading is newer than the page's answers a question
+    // the page sent as one with an order: the page carries it out and
+    // writes its own line, and the question leaves the coach's history.
+    await page.route(
+      "**/api/chat",
+      async (route) => {
+        seen.chat.push(route.request().postDataJSON());
+        await route.fulfill({
+          status: 200,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            gameAnalysis: {
+              analysis: "",
+              served: "page",
+              actions: [{ kind: "flip_board" }],
+              cached: false,
+              fastPath: true,
+            },
+          }),
+        });
+      },
+      { times: 1 }
+    );
+    const flipped = page.getByText("Flipped. Black is at the bottom.", {
+      exact: true,
+    });
+    await composer.fill("turn it around for me, masti, would you");
+    await composer.press("Enter");
+    await expect(flipped).toHaveCount(1, { timeout: 10_000 });
+    await expect(page.locator(".cg-wrap").first()).toHaveClass(
+      /orientation-black/
+    );
+    expect(seen.chat).toHaveLength(1);
+
+    // The next question goes as usual, without the served one in its history.
+    await composer.fill("why was move 20 bad?");
+    await composer.press("Enter");
+    await expect(page.getByText(CHAT_ANSWER)).toBeVisible({ timeout: 30_000 });
+    expect(seen.chat).toHaveLength(2);
+    expect(historyText(seen.chat[1])).not.toMatch(/turn it around|Flipped/);
   });
 
   test("'play the line again' replays the line the reader last played", async ({

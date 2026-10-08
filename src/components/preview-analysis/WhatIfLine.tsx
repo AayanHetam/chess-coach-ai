@@ -11,8 +11,8 @@
  * moves when the engine's first partial lands, when a deeper one replaces
  * it, or when no answer comes at all. No box, no chip, no badge.
  *
- * The line's moves are pinned once the reader taps or plays it, for the
- * life of the block: a deeper search can change the engine's reply, and
+ * The line's moves are pinned once the reader taps or plays it, or the
+ * page plays it on their typed order, for the life of the block: a deeper search can change the engine's reply, and
  * swapping the moves under a line the reader is walking (or playing again
  * from the start) would name a move that is not on the board. The numbers
  * above keep deepening. Only a final search with no line for the asked
@@ -22,13 +22,13 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
-  useState,
   useSyncExternalStore,
 } from "react";
 import { Box, Tooltip } from "@mui/material";
 import { ProofLine, ProofLinePlaceholder } from "./ProofLine";
 import {
   initialWhatIfState,
+  pinWhatIfLine,
   whatIfSummary,
   type WhatIfAsk,
   type WhatIfStore,
@@ -52,19 +52,21 @@ export function WhatIfLine({
   /** The page's what-if states; this line reads its own and re-renders alone when it changes. */
   store: WhatIfStore;
   playerColor: "w" | "b" | null;
-  onShowPly?: (line: CoachLine, k: number) => void;
+  onShowPly?: (line: CoachLine, k: number, replay?: () => boolean) => void;
 }) {
   const initial = useMemo(() => initialWhatIfState(id, ask), [id, ask]);
   const read = () => store.get(id) ?? initial;
   const state = useSyncExternalStore(store.subscribe, read, read);
-  // The line the reader tapped or played, held from then on.
-  const [pinned, setPinned] = useState<CoachLine | null>(null);
+  // The line the reader tapped or played (or the page played on their
+  // order), held from then on. It lives in the store so the page can pin
+  // it too.
+  const pinned = state.pinned ?? null;
   const showPly = useCallback(
-    (line: CoachLine, k: number) => {
-      setPinned((held) => held ?? line);
-      onShowPly?.(line, k);
+    (line: CoachLine, k: number, replay?: () => boolean) => {
+      store.update(id, (st) => pinWhatIfLine(st, line));
+      onShowPly?.(line, k, replay);
     },
-    [onShowPly]
+    [onShowPly, store, id]
   );
   const line = state.status === "unavailable" ? null : (pinned ?? state.line);
   const summary = whatIfSummary(state);

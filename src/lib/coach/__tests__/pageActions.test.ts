@@ -34,8 +34,16 @@ describe("parsePageTurn: whole-message orders", () => {
     ["go to move 20", action({ kind: "go_to_move", moveNumber: 20 })],
     ["Go To Move 8.", action({ kind: "go_to_move", moveNumber: 8 })],
     ["jump to move 8", action({ kind: "go_to_move", moveNumber: 8 })],
-    ["take me back to move 7", action({ kind: "go_to_move", moveNumber: 7 })],
-    ["back to move 7", action({ kind: "go_to_move", moveNumber: 7 })],
+    // The strip's own Back label, kept as such: the page reads it as that
+    // Back when the strip shows one.
+    [
+      "take me back to move 7",
+      action({ kind: "go_to_move", moveNumber: 7, via: "back" }),
+    ],
+    [
+      "back to move 7",
+      action({ kind: "go_to_move", moveNumber: 7, via: "back" }),
+    ],
     ["show me move 3", action({ kind: "go_to_move", moveNumber: 3 })],
     ["goto move 8", action({ kind: "go_to_move", moveNumber: 8 })],
     ["could you go to move 8?", action({ kind: "go_to_move", moveNumber: 8 })],
@@ -56,12 +64,31 @@ describe("parsePageTurn: whole-message orders", () => {
       "go to move 20 as black",
       action({ kind: "go_to_move", moveNumber: 20, color: "b" }),
     ],
+    // A side as people type it: no apostrophe, or after the number.
+    [
+      "go to blacks move 20",
+      action({ kind: "go_to_move", moveNumber: 20, color: "b" }),
+    ],
+    [
+      "go to black move 20",
+      action({ kind: "go_to_move", moveNumber: 20, color: "b" }),
+    ],
+    [
+      "go to move 20 black",
+      action({ kind: "go_to_move", moveNumber: 20, color: "b" }),
+    ],
+    // The coach's name after the order.
+    ["flip the board, masti", action({ kind: "flip_board" })],
+    ["play it again, Masti!", action({ kind: "replay_line" })],
+    ["flip the board, coach", action({ kind: "flip_board" })],
     // A move number the game may not have is still an order: the page says so.
     ["go to move 0", action({ kind: "go_to_move", moveNumber: 0 })],
     ["go to move 999", action({ kind: "go_to_move", moveNumber: 999 })],
     ["go to the start", action({ kind: "go_to_start" })],
-    ["go back to the beginning", action({ kind: "go_to_start" })],
-    ["back to the start", action({ kind: "go_to_start" })],
+    ["go back to the beginning", action({ kind: "go_to_start", via: "back" })],
+    ["back to the start", action({ kind: "go_to_start", via: "back" })],
+    ["back to start", action({ kind: "go_to_start", via: "back" })],
+    ["jump to the beginning", action({ kind: "go_to_start" })],
     ["reset", action({ kind: "go_to_start" })],
     ["reset the board", action({ kind: "go_to_start" })],
     ["go to the end", action({ kind: "go_to_end" })],
@@ -93,42 +120,42 @@ describe("parsePageTurn: whole-message orders", () => {
       "coach me as Black",
       {
         type: "preference",
-        preference: { kind: "side", color: "b", bare: false },
+        preference: { kind: "side", color: "b", bare: false, declared: false },
       },
     ],
     [
       "Always coach me as black.",
       {
         type: "preference",
-        preference: { kind: "side", color: "b", bare: false },
+        preference: { kind: "side", color: "b", bare: false, declared: false },
       },
     ],
     [
       "I was white",
       {
         type: "preference",
-        preference: { kind: "side", color: "w", bare: false },
+        preference: { kind: "side", color: "w", bare: false, declared: true },
       },
     ],
     [
       "I played the black pieces",
       {
         type: "preference",
-        preference: { kind: "side", color: "b", bare: false },
+        preference: { kind: "side", color: "b", bare: false, declared: true },
       },
     ],
     [
       "i'm playing as black",
       {
         type: "preference",
-        preference: { kind: "side", color: "b", bare: false },
+        preference: { kind: "side", color: "b", bare: false, declared: true },
       },
     ],
     [
       "Black",
       {
         type: "preference",
-        preference: { kind: "side", color: "b", bare: true },
+        preference: { kind: "side", color: "b", bare: true, declared: true },
       },
     ],
     [
@@ -214,6 +241,12 @@ describe("parsePageTurn: a question is never an order", () => {
     "go to move 8…",
     // Two sides named.
     "go to white's move 8 for black",
+    "go to move 20 black and white",
+    // A side in a question, or an order with a question after it.
+    "why was blacks move 20 bad?",
+    "go to blacks move 20 and tell me why",
+    // "coach" with no comma is not a name.
+    "flip the board coach",
     // A side named in a question.
     "I was white, why did I lose?",
     "I was white?",
@@ -359,7 +392,18 @@ describe("the wire", () => {
     });
     expect(
       readPagePreference({ kind: "side", color: "w", bare: false })
-    ).toEqual({ kind: "side", color: "w", bare: false });
+    ).toEqual({ kind: "side", color: "w", bare: false, declared: true });
+    expect(
+      readPagePreference({
+        kind: "side",
+        color: "b",
+        bare: false,
+        declared: false,
+      })
+    ).toEqual({ kind: "side", color: "b", bare: false, declared: false });
+    expect(
+      readPagePreference({ kind: "side", color: "b", bare: false, declared: 1 })
+    ).toBeNull();
     expect(readPagePreference({ kind: "side", color: "w" })).toBeNull();
     expect(readPagePreference({ kind: "length", length: "short" })).toBeNull();
   });
@@ -429,7 +473,7 @@ describe("parsePageTurn: the coach's name", () => {
     );
     expect(parsePageTurn("coach me as white")).toEqual({
       type: "preference",
-      preference: { kind: "side", color: "w", bare: false },
+      preference: { kind: "side", color: "w", bare: false, declared: false },
     });
   });
 });

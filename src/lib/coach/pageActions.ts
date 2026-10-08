@@ -30,9 +30,18 @@
 /** Something the page does to the board. */
 export type PageAction =
   | { kind: "flip_board"; to?: "white" | "black" }
-  /** A move number as the player wrote it; the page finds the ply in its own game. */
-  | { kind: "go_to_move"; moveNumber: number; color?: "w" | "b" }
-  | { kind: "go_to_start" }
+  /**
+   * A move number as the player wrote it; the page finds the ply in its
+   * own game. `via: "back"` is "back to move 7", the words on the strip's
+   * own Back, which the page reads as that Back when it shows one.
+   */
+  | {
+      kind: "go_to_move";
+      moveNumber: number;
+      color?: "w" | "b";
+      via?: "back";
+    }
+  | { kind: "go_to_start"; via?: "back" }
   | { kind: "go_to_end" }
   | { kind: "step"; delta: 1 | -1 }
   /** The strip's own Back where it shows one, else one move back. */
@@ -45,10 +54,12 @@ export type PageAction =
  * A standing word about the player's side, the one preference the page
  * keeps (decision 15 of the pathway took "keep it short" out: depth is
  * never a setting). `bare` is a colour on its own ("black"), an answer only
- * while the page is asking which side the player was.
+ * while the page is asking which side the player was. `declared` is a
+ * statement of fact ("I was Black") rather than a wish ("coach me as
+ * Black"): only a wish is undone by "back to my side".
  */
 export type PagePreference =
-  | { kind: "side"; color: "w" | "b"; bare: boolean }
+  | { kind: "side"; color: "w" | "b"; bare: boolean; declared: boolean }
   | { kind: "my_side" };
 
 export type PageTurn =
@@ -109,8 +120,9 @@ const LEAD_IN_RE =
 /** Asking politely, the one opening that may end in a question mark. */
 const REQUEST_RE =
   /^(?:(?:hey|hi|hello|ok|okay|masti|coach)[\s,!.]+)*(?:can|could) you\b/;
-/** After the order. */
-const TRAILER_RE = /[\s,]+(?:please|pls|thanks|thank you|thx|ty|for me|now)$/;
+/** After the order: politeness, or a name ("coach" with a comma before it). */
+const TRAILER_RE =
+  /(?:[\s,]+(?:please|pls|thanks|thank you|thx|ty|for me|now|masti)|\s*,\s*coach)$/;
 
 const COLOR = "(white|black)";
 const GO = "(?:go|jump|skip|take me|bring me)";
@@ -118,11 +130,13 @@ const GO = "(?:go|jump|skip|take me|bring me)";
 const FLIP_RE = new RegExp(
   `^(?:(?:flip|rotate|turn)(?: (?:the|my))? board(?: (?:around|over|round))?(?: (?:to|for) ${COLOR})?|flip(?: it)?(?: (?:around|over))?|flip (?:to|for) ${COLOR})$`
 );
+/** Group 1: the "back to" form; 2: a side before; 3: the number; 4: a side after. */
 const GO_TO_MOVE_RE = new RegExp(
-  `^(?:${GO}(?: back| forward| ahead)? to|back to|show(?: me)?|goto)(?: (?:the )?${COLOR}'s)? move (?:number |no\\.? )?(\\d{1,4})(?: (?:for|as) ${COLOR})?$`
+  `^(?:(${GO} back to|back to)|${GO}(?: forward| ahead)? to|show(?: me)?|goto)(?: (?:the )?${COLOR}(?:'?s)?)? move (?:number |no\\.? )?(\\d{1,4})(?: (?:(?:for|as) )?${COLOR})?$`
 );
+/** Group 1: the "back to" form. */
 const GO_TO_START_RE = new RegExp(
-  `^(?:${GO}(?: back)? to (?:the )?(?:start|beginning)(?: of the game)?|back to (?:the )?(?:start|beginning)|reset(?: (?:the )?board)?|reset to (?:the )?(?:start|beginning))$`
+  `^(?:(${GO} back to|back to) (?:the )?(?:start|beginning)(?: of the game)?|${GO} to (?:the )?(?:start|beginning)(?: of the game)?|reset(?: (?:the )?board)?|reset to (?:the )?(?:start|beginning))$`
 );
 const GO_TO_END_RE = new RegExp(
   `^${GO}(?: forward)? to (?:the )?(?:end|final position|last position|last move)(?: of the game)?$`
@@ -137,8 +151,9 @@ const BACK_TO_GAME_RE =
   /^(?:(?:go )?back to the game|return to the game|(?:exit|leave|close|stop)(?: the| this)? (?:line|exploration|preview|drill|puzzle)|stop exploring)$/;
 const REPLAY_RE =
   /^(?:(?:re)?play (?:the |that |this )?line(?: again)?|play (?:it|that) again|replay(?: it| that)?|show(?: me)? the line again)$/;
+/** Group 1: the wish ("coach me as"); 2: the side. */
 const SIDE_RE = new RegExp(
-  `^(?:(?:always |from now on,? )?coach me as|i (?:was|am|played|play|was playing|am playing)(?: as)?|i'm(?: playing)?(?: as)?|my side is) (?:the )?${COLOR}(?: pieces)?(?: from now on| always)?$`
+  `^(?:((?:always |from now on,? )?coach me as)|i (?:was|am|played|play|was playing|am playing)(?: as)?|i'm(?: playing)?(?: as)?|my side is) (?:the )?${COLOR}(?: pieces)?(?: from now on| always)?$`
 );
 const BARE_SIDE_RE = new RegExp(`^${COLOR}$`);
 const MY_SIDE_RE =
@@ -209,19 +224,23 @@ export function parsePageTurn(message: string): PageTurn | null {
   }
   const goTo = GO_TO_MOVE_RE.exec(s);
   if (goTo) {
-    const before = side(goTo[1]);
-    const after = side(goTo[3]);
+    const before = side(goTo[2]);
+    const after = side(goTo[4]);
     // "white's move 8 for black" names two sides: not an order.
     if (before && after && before !== after) return null;
     const color = before ?? after;
-    const moveNumber = Number(goTo[2]);
-    return action(
-      color
-        ? { kind: "go_to_move", moveNumber, color }
-        : { kind: "go_to_move", moveNumber }
-    );
+    return action({
+      kind: "go_to_move",
+      moveNumber: Number(goTo[3]),
+      ...(color ? { color } : {}),
+      ...(goTo[1] ? { via: "back" as const } : {}),
+    });
   }
-  if (GO_TO_START_RE.test(s)) return action({ kind: "go_to_start" });
+  const start = GO_TO_START_RE.exec(s);
+  if (start)
+    return action(
+      start[1] ? { kind: "go_to_start", via: "back" } : { kind: "go_to_start" }
+    );
   if (GO_TO_END_RE.test(s)) return action({ kind: "go_to_end" });
   if (STEP_FORWARD_RE.test(s)) return action({ kind: "step", delta: 1 });
   if (STEP_BACK_RE.test(s)) return action({ kind: "step", delta: -1 });
@@ -235,9 +254,20 @@ export function parsePageTurn(message: string): PageTurn | null {
   });
   const sideSaid = SIDE_RE.exec(s);
   if (sideSaid)
-    return pref({ kind: "side", color: side(sideSaid[1])!, bare: false });
+    return pref({
+      kind: "side",
+      color: side(sideSaid[2])!,
+      bare: false,
+      declared: !sideSaid[1],
+    });
   const bare = BARE_SIDE_RE.exec(s);
-  if (bare) return pref({ kind: "side", color: side(bare[1])!, bare: true });
+  if (bare)
+    return pref({
+      kind: "side",
+      color: side(bare[1])!,
+      bare: true,
+      declared: true,
+    });
   if (MY_SIDE_RE.test(s)) return pref({ kind: "my_side" });
   return null;
 }
@@ -260,16 +290,23 @@ function readPageAction(raw: unknown): PageAction | null {
       const n = raw.moveNumber;
       if (typeof n !== "number" || !Number.isInteger(n) || n < 0 || n > 9999)
         return null;
-      if (raw.color === undefined) return { kind: "go_to_move", moveNumber: n };
-      return raw.color === "w" || raw.color === "b"
-        ? { kind: "go_to_move", moveNumber: n, color: raw.color }
-        : null;
+      if (raw.color !== undefined && raw.color !== "w" && raw.color !== "b")
+        return null;
+      if (raw.via !== undefined && raw.via !== "back") return null;
+      return {
+        kind: "go_to_move",
+        moveNumber: n,
+        ...(raw.color ? { color: raw.color } : {}),
+        ...(raw.via ? { via: "back" as const } : {}),
+      };
     }
     case "step":
       return raw.delta === 1 || raw.delta === -1
         ? { kind: "step", delta: raw.delta }
         : null;
     case "go_to_start":
+      if (raw.via === undefined) return { kind: "go_to_start" };
+      return raw.via === "back" ? { kind: "go_to_start", via: "back" } : null;
     case "go_to_end":
     case "back":
     case "back_to_game":
@@ -298,9 +335,15 @@ export function readPagePreference(raw: unknown): PagePreference | null {
   if (
     raw.kind === "side" &&
     (raw.color === "w" || raw.color === "b") &&
-    typeof raw.bare === "boolean"
+    typeof raw.bare === "boolean" &&
+    (raw.declared === undefined || typeof raw.declared === "boolean")
   )
-    return { kind: "side", color: raw.color, bare: raw.bare };
+    return {
+      kind: "side",
+      color: raw.color,
+      bare: raw.bare,
+      declared: raw.declared ?? true,
+    };
   return null;
 }
 

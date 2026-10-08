@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  coachAskedLast,
   markServedPageTurn,
   planPageTurn,
   type PageTurnState,
@@ -34,6 +35,7 @@ const state = (over: Partial<PageTurnState> = {}): PageTurnState => ({
   jump: null,
   typedJump: null,
   replay: null,
+  coachAsked: false,
   ...over,
 });
 const act = (a: PageAction): PageTurn => ({ type: "action", action: a });
@@ -178,6 +180,19 @@ describe("the other moves through the game", () => {
     ).toEqual({ effects: [], ack: "That's the last move.", mood: "wave" });
   });
 
+  it("a game with no moves leaves a line on the board for its start or its end", () => {
+    const exploring = { anchorPly: 0, path: ["Qxf7#"] };
+    for (const a of [act({ kind: "go_to_start" }), act({ kind: "go_to_end" })])
+      expect(planPageTurn(a, state({ sans: [], exploring }))).toEqual({
+        effects: [{ type: "clear_preview" }, { type: "cursor", ply: 0 }],
+        ack: "Back to the start.",
+        mood: "wave",
+      });
+    expect(
+      planPageTurn(act({ kind: "go_to_start" }), state({ sans: [] }))?.ack
+    ).toBe("Back to the start.");
+  });
+
   it("a game with no moves says so instead of moving", () => {
     for (const a of [
       go(1),
@@ -280,6 +295,85 @@ describe("back", () => {
       ack: "You're on the game already.",
       mood: "wave",
     });
+  });
+});
+
+describe("the strip's own Back label, typed", () => {
+  const backTo = (n: number): PageTurn =>
+    act({ kind: "go_to_move", moveNumber: n, via: "back" });
+  it("is that Back on a line being explored, whichever side's ply it is", () => {
+    // "Back to move 7" over an exploration from after 7... Qxc1.
+    expect(
+      planPageTurn(
+        backTo(7),
+        state({ ply: 14, exploring: { anchorPly: 14, path: ["Qxc1"] } })
+      )
+    ).toEqual({
+      effects: [{ type: "clear_preview" }, { type: "cursor", ply: 14 }],
+      ack: "Back to 7... Qxc1.",
+      mood: "wave",
+    });
+    expect(
+      planPageTurn(
+        backTo(7),
+        state({
+          ply: 13,
+          moveSide: "b",
+          exploring: { anchorPly: 13, path: ["Qxc1"] },
+        })
+      )?.effects
+    ).toEqual([{ type: "clear_preview" }, { type: "cursor", ply: 13 }]);
+  });
+
+  it("is that Back on the coach's jump and in a drill", () => {
+    expect(
+      planPageTurn(
+        backTo(10),
+        state({ ply: 15, jump: { fromPly: 20, toPly: 15 } })
+      )?.effects
+    ).toEqual([{ type: "clear_jump" }, { type: "cursor", ply: 20 }]);
+    expect(
+      planPageTurn(
+        backTo(7),
+        state({ drill: { complete: false, savedPly: 14 } })
+      )?.effects
+    ).toEqual([{ type: "exit_drill" }]);
+    expect(
+      planPageTurn(
+        act({ kind: "go_to_start", via: "back" }),
+        state({ drill: { complete: false, savedPly: 0 } })
+      )?.effects
+    ).toEqual([{ type: "exit_drill" }]);
+  });
+
+  it("in a set-up game too, where the label counts from 1 like every label", () => {
+    expect(
+      planPageTurn(
+        backTo(1),
+        state({
+          sans: ROOTED,
+          rootFen: ROOT,
+          ply: 2,
+          exploring: { anchorPly: 2, path: ["Nc3"] },
+        })
+      )?.effects
+    ).toEqual([{ type: "clear_preview" }, { type: "cursor", ply: 2 }]);
+  });
+
+  it("another number, a side named, or a plain 'go to' keeps its meaning", () => {
+    const exploring = { anchorPly: 14, path: ["Qxc1"] };
+    expect(
+      planPageTurn(backTo(5), state({ ply: 14, exploring }))?.effects
+    ).toEqual(cursorTo(9));
+    expect(
+      planPageTurn(
+        act({ kind: "go_to_move", moveNumber: 7, color: "w", via: "back" }),
+        state({ ply: 14, exploring })
+      )?.effects
+    ).toEqual(cursorTo(13));
+    expect(planPageTurn(go(7), state({ ply: 14, exploring }))?.effects).toEqual(
+      cursorTo(13)
+    );
   });
 });
 
@@ -418,9 +512,9 @@ describe("play the line again", () => {
 });
 
 describe("the player's side", () => {
-  const side = (color: "w" | "b", bare = false): PageTurn => ({
+  const side = (color: "w" | "b", bare = false, declared = true): PageTurn => ({
     type: "preference",
-    preference: { kind: "side", color, bare },
+    preference: { kind: "side", color, bare, declared },
   });
   const mySide: PageTurn = {
     type: "preference",
@@ -435,10 +529,18 @@ describe("the player's side", () => {
     });
   });
 
-  it("a colour on its own is an answer only while the side is unknown", () => {
+  it("a colour on its own is an answer only while the side is unknown and the coach asked nothing", () => {
     expect(
       planPageTurn(side("b", true), state({ playerSide: "w" }))
     ).toBeNull();
+    // "Your turn: who is better, White or Black?" "Black": the coach's.
+    expect(
+      planPageTurn(side("b", true), state({ coachAsked: true }))
+    ).toBeNull();
+    // A statement is still a statement after a question.
+    expect(
+      planPageTurn(side("b"), state({ coachAsked: true }))?.effects
+    ).toEqual([{ type: "side", color: "b" }]);
   });
 
   it("switches like the chip's Switch, or says it already coaches that side", () => {
@@ -452,6 +554,11 @@ describe("the player's side", () => {
       ack: "I'm coaching you as White already.",
       mood: "wave",
     });
+    // A wish ("coach me as Black") keeps the side it replaces for "back to
+    // my side"; a statement ("I was Black") is a correction and does not.
+    expect(
+      planPageTurn(side("b", false, false), state({ playerSide: "w" }))?.effects
+    ).toEqual([{ type: "side", color: "b", remember: true }]);
   });
 
   it("'back to my side' undoes a switch, or says where things stand", () => {
@@ -462,9 +569,18 @@ describe("the player's side", () => {
       ack: "Coaching you as White again.",
       mood: "wave",
     });
-    expect(planPageTurn(mySide, state({ playerSide: "b" }))?.ack).toBe(
-      "I'm coaching you as Black already."
-    );
+    expect(
+      planPageTurn(mySide, state({ playerSide: "b", orientation: "black" }))
+        ?.ack
+    ).toBe("I'm coaching you as Black already.");
+    // Nothing to undo and the board flipped away: "my side" is the board's.
+    expect(
+      planPageTurn(mySide, state({ playerSide: "w", orientation: "black" }))
+    ).toEqual({
+      effects: [{ type: "orientation", to: "white" }],
+      ack: "Back to your side. White is at the bottom.",
+      mood: "wave",
+    });
     expect(planPageTurn(mySide, state())).toEqual({
       effects: [],
       ack: "Which side did you play, White or Black?",
@@ -547,5 +663,47 @@ describe("markServedPageTurn", () => {
       { role: "coach", content: "Drill left at puzzle 1 of 1." },
     ];
     expect(markServedPageTurn(before)).toEqual(before);
+  });
+});
+
+describe("coachAskedLast", () => {
+  it("is true when the coach's last words ask the player something", () => {
+    expect(
+      coachAskedLast([
+        { role: "coach", content: "Review." },
+        { role: "user", content: "why?" },
+        {
+          role: "coach",
+          content: "Because.\n\nYour turn: after 8... Kd8, who is better?",
+        },
+      ])
+    ).toBe(true);
+    expect(
+      coachAskedLast([{ role: "coach", content: "Which would you play?" }])
+    ).toBe(true);
+  });
+
+  it("is false for the page's own lines and for a statement, and skips the empty placeholder", () => {
+    expect(
+      coachAskedLast([
+        { role: "coach", content: "Who is better?" },
+        {
+          role: "coach",
+          content: "Which side did you play, White or Black?",
+          synthetic: true,
+        },
+      ])
+    ).toBe(false);
+    expect(
+      coachAskedLast([{ role: "coach", content: "Take the queen." }])
+    ).toBe(false);
+    expect(
+      coachAskedLast([
+        { role: "coach", content: "Who is better?" },
+        { role: "user", content: "x" },
+        { role: "coach", content: "" },
+      ])
+    ).toBe(true);
+    expect(coachAskedLast([])).toBe(false);
   });
 });

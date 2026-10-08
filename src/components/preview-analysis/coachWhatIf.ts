@@ -1117,10 +1117,24 @@ export interface WhatIfState {
   /** The depth of the result shown; 0 until one is. */
   depth: number;
   reason?: WhatIfUnavailable;
+  /**
+   * The line once the reader tapped or played it, or the page played it
+   * on their order: held from then on, so a deeper search never swaps the
+   * moves under the reader.
+   */
+  pinned?: CoachLine | null;
 }
 
 export function initialWhatIfState(id: number, ask: WhatIfAsk): WhatIfState {
   return { id, ask, status: "checking", line: null, scores: [], depth: 0 };
+}
+
+/** The state with `line` held for good, unless a line already is. */
+export function pinWhatIfLine(
+  state: WhatIfState,
+  line: CoachLine
+): WhatIfState {
+  return state.pinned ? state : { ...state, pinned: line };
 }
 
 export function whatIfUnavailable(

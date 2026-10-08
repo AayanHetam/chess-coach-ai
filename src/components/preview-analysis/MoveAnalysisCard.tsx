@@ -94,7 +94,7 @@ export interface MoveAnalysisCardProps {
   rootFen?: string;
   playerColor: "w" | "b" | null;
   /** Put a ply of a proof line on the main board. */
-  onShowLinePly?: (line: CoachLine, k: number) => void;
+  onShowLinePly?: (line: CoachLine, k: number, replay?: () => boolean) => void;
   /** Send a question about this move to the coach. */
   onAsk?: (question: string) => void;
   /**

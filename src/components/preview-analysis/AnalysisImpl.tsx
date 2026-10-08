@@ -42,6 +42,7 @@ import {
   createWhatIfJumpGate,
   createWhatIfStore,
   initialWhatIfState,
+  pinWhatIfLine,
   resolveWhatIf,
   runWhatIf,
   WHAT_IF_EVALS_WAIT_MS,
@@ -199,8 +200,10 @@ import {
   readServedPageTurn,
   type PageAction,
   type PageTurn,
+  type PageTurnKind,
 } from "@/lib/coach/pageActions";
 import {
+  coachAskedLast,
   markServedPageTurn,
   planPageTurn,
   type PageEffect,
@@ -690,6 +693,11 @@ async function streamCoachReply(params: {
    * server's anchor.
    */
   contextColorRef?: { current: "w" | "b" | null };
+  /**
+   * The orders this page can carry out right now (pageActions.ts), or null:
+   * the chat route answers one of these with no model call, and no other.
+   */
+  pageActions?: readonly PageTurnKind[] | null;
   /** The server answered an order itself (pageActions.ts): the turn is the page's. */
   onPageTurn?: (turn: PageTurn | null) => void;
   /** Things the page does beside an answer. */
@@ -720,6 +728,7 @@ async function streamCoachReply(params: {
     onAnchor,
     clientEvals,
     contextColorRef,
+    pageActions,
     onPageTurn,
     onActions,
     signal,
@@ -754,7 +763,7 @@ async function streamCoachReply(params: {
           fen,
           currentPly,
           clientEvals,
-          pageActions: PAGE_ACTIONS ? PAGE_TURN_KINDS : null,
+          pageActions: PAGE_ACTIONS ? pageActions : null,
         })
       ),
       signal,
@@ -786,8 +795,10 @@ async function streamCoachReply(params: {
       }
       // Beside the answer, from the response's own field only: nothing
       // the model writes reaches the board.
+      // One at a time until the router defines what a sequence means
+      // (pathway 3.4): each is planned against the board as it was.
       if (PAGE_ACTIONS) {
-        const actions = readPageActions(data.gameAnalysis?.actions);
+        const actions = readPageActions(data.gameAnalysis?.actions).slice(0, 1);
         if (actions.length > 0) onActions?.(actions);
       }
       // Emit as a single chunk so the UI animates the same way
@@ -4408,7 +4419,7 @@ function CoachPanel({
   whatIfStore,
 }: {
   /** Put a ply of a proof line on the main board. */
-  onShowLinePly?: (line: CoachLine, k: number) => void;
+  onShowLinePly?: (line: CoachLine, k: number, replay?: () => boolean) => void;
   /** The page's what-if states, read by the line under each question that asked one. */
   whatIfStore: WhatIfStore;
   /**
@@ -5793,7 +5804,7 @@ function DarkInsightCard({
   rootFen?: string;
   playerColor?: "w" | "b" | null;
   /** Put a ply of a proof line on the main board. */
-  onShowLinePly?: (line: CoachLine, k: number) => void;
+  onShowLinePly?: (line: CoachLine, k: number, replay?: () => boolean) => void;
 }) {
   const why = useMemo(() => splitInsightWhy(insight.why), [insight.why]);
   const [showPlayed, setShowPlayed] = useState(false);
@@ -6067,7 +6078,7 @@ function DarkInsightStack({
   gameSans?: string[];
   rootFen?: string;
   playerColor?: "w" | "b" | null;
-  onShowLinePly?: (line: CoachLine, k: number) => void;
+  onShowLinePly?: (line: CoachLine, k: number, replay?: () => boolean) => void;
 }) {
   if (insights.length === 0) return null;
 
@@ -6284,7 +6295,7 @@ function CoachBubble({
   enginePositions?: PositionEval[] | null;
   loadedGame?: Chess;
   /** Put a ply of a proof line on the main board. */
-  onShowLinePly?: (line: CoachLine, k: number) => void;
+  onShowLinePly?: (line: CoachLine, k: number, replay?: () => boolean) => void;
   /** The side the reader played, for the proof line's ledger wording. */
   playerColor?: "w" | "b" | null;
 }) {
@@ -7746,6 +7757,14 @@ export default function AnalysisPage() {
       // both are facts only the client holds and both were previously left to
       // a server-side guess that could not fail loudly.
       engineDataUnavailable,
+      // The orders this page can carry out here (pageActions.ts), so the
+      // chat route answers no other: a side is picked only where the side
+      // ask shows (a game with moves, not a puzzle).
+      pageActions: !PAGE_ACTIONS
+        ? null
+        : !puzzleFen && allMoves.length > 0
+          ? PAGE_TURN_KINDS
+          : PAGE_TURN_KINDS.filter((k) => k !== "side" && k !== "my_side"),
     };
   }, [
     playerSide,
@@ -7754,6 +7773,8 @@ export default function AnalysisPage() {
     user?.displayName,
     user?.email,
     engineDataUnavailable,
+    puzzleFen,
+    allMoves.length,
   ]);
 
   // In puzzle mode, prepopulate the coach with a contextual seed message
@@ -7988,16 +8009,23 @@ export default function AnalysisPage() {
     playerSideRef.current = playerSide;
   }, [playerSide]);
   const handleChoosePlayerSide = useCallback(
-    (color: PlayerSideColor, opts?: { restore?: boolean }) => {
+    (color: PlayerSideColor, opts?: { remember?: boolean }) => {
+      // Only a typed wish ("coach me as Black") keeps the side it replaces
+      // for "back to my side"; the ask, the chip's Switch (a correction)
+      // and the undoing itself keep none.
       const before = playerSideRef.current?.color;
       previousSideRef.current =
-        opts?.restore || !before || before === color
-          ? null
-          : before === "white"
+        opts?.remember && before && before !== color
+          ? before === "white"
             ? "w"
-            : "b";
+            : "b"
+          : null;
       setPlayerSide({ color, source: "user_choice" });
-      setBoardOrientation(color);
+      // A drill owns the board: the new side takes the board when the
+      // drill is left.
+      if (drillOnRef.current)
+        setDrillState((d) => (d ? { ...d, savedOrientation: color } : d));
+      else setBoardOrientation(color);
       try {
         storeSide(
           gameSideKey(loadedGame.header(), loadedGame.history().length),
@@ -8875,12 +8903,19 @@ export default function AnalysisPage() {
   // mainline at its anchor and rides the exploration preview, exactly like
   // a green move link, so the strip's state row, the eval bar and Esc all
   // work.
-  // The last line the reader put on the board (a Play, a tapped ply, a
-  // typed "play the line again"): what "play the line again" plays.
+  // The last line put on the board (a Play, a tapped ply, a typed "play
+  // the line again"): what "play the line again" plays. With it, the
+  // ProofLine's own way to play it again, while that line is on the page;
+  // or the what-if whose move the page itself put on the board, whose
+  // line is read from its store when the order comes.
   const lastShownLineRef = useRef<CoachLine | null>(null);
+  const lastShownReplayRef = useRef<(() => boolean) | null>(null);
+  const lastShownWhatIfRef = useRef<number | null>(null);
   const handleShowLinePly = useCallback(
-    (line: CoachLine, k: number) => {
+    (line: CoachLine, k: number, replay?: () => boolean) => {
       lastShownLineRef.current = line;
+      lastShownReplayRef.current = replay ?? null;
+      lastShownWhatIfRef.current = null;
       revealBoard();
       if (line.kind === "played") {
         setTakeoverPreview(null);
@@ -9228,6 +9263,10 @@ export default function AnalysisPage() {
             if (!preview) return;
             markWhatIf("board", { id, index: ask.index });
             boardMoved = true;
+            // The what-if's line is now the last one on the board.
+            lastShownWhatIfRef.current = id;
+            lastShownLineRef.current = null;
+            lastShownReplayRef.current = null;
             whatIfPreviewRef.current = preview;
             if (ask.index !== ply) keepPreviewOnPlySyncRef.current = true;
             setCurrentPly(ask.index);
@@ -9539,6 +9578,8 @@ export default function AnalysisPage() {
   useEffect(() => {
     stopReplay();
     lastShownLineRef.current = null;
+    lastShownReplayRef.current = null;
+    lastShownWhatIfRef.current = null;
     typedJumpRef.current = null;
     previousSideRef.current = null;
   }, [loadedGame, stopReplay]);
@@ -9551,7 +9592,14 @@ export default function AnalysisPage() {
    */
   const replayTarget = useCallback((): CoachLine | null => {
     const preview = takeoverPreviewRef.current;
-    const last = lastShownLineRef.current;
+    const whatIfLineOf = (id: number | null) => {
+      const st = id === null ? undefined : whatIfStore.get(id);
+      return st && st.status !== "unavailable"
+        ? (st.pinned ?? st.line ?? null)
+        : null;
+    };
+    const shownWhatIf = whatIfLineOf(lastShownWhatIfRef.current);
+    const last = shownWhatIf ?? lastShownLineRef.current;
     if (!preview) return last && last.sans.length > 0 ? last : null;
     const startsLine = (line: CoachLine | null | undefined) =>
       !!line &&
@@ -9560,7 +9608,7 @@ export default function AnalysisPage() {
       line.sans.length >= preview.path.length &&
       preview.path.every((san, i) => line.sans[i] === san);
     if (startsLine(last)) return last;
-    const whatIf = whatIfStore.get(whatIfSeqRef.current)?.line;
+    const whatIf = whatIfLineOf(whatIfSeqRef.current);
     if (startsLine(whatIf)) return whatIf!;
     if (preview.path.length === 0) return null;
     return {
@@ -9605,6 +9653,7 @@ export default function AnalysisPage() {
         ? { fromPly: coachJump.fromPly, toPly: coachJump.toPly }
         : null,
       typedJump: typedJumpRef.current,
+      coachAsked: coachAskedLast(messages),
       replay:
         replay && replay.sans.length > 0
           ? { anchorPly: replay.anchorPly, firstSan: replay.sans[0] }
@@ -9647,13 +9696,27 @@ export default function AnalysisPage() {
         }
         case "replay": {
           const line = replayTarget();
-          if (line) startReplay(line);
+          if (!line) break;
+          // A what-if's line is held from now on, as a tap on it holds it.
+          for (const id of [lastShownWhatIfRef.current, whatIfSeqRef.current])
+            if (id !== null) {
+              const st = whatIfStore.get(id);
+              if (st && (st.line === line || st.pinned === line))
+                whatIfStore.update(id, (prev) => pinWhatIfLine(prev, line));
+            }
+          // The line's own Play, so its highlight and caption follow the
+          // board; the page's player when that line is no longer on the page.
+          const own =
+            line === lastShownLineRef.current
+              ? lastShownReplayRef.current
+              : null;
+          if (!own || !own()) startReplay(line);
           moved = true;
           break;
         }
         case "side":
           handleChoosePlayerSide(e.color === "w" ? "white" : "black", {
-            restore: e.restore,
+            remember: e.remember,
           });
           reveal = true;
           break;
@@ -9682,7 +9745,18 @@ export default function AnalysisPage() {
         },
       ]);
     applyPageEffects(plan.effects);
-    typedJumpRef.current = plan.typedJump ?? null;
+    // A typed go-to is remembered until the board next moves: a flip, a
+    // side statement or a refusal leaves it for "back".
+    const movesBoard = plan.effects.some(
+      (e) =>
+        e.type === "cursor" ||
+        e.type === "clear_preview" ||
+        e.type === "exit_drill" ||
+        e.type === "step_back_line" ||
+        e.type === "replay"
+    );
+    if (plan.typedJump || movesBoard)
+      typedJumpRef.current = plan.typedJump ?? null;
     const ack = plan.ack;
     if (ack !== null)
       setMessages((prev) => [
@@ -10228,12 +10302,16 @@ export default function AnalysisPage() {
       // An order the page can carry out itself ("flip the board", "go to
       // move 20") is done here, before any fetch, anchor or what-if, and
       // acknowledged in one line. "Why was move 20 bad?" is not one.
+      // Words the page read as an order but declined here are the coach's,
+      // and the route is told it may answer no order for them.
+      let declinedOrder = false;
       if (PAGE_ACTIONS) {
         const turn = parsePageTurn(text);
         if (turn && pageTurnRef.current(text, turn)) {
           setInput("");
           return;
         }
+        declinedOrder = turn !== null;
       }
       const prevForApi = messages;
       // A question that names an alternative gets the board's answer first:
@@ -10295,6 +10373,7 @@ export default function AnalysisPage() {
             contextIdRef: coachContextIdRef,
             contextColorRef: coachContextColorRef,
             ...coachExtras,
+            ...(declinedOrder ? { pageActions: null } : {}),
             ...reply,
             clientEvals,
           });
@@ -10354,6 +10433,7 @@ export default function AnalysisPage() {
       whatIfReplySink,
       rootFen,
       gameSans,
+      coachExtras,
     ]
   );
 
@@ -10745,7 +10825,11 @@ export default function AnalysisPage() {
             fen: shareDialog.fen,
             explanation: shareDialog.msg.content,
             transcript: messages
-              .filter((m) => m.role === "user" || m.role === "coach")
+              // An order and its acknowledgement are the board as it was
+              // then, not the conversation (as for the saved transcript).
+              .filter(
+                (m) => (m.role === "user" || m.role === "coach") && !m.pageTurn
+              )
               .map((m) => ({
                 role:
                   m.role === "coach"

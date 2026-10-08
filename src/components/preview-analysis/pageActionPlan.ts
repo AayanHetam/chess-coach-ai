@@ -58,6 +58,11 @@ export interface PageTurnState {
   typedJump: { fromPly: number; toPly: number } | null;
   /** What "play the line" would play: the line's starting ply and first move. */
   replay: { anchorPly: number; firstSan: string } | null;
+  /**
+   * The coach's last answer asked the player something ("Your turn: …?"):
+   * a colour on its own is then the answer to it, not the side ask's.
+   */
+  coachAsked: boolean;
 }
 
 export type PageEffect =
@@ -69,8 +74,12 @@ export type PageEffect =
   /** One explored move back; the last one leaves the board on the anchor. */
   | { type: "step_back_line" }
   | { type: "replay" }
-  /** The player's side, as the side chip sets it; `restore` is "back to my side". */
-  | { type: "side"; color: "w" | "b"; restore?: true };
+  /**
+   * The player's side, as the side ask and its chip set it. `remember`
+   * keeps the side it replaces, so "back to my side" can undo a "coach me
+   * as" wish; `restore` is that undoing.
+   */
+  | { type: "side"; color: "w" | "b"; remember?: true; restore?: true };
 
 export interface PagePlan {
   effects: PageEffect[];
@@ -150,6 +159,26 @@ function planAction(a: PageAction, s: PageTurnState): PagePlan {
     );
   }
 
+  // The strip's own Back label typed back to it ("back to move 7", "back
+  // to start") is that Back: the label counts from 1 by the ply alone.
+  const stripBack = s.drill
+    ? s.drill.savedPly
+    : s.exploring
+      ? s.exploring.anchorPly
+      : s.jump
+        ? s.jump.fromPly
+        : null;
+  if (
+    stripBack !== null &&
+    ((a.kind === "go_to_move" &&
+      a.via === "back" &&
+      !a.color &&
+      stripBack > 0 &&
+      a.moveNumber === Math.ceil(stripBack / 2)) ||
+      (a.kind === "go_to_start" && a.via === "back" && stripBack === 0))
+  )
+    return planAction({ kind: "back" }, s);
+
   if (s.drill) {
     const leftAck = s.drill.complete ? backTo(s.drill.savedPly) : null;
     if (a.kind === "back") return done([{ type: "exit_drill" }], leftAck);
@@ -173,6 +202,9 @@ function planAction(a: PageAction, s: PageTurnState): PagePlan {
         backTo(at)
       );
     if (a.kind === "back" || a.kind === "back_to_game") return leave();
+    // With no moves, the start and the end are the anchor: leave the line.
+    if (total === 0 && (a.kind === "go_to_start" || a.kind === "go_to_end"))
+      return leave();
     if (a.kind === "step") {
       if (a.delta === 1)
         return done(
@@ -213,6 +245,7 @@ function planAction(a: PageAction, s: PageTurnState): PagePlan {
       );
   }
 
+  if (a.kind === "go_to_start") return go(0, "Back to the start.", true);
   if (total === 0)
     return refuse("There are no moves in this game to step through.");
 
@@ -224,7 +257,6 @@ function planAction(a: PageAction, s: PageTurnState): PagePlan {
     return go(target, delta < 0 ? backTo(target) : here(target), false);
   }
 
-  if (a.kind === "go_to_start") return go(0, "Back to the start.", true);
   if (a.kind === "go_to_end")
     return go(total, `Here's the last move, ${label(total)}.`, true);
 
@@ -252,8 +284,10 @@ function planAction(a: PageAction, s: PageTurnState): PagePlan {
 function planPreference(p: PagePreference, s: PageTurnState): PagePlan | null {
   if (!s.sideEligible) return null;
   if (p.kind === "side") {
-    // A colour on its own answers the side ask, and only that.
-    if (p.bare && s.playerSide !== null) return null;
+    // A colour on its own answers the side ask, and only that: once the
+    // side is known, or when the coach has just asked something, it is a
+    // reply for the coach.
+    if (p.bare && (s.playerSide !== null || s.coachAsked)) return null;
     const name = colorName(p.color);
     if (s.playerSide === p.color)
       return {
@@ -262,7 +296,13 @@ function planPreference(p: PagePreference, s: PageTurnState): PagePlan | null {
         mood: "wave",
       };
     return {
-      effects: [{ type: "side", color: p.color }],
+      // A wish ("coach me as Black") can be undone by "back to my side"; a
+      // statement ("I was Black") corrects the side and cannot.
+      effects: [
+        p.declared
+          ? { type: "side", color: p.color }
+          : { type: "side", color: p.color, remember: true },
+      ],
       ack:
         s.playerSide === null
           ? `Coaching you as ${name}.`
@@ -276,12 +316,21 @@ function planPreference(p: PagePreference, s: PageTurnState): PagePlan | null {
       ack: `Coaching you as ${colorName(s.previousSide)} again.`,
       mood: "wave",
     };
-  if (s.playerSide)
+  if (s.playerSide) {
+    // Nothing to undo: "my side" is then the board's side.
+    const mine = s.playerSide === "w" ? "white" : "black";
+    if (s.orientation !== mine)
+      return {
+        effects: [{ type: "orientation", to: mine }],
+        ack: `Back to your side. ${colorName(s.playerSide)} is at the bottom.`,
+        mood: "wave",
+      };
     return {
       effects: [],
       ack: `I'm coaching you as ${colorName(s.playerSide)} already.`,
       mood: "wave",
     };
+  }
   return {
     effects: [],
     ack: "Which side did you play, White or Black?",
@@ -311,4 +360,23 @@ export function markServedPageTurn<
   if (q >= 0 && out[q].role === "user")
     out = [...out.slice(0, q), { ...out[q], synthetic: true, pageTurn: true }];
   return out;
+}
+
+/**
+ * Did the coach's last answer ask the player something? The last coach
+ * message with words in it, when the coach wrote it (not the page) and it
+ * ends in a question or holds a "Your turn:" paragraph. A colour typed
+ * after it is the answer to it, not to the page's side ask.
+ */
+export function coachAskedLast(
+  messages: readonly { role: string; content: string; synthetic?: boolean }[]
+): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role !== "coach" || m.content.trim().length === 0) continue;
+    if (m.synthetic) return false;
+    const text = m.content.trim();
+    return /\?$/.test(text) || /(?:^|\n)\s*Your turn:/i.test(text);
+  }
+  return false;
 }

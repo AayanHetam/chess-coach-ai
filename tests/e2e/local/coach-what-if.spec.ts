@@ -52,6 +52,19 @@ const FOLLOWUP =
  * engine is seen to answer first. At 0 the words come at once, and which
  * lands first is a race unless the engine is held (holdableEngine).
  */
+/**
+ * Was this build made with typed page orders on (pageActions.ts)? The CI
+ * legs are; the steps that type an order run only then.
+ */
+async function pageActionsOn(page: Page): Promise<boolean> {
+  return (
+    (await page
+      .locator("[data-page-actions]")
+      .first()
+      .getAttribute("data-page-actions")) === "on"
+  );
+}
+
 async function stubCoach(
   page: Page,
   {
@@ -562,6 +575,22 @@ test.describe("the client what-if", () => {
     await jump.getByRole("button", { name: /Back to/ }).click();
     await expect(jump).toHaveCount(0);
     expectSameRect(rest, await boardRect(page), "the way back");
+
+    // Typed (behind its flag): the line the reader played, played again
+    // through its own Play, so its highlight follows the board to the end.
+    if (await pageActionsOn(page)) {
+      await composer.fill("play the line again");
+      await composer.press("Enter");
+      await expect(
+        page.getByText(/^Playing the line from \W*8\. Qxc1\.$/)
+      ).toBeVisible();
+      await expect(page.getByTestId("exploration-path")).toContainText(
+        lastSan,
+        { timeout: 20_000 }
+      );
+      await expect(plies.last()).toHaveAttribute("aria-pressed", "true");
+      expect(await plies.allTextContents()).toEqual(walked);
+    }
   });
 
   test("a question that names no legal alternative draws nothing and the coach answers as before", async ({
@@ -777,5 +806,28 @@ test.describe("the client what-if", () => {
     expect(
       await marksAfter(page, "coach-what-if:jump-skipped", t0)
     ).toHaveLength(0);
+
+    // Typed (behind its flag): "back" leaves the line the what-if put on
+    // the board, and "play the line again" plays the line under the
+    // question, read from its store and held there from then on.
+    if (await pageActionsOn(page)) {
+      await composer.fill("back");
+      await composer.press("Enter");
+      await expect(page.getByTestId("exploration-path")).toHaveCount(0);
+      await composer.fill("play the line again");
+      await composer.press("Enter");
+      await expect(
+        page.getByText(/^Playing the line from \W*8\. Qxc1\.$/)
+      ).toBeVisible();
+      await expect(whatIf).toHaveAttribute("data-pinned", "true");
+      const plies = whatIf.getByTestId("what-if-line-ply");
+      const held = await plies.allTextContents();
+      const sanOf = (ply: string) => ply.replace(/^\d+\.+\s*/, "");
+      await expect(page.getByTestId("exploration-path")).toContainText(
+        sanOf(held[held.length - 1]),
+        { timeout: 20_000 }
+      );
+      expect(await plies.allTextContents()).toEqual(held);
+    }
   });
 });

@@ -37,6 +37,21 @@ import {
   playSanOnFen,
 } from "@/components/preview-analysis/coachMoveRefs";
 import { ProofLine } from "@/components/preview-analysis/ProofLine";
+import { WhatIfLine } from "@/components/preview-analysis/WhatIfLine";
+import {
+  createWhatIfStore,
+  initialWhatIfState,
+  whatIfJumpDecision,
+  resolveWhatIf,
+  runWhatIf,
+  whatIfLine,
+  whatIfStateFrom,
+  whatIfUnavailable,
+  type WhatIfAsk,
+  type WhatIfState,
+  type WhatIfStore,
+} from "@/components/preview-analysis/coachWhatIf";
+import { createEngineTurn, type EngineTurn } from "@/lib/engine/engineTurn";
 import { splitInsightWhy } from "@/components/preview-analysis/insightWhy";
 import { MoveAnalysisCard } from "@/components/preview-analysis/MoveAnalysisCard";
 import {
@@ -513,6 +528,41 @@ function buildContextBlurb(
  */
 /** Build-time flag; see lib/coach/aiAvailability. */
 const AI_DISABLED = isAiDisabledPublic();
+
+/**
+ * User Timing marks for a what-if ("coach-what-if:asked", ":partial",
+ * ":drawn", ":board"), so the time from the question to the first partial,
+ * to the line's paint and to the board's move can be read in devtools and
+ * by the e2e that holds the two-second budget. Local to the browser;
+ * nothing is sent anywhere.
+ */
+export function markWhatIf(
+  stage: "asked" | "partial" | "drawn" | "board",
+  detail?: Record<string, unknown>
+): void {
+  if (typeof performance === "undefined" || !performance.mark) return;
+  try {
+    performance.mark(`coach-what-if:${stage}`, { detail });
+  } catch {
+    try {
+      performance.mark(`coach-what-if:${stage}`);
+    } catch {
+      /* no marks here */
+    }
+  }
+}
+
+/**
+ * Run `fn` after the browser's next paint: on the frame after the next one
+ * (a task queued now would run before the pending frame is painted).
+ */
+function afterNextPaint(fn: () => void): void {
+  if (typeof requestAnimationFrame !== "function") {
+    setTimeout(fn, 0);
+    return;
+  }
+  requestAnimationFrame(() => requestAnimationFrame(fn));
+}
 
 async function streamCoachReply(params: {
   prevMessages: CoachMessage[];
@@ -1062,6 +1112,15 @@ interface CoachMessage {
    * scene has been set.
    */
   arrival?: { told: boolean };
+  /**
+   * A player's question that named an alternative: the board's own answer
+   * (coachWhatIf.ts) is drawn under it, from "checking" at the moment the
+   * question is pushed (the space under it is reserved then) to the final
+   * depth. The message carries the ask; the state lives in the page's
+   * WhatIfStore, so a partial re-renders the line and not the transcript.
+   * Not persisted; a restored transcript has none.
+   */
+  whatIf?: { id: number; ask: WhatIfAsk };
 }
 
 // The cold-start chat. `synthetic: true` keeps it out of conversationHistory
@@ -3170,7 +3229,9 @@ function DrillStripState({
         onClick={onExit}
         tooltip="Leave the drill and put the board back where you were"
       >
-        {saved.color === null ? "Back to start" : `Back to move ${saved.moveNum}`}
+        {saved.color === null
+          ? "Back to start"
+          : `Back to move ${saved.moveNum}`}
       </BackButton>
     </>
   );
@@ -4250,9 +4311,12 @@ function CoachPanel({
   signedOut,
   onSignIn,
   onShowLinePly,
+  whatIfStore,
 }: {
   /** Put a ply of a proof line on the main board. */
   onShowLinePly?: (line: CoachLine, k: number) => void;
+  /** The page's what-if states, read by the line under each question that asked one. */
+  whatIfStore: WhatIfStore;
   /**
    * True once auth has resolved to "nobody is signed in". The coach routes
    * are session-gated, so every send from an anonymous visitor came back 401:
@@ -4415,34 +4479,48 @@ function CoachPanel({
         >
           {!greetingFirst && sideBlock}
           {messages.map((msg, i) => (
-            <Box
-              key={i}
-              sx={{
-                minWidth: 0,
-                alignSelf: msg.role === "user" ? "flex-end" : "stretch",
-                maxWidth: msg.role === "user" ? "88%" : "100%",
-              }}
-            >
-              <CoachBubble
-                msg={msg}
-                onPromoteToBoard={onPromoteToBoard}
-                allMoves={allMoves}
-                rootFen={rootFen}
-                onMoveRefClick={onMoveRefClick}
-                onShare={onShareMessage}
-                allMessages={messages}
-                messageIndex={i}
-                contextId={coachContextIdProp}
-                onPuzzleSolved={onPuzzleSolved}
-                onPracticeConcept={onPracticeConcept}
-                onLaunchPuzzleSet={onLaunchPuzzleSet}
-                enginePositions={enginePositions}
-                loadedGame={loadedGame}
-                onShowLinePly={onShowLinePly}
-                playerColor={playerColor}
-              />
-              {i === 0 && greetingFirst && sideBlock}
-            </Box>
+            <Fragment key={i}>
+              <Box
+                sx={{
+                  minWidth: 0,
+                  alignSelf: msg.role === "user" ? "flex-end" : "stretch",
+                  maxWidth: msg.role === "user" ? "88%" : "100%",
+                }}
+              >
+                <CoachBubble
+                  msg={msg}
+                  onPromoteToBoard={onPromoteToBoard}
+                  allMoves={allMoves}
+                  rootFen={rootFen}
+                  onMoveRefClick={onMoveRefClick}
+                  onShare={onShareMessage}
+                  allMessages={messages}
+                  messageIndex={i}
+                  contextId={coachContextIdProp}
+                  onPuzzleSolved={onPuzzleSolved}
+                  onPracticeConcept={onPracticeConcept}
+                  onLaunchPuzzleSet={onLaunchPuzzleSet}
+                  enginePositions={enginePositions}
+                  loadedGame={loadedGame}
+                  onShowLinePly={onShowLinePly}
+                  playerColor={playerColor}
+                />
+                {i === 0 && greetingFirst && sideBlock}
+              </Box>
+              {/* The board's answer to a what-if, under the question, at its
+                full height from the moment the question is sent. */}
+              {msg.role === "user" && msg.whatIf && (
+                <Box sx={{ alignSelf: "stretch", minWidth: 0, mt: -1.25 }}>
+                  <WhatIfLine
+                    id={msg.whatIf.id}
+                    ask={msg.whatIf.ask}
+                    store={whatIfStore}
+                    playerColor={playerColor ?? null}
+                    onShowPly={onShowLinePly}
+                  />
+                </Box>
+              )}
+            </Fragment>
           ))}
           {isThinking && <ThinkingBubble />}
         </Box>
@@ -6452,6 +6530,75 @@ function CoachBubble({
     );
   };
 
+  // The message's own rendering, kept across the renders that do not
+  // touch it. Nothing on the page is memoized, so every state change (a
+  // keystroke in the composer, an eval landing, a what-if's partial)
+  // re-rendered every bubble: the review card re-parsed its insights and
+  // its proof lines recomputed their captions each time, which on a phone
+  // is most of the time between a what-if's first partial and its paint.
+  // The renderers above close over exactly the values listed here.
+  const introTold = !!allMessages?.[0]?.arrival?.told;
+  const body = useMemo<React.ReactNode>(() => {
+    // Strip PRACTICE tags first (they're for puzzle attach), then
+    // parse INSIGHT/WHY/THREATS/ROLES/CONCEPT blocks via production's
+    // shared parseInsights. When present we render prefix prose +
+    // one passage per insight + suffix prose. When absent we fall
+    // back to the original raw-text inline rendering.
+    if (isUser) return renderInline(msg.content);
+    const practiceStripped = extractPracticeTags(msg.content).stripped;
+    const { prefix, insights, suffix } = parseInsights(practiceStripped);
+    if (insights.length === 0) {
+      return renderProseWithLines(practiceStripped);
+    }
+    // The review's one-line intro ("Let's walk through the key
+    // moments.") repeats a scene the arrival greeting already set
+    // from the engine data; with the story told, the cards speak.
+    return (
+      <>
+        {prefix.trim() && !introTold && renderMarkdownProse(prefix)}
+        <DarkInsightStack
+          insights={insights}
+          renderInline={renderInline}
+          onMoveClick={(moveNum, isBlack) => {
+            if (!allMoves) return;
+            const ply = isBlack ? moveNum * 2 : moveNum * 2 - 1;
+            if (ply >= 0 && ply <= allMoves.length) {
+              onMoveRefClick?.(ply);
+            }
+          }}
+          onPracticeConcept={
+            onPracticeConcept && messageIndex !== undefined
+              ? (theme, name) => onPracticeConcept(theme, name, messageIndex)
+              : undefined
+          }
+          enginePositions={enginePositions}
+          loadedGame={loadedGame}
+          onJumpToPly={onMoveRefClick}
+          gameSans={gameSans}
+          rootFen={rootFen}
+          playerColor={playerColor ?? null}
+          onShowLinePly={onShowLinePly}
+        />
+        {suffix.trim() && renderProseWithLines(suffix)}
+      </>
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isUser,
+    msg.content,
+    introTold,
+    allMoves,
+    rootFen,
+    onMoveRefClick,
+    onPracticeConcept,
+    messageIndex,
+    enginePositions,
+    loadedGame,
+    gameSans,
+    playerColor,
+    onShowLinePly,
+  ]);
+
   const shareable =
     !isUser && msg.content.trim().length > 0 && Boolean(onShare);
 
@@ -6508,54 +6655,7 @@ function CoachBubble({
             "&:hover .coach-share-btn": { opacity: 1 },
           }}
         >
-          {(() => {
-            // Strip PRACTICE tags first (they're for puzzle attach), then
-            // parse INSIGHT/WHY/THREATS/ROLES/CONCEPT blocks via production's
-            // shared parseInsights. When present we render prefix prose +
-            // one passage per insight + suffix prose. When absent we fall
-            // back to the original raw-text inline rendering.
-            if (isUser) return renderInline(msg.content);
-            const practiceStripped = extractPracticeTags(msg.content).stripped;
-            const { prefix, insights, suffix } =
-              parseInsights(practiceStripped);
-            if (insights.length === 0) {
-              return renderProseWithLines(practiceStripped);
-            }
-            // The review's one-line intro ("Let's walk through the key
-            // moments.") repeats a scene the arrival greeting already set
-            // from the engine data; with the story told, the cards speak.
-            const introTold = !!allMessages?.[0]?.arrival?.told;
-            return (
-              <>
-                {prefix.trim() && !introTold && renderMarkdownProse(prefix)}
-                <DarkInsightStack
-                  insights={insights}
-                  renderInline={renderInline}
-                  onMoveClick={(moveNum, isBlack) => {
-                    if (!allMoves) return;
-                    const ply = isBlack ? moveNum * 2 : moveNum * 2 - 1;
-                    if (ply >= 0 && ply <= allMoves.length) {
-                      onMoveRefClick?.(ply);
-                    }
-                  }}
-                  onPracticeConcept={
-                    onPracticeConcept && messageIndex !== undefined
-                      ? (theme, name) =>
-                          onPracticeConcept(theme, name, messageIndex)
-                      : undefined
-                  }
-                  enginePositions={enginePositions}
-                  loadedGame={loadedGame}
-                  onJumpToPly={onMoveRefClick}
-                  gameSans={gameSans}
-                  rootFen={rootFen}
-                  playerColor={playerColor ?? null}
-                  onShowLinePly={onShowLinePly}
-                />
-                {suffix.trim() && renderProseWithLines(suffix)}
-              </>
-            );
-          })()}
+          {body}
           {shareable && (
             <Tooltip title="Share this insight (link + PNG)">
               <IconButton
@@ -7164,9 +7264,16 @@ export default function AnalysisPage() {
     depth: number;
     engineName: EngineName;
   }>({ depth: 16, engineName: EngineName.Stockfish17Lite });
+  /** The live eval's abort, so a what-if can end it in whatever phase it is. */
+  const liveSearchAbortRef = useRef<AbortController | null>(null);
   const { engine, status: engineStatus } = useEngineWithStatus(
     engineSettings.engineName
   );
+  // One engine, one job at a time, decided here (lib/engine/engineTurn.ts):
+  // the live eval and a what-if queue behind each other instead of each
+  // stopping the other's search. One turn per engine instance, made with
+  // it, so every effect and callback of a render sees the same turn.
+  const engineTurn: EngineTurn = useMemo(() => createEngineTurn(), [engine]);
 
   /**
    * How hard to think about the ONE position on the board, as opposed to
@@ -8215,6 +8322,9 @@ export default function AnalysisPage() {
     fen: string;
     position: PositionEval;
   } | null>(null);
+  // Bumped when a what-if took the engine from the live eval and then drew
+  // nothing, so the position still on the board gets its number back.
+  const [liveEvalRetry, setLiveEvalRetry] = useState(0);
   // Completed off-mainline evals, keyed by FEN + depth so a depth change
   // re-evaluates instead of serving the shallower cached answer.
   const liveEvalCacheRef = useRef<Map<string, PositionEval>>(new Map());
@@ -8253,20 +8363,34 @@ export default function AnalysisPage() {
     }
     let cancelled = false;
     // Small debounce so rapid drill/preview sequences don't churn searches.
+    // The search takes the engine's turn (engineTurn.ts): a what-if in
+    // flight finishes first, and this one waits rather than killing it.
+    // The queue is on the page; the engine's own is never relied on. The
+    // search carries an abort: the cleanup ends it when the board moves on
+    // (it used to run to completion for a square nobody was looking at),
+    // and a what-if ends it to take the engine at once, in whatever phase
+    // the search is.
+    const abort = new AbortController();
     const timer = window.setTimeout(() => {
-      engine
-        .evaluatePositionWithUpdate({
-          fen,
-          depth: linesSettings.depth,
-          multiPv: linesSettings.count,
-          allowCloud: !linesSettings.preferLocalEngine,
-          setPartialEval: (ev) => {
-            if (!cancelled && ev.lines.length)
-              setLiveEval({ fen, position: ev });
-          },
-        })
+      liveSearchAbortRef.current = abort;
+      engineTurn
+        .run<PositionEval | null>(() =>
+          cancelled
+            ? Promise.resolve(null)
+            : engine.evaluatePositionWithUpdate({
+                fen,
+                depth: linesSettings.depth,
+                multiPv: linesSettings.count,
+                allowCloud: !linesSettings.preferLocalEngine,
+                signal: abort.signal,
+                setPartialEval: (ev) => {
+                  if (!cancelled && ev.lines.length)
+                    setLiveEval({ fen, position: ev });
+                },
+              })
+        )
         .then((ev) => {
-          if (cancelled || !ev.lines.length) return;
+          if (cancelled || !ev || !ev.lines.length) return;
           liveEvalCacheRef.current.set(liveCacheKey, ev);
           setLiveEval({ fen, position: ev });
         })
@@ -8277,9 +8401,14 @@ export default function AnalysisPage() {
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      abort.abort();
+      if (liveSearchAbortRef.current === abort)
+        liveSearchAbortRef.current = null;
     };
   }, [
     engine,
+    engineTurn,
+    liveEvalRetry,
     gameAnalysisRunning,
     displayTerminal,
     displayFen,
@@ -8736,6 +8865,215 @@ export default function AnalysisPage() {
     setCurrentPly(currentPly - 1);
   }, [takeoverPreview, allMoves, rootFen, currentFen, currentPly]);
 
+  // ───── What-if: the board answers before the coach (coachWhatIf.ts) ─────
+  // A question that names an alternative ("what about Nd6+ instead?") is
+  // read on the client with the resolvers the chat route uses, the asked
+  // move and the moves worth comparing it with are scored in one search,
+  // and on the first partial deep enough the asked move goes on the board
+  // through the exploration preview while its line is drawn under the
+  // question. The coach's request is untouched and runs beside it.
+  const whatIfSeqRef = useRef(0);
+  /** The search of the what-if in flight, ended by a new game, a newer what-if or the page going. */
+  const whatIfAbortRef = useRef<AbortController | null>(null);
+  // Bumped on every game load: a result for the previous game is dropped,
+  // and its search is stopped so the new game's sweep is not behind it.
+  const whatIfEpochRef = useRef(0);
+  useEffect(() => {
+    whatIfEpochRef.current += 1;
+    whatIfAbortRef.current?.abort();
+    whatIfAbortRef.current = null;
+  }, [loadedGame]);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      whatIfAbortRef.current?.abort();
+      whatIfAbortRef.current = null;
+    };
+  }, []);
+  const currentPlyRef = useRef(currentPly);
+  useEffect(() => {
+    currentPlyRef.current = currentPly;
+  }, [currentPly]);
+  const takeoverPreviewRef = useRef(takeoverPreview);
+  useEffect(() => {
+    takeoverPreviewRef.current = takeoverPreview;
+  }, [takeoverPreview]);
+  // The coach's jump for a what-if's own reply that arrived while the
+  // what-if was still checking (whatIfJumpDecision): applied if no line
+  // comes, dropped when one is drawn or a newer reply starts.
+  const pendingJumpRef = useRef<{
+    id: number;
+    jump: { fromPly: number; toPly: number; label: string };
+  } | null>(null);
+  /** The coach's anchor jump: the anchored position on the board, and the way back. */
+  const applyCoachJump = useCallback(
+    (jump: { fromPly: number; toPly: number; label: string }) => {
+      setCoachJump(jump);
+      setTakeoverPreview(null);
+      setCurrentPly(jump.toPly);
+    },
+    []
+  );
+  const drillOnRef = useRef(drillState !== null);
+  useEffect(() => {
+    drillOnRef.current = drillState !== null;
+  }, [drillState]);
+
+  // The states live outside the transcript (coachWhatIf.ts, WhatIfStore):
+  // a partial re-renders the line under the question and nothing else.
+  const [whatIfStore] = useState(createWhatIfStore);
+  const patchWhatIf = useCallback(
+    (id: number, update: (state: WhatIfState) => WhatIfState) =>
+      whatIfStore.update(id, update),
+    [whatIfStore]
+  );
+
+  /** The alternative a question names, legal where it is asked about; null when there is none to draw. */
+  const resolveWhatIfAsk = useCallback(
+    (question: string): WhatIfAsk | null =>
+      resolveWhatIf(question, {
+        sans: gameSans,
+        rootFen,
+        viewedPly: currentPly,
+        playerColor: coachExtras.playerColor,
+        // Null until the side is answered or inferred: a "move 8" with no
+        // side is then drawn only where it is legal for one side.
+        playerSideKnown: playerSide != null,
+        enginePositions,
+        // The chat grounds a bare question on the board shown; this
+        // resolver reads the mainline, so with an exploration or a drill
+        // on the board a bare alternative is left to the coach's words.
+        exploring: takeoverPreview !== null || drillState !== null,
+      }),
+    [
+      gameSans,
+      rootFen,
+      currentPly,
+      coachExtras.playerColor,
+      playerSide,
+      enginePositions,
+      takeoverPreview,
+      drillState,
+    ]
+  );
+
+  const launchWhatIf = useCallback(
+    (id: number, ask: WhatIfAsk, plyAtSend: number) => {
+      if (!engine) {
+        patchWhatIf(id, (st) => whatIfUnavailable(st, "no-engine"));
+        return;
+      }
+      if (gameAnalysisRunning) {
+        patchWhatIf(id, (st) => whatIfUnavailable(st, "busy"));
+        return;
+      }
+      const epoch = whatIfEpochRef.current;
+      const isStale = () =>
+        whatIfEpochRef.current !== epoch || !mountedRef.current;
+      let drawn = false;
+      // The exploration on the board as the question was sent, if any: one
+      // the reader opens while waiting is theirs to keep.
+      const previewAtSend = takeoverPreviewRef.current;
+      // The question was just typed: it goes ahead of the live evals still
+      // waiting, and the live search in progress is aborted in whatever
+      // phase it is (its effect swallows the rejection and the bar stays
+      // pending until the board moves again), so the first partial is not
+      // behind a depth-18 search for a square the reader has left.
+      const turn = engineTurn;
+      liveSearchAbortRef.current?.abort();
+      // A newer question takes the engine from an older what-if still
+      // searching: one drawn keeps its numbers (from the one partial), one
+      // not yet drawn says so.
+      whatIfAbortRef.current?.abort();
+      const abort = new AbortController();
+      whatIfAbortRef.current = abort;
+      void runWhatIf({
+        ask,
+        engine,
+        turn,
+        ahead: true,
+        signal: abort.signal,
+        onResult: (result, final) => {
+          markWhatIf("partial", { depth: result.depth, final });
+          patchWhatIf(id, (st) => whatIfStateFrom(st, result, final));
+          if (drawn) return;
+          const line = whatIfLine(ask, result);
+          if (!line) return;
+          drawn = true;
+          // The line is the answer: the coach's jump for this question,
+          // if it arrived first and is waiting, is dropped.
+          if (pendingJumpRef.current?.id === id) pendingJumpRef.current = null;
+          // The board answers: the asked move on the board through the
+          // exploration preview, the way a proof line's Play puts it there,
+          // unless the reader moved on, opened an exploration or a drill
+          // while waiting. After the next frame, so the line under the
+          // question is painted before the board's heavier render (a task
+          // queued at once would run before that paint). The board is not
+          // scrolled into view for it: on a phone the line under the
+          // question is the answer in hand, and its Play reveals the board.
+          afterNextPaint(() => {
+            if (isStale()) return;
+            if (drillOnRef.current) return;
+            if (takeoverPreviewRef.current !== previewAtSend) return;
+            const ply = currentPlyRef.current;
+            if (ply !== plyAtSend && ply !== ask.index) return;
+            const preview = buildLinePreview(
+              allMoves,
+              ask.index,
+              [ask.asked.san],
+              rootFen
+            );
+            if (!preview) return;
+            markWhatIf("board", { id, index: ask.index });
+            if (ask.index !== ply) keepPreviewOnPlySyncRef.current = true;
+            setCurrentPly(ask.index);
+            setTakeoverPreview(preview);
+          });
+        },
+        isStale,
+      }).then((result) => {
+        if (whatIfAbortRef.current === abort) whatIfAbortRef.current = null;
+        if (isStale()) return;
+        if (result === null)
+          patchWhatIf(id, (st) =>
+            st.status === "checking"
+              ? whatIfUnavailable(
+                  st,
+                  abort.signal.aborted ? "superseded" : "failed"
+                )
+              : st
+          );
+        // No line came: the coach's jump for this question, if it is
+        // waiting, is applied now, unless the reader moved on meanwhile.
+        const pending = pendingJumpRef.current;
+        if (pending?.id === id) {
+          pendingJumpRef.current = null;
+          if (
+            !drawn &&
+            !drillOnRef.current &&
+            currentPlyRef.current === pending.jump.fromPly &&
+            takeoverPreviewRef.current === previewAtSend
+          )
+            applyCoachJump(pending.jump);
+        }
+        // The live eval was taken from the position on the board and the
+        // board did not move: ask for its number again.
+        if (!drawn) setLiveEvalRetry((n) => n + 1);
+      });
+    },
+    [
+      engine,
+      engineTurn,
+      gameAnalysisRunning,
+      patchWhatIf,
+      allMoves,
+      rootFen,
+      applyCoachJump,
+    ]
+  );
+
   // The page's side of a coach reply (coachReply.ts): the setters the one
   // helper drives for all three ways of asking. Setters are stable, so the
   // sink is made once.
@@ -8743,16 +9081,37 @@ export default function AnalysisPage() {
     () => ({
       patchLastCoach: (patch) =>
         setMessages((prev) => patchLastCoachMessage(prev, patch)),
-      setThinking: setIsThinking,
+      setThinking: (on) => {
+        // A new reply: an older what-if's waiting jump is not this one's.
+        if (on) pendingJumpRef.current = null;
+        setIsThinking(on);
+      },
       setPhase: setCoachPhase,
       setError: setLastCoachError,
+      jumpTo: applyCoachJump,
+    }),
+    [applyCoachJump]
+  );
+  /**
+   * The sink for the reply to a question that asked what-if `id`: the
+   * board belongs to the what-if for that reply (whatIfJumpDecision), so
+   * the coach's jump is skipped once the line is drawn and waits while it
+   * is checking. Every other reply uses coachSink as it is.
+   */
+  const whatIfReplySink = useCallback(
+    (id: number): CoachReplySink => ({
+      ...coachSink,
       jumpTo: (jump) => {
-        setCoachJump(jump);
-        setTakeoverPreview(null);
-        setCurrentPly(jump.toPly);
+        const decision = whatIfJumpDecision(whatIfStore.get(id));
+        if (decision === "skip") return;
+        if (decision === "defer") {
+          pendingJumpRef.current = { id, jump };
+          return;
+        }
+        coachSink.jumpTo(jump);
       },
     }),
-    []
+    [coachSink, whatIfStore]
   );
 
   const handleTakeoverSendToCoach = useCallback(
@@ -8918,32 +9277,35 @@ export default function AnalysisPage() {
     bumpBoardSync();
   }, [bumpBoardSync]);
 
-  const advanceDrill = useCallback((reason: "solved" | "skipped" = "solved") => {
-    setDrillState((prev) => {
-      if (!prev) return prev;
-      appendDrillOutcome(prev, reason);
-      const nextIndex = prev.currentIndex + 1;
-      if (nextIndex >= prev.puzzles.length) {
-        const done: DrillState = { ...prev, status: "complete" };
-        appendDrillOutcome(done, "complete");
-        return done;
-      }
-      const next = prev.puzzles[nextIndex];
-      const orient: "white" | "black" =
-        new Chess(next.fen).turn() === "w" ? "white" : "black";
-      setBoardOrientation(orient);
-      return {
-        ...prev,
-        currentIndex: nextIndex,
-        currentMoveIndex: 0,
-        currentFen: next.fen,
-        status: "solving",
-        wrongAttempts: 0,
-        lastMove: null,
-      };
-    });
-    bumpBoardSync();
-  }, [bumpBoardSync, appendDrillOutcome]);
+  const advanceDrill = useCallback(
+    (reason: "solved" | "skipped" = "solved") => {
+      setDrillState((prev) => {
+        if (!prev) return prev;
+        appendDrillOutcome(prev, reason);
+        const nextIndex = prev.currentIndex + 1;
+        if (nextIndex >= prev.puzzles.length) {
+          const done: DrillState = { ...prev, status: "complete" };
+          appendDrillOutcome(done, "complete");
+          return done;
+        }
+        const next = prev.puzzles[nextIndex];
+        const orient: "white" | "black" =
+          new Chess(next.fen).turn() === "w" ? "white" : "black";
+        setBoardOrientation(orient);
+        return {
+          ...prev,
+          currentIndex: nextIndex,
+          currentMoveIndex: 0,
+          currentFen: next.fen,
+          status: "solving",
+          wrongAttempts: 0,
+          lastMove: null,
+        };
+      });
+      bumpBoardSync();
+    },
+    [bumpBoardSync, appendDrillOutcome]
+  );
 
   // User moves a piece while a drill is in flight. Validate against the
   // puzzle solution: correct → auto-play opponent's reply (if any) then
@@ -9199,6 +9561,13 @@ export default function AnalysisPage() {
     },
     []
   );
+  // Stable, so CoachBubble's memoized body holds across keystrokes, eval
+  // partials and stream deltas: an inline arrow here made the memo inert.
+  const handlePracticeConcept = useCallback(
+    (theme: string, name: string, msgIdx: number) =>
+      triggerPuzzleFetch(msgIdx, theme, name, displayFen),
+    [triggerPuzzleFetch, displayFen]
+  );
 
   // Used by the Moves tab — each move has an "Ask coach" affordance.
   // Switches focus to the Coach tab, jumps the board to the move, then
@@ -9400,13 +9769,29 @@ export default function AnalysisPage() {
       // produces a conversational reply with no grounded mistake insights.
       if (analysisActive) return;
       const prevForApi = messages;
+      // A question that names an alternative gets the board's answer first:
+      // the space for its line is reserved under the question now, and the
+      // engine's search runs beside the coach's request.
+      const whatIfAsk = resolveWhatIfAsk(text);
+      const whatIfId = whatIfAsk ? ++whatIfSeqRef.current : 0;
+      if (whatIfAsk)
+        whatIfStore.set(whatIfId, initialWhatIfState(whatIfId, whatIfAsk));
       setMessages((prev) => [
         ...prev,
-        { role: "user", content: text, ply: currentPly },
+        {
+          role: "user",
+          content: text,
+          ply: currentPly,
+          ...(whatIfAsk ? { whatIf: { id: whatIfId, ask: whatIfAsk } } : {}),
+        },
         // Empty coach message we'll fill in as deltas arrive
         { role: "coach", content: "", ply: currentPly },
       ]);
       setInput("");
+      if (whatIfAsk) {
+        markWhatIf("asked", { id: whatIfId });
+        launchWhatIf(whatIfId, whatIfAsk, currentPly);
+      }
       await runCoachReply({
         stream: (reply) =>
           streamCoachReply({
@@ -9424,7 +9809,8 @@ export default function AnalysisPage() {
           }),
         fromPly: currentPly,
         site: "send",
-        sink: coachSink,
+        // A question that asked a what-if: its reply's jump defers to the line.
+        sink: whatIfAsk ? whatIfReplySink(whatIfId) : coachSink,
         onDone: (accumulated) => {
           // After stream completes, scan for [PRACTICE:...] tags and trigger
           // a real /api/similar-puzzles fetch per tag. The coach's tag persists
@@ -9470,6 +9856,10 @@ export default function AnalysisPage() {
       enginePositions,
       analysisActive,
       coachSink,
+      resolveWhatIfAsk,
+      launchWhatIf,
+      whatIfStore,
+      whatIfReplySink,
     ]
   );
 
@@ -10225,6 +10615,7 @@ export default function AnalysisPage() {
                         rootFen={rootFen}
                         onMoveRefClick={handleCoachMoveRef}
                         onShowLinePly={handleShowLinePly}
+                        whatIfStore={whatIfStore}
                         playerSide={playerSide}
                         sideUiEligible={!isPuzzleMode && allMoves.length > 0}
                         onChoosePlayerSide={handleChoosePlayerSide}
@@ -10240,9 +10631,7 @@ export default function AnalysisPage() {
                         onPuzzleSolved={(puzzle, secs) =>
                           recordSolved(puzzle.id, secs, puzzle.solution)
                         }
-                        onPracticeConcept={(theme, name, msgIdx) =>
-                          triggerPuzzleFetch(msgIdx, theme, name, displayFen)
-                        }
+                        onPracticeConcept={handlePracticeConcept}
                       />
                     </Box>
                   )}

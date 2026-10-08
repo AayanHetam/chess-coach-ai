@@ -104,6 +104,8 @@ export interface EvaluateMovesParams {
    * so a first evaluation can be drawn before the final one lands.
    */
   onPartial?: (partial: MovesEval) => void;
+  /** Ends the search in any phase; the call rejects with `EngineSearchAbortedError`. */
+  signal?: AbortSignal;
 }
 
 export interface EvaluatePositionWithUpdateParams {
@@ -117,6 +119,15 @@ export interface EvaluatePositionWithUpdateParams {
    * which engine should be doing the work.
    */
   allowCloud?: boolean;
+  /**
+   * Ends the search early: before the engine is asked, the call rejects
+   * with `EngineSearchAbortedError`; during the search the engine is told
+   * to stop and the call rejects the same way. The caller that wants the
+   * engine for something else (a what-if, coachWhatIf.ts) aborts the live
+   * eval in whatever phase it is, instead of stopping only a search that
+   * has already begun.
+   */
+  signal?: AbortSignal;
 }
 
 export interface CurrentPosition {

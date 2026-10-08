@@ -24,7 +24,7 @@
  * two readers of the same question agree on which move it names.
  */
 import type { QuestionAnchor } from "./questionAnchor";
-import { isWalkthroughQuestion } from "@/lib/prompts/followUpPrompt";
+import { isWalkthroughQuestion } from "./questionShape";
 
 export type QuestionIntent =
   | "verdict"

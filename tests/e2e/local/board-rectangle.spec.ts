@@ -209,6 +209,38 @@ test.describe("the board's rectangle", () => {
     await expect(jump).toHaveCount(0);
     expectSameRect(rest, await boardRect(page), "the way back");
 
+    // A what-if: the question names an alternative, so the space for the
+    // board's answer is under it from the moment it is sent. With the
+    // engine blocked the answer is that there is none, in the same space;
+    // the board's box does not move for the question or for its answer.
+    // (The engine's own answer, within two seconds, is coach-what-if.spec.)
+    await composer.fill("what about 8. Qxc1 instead?");
+    await composer.press("Enter");
+    const whatIf = page.getByTestId("what-if").last();
+    await expect(whatIf).toBeVisible({ timeout: 10_000 });
+    await expect(whatIf).toHaveAttribute("data-status", "unavailable", {
+      timeout: 10_000,
+    });
+    await expect(whatIf.getByTestId("what-if-summary")).toContainText(
+      "8. Qxc1"
+    );
+    await expect(whatIf.getByTestId("what-if-line-placeholder")).toBeVisible();
+    console.log(
+      `[what-if] ${test.info().project.name}: block ${await whatIf.evaluate(
+        (el) => (el as HTMLElement).offsetHeight
+      )} px with the placeholder`
+    );
+    expectSameRect(rest, await boardRect(page), "a what-if with no engine");
+    // With nothing drawn, the coach's anchor moves the board as before.
+    await expect(jump).toBeVisible({ timeout: 30_000 });
+    expectSameRect(
+      rest,
+      await boardRect(page),
+      "the coach's jump after a what-if"
+    );
+    await jump.getByRole("button", { name: /Back to/ }).click();
+    await expect(jump).toHaveCount(0);
+
     // The strip's sentence links the move the engine preferred, like the
     // transcript does, and tapping it is a preview, not a layout change.
     // (With the engine blocked there is no analysis to link; the strip's

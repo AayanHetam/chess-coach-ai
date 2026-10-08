@@ -43,7 +43,11 @@ function replayTo(
   }
 }
 
-function formatEval(line: { cp?: number; mate?: number }): string | null {
+/** "+6.20" / "M+3" / "0.00", White-relative, as the strip and the lines show it. */
+export function formatEval(line: {
+  cp?: number;
+  mate?: number;
+}): string | null {
   if (typeof line.mate === "number")
     return `M${line.mate > 0 ? "+" : ""}${line.mate}`;
   if (typeof line.cp === "number")

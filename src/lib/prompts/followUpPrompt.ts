@@ -29,6 +29,7 @@
  * follow-up path, byte for byte.
  */
 import { coachVoiceFor } from "./mastiVoice";
+import { isWalkthroughQuestion } from "@/lib/coach/questionShape";
 
 export const FOLLOWUP_PROMPT_VERSION = "1.3";
 
@@ -110,13 +111,11 @@ A GREETING OR THANKS
 
 /**
  * "walk me through", "step by step": the player asked for the longer form,
- * which the prompt budgets at FOLLOWUP_WALKTHROUGH_WORD_BUDGET.
+ * which the prompt budgets at FOLLOWUP_WALKTHROUGH_WORD_BUDGET. The test
+ * lives in lib/coach/questionShape.ts now, shared with the client; this
+ * module keeps exporting it for its callers.
  */
-export function isWalkthroughQuestion(question: string): boolean {
-  return /\bwalk\s+(?:me\s+)?through\b|\bstep[\s-]by[\s-]step\b|\b(?:go|take\s+me)\s+through\s+the\s+(?:whole\s+|entire\s+)?line\b|\bexplain\s+the\s+(?:whole\s+|entire\s+)?line\b/i.test(
-    question
-  );
-}
+export { isWalkthroughQuestion };
 
 /**
  * Appended to the player's question in the model's copy of the turn (never

@@ -60,6 +60,34 @@ const CLOUD_HEAD_START_MS = 350;
  */
 const CLOUD_GAME_PASS_TIMEOUT_MS = 800;
 
+/** A search ended by its caller's AbortSignal, not by the engine. */
+export class EngineSearchAbortedError extends Error {
+  constructor() {
+    super("Engine search aborted");
+    this.name = "EngineSearchAbortedError";
+  }
+}
+
+/** `promise`, or an EngineSearchAbortedError the moment `signal` aborts. */
+function raceAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(new EngineSearchAbortedError());
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new EngineSearchAbortedError());
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (err) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(err);
+      }
+    );
+  });
+}
+
 export class UciEngine {
   public readonly name: EngineName;
   private workers: EngineWorker[] = [];
@@ -189,6 +217,10 @@ export class UciEngine {
   private terminateWorker(worker: EngineWorker) {
     console.log(`Terminating worker from ${this.enginePath}`);
     worker.isReady = false;
+    // A command still waiting on this worker would otherwise never hear
+    // back: a what-if in flight when the engine is swapped stayed
+    // "checking" for good.
+    worker.rejectActive?.(new Error("Engine shut down"));
     worker.uci("quit");
     worker.terminate();
   }
@@ -207,6 +239,11 @@ export class UciEngine {
     finalMessage: string,
     onNewMessage?: (messages: string[]) => void
   ): Promise<string[]> {
+    // An engine shut down has no worker and never will: a command queued
+    // here would wait for good (a live eval caught in its cloud head-start
+    // by an engine swap did), so it is refused instead.
+    if (this.workers.length === 0)
+      return Promise.reject(new Error("Engine shut down"));
     const worker = this.acquireWorker();
 
     if (!worker) {
@@ -508,8 +545,13 @@ export class UciEngine {
     multiPv = this.multiPv,
     setPartialEval,
     allowCloud = true,
+    signal,
   }: EvaluatePositionWithUpdateParams): Promise<PositionEval> {
     this.throwErrorIfNotReady();
+    const bail = () => {
+      if (signal?.aborted) throw new EngineSearchAbortedError();
+    };
+    bail();
 
     // Terminal positions: the same short-circuit evaluateGame has had all
     // along, which this path was missing. Ask Stockfish to `go` on a mated or
@@ -550,7 +592,9 @@ export class UciEngine {
     const cloudPromise = allowCloud ? getLichessEval(fen, multiPv) : null;
 
     await this.stopAllCurrentJobs();
+    bail();
     await this.setMultiPv(multiPv);
+    bail();
 
     console.log(`Evaluating position: ${fen}`);
 
@@ -558,7 +602,13 @@ export class UciEngine {
     // `withTimeout` gives up waiting without cancelling, so the request is
     // still alive below.
     if (cloudPromise) {
-      const quickCloud = await withTimeout(cloudPromise, CLOUD_HEAD_START_MS);
+      // The wait ends at once on an abort: a what-if asked during it
+      // should not pay the head start out of its own budget.
+      const quickCloud = await raceAbort(
+        withTimeout(cloudPromise, CLOUD_HEAD_START_MS),
+        signal
+      );
+      bail();
       if (satisfiesRequest(quickCloud, depth, multiPv)) {
         setPartialEval?.(quickCloud!);
         return quickCloud!;
@@ -587,11 +637,29 @@ export class UciEngine {
       publisher.offer({ ...parsedResults, source: "local" });
     };
 
-    const results = await this.sendCommands(
-      [`position fen ${fen}`, `go depth ${depth}`],
-      "bestmove",
-      onNewMessage
-    );
+    // Aborted mid-search: tell the engine to stop. The in-flight command's
+    // promise is superseded by the stop and rejects; the abort is the
+    // reason the caller hears.
+    const onAbort = () => {
+      void this.stopAllCurrentJobs().catch(() => {
+        /* the worker is already quiet */
+      });
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    let results: string[];
+    try {
+      results = await this.sendCommands(
+        [`position fen ${fen}`, `go depth ${depth}`],
+        "bestmove",
+        onNewMessage
+      );
+    } catch (err) {
+      if (signal?.aborted) throw new EngineSearchAbortedError();
+      throw err;
+    } finally {
+      signal?.removeEventListener("abort", onAbort);
+    }
+    bail();
 
     const localEval: PositionEval = {
       ...parseEvaluationResults(results, fen),
@@ -628,29 +696,68 @@ export class UciEngine {
     moves,
     depth = 16,
     onPartial,
+    signal,
   }: EvaluateMovesParams): Promise<MovesEval> {
     this.throwErrorIfNotReady();
+    const bail = () => {
+      if (signal?.aborted) throw new EngineSearchAbortedError();
+    };
+    bail();
     const asked = normaliseAskedMoves(fen, moves);
 
     await this.stopAllCurrentJobs();
+    bail();
     await this.setMultiPv(asked.length);
+    bail();
     await this.sendCommandsToEachWorker(["ucinewgame", "isready"], "readyok");
+    bail();
 
     let partialDepth = 0;
+    // Every line the engine sends arrives here with everything before it.
+    // Parsing all of it again on each is quadratic and runs on the main
+    // thread beside the page's renders, so only a line that can complete a
+    // deeper partial (an info line with a pv, deeper than the last partial
+    // reported) is worth a parse.
     const onNewMessage = onPartial
       ? (messages: string[]) => {
+          const last = messages[messages.length - 1] ?? "";
+          if (!last.startsWith("info") || !last.includes(" pv ")) return;
+          const depthRaw = getResultProperty(last, "depth");
+          if (!depthRaw || parseInt(depthRaw, 10) <= partialDepth) return;
           const partial = parseMovesResults(messages, fen, asked);
-          if (partial.missing.length > 0 || partial.depth <= partialDepth) return;
+          if (partial.missing.length > 0 || partial.depth <= partialDepth)
+            return;
           partialDepth = partial.depth;
           onPartial(partial);
         }
       : undefined;
 
-    const results = await this.sendCommands(
-      [`position fen ${fen}`, `go depth ${depth} searchmoves ${asked.join(" ")}`],
-      "bestmove",
-      onNewMessage
-    );
+    // Aborted mid-search (a new game, a newer what-if, the page gone): tell
+    // the engine to stop; the superseded command's rejection is reported as
+    // the abort it was.
+    const onAbort = () => {
+      void this.stopAllCurrentJobs().catch(() => {
+        /* the worker is already quiet */
+      });
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    let results: string[];
+    try {
+      results = await this.sendCommands(
+        [
+          `position fen ${fen}`,
+          `go depth ${depth} searchmoves ${asked.join(" ")}`,
+        ],
+        "bestmove",
+        onNewMessage
+      );
+    } catch (err) {
+      if (signal?.aborted) throw new EngineSearchAbortedError();
+      throw err;
+    } finally {
+      signal?.removeEventListener("abort", onAbort);
+    }
+    bail();
     return parseMovesResults(results, fen, asked);
   }
 

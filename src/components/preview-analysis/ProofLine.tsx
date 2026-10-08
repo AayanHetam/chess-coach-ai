@@ -54,6 +54,72 @@ const ACCENT = {
 
 const MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
 
+/**
+ * The space a line will take, before it is there.
+ *
+ * A what-if draws its line under the question once the engine's first
+ * partial lands, a second or two after the question is sent. The transcript
+ * must not move when it does, so the question is pushed with this in place
+ * of the line: the same two rows at the same heights (the heading row with
+ * what is being checked, the caption row with a note), and nothing else.
+ * If the engine never answers, the note says so and the rows stay.
+ */
+export function ProofLinePlaceholder({
+  label,
+  note,
+  accent = ACCENT.engine,
+  "data-testid": testId = "proof-line-placeholder",
+}: {
+  label: string;
+  note?: string;
+  accent?: string;
+  "data-testid"?: string;
+}) {
+  return (
+    <Box data-testid={testId} sx={{ mt: 0.75, minWidth: 0 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          minHeight: 24,
+          minWidth: 0,
+        }}
+      >
+        <Box
+          component="span"
+          sx={{
+            fontSize: "0.62rem",
+            fontWeight: 800,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: accent,
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+        >
+          {label}
+        </Box>
+      </Box>
+      <Box
+        sx={{
+          mt: 0.25,
+          minHeight: "1.3em",
+          fontSize: "0.76rem",
+          lineHeight: 1.3,
+          color: "rgba(255,255,255,0.55)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+        data-testid={`${testId}-note`}
+      >
+        {note ?? ""}
+      </Box>
+    </Box>
+  );
+}
+
 export function ProofLine({
   line,
   playerColor,

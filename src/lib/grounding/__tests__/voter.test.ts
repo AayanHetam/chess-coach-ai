@@ -54,17 +54,19 @@ const SYZYGY_DRAW: TablebaseResult = {
 };
 
 const CHESSDB_WIN: ChessdbResult = {
-  fen: "test",
-  best_move: "Rxf7",
+  fen: "6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1",
   score_cp: 250,
+  mate: null,
+  tablebase: false,
   outcome: "win",
   source: "live",
 };
 
 const CHESSDB_UNKNOWN: ChessdbResult = {
-  fen: "test",
-  best_move: null,
+  fen: "6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1",
   score_cp: null,
+  mate: null,
+  tablebase: false,
   outcome: "unknown",
   source: "live",
 };
@@ -138,7 +140,7 @@ describe("compileVoterResult — mate_in_n", () => {
   it("MED when SF mate for Black AND chessdb decisive (loss for side to move)", () => {
     const r = compileVoterResult({
       stockfishBestMoveMate: -4,
-      chessdbResult: { fen: "test", best_move: null, score_cp: -320, outcome: "loss", source: "live" },
+      chessdbResult: { fen: "test", score_cp: -320, mate: null, tablebase: false, outcome: "loss", source: "live" },
     });
     expect(r.confidence.mate_in_n).toBe("MED");
   });
@@ -261,8 +263,7 @@ describe("compileVoterResult — groundingContext", () => {
 
   it("includes chessdb eval when result known", () => {
     const r = compileVoterResult({ chessdbResult: CHESSDB_WIN });
-    expect(r.groundingContext).toContain("ChessDB");
-    expect(r.groundingContext).toContain("Rxf7");
+    expect(r.groundingContext).toContain("ChessDB cloud-eval: +2.50 pawns (White is winning).");
   });
 
   it("omits chessdb when outcome is unknown", () => {

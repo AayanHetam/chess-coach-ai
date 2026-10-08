@@ -2,10 +2,15 @@
 // Public-domain API; no authentication required. Be a good citizen with backoff.
 //
 // Two actions used:
-//   "queryscore"  — get the best move and eval score for a position (returns "unknown" if not cached)
+//   "queryscore"  — get the eval score for a position (returns "unknown" if not cached)
 //   "queue"       — request the server to compute a position; call fire-and-forget after a queryscore miss
+//
+// queryscore carries no best move and none is fetched separately: querybest
+// answers "nobestmove" on positions with a forced mate and picks at random
+// among tied moves, and a chessdb best move that disagrees with Stockfish's
+// has no honest place in the prompt.
 
-const CHESSDB_BASE = "http://www.chessdb.cn/cdb.php";
+const CHESSDB_BASE = "https://www.chessdb.cn/cdb.php";
 export const FETCH_TIMEOUT_MS = 6000;
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12h
 const QUEUE_COOLDOWN_MS = 30 * 1000; // don't re-queue the same position for 30s
@@ -18,8 +23,19 @@ export type ChessdbOutcome = "win" | "draw" | "loss" | "unclear" | "unknown";
 
 export interface ChessdbResult {
   fen: string;
-  best_move: string | null;
-  score_cp: number | null;  // centipawns from side-to-move perspective; null if unknown
+  /**
+   * Centipawns for the SIDE TO MOVE (+ = the side to move is better) —
+   * chessdb's own convention, NOT White-centric like the rest of the app (see
+   * chessdbWhiteView). null when chessdb does not hold the position, or scores
+   * it as a forced result (`mate` / `tablebase`), which is not centipawns.
+   */
+  score_cp: number | null;
+  /** A forced mate found by chessdb's engines, in full moves for the side to
+   * move, signed like Stockfish's `mate`: +2 = it mates in 2, -1 = it is mated
+   * next move. null otherwise. */
+  mate: number | null;
+  /** True when the result is a tablebase win or loss (`outcome` says which). */
+  tablebase: boolean;
   outcome: ChessdbOutcome;
   source: "cache" | "live";
 }
@@ -32,11 +48,15 @@ interface CacheEntry {
 const resultCache = new Map<string, CacheEntry>();
 const queuedAt = new Map<string, number>(); // prevents duplicate queue spam
 
-// Raw response shape from chessdb queryscore
+// Raw response shape from chessdb queryscore with json=1, as served on 2026-10-08:
+//   {"status":"ok","eval":0,"ply":1}       held (ply = chessdb's own depth; often absent)
+//   {"status":"unknown"}                   not held — worth queueing
+//   {"status":"checkmate"} | {"status":"stalemate"} | {"status":"invalid board"}
+// The parser used to read `score` and `move`, which this action never sends,
+// so every lookup came back "unknown".
 interface RawQueryScore {
-  status?: string;   // "ok" | "unknown" | "nobestmove"
-  move?: string;     // UCI best move
-  score?: number;    // centipawns, side-to-move perspective
+  status?: string;
+  eval?: number;     // side to move; see decodeScore for the forced-result bands
 }
 
 // Raw response shape from chessdb queue
@@ -49,12 +69,39 @@ export function __setFetchForTesting(impl: typeof fetch): void { fetchImpl = imp
 export function __resetFetchForTesting(): void { fetchImpl = (input, init) => fetch(input, init); }
 export function __clearChessdbCache(): void { resultCache.clear(); queuedAt.clear(); }
 
-function scoreToOutcome(score: number | null): ChessdbOutcome {
-  if (score === null) return "unknown";
+function scoreToOutcome(score: number): ChessdbOutcome {
   if (score >= 200) return "win";
   if (score <= -200) return "loss";
   if (Math.abs(score) < 50) return "draw";
   return "unclear";
+}
+
+// chessdb folds forced results into the score (read off queryall, 2026-10-08):
+//   engine mate  ±(30000 − plies to mate)   Qxf7# on the board = 29999; a move
+//                                           that walks into mate-in-1 = −29998
+//   tablebase    ±(25000 − n)               KQ v K = 24988
+// The tablebase n is DTZ (chessdb's default egtbmetric), not a distance to
+// mate — KRP v K with DTM 23 scores 24998 — so only the result is kept.
+const MATE_SCORE = 30000;
+const TABLEBASE_SCORE = 25000;
+const TABLEBASE_FLOOR = 20000; // far below any 7-man DTZ; centipawn scores never get near it
+
+type DecodedScore = Pick<ChessdbResult, "score_cp" | "mate" | "tablebase" | "outcome">;
+
+const UNKNOWN: DecodedScore = { score_cp: null, mate: null, tablebase: false, outcome: "unknown" };
+
+function decodeScore(score: number): DecodedScore {
+  const abs = Math.abs(score);
+  const outcome: ChessdbOutcome = score > 0 ? "win" : "loss";
+  if (abs >= MATE_SCORE) return UNKNOWN; // outside the encoding — ground nothing
+  if (abs > TABLEBASE_SCORE) {
+    // Mating side moves on odd plies, the mated side's last move is an even
+    // ply: ceil(plies / 2) is the move count either way.
+    const moves = Math.ceil((MATE_SCORE - abs) / 2);
+    return { score_cp: null, mate: score > 0 ? moves : -moves, tablebase: false, outcome };
+  }
+  if (abs >= TABLEBASE_FLOOR) return { score_cp: null, mate: null, tablebase: true, outcome };
+  return { score_cp: score, mate: null, tablebase: false, outcome: scoreToOutcome(score) };
 }
 
 async function chessdbFetch<T>(params: Record<string, string>): Promise<T | null> {
@@ -65,19 +112,9 @@ async function chessdbFetch<T>(params: Record<string, string>): Promise<T | null
   try {
     const res = await fetchImpl(url.toString(), { signal: controller.signal });
     if (!res.ok) return null;
-    // chessdb returns plain text or JSON depending on action; try JSON first
-    const text = await res.text();
-    try {
-      return JSON.parse(text) as T;
-    } catch {
-      // Some endpoints return "status:ok|move:e2e4|score:50" style
-      const parsed: Record<string, string> = {};
-      for (const part of text.split("|")) {
-        const [k, v] = part.split(":");
-        if (k && v !== undefined) parsed[k.trim()] = v.trim();
-      }
-      return parsed as unknown as T;
-    }
+    // json=1 makes every action answer JSON (the plain-text form is "eval:0"
+    // with a trailing NUL); anything unparseable is a failed lookup.
+    return (await res.json()) as T;
   } catch {
     return null;
   } finally {
@@ -97,19 +134,14 @@ export async function queryChessdb(fen: string): Promise<ChessdbResult | null> {
   const raw = await chessdbFetch<RawQueryScore>({ action: "queryscore", board: fen, json: "1" });
   if (!raw) return null;
 
-  const isKnown = raw.status === "ok" && typeof raw.score === "number";
-  const score = isKnown ? (raw.score ?? null) : null;
-  const result: ChessdbResult = {
-    fen,
-    best_move: raw.move ?? null,
-    score_cp: score,
-    outcome: scoreToOutcome(score),
-    source: "live",
-  };
+  const decoded = raw.status === "ok" && typeof raw.eval === "number" ? decodeScore(raw.eval) : UNKNOWN;
+  const result: ChessdbResult = { fen, ...decoded, source: "live" };
 
   resultCache.set(fen, { result, expiresAt: Date.now() + CACHE_TTL_MS });
 
-  if (!isKnown) {
+  // Only a position chessdb has never seen is worth computing; an invalid,
+  // mated or stalemated board has nothing to queue.
+  if (raw.status === "unknown") {
     queuePositionAsync(fen);
   }
 
@@ -128,23 +160,62 @@ function queuePositionAsync(fen: string): void {
   });
 }
 
+/** A ChessdbResult from White's point of view. */
+export interface ChessdbWhiteView {
+  /** Centipawns, White-positive; null for a forced result. */
+  cp: number | null;
+  /** Full moves to mate, White-positive (+3 = White mates in 3); null unless
+   * chessdb's engines found a forced mate. */
+  mate: number | null;
+  /** The verdict in words, naming the side: "Black is somewhat better",
+   * "forced mate in 3 for White", "tablebase win for Black". */
+  verdict: string;
+}
+
 /**
- * Build a human-readable summary of a ChessdbResult for LLM prompt injection.
- * Returns empty string if outcome is unknown (no grounding).
+ * Turn a result to White's point of view — the convention of every other eval
+ * the model and the referee see (EvalFact, Lc0). chessdb scores for the side
+ * to move, so a Black-to-move +1.50 is White's -1.50; quoting it raw beside
+ * White-centric Stockfish evals would hand the model the opposite sign.
+ * null = no grounding: an unknown position, or a FEN with no side to move.
+ */
+export function chessdbWhiteView(result: ChessdbResult): ChessdbWhiteView | null {
+  if (result.outcome === "unknown") return null;
+  const sideToMove = result.fen.split(" ")[1];
+  if (sideToMove !== "w" && sideToMove !== "b") return null;
+  // `+ 0` turns the -0 of a flipped 0 into 0.
+  const forWhite = (n: number) => (sideToMove === "w" ? n : -n) + 0;
+
+  if (result.mate !== null) {
+    const mate = forWhite(result.mate);
+    return { cp: null, mate, verdict: `forced mate in ${Math.abs(mate)} for ${mate > 0 ? "White" : "Black"}` };
+  }
+  if (result.tablebase) {
+    const whiteWins = (result.outcome === "win") === (sideToMove === "w");
+    return { cp: null, mate: null, verdict: `tablebase win for ${whiteWins ? "White" : "Black"}` };
+  }
+  if (result.score_cp === null) return null;
+  const cp = forWhite(result.score_cp);
+  // Verdict derived from the score so the prompt never contradicts the eval it
+  // quotes (a +1.50 position must not be described as a draw).
+  const verdict =
+    cp >= 200 ? "White is winning" :
+    cp <= -200 ? "Black is winning" :
+    Math.abs(cp) < 50 ? "roughly equal" :
+    cp > 0 ? "White is somewhat better" :
+    "Black is somewhat better";
+  return { cp, mate: null, verdict };
+}
+
+/**
+ * Build a human-readable summary of a ChessdbResult for LLM prompt injection,
+ * White-centric like the Stockfish evals around it.
+ * Returns empty string when there is no grounding (see chessdbWhiteView).
  */
 export function chessdbResultToContext(result: ChessdbResult): string {
-  if (result.outcome === "unknown" || result.score_cp === null) return "";
-  const scoreStr = (result.score_cp / 100).toFixed(2);
-  const sign = result.score_cp >= 0 ? "+" : "";
-  const move = result.best_move ? ` Best move: ${result.best_move}.` : "";
-  // Label derived from the score so the prompt never contradicts the eval it
-  // quotes (a +1.50 position must not be described as a draw).
-  const cp = result.score_cp;
-  const label =
-    cp >= 200 ? "winning for the side to move" :
-    cp <= -200 ? "losing for the side to move" :
-    Math.abs(cp) < 50 ? "roughly equal" :
-    cp > 0 ? "somewhat better for the side to move" :
-    "somewhat worse for the side to move";
-  return `ChessDB cloud-eval: ${sign}${scoreStr} pawns (${label}).${move}`;
+  const view = chessdbWhiteView(result);
+  if (!view) return "";
+  if (view.cp === null) return `ChessDB cloud-eval: ${view.verdict}.`;
+  const sign = view.cp >= 0 ? "+" : "";
+  return `ChessDB cloud-eval: ${sign}${(view.cp / 100).toFixed(2)} pawns (${view.verdict}).`;
 }

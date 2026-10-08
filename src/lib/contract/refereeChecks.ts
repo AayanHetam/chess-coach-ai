@@ -163,7 +163,11 @@ export function collectEvalPools(insight: InsightContract): EvalPools {
   // The severity drop is quotable in either direction ("lost 3.5 pawns",
   // "the eval swung -3.50").
   pawns.push(insight.severityDropCp / 100, -insight.severityDropCp / 100);
-  if (insight.chessdb.status === "ok") pawns.push(insight.chessdb.value.evalCp / 100);
+  if (insight.chessdb.status === "ok") {
+    const { evalCp, mate } = insight.chessdb.value;
+    if (mate !== null) mates.push(mate);
+    else if (evalCp !== null) pawns.push(evalCp / 100);
+  }
   if (insight.lc0.status === "ok") pawns.push(insight.lc0.value.evalCp / 100);
   return { pawns, mates };
 }

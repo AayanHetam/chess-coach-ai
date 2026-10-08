@@ -103,8 +103,9 @@ const LC0: Lc0Result = {
 };
 const CDB: ChessdbResult = {
   fen: FORK_FEN_BEFORE,
-  best_move: "Ne5",
   score_cp: 220,
+  mate: null,
+  tablebase: false,
   outcome: "win",
   source: "live",
 };

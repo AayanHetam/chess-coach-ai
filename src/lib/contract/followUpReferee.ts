@@ -524,7 +524,13 @@ export function refereeFollowUp(
         // never costs a sentence, and the roots are the only way its line's
         // moves are licensed (the block's WHAT-IF lines are not in the pool,
         // or "Qxc1 exd6" would borrow a sibling's reply).
-        const walk = (useRoots: boolean): string | null => {
+        // `rootAt` is the index of the one root a reading may open (each
+        // root is tried in a walk of its own, so two lines opening with the
+        // same move are each walked from their own board); null for the
+        // reading without roots.
+        const walk = (rootAt: number | null): string | null => {
+          const useRoots = rootAt !== null;
+          const roots = rootAt === null ? [] : [whatIfRoots[rootAt]];
           let running: { fen: string; ply: number | null } = {
             fen: activeFen,
             ply: input.activePly ?? null,
@@ -559,6 +565,24 @@ export function refereeFollowUp(
             if (num !== undefined) {
               const ply =
                 (Number(num) - 1) * 2 + (dots && dots.length >= 3 ? 1 : 0);
+              // A root may open numbered at its own ply too ("Instead of
+              // 7... Qxc1, 7... Kd8 8. Be2 Qxa2"), when nothing before it
+              // but the move it replaces was named.
+              const numberedRoot = roots.find(
+                (r) => r.ply - 1 === ply && r.san === exactSan(san)
+              );
+              if (
+                numberedRoot &&
+                tokens.slice(0, t).every((p) => {
+                  const ps = p[3] ?? p[6] ?? p[7];
+                  return !ps || exactSan(ps) === numberedRoot.replaced;
+                })
+              ) {
+                running = { fen: numberedRoot.fen, ply: numberedRoot.ply };
+                inSequence = true;
+                onRoot = true;
+                continue;
+              }
               const after = lineAfter.get(`${ply}:${key}`);
               if (after) {
                 running = { fen: after, ply: ply + 1 };
@@ -609,7 +633,7 @@ export function refereeFollowUp(
             // moved the board or named any move but the one it replaces
             // ("Instead of Nc7+, Nd6+ exd6 ...", never "After Nxa8, Nd6+").
             if (useRoots && !inSequence && running.fen === activeFen) {
-              const root = whatIfRoots.find((r) => r.san === exactSan(san));
+              const root = roots.find((r) => r.san === exactSan(san));
               if (
                 root &&
                 tokens.slice(0, t).every((p) => {
@@ -628,8 +652,8 @@ export function refereeFollowUp(
           }
           return null;
         };
-        reason = walk(false);
-        if (reason && whatIfRoots.length > 0 && walk(true) === null)
+        reason = walk(null);
+        if (reason && whatIfRoots.some((_, k) => walk(k) === null))
           reason = null;
       }
 

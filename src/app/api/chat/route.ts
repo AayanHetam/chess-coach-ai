@@ -16,8 +16,21 @@ import {
   FOLLOWUP_PROMPT_VERSION,
   getFollowUpPromptMode,
   getFollowUpSystemPromptStable,
+  followUpSubjectClause,
   followUpTurnReminder,
+  type FollowUpSubject,
 } from "@/lib/prompts/followUpPrompt";
+import {
+  confirmedSideOf,
+  softenPerspectiveLine,
+} from "@/lib/prompts/coachChatPrompt";
+import {
+  PERSPECTIVE_CLAUSE_VERSION,
+  asksAboutMistakes,
+  isPerspectiveEnabled,
+  resolveTurnSubject,
+  type TurnSubject,
+} from "@/lib/coach/questionPerspective";
 import {
   anchorAtIndex,
   resolveQuestionAnchor,
@@ -39,6 +52,7 @@ import {
   anchorAlternativeFen,
   anchorLicensedLines,
   buildFollowUpCondensedContext,
+  buildSubjectMomentsBlock,
   whatIfLicensedLines,
   whatIfLicensedEvals,
 } from "@/lib/coach/followUpContext";
@@ -79,6 +93,101 @@ const log = logger.child({ module: "chat" });
 
 /** Prior messages replayed under the follow-up prompt: four exchanges. */
 const FOLLOWUP_HISTORY_MESSAGES = 8;
+/** The viewed-board facts' heading (positionFacts.ts), re-headed under a key-moments block. */
+const CURRENT_POSITION_HEADER_RE = /^## CURRENTLY VIEWED POSITION \([^\n]*\)/;
+
+/**
+ * The prior turns replayed to the model, in order: the client's history
+ * without the entry that IS the initial analysis (it goes first on its own),
+ * cut to the last FOLLOWUP_HISTORY_MESSAGES on the follow-up prompt and
+ * trimmed to start on a user turn so the roles keep alternating.
+ *
+ * D1 (SILENT_SUBSTITUTION_HANDOFF §3 Group D): this used to skip the FIRST
+ * assistant entry positionally, on the assumption that it was the initial
+ * analysis already injected. On the live client the first assistant entry
+ * is a GREETING, not the analysis, so the greeting was dropped and the raw,
+ * uncorrected analysis sailed through and landed as the model's most recent
+ * statement, directly after the corrected copy; the model then defended the
+ * uncorrected line. De-duped on content identity instead: whichever entry
+ * actually IS the initial analysis, wherever it sits, and only once. The
+ * client now swaps in the corrected text (D1 client half), so a matching
+ * entry is the corrected one; this is belt-and-braces for older clients.
+ *
+ * Deep in a conversation every earlier answer is replayed as the model's own
+ * words, and it imitates them: six essays in, the seventh is an essay. The
+ * follow-up prompt keeps the last four exchanges; the review and the
+ * contract carry everything older that matters.
+ */
+/**
+ * The light validator (aiResponseValidator.ts) against the board under
+ * discussion and, on a turn about the other side's key moments, against the
+ * moments' boards too: the block told the model about those boards, so a
+ * piece claim that holds on one of them is no error. Without such boards
+ * the result is validateAIResponse's own.
+ */
+function validateOnBoards(
+  content: string,
+  fen: string,
+  moreFens: readonly string[]
+): ReturnType<typeof validateAIResponse> {
+  const first = validateAIResponse(content, fen);
+  if (first.isValid || moreFens.length === 0) return first;
+  const holdsElsewhere = (issue: (typeof first.issues)[number]) =>
+    issue.type === "wrong_piece_on_square" &&
+    moreFens.some((f) =>
+      validateAIResponse(issue.original, f).issues.every(
+        (i) => i.severity !== "error"
+      )
+    );
+  const remaining = first.issues.filter(
+    (i) => i.severity !== "error" || !holdsElsewhere(i)
+  );
+  if (remaining.some((i) => i.severity === "error")) return first;
+  const warnings = remaining.length;
+  return {
+    isValid: true,
+    correctedResponse: content,
+    issues: remaining,
+    score: Math.max(0, 1 - warnings * 0.05),
+  };
+}
+
+function keptHistoryTurns(
+  conversationHistory: unknown,
+  initialAnalysis: string | undefined,
+  useFollowUpPrompt: boolean
+): LLMMessage[] {
+  if (!conversationHistory || !Array.isArray(conversationHistory)) return [];
+  const canonical = initialAnalysis?.trim();
+  let droppedCanonical = false;
+  const priorTurns: LLMMessage[] = [];
+  for (const msg of conversationHistory as {
+    role?: string;
+    content?: unknown;
+  }[]) {
+    if (
+      !droppedCanonical &&
+      msg.role === "assistant" &&
+      canonical &&
+      typeof msg.content === "string" &&
+      msg.content.trim() === canonical
+    ) {
+      droppedCanonical = true;
+      continue;
+    }
+    if (msg.role && msg.content) {
+      priorTurns.push({
+        role: msg.role as "user" | "assistant",
+        content: msg.content as string,
+      });
+    }
+  }
+  let kept = useFollowUpPrompt
+    ? priorTurns.slice(-FOLLOWUP_HISTORY_MESSAGES)
+    : priorTurns;
+  while (kept.length > 0 && kept[0].role !== "user") kept = kept.slice(1);
+  return kept;
+}
 
 /**
  * Lightweight chat endpoint for follow-up messages.
@@ -216,6 +325,7 @@ export async function POST(request: NextRequest) {
       moveIndex,
       clientEvals: clientEvalsRaw,
       pageActions: pageActionsRaw,
+      perspective: perspectiveRaw,
     } = parsed.data;
 
     // API-key presence is validated inside callLLM(); both Anthropic and
@@ -325,18 +435,84 @@ export async function POST(request: NextRequest) {
       const followUpMode = getFollowUpPromptMode();
       const useFollowUpPrompt = followUpMode === "v1";
 
+      // The side this turn looks at the game from (questionPerspective.ts):
+      // the question's words, else the page's standing choice. The player
+      // stays "you" whichever it is, so the player's colour is never
+      // replaced by it (the anchor block's "the player's move", the
+      // referee's "your", the validators' perspective). Only on the
+      // follow-up prompt: the legacy prompt's rules are the player's side
+      // alone, and its rollback stays byte for byte.
+      const keptHistory = keptHistoryTurns(
+        conversationHistory,
+        context.initialAnalysis,
+        useFollowUpPrompt
+      );
+      const perspectiveOn = useFollowUpPrompt && isPerspectiveEnabled();
+      // Confirmed only when the stored tail names the side the context was
+      // stored for and does not say it is unconfirmed.
+      const sideConfirmed =
+        confirmedSideOf(context.systemPromptSuffix) === playerColorLetter;
+      const subject: TurnSubject | null = perspectiveOn
+        ? resolveTurnSubject({
+            message: userMessage,
+            field: perspectiveRaw,
+            player: playerColorLetter,
+            sideConfirmed,
+            history: keptHistory
+              .filter((m) => m.role === "user")
+              .map((m) => m.content as string),
+          })
+        : null;
+
       // The move the question names wins over the board the client shows.
       // "Why was 8. Nc7+ a mistake?" asked from the start position used to be
       // grounded, validated and refereed against the start position. The
       // anchor moves everything — facts, pipeline ply, referee boards — to the
       // move in question, and the response tells the client to put that
       // position on the board.
-      const resolvedAnchor = resolveQuestionAnchor(
+      // Under COACH_PERSPECTIVE the words' owners are read too ("Black's
+      // move 20", "my 12th move", "after Black's move 7"), and a bare
+      // "move N" is the subject's when the words or the page named it
+      // (never the other side's in its place when the words did); a side
+      // the history carried leaves it the player's, where the page's own
+      // "go to move N" lands.
+      const missing: { moveNumber: number; color: "w" | "b" }[] = [];
+      let resolvedAnchor = resolveQuestionAnchor(
         userMessage,
         context.playedMoves ?? [],
         playerColorLetter,
-        moveIndex
+        moveIndex,
+        perspectiveOn
+          ? {
+              defaultSide:
+                subject && subject.source !== "history"
+                  ? subject.side
+                  : playerColorLetter,
+              sideConfirmed,
+              strictDefault: subject?.source === "words",
+              preferDefaultSide: !!subject && subject.source !== "history",
+              onMissing: (m) => {
+                missing.push(m);
+              },
+            }
+          : undefined
       );
+      // "What was Black thinking?" with no move named, while the board
+      // shows the position after a Black move: that move.
+      if (
+        !resolvedAnchor &&
+        subject?.source === "words" &&
+        /_thinking$/.test(subject.rule) &&
+        typeof moveIndex === "number" &&
+        moveIndex > 0 &&
+        ((moveIndex - 1) % 2 === 0 ? "w" : "b") === subject.side
+      ) {
+        const atCursor = anchorAtIndex(
+          context.playedMoves ?? [],
+          moveIndex - 1
+        );
+        if (atCursor) resolvedAnchor = { ...atCursor, matched: "cursor" };
+      }
       let anchor = resolvedAnchor;
 
       // The client's what-if for this question (lib/coach/clientEvals.ts):
@@ -389,6 +565,31 @@ export async function POST(request: NextRequest) {
         activeFen = anchor.fenAfter;
         effectiveMoveIndex = anchor.ply;
       }
+      // A side the page or the history set yields to a move of the
+      // player's own the turn is anchored on ("why not Qxc1 instead?" on
+      // White's 8th under a Black standing side): the turn is about that
+      // move, so it is served about the player, and the echo says so.
+      const yielded =
+        !!subject &&
+        subject.source !== "words" &&
+        !!anchor &&
+        anchor.color === playerColorLetter;
+      // The other side, when the turn is about it: what changes the facts.
+      const otherSide =
+        subject && !yielded && subject.side !== playerColorLetter
+          ? subject.side
+          : null;
+      const otherSubject = otherSide
+        ? { side: otherSide, confirmed: sideConfirmed }
+        : null;
+      const promptSubject: FollowUpSubject | null =
+        subject && !yielded
+          ? {
+              side: subject.side,
+              player: playerColorLetter,
+              confirmed: sideConfirmed,
+            }
+          : null;
       // What the player is asking for (questionIntent.ts), by rule where a
       // rule can be sure, on the anchor the turn is served on. SHADOW: logged
       // and echoed beside the anchor so the distribution can be measured,
@@ -420,14 +621,17 @@ export async function POST(request: NextRequest) {
             context.playedMoves ?? [],
             context.gameEval as never,
             playerColorLetter,
-            whatIf
+            whatIf,
+            otherSubject
           );
           anchorLicenceText = whatIf
             ? buildAnchorBlock(
                 anchor,
                 context.playedMoves ?? [],
                 context.gameEval as never,
-                playerColorLetter
+                playerColorLetter,
+                null,
+                otherSubject
               )
             : anchorBlock;
           const relationalAfter = buildRelationalFacts(anchor.fenAfter).summary;
@@ -449,6 +653,49 @@ export async function POST(request: NextRequest) {
       } catch {
         // oracle failure — proceed without per-turn facts (legacy behavior)
       }
+      // A turn about the other side that names no move and asks about its
+      // mistakes ("from Black's side, what went wrong?"): that side's
+      // costliest moments with their lines, first, licensed like an
+      // anchored move's, and the board on screen kept below them for
+      // reference only.
+      let subjectMoments: ReturnType<typeof buildSubjectMomentsBlock> = null;
+      try {
+        if (otherSide && !anchor && asksAboutMistakes(userMessage)) {
+          subjectMoments = buildSubjectMomentsBlock(
+            context,
+            otherSide,
+            sideConfirmed
+          );
+          if (subjectMoments)
+            perTurnFacts = [
+              subjectMoments.text,
+              perTurnFacts.replace(
+                CURRENT_POSITION_HEADER_RE,
+                "## BOARD ON SCREEN (for reference: this turn is about the moments above, not this position. Use these exact facts and never reconstruct the board from the move list.)"
+              ),
+            ]
+              .filter(Boolean)
+              .join("\n\n");
+        }
+      } catch {
+        // oracle failure — proceed without per-turn facts (legacy behavior)
+      }
+      // A move the words name that the side never played ("Black's move
+      // 44" in a game White ended on move 44): said, so it is not invented.
+      {
+        const moves = context.playedMoves ?? [];
+        const gone = missing[0];
+        if (!anchor && gone && moves.length > 0) {
+          const last = moves.length - 1;
+          const lastLabel = `${Math.floor(last / 2) + 1}${last % 2 === 0 ? "." : "..."} ${moves[last]}`;
+          perTurnFacts = [
+            `${gone.color === "w" ? "White" : "Black"} played no move ${gone.moveNumber}. The game ended after ${lastLabel}.`,
+            perTurnFacts,
+          ]
+            .filter(Boolean)
+            .join("\n\n");
+        }
+      }
       log.info("followup_anchor", {
         requestId: extractRequestId(request.headers),
         matched: anchor?.matched ?? null,
@@ -469,6 +716,19 @@ export async function POST(request: NextRequest) {
               wordsAskedSan: resolvedAnchor?.askedSan ?? null,
             }
           : {}),
+        ...(subject
+          ? {
+              perspective: subject.side,
+              perspectiveSource: subject.source,
+              perspectiveRule: subject.rule,
+              perspectiveVersion: PERSPECTIVE_CLAUSE_VERSION,
+              ...(yielded ? { perspectiveYielded: "anchor" } : {}),
+              subjectMoments: subjectMoments
+                ? subjectMoments.lines.length
+                : null,
+            }
+          : {}),
+        ...(missing.length > 0 ? { missingMove: missing[0] } : {}),
       });
 
       // PR-CI-6a — follow-up grounding. When the review above was served
@@ -482,6 +742,9 @@ export async function POST(request: NextRequest) {
       // for the move asked about alone, the other findings' verdicts and
       // evals without their lines (followUp.ts, ContractFocus). Live, the
       // other moments' lines were where a borrowed "9...Kxc7" came from.
+      // A turn about the other side with no move named withholds every
+      // line: the findings are the player's, and their lines were where a
+      // borrowed move came from.
       const contractBlock = context.compactContract
         ? renderContractCompact(
             context.compactContract,
@@ -492,7 +755,9 @@ export async function POST(request: NextRequest) {
                   color: anchor.color,
                   ...(whatIf ? { whatIf: true } : {}),
                 }
-              : undefined
+              : otherSide
+                ? { subject: otherSide }
+                : undefined
           )
         : "";
 
@@ -510,7 +775,7 @@ export async function POST(request: NextRequest) {
           : null;
       const condensedContext = [
         useFollowUpPrompt
-          ? buildFollowUpCondensedContext(context, centerPly)
+          ? buildFollowUpCondensedContext(context, centerPly, otherSubject)
           : buildCondensedContext(context),
         contractBlock,
         perTurnFacts,
@@ -521,9 +786,20 @@ export async function POST(request: NextRequest) {
       ]
         .filter(Boolean)
         .join("\n\n");
+      // A turn about the other side: the stored tail's "always analyze from
+      // the player's side" line says this turn looks from the other, and
+      // the clause after it (followUpPrompt.ts) turns the cached prompt's
+      // "coach the side named in USER CONTEXT" for this answer. Neither is
+      // there on any other turn.
+      const perUserTail =
+        otherSide && context.systemPromptSuffix
+          ? softenPerspectiveLine(context.systemPromptSuffix, otherSide)
+          : (context.systemPromptSuffix ?? "");
+      const subjectClause =
+        otherSide && promptSubject ? followUpSubjectClause(promptSubject) : "";
       const uncachedSuffix =
         useFollowUpPrompt || context.systemPromptStable
-          ? `${context.systemPromptSuffix ?? ""}\n\n${condensedContext}`.trim()
+          ? `${perUserTail}${subjectClause ? `\n\n${subjectClause}` : ""}\n\n${condensedContext}`.trim()
           : condensedContext;
       // Output cap. The follow-up prompt budgets FOLLOWUP_WORD_BUDGET words;
       // the cap is several times that so only a runaway answer is ever cut
@@ -540,53 +816,8 @@ export async function POST(request: NextRequest) {
       });
 
       // Prior conversation turns (excluding the initial analysis which is
-      // already injected above).
-      if (conversationHistory && Array.isArray(conversationHistory)) {
-        // D1 (SILENT_SUBSTITUTION_HANDOFF §3 Group D): this used to skip the
-        // FIRST assistant entry positionally, on the assumption that it was the
-        // initial analysis already injected above. On the live client the first
-        // assistant entry is a GREETING, not the analysis — so the greeting was
-        // dropped and the raw, uncorrected analysis sailed through and landed
-        // as the model's most recent statement, directly after the corrected
-        // copy. The model then defends the uncorrected line.
-        //
-        // De-dupe on content identity instead: drop whichever entry actually IS
-        // the initial analysis, wherever it sits, and only once. The client now
-        // swaps in the corrected text (D1 client half), so a matching entry is
-        // the corrected one — this is belt-and-braces for older clients and for
-        // any entry that slipped through unchanged.
-        const canonical = context.initialAnalysis?.trim();
-        let droppedCanonical = false;
-        const priorTurns: LLMMessage[] = [];
-        for (const msg of conversationHistory) {
-          if (
-            !droppedCanonical &&
-            msg.role === "assistant" &&
-            canonical &&
-            typeof msg.content === "string" &&
-            msg.content.trim() === canonical
-          ) {
-            droppedCanonical = true;
-            continue;
-          }
-          if (msg.role && msg.content) {
-            priorTurns.push({
-              role: msg.role as "user" | "assistant",
-              content: msg.content,
-            });
-          }
-        }
-        // Deep in a conversation every earlier answer is replayed as the
-        // model's own words, and it imitates them: six essays in, the seventh
-        // is an essay. The follow-up prompt keeps the last four exchanges;
-        // the review and the contract carry everything older that matters.
-        // Trimmed to start on a user turn so the roles keep alternating.
-        let kept = useFollowUpPrompt
-          ? priorTurns.slice(-FOLLOWUP_HISTORY_MESSAGES)
-          : priorTurns;
-        while (kept.length > 0 && kept[0].role !== "user") kept = kept.slice(1);
-        nonSystemMessages.push(...kept);
-      }
+      // already injected above); see keptHistoryTurns.
+      nonSystemMessages.push(...keptHistory);
 
       // The player's question, with the budget under it on the follow-up
       // path (followUpPrompt.ts): the model's copy of the turn only. The
@@ -595,7 +826,7 @@ export async function POST(request: NextRequest) {
       nonSystemMessages.push({
         role: "user",
         content: useFollowUpPrompt
-          ? `${userMessage}\n\n${followUpTurnReminder(userMessage)}`
+          ? `${userMessage}\n\n${followUpTurnReminder(userMessage, promptSubject)}`
           : userMessage,
       });
 
@@ -621,6 +852,19 @@ export async function POST(request: NextRequest) {
         // What happened to the client's what-if numbers; the client ignores
         // it, the synthetic tester and the logs read it.
         clientEvals: clientEvalsOutcome,
+        // The side the turn looked at the game from, when one was in
+        // effect; absent otherwise, so an ordinary response is unchanged.
+        ...(subject
+          ? {
+              perspective: {
+                side: subject.side,
+                source: subject.source,
+                rule: subject.rule,
+                version: PERSPECTIVE_CLAUSE_VERSION,
+                ...(yielded ? { yielded: "anchor" } : {}),
+              },
+            }
+          : {}),
       };
       const altFen = anchor ? anchorAlternativeFen(anchor) : null;
       const anchorLicence = anchor
@@ -638,14 +882,24 @@ export async function POST(request: NextRequest) {
             ],
             evalsByMove: whatIf ? whatIfLicensedEvals(whatIf) : [],
           }
-        : {
-            fens: [],
-            text: "",
-            activePly:
-              typeof effectiveMoveIndex === "number"
-                ? effectiveMoveIndex
-                : undefined,
-          };
+        : subjectMoments
+          ? {
+              fens: subjectMoments.fens,
+              text: subjectMoments.licenceText,
+              activePly:
+                typeof effectiveMoveIndex === "number"
+                  ? effectiveMoveIndex
+                  : undefined,
+              lines: subjectMoments.lines,
+            }
+          : {
+              fens: [],
+              text: "",
+              activePly:
+                typeof effectiveMoveIndex === "number"
+                  ? effectiveMoveIndex
+                  : undefined,
+            };
 
       // Stage B insertion (§3.7.9 chat-equivalent of A): single env read.
       const { validatorsEnabled } = getMastermindEnv();
@@ -811,7 +1065,11 @@ export async function POST(request: NextRequest) {
             draft ||
             pipelineResult.finalResponse ||
             "I couldn't generate a response.";
-          const validation = validateAIResponse(rawContent, activeFen);
+          const validation = validateOnBoards(
+            rawContent,
+            activeFen,
+            subjectMoments?.fens ?? []
+          );
 
           forwardPipelineTelemetryForRoute({
             pipelineResult,
@@ -939,7 +1197,11 @@ export async function POST(request: NextRequest) {
       const rawContent = llmResult.content || "I couldn't generate a response.";
 
       // Light validation against the position under discussion
-      const validation = validateAIResponse(rawContent, activeFen);
+      const validation = validateOnBoards(
+        rawContent,
+        activeFen,
+        subjectMoments?.fens ?? []
+      );
 
       const refereeStartedAt = Date.now();
       const analysis = refereeChatReply(

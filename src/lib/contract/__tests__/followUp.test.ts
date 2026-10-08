@@ -361,6 +361,18 @@ describe("focus on the move under discussion (2026-09-26)", () => {
     expect(out).not.toContain("Rb8");
   });
 
+  it("a turn about the other side withholds every line and says whose findings these are", () => {
+    const out = renderContractCompact(compact, undefined, { subject: "b" });
+    expect(out).not.toContain("Rb8");
+    expect(out).not.toContain("Kxc7");
+    expect(out).toContain("move 9 White played Nxa8");
+    expect(out).toContain(
+      "These findings are the player's. This turn is about Black's moves, so every finding keeps its verdict and evals and its line is withheld."
+    );
+    expect(out).toContain("engine line: withheld this turn (it is about Black's moves)");
+    expect(out).not.toContain("The question is about");
+  });
+
   it("without a focus every line is there, as before", () => {
     const out = renderContractCompact(compact);
     expect(out).toContain("Rb8");

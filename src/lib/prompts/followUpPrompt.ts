@@ -124,9 +124,69 @@ export { isWalkthroughQuestion };
  * limit twelve paragraphs up in the system prompt was worth 147 to 222 words
  * against 100.
  */
-export function followUpTurnReminder(question: string): string {
+export function followUpTurnReminder(
+  question: string,
+  /**
+   * The side this turn looks at the game from (questionPerspective.ts),
+   * when the player named one: restated beside the question, since the
+   * answers replayed above it may be about the other side. Absent, the
+   * reminder is byte for byte what it was.
+   */
+  subject?: FollowUpSubject | null
+): string {
   const words = isWalkthroughQuestion(question)
     ? FOLLOWUP_WALKTHROUGH_WORD_BUDGET
     : FOLLOWUP_WORD_BUDGET;
-  return `[At most ${words} words. Two or three sentences, then the token line if a line proves it, then the Lesson if there is one to teach. Only moves the facts give for the move asked about.]`;
+  const about = subject ? ` ${subjectReminder(subject)}` : "";
+  return `[At most ${words} words. Two or three sentences, then the token line if a line proves it, then the Lesson if there is one to teach. Only moves the facts give for the move asked about.${about}]`;
+}
+
+/**
+ * The side a turn looks at the game from, beside the player's own. The
+ * player is "you" whichever side it is; `confirmed` is false when the
+ * player's side is a guess, and then both sides go by colour.
+ */
+export interface FollowUpSubject {
+  side: "w" | "b";
+  player: "w" | "b";
+  confirmed: boolean;
+}
+
+const colourName = (c: "w" | "b") => (c === "w" ? "White" : "Black");
+
+function subjectReminder(s: FollowUpSubject): string {
+  const side = colourName(s.side);
+  if (!s.confirmed)
+    return `This turn is about ${side}'s moves. Name both sides by colour.`;
+  return s.side === s.player
+    ? `This turn is about ${side}'s moves, the player's own.`
+    : `This turn is about ${side}'s moves. The player is still "you", and ${side} is "your opponent".`;
+}
+
+/** The cached prompt's subject rule, quoted whole where a turn sets it aside. */
+const SUBJECT_RULE =
+  "Coach the side named in USER CONTEXT. The opponent's slips get a passing clause at most; the player's decisions are the subject.";
+
+/**
+ * The paragraph that turns one answer to the other side's moves, sent in
+ * the uncached half of the system prompt after USER CONTEXT. Empty when the
+ * subject is the player's own side, so an ordinary turn's bytes do not
+ * change. The cached prompt keeps its subject rule; this sets it aside for
+ * the turn, keeps the player the one addressed, and fits THE SHAPE to an
+ * answer about the other side.
+ */
+export function followUpSubjectClause(s: FollowUpSubject): string {
+  if (s.side === s.player) return "";
+  const side = colourName(s.side);
+  const player = colourName(s.player);
+  const who = s.confirmed
+    ? `The player is still "you" and played ${player}. Call ${side} "your opponent" or "${side}". Never call ${side} "you", and never write "your" about a ${side} piece or move ("your queen", "your 12th move").`
+    : `Which side the player played is not confirmed, so name both sides by colour ("White", "Black") and call neither side "you".`;
+  return `THIS TURN IS ABOUT ${side.toUpperCase()}'S MOVES
+For this answer, ${side}'s decisions are the subject. This sets aside "${SUBJECT_RULE}" for this turn.
+${who}
+In THE SHAPE, what the opponent gets to do is what ${player}${s.confirmed ? ", the player," : ""} got to do in reply.
+Name a better ${side} move in a sentence of its own, with its number ("${s.side === "w" ? "12. Kd2" : "12... Kd8"} was the move").
+Copy an evaluation exactly as the facts write it, from White's perspective${s.side === "b" ? ", and never restate it as Black's" : ""}.
+The Lesson, when there is one, is what the player can take from ${side}'s play into their own games.`;
 }

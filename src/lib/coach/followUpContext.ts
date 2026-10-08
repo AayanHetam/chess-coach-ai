@@ -33,6 +33,12 @@ import { convertPvToSan, uciToSan } from "@/lib/contract/chessFormat";
 import { buildLineStory, projectLineStory } from "@/lib/contract/lineStory";
 import type { QuestionAnchor } from "./questionAnchor";
 import type { VerifiedWhatIf } from "./clientEvals";
+import {
+  sideMoments,
+  sideMomentsSection,
+  type SideMoments,
+} from "./compactGameContext";
+import { fensAlongGame } from "@/lib/contract/chessFormat";
 
 /** The shape of one client-side Stockfish position, as far as this file reads it. */
 interface EvalLineLike {
@@ -146,11 +152,20 @@ export function anchorEngineLine(
   anchor: QuestionAnchor,
   gameEval: GameEvalLike | undefined
 ): string[] {
-  const before = gameEval?.positions?.[anchor.index];
+  return engineLineAt(anchor.index, anchor.fenBefore, gameEval);
+}
+
+/** The engine's line from the position before the game's move at `index`, as SAN. */
+function engineLineAt(
+  index: number,
+  fenBefore: string,
+  gameEval: GameEvalLike | undefined
+): string[] {
+  const before = gameEval?.positions?.[index];
   const pvUci = before?.lines?.[0]?.pv ?? [];
   if (pvUci.length === 0 || !realEval(before?.lines?.[0])) return [];
   try {
-    return convertPvToSan(anchor.fenBefore, pvUci).slice(0, LINE_PLIES);
+    return convertPvToSan(fenBefore, pvUci).slice(0, LINE_PLIES);
   } catch {
     return [];
   }
@@ -222,15 +237,26 @@ export function buildAnchorBlock(
    * search's numbers and lines, told as their own regime. Absent, the block
    * is byte for byte what it was.
    */
-  whatIf?: VerifiedWhatIf | null
+  whatIf?: VerifiedWhatIf | null,
+  /**
+   * The side this turn is about (questionPerspective.ts), when it is not
+   * the player's: said in the header. "The player's move" and "the
+   * opponent's move" stay the player's, who is "you", and are left out
+   * when the player's side is a guess. Absent, the header is as it was.
+   */
+  subject?: { side: "w" | "b"; confirmed: boolean } | null
 ): string {
   const colorName = anchor.color === "w" ? "White" : "Black";
   const whose =
     anchor.color === playerColor ? "the player's move" : "the opponent's move";
   const label = `${anchor.moveNumber}${anchor.color === "w" ? "." : "..."} ${anchor.san}`;
+  const about =
+    subject && subject.side !== playerColor
+      ? `${subject.confirmed ? `, ${whose}` : ""}, and this turn is about ${subject.side === "w" ? "White" : "Black"}'s moves`
+      : `, ${whose}`;
   const out: string[] = [];
   out.push(
-    `## MOVE UNDER DISCUSSION — ${label} (${colorName}, ${whose}). The board will show the position after it.`
+    `## MOVE UNDER DISCUSSION — ${label} (${colorName}${about}). The board will show the position after it.`
   );
   if (anchor.askedSan) {
     out.push(
@@ -458,14 +484,41 @@ export function windowMoveTable(
  */
 export function buildFollowUpCondensedContext(
   context: AnalysisContext,
-  centerPly: number | null
+  centerPly: number | null,
+  /**
+   * The side this turn is about, when it is not the player's
+   * (questionPerspective.ts): its costliest moves are listed in place of
+   * the player's, under a heading that names whose they are, with its
+   * accuracy. With the player's side unconfirmed, the player's colour is
+   * labelled a guess and the player's accuracy left out. Absent, the
+   * context is byte for byte what it was.
+   */
+  subject?: { side: "w" | "b"; confirmed: boolean } | null
 ): string {
+  const player = context.playerColor === "w" ? "w" : "b";
+  const other = subject && subject.side !== player ? subject : null;
   const lines: string[] = [];
   lines.push("## THIS GAME");
   lines.push(
-    `Player: ${context.playerColor === "w" ? "White" : "Black"} · Skill: ${context.skillLevel} · ${context.moveCount} full moves`
+    `Player: ${player === "w" ? "White" : "Black"}${other && !other.confirmed ? " (a guess, not confirmed)" : ""} · Skill: ${context.skillLevel} · ${context.moveCount} full moves`
   );
-  for (const l of buildGameOverview(context)) lines.push(l);
+  for (const l of buildGameOverview(context)) {
+    if (other && !other.confirmed && /^(?:Your accuracy|Estimated Elo)/.test(l))
+      continue;
+    lines.push(l);
+  }
+  if (other) {
+    const name = other.side === "w" ? "White" : "Black";
+    const acc = (
+      context.gameEval as
+        | { accuracy?: { white?: number; black?: number } }
+        | undefined
+    )?.accuracy?.[other.side === "w" ? "white" : "black"];
+    if (typeof acc === "number" && Number.isFinite(acc))
+      lines.push(
+        `${name}'s accuracy this game${other.confirmed ? " (the player's opponent)" : ""}: ${acc.toFixed(1)}%`
+      );
+  }
   lines.push(
     "Your review of this game is your first message in this conversation. Build on it; do not repeat it. If the player corrects something in it, take the correction."
   );
@@ -481,10 +534,217 @@ export function buildFollowUpCondensedContext(
     lines.push("");
     lines.push(table);
   }
-  const mistakes = sectionOf(compact, "TOP MISTAKES");
+  // The other side's list never falls back to the player's: under the
+  // turn's clause the player's mistakes would be read as the other side's.
+  const mistakes = other
+    ? sideMomentsSection(
+        subjectMomentsOf(context, other.side),
+        `${other.side === "w" ? "WHITE" : "BLACK"}'S COSTLIEST MOVES (${other.confirmed ? "the player's opponent, " : ""}by the engine's winning chances, worst first, max 12)`
+      )
+    : sectionOf(compact, "TOP MISTAKES");
   if (mistakes) {
     lines.push("");
     lines.push(mistakes);
   }
   return lines.join("\n");
+}
+
+const subjectMoments = new WeakMap<
+  AnalysisContext,
+  Map<"w" | "b", SideMoments>
+>();
+
+/** One side's moments for this context, read once per context and side. */
+function subjectMomentsOf(
+  context: AnalysisContext,
+  side: "w" | "b"
+): SideMoments {
+  let memo = subjectMoments.get(context);
+  if (!memo) {
+    memo = new Map();
+    subjectMoments.set(context, memo);
+  }
+  const hit = memo.get(side);
+  if (hit) return hit;
+  const read = sideMoments(
+    context.playedMoves ?? [],
+    context.gameEval as never,
+    side
+  );
+  memo.set(side, read);
+  return read;
+}
+
+/** Moments in the block for a turn about the other side with no move named. */
+const SUBJECT_MOMENTS = 3;
+
+/**
+ * For a turn about the other side that names no move and asks about its
+ * mistakes ("from Black's side, what went wrong?"): that side's costliest
+ * moments, the same ones and in the same order as its list in the standing
+ * context, each with its swing, the engine's preferred move and line
+ * instead of it, and the best reply after it. The anchored block covers one
+ * move the question names; this covers the moves the question means.
+ *
+ * `text` is the model's copy. `licenceText` is what the referee licenses
+ * from it, without the lines: they are licensed as lines of their own
+ * (`lines`, replacing the game's move at their ply), kept out of the
+ * referee's shared ply table and pool, so no other move borrows their moves
+ * at their numbers (a what-if's lines are licensed the same way).
+ *
+ * Null when the engine scored none of the side's moves.
+ */
+export interface SubjectMomentsBlock {
+  text: string;
+  licenceText: string;
+  fens: string[];
+  lines: {
+    startFen: string;
+    startPly: number;
+    sans: string[];
+    replacing: true;
+  }[];
+}
+
+const subjectBlocks = new WeakMap<
+  AnalysisContext,
+  Map<string, SubjectMomentsBlock | null>
+>();
+
+export function buildSubjectMomentsBlock(
+  context: AnalysisContext,
+  side: "w" | "b",
+  confirmed: boolean
+): SubjectMomentsBlock | null {
+  // Built once per context, side and confirmation: the first moment's
+  // story is most of its cost (about 0.1 s on a long game), and the
+  // context is the same object for every turn of a conversation.
+  let memo = subjectBlocks.get(context);
+  if (!memo) {
+    memo = new Map();
+    subjectBlocks.set(context, memo);
+  }
+  const key = `${side}:${confirmed ? 1 : 0}`;
+  if (memo.has(key)) return memo.get(key)!;
+  const block = readSubjectMomentsBlock(context, side, confirmed);
+  memo.set(key, block);
+  return block;
+}
+
+function readSubjectMomentsBlock(
+  context: AnalysisContext,
+  side: "w" | "b",
+  confirmed: boolean
+): SubjectMomentsBlock | null {
+  const playedMoves = context.playedMoves ?? [];
+  const gameEval = context.gameEval as GameEvalLike | undefined;
+  const read = subjectMomentsOf(context, side);
+  if (read.scored === 0) return null;
+  const name = side === "w" ? "White" : "Black";
+  const replier = side === "w" ? "Black" : "White";
+  const head = [
+    `## ${name.toUpperCase()}'S KEY MOMENTS (${confirmed ? "the player's opponent, " : ""}the moves this turn is about)`,
+  ];
+  const moments = read.moments.slice(0, SUBJECT_MOMENTS);
+  if (moments.length === 0) {
+    head.push(
+      read.scored === read.played
+        ? `By the engine's count, no ${name} move lost half a pawn or more while the result was still open.`
+        : `The engine scored ${read.scored} of ${name}'s ${read.played} moves, and none of those lost half a pawn or more while the result was still open.`
+    );
+    const text = head.join("\n");
+    return { text, licenceText: text, fens: [], lines: [] };
+  }
+  head.push(
+    `${name}'s costliest moves by the engine, worst first. Evals in pawns, White's perspective. These are flagged moves, so the opening rule does not apply to them.`
+  );
+  const fens = fensAlongGame(playedMoves);
+  const text: string[] = [...head];
+  const licence: string[] = [...head];
+  const boards: string[] = [];
+  const licensed: {
+    startFen: string;
+    startPly: number;
+    sans: string[];
+    replacing: true;
+  }[] = [];
+  moments.forEach((m, k) => {
+    const fenBefore = fens[m.index];
+    const fenAfter = fens[m.index + 1];
+    boards.push(fenBefore, fenAfter);
+    const mark = side === "w" ? "." : "...";
+    const label = `${m.moveNum}${mark} ${m.moveSan}`;
+    const severity =
+      m.drop >= 300
+        ? "a BLUNDER"
+        : m.drop >= 150
+          ? "a MISTAKE"
+          : "an INACCURACY";
+    const lost =
+      m.mateBefore === undefined && m.mateAfter === undefined
+        ? ` (${name} lost ${(m.drop / 100).toFixed(1)} pawns)`
+        : "";
+    const before = gameEval?.positions?.[m.index]?.lines?.[0];
+    const after = gameEval?.positions?.[m.index + 1]?.lines?.[0];
+    const swing =
+      realEval(before) && realEval(after)
+        ? ` Eval ${formatEval(before)} → ${formatEval(after)}.`
+        : "";
+    // The preferred move and its line from one source, the line's first
+    // move; none when the engine's line starts with the move played.
+    const line = engineLineAt(m.index, fenBefore, gameEval);
+    const lineIsPlayed =
+      line.length > 0 &&
+      line[0].replace(/[+#]/g, "") === m.moveSan.replace(/[+#]/g, "");
+    const preferred = lineIsPlayed ? undefined : (line[0] ?? m.bestSan);
+    const row = `- ${label}, ${severity}${lost}.${swing}${preferred ? ` The engine preferred ${label.replace(m.moveSan, preferred)}.` : ""}`;
+    text.push(row);
+    licence.push(row);
+    if (line.length > 0 && !lineIsPlayed) {
+      licensed.push({
+        startFen: fenBefore,
+        startPly: m.index,
+        sans: line,
+        replacing: true,
+      });
+      text.push(
+        `  Engine line instead of it: ${renderLine(m.moveNum, side === "w", line)}`
+      );
+      if (k === 0) {
+        const story = storyLines(fenBefore, line);
+        if (story.length > 0) {
+          text.push("    what the engine line does:");
+          for (const l of story) text.push(`      - ${l}`);
+          // Its words are licensed (a faithful "takes the pawn on a2"),
+          // its moves only along the line itself.
+          const words = story
+            .map((l) => l.replace(/^\d+\.(?:\.\.)?\S+(?:\s+—\s+)?/, ""))
+            .filter((l) => l.trim().length > 0);
+          if (words.length > 0) {
+            licence.push("    what the engine line does:");
+            for (const l of words) licence.push(`      - ${l}`);
+          }
+        }
+      }
+    }
+    const reply = engineLineAt(m.index + 1, fenAfter, gameEval);
+    if (reply.length > 0) {
+      const replyNumber = side === "w" ? m.moveNum : m.moveNum + 1;
+      const first = renderLine(replyNumber, side === "b", reply.slice(0, 1));
+      text.push(
+        `  ${replier}'s best reply after it: ${first} (the engine's line runs ${renderLine(replyNumber, side === "b", reply)})`
+      );
+      licence.push(`  ${replier}'s best reply after it: ${first}`);
+    }
+  });
+  const tail =
+    "Each line belongs to the move it is listed under. A move from one moment's line is not a move at another.";
+  text.push(tail);
+  licence.push(tail);
+  return {
+    text: text.join("\n"),
+    licenceText: licence.join("\n"),
+    fens: boards,
+    lines: licensed,
+  };
 }

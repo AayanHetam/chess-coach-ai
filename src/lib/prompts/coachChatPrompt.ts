@@ -141,6 +141,74 @@ function deriveSkillTier(rating: number | undefined): SkillTier {
 }
 
 /**
+ * The per-user tail's perspective line, in pieces, so the follow-up route can
+ * find it without building a pattern from the username (an unvalidated
+ * string). The builder writes it from the same pieces, so the two cannot
+ * drift.
+ */
+const PERSPECTIVE_LINE_PREFIX = "- Always analyze the game from the perspective of ";
+const PERSPECTIVE_LINE_MID = " playing as ";
+const FOCUS_LINE_PREFIX = "- Focus your analysis on helping ";
+const FOCUS_LINE_SUFFIX = " understand their moves and improve their game";
+/** The tail line that says the side is known; absent when it is a guess or there is no username. */
+export const SIDE_CONFIRMED_LINE_PREFIX = "- The user is playing as: ";
+
+/**
+ * The side the stored per-user tail confirms, or null: none named, or a
+ * line saying the side is not confirmed beside it.
+ */
+export function confirmedSideOf(tail: string | undefined): "w" | "b" | null {
+  const lines = (tail ?? "").split("\n");
+  if (lines.some((l) => l.includes(" is NOT confirmed."))) return null;
+  const named = lines
+    .filter((l) => l.startsWith(SIDE_CONFIRMED_LINE_PREFIX))
+    .map((l) => l.slice(SIDE_CONFIRMED_LINE_PREFIX.length));
+  if (named.length !== 1) return null;
+  return named[0] === "White" ? "w" : named[0] === "Black" ? "b" : null;
+}
+
+/**
+ * The stored per-user tail for a follow-up turn about the other side's
+ * moves (questionPerspective.ts): the line that says to always analyze from
+ * the player's side, and the line that says to focus on the player's moves,
+ * are rewritten to say this turn is about the other side's, the player
+ * still addressed. Every other line, and a tail without those lines (the
+ * side unconfirmed, no username), is returned as it was. Done at serve
+ * time: the tail is stored once per review, and changing it at source would
+ * change every follow-up's bytes.
+ */
+export function softenPerspectiveLine(
+  tail: string,
+  subject: "w" | "b"
+): string {
+  const subjectName = subject === "w" ? "White" : "Black";
+  return tail
+    .split("\n")
+    .map((line) => {
+      if (
+        line.startsWith(FOCUS_LINE_PREFIX) &&
+        line.endsWith(FOCUS_LINE_SUFFIX)
+      ) {
+        const name = line.slice(
+          FOCUS_LINE_PREFIX.length,
+          line.length - FOCUS_LINE_SUFFIX.length
+        );
+        return `- This turn, help ${name} learn from ${subjectName}'s moves to improve their own game`;
+      }
+      if (!line.startsWith(PERSPECTIVE_LINE_PREFIX)) return line;
+      const rest = line.slice(PERSPECTIVE_LINE_PREFIX.length);
+      const at = rest.lastIndexOf(PERSPECTIVE_LINE_MID);
+      if (at < 0) return line;
+      const colour = rest.slice(at + PERSPECTIVE_LINE_MID.length);
+      if (colour !== "White" && colour !== "Black") return line;
+      if (colour === subjectName) return line;
+      const name = rest.slice(0, at);
+      return `- ${name} played ${colour} and is still "you". At ${name}'s request, this turn is about ${subjectName}'s moves.`;
+    })
+    .join("\n");
+}
+
+/**
  * Build the coach system prompt as two parts:
  *   - `stable`: identical across users who share the same `personalityId`.
  *     Safe to send as the Anthropic prompt-cache prefix.
@@ -185,11 +253,11 @@ export function getCoachChatSystemPromptParts(
     const colorCap = input.playerColorName === "white" ? "White" : "Black";
     userContextLines.push(
       `- The user's in-game username is: ${input.username}`,
-      `- The user is playing as: ${colorCap}`,
-      `- Always analyze the game from the perspective of ${input.username} playing as ${colorCap}`,
+      `${SIDE_CONFIRMED_LINE_PREFIX}${colorCap}`,
+      `${PERSPECTIVE_LINE_PREFIX}${input.username}${PERSPECTIVE_LINE_MID}${colorCap}`,
       `- When referring to the user's moves, say "your move" or "${input.username}'s move"`,
       `- When referring to the opponent, say "your opponent" or "the opponent"`,
-      `- Focus your analysis on helping ${input.username} understand their moves and improve their game`
+      `${FOCUS_LINE_PREFIX}${input.username}${FOCUS_LINE_SUFFIX}`
     );
   }
 

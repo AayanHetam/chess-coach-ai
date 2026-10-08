@@ -256,12 +256,22 @@ function renderLine(startMoveNumber: number, startsWhite: boolean, san: string[]
  * finding's line and read it as the reply to 8. Qxc1: the other moments'
  * lines were the only place it could have come from.
  */
-export interface ContractFocus {
-  moveNumber: number;
-  color: "w" | "b";
-  /** The block also carries a what-if search's lines for that move (clientEvals.ts). */
-  whatIf?: boolean;
-}
+export type ContractFocus =
+  | {
+      moveNumber: number;
+      color: "w" | "b";
+      /** The block also carries a what-if search's lines for that move (clientEvals.ts). */
+      whatIf?: boolean;
+    }
+  | {
+      /**
+       * A turn about the other side that names no move
+       * (questionPerspective.ts): every finding is the player's, so every
+       * line is withheld and the head says why. The side's own moments come
+       * in their own block, with their own lines.
+       */
+      subject: "w" | "b";
+    };
 
 export function renderContractCompact(
   cc: CompactContract,
@@ -289,7 +299,13 @@ export function renderContractCompact(
       "\"fact contract\" or \"provided facts\" in your reply. The player is talking to " +
       "their coach. Say \"the engine line runs...\", never \"according to the contract\"."
   );
-  if (focus) {
+  if (focus && "subject" in focus) {
+    const name = focus.subject === "w" ? "White" : "Black";
+    head.push(
+      `These findings are the player's. This turn is about ${name}'s moves, so every finding keeps its verdict ` +
+        "and evals and its line is withheld. A move from a line you cannot see is not a move you can name."
+    );
+  } else if (focus) {
     const focusName = `move ${focus.moveNumber} (${focus.color === "w" ? "White" : "Black"})`;
     head.push(
       focus.whatIf
@@ -325,7 +341,10 @@ export function renderContractCompact(
   if (summary) head.push(summary);
 
   const isFocused = (ins: CompactInsight): boolean =>
-    !!focus && ins.moveNumber === focus.moveNumber && ins.color === focus.color;
+    !!focus &&
+    !("subject" in focus) &&
+    ins.moveNumber === focus.moveNumber &&
+    ins.color === focus.color;
   // The focused finding first, so the budget below can never drop it.
   const ordered = focus
     ? [...cc.insights.filter(isFocused), ...cc.insights.filter((i) => !isFocused(i))]
@@ -356,7 +375,11 @@ export function renderContractCompact(
         const rendered = renderLine(ins.moveNumber, ins.color === "w", ins.bestLineSan);
         lines.push(`  engine line: ${rendered}${ins.bestLineTruncated ? " (line continues)" : ""}`);
       } else {
-        lines.push("  engine line: withheld this turn (the question is about another move)");
+        lines.push(
+          focus && "subject" in focus
+            ? `  engine line: withheld this turn (it is about ${focus.subject === "w" ? "White" : "Black"}'s moves)`
+            : "  engine line: withheld this turn (the question is about another move)"
+        );
       }
     }
     if (ins.allowedTacticalKeywords.length > 0) {

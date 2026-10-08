@@ -5,6 +5,7 @@ import {
   FOLLOWUP_WORD_BUDGET,
   getFollowUpPromptMode,
   getFollowUpSystemPromptStable,
+  followUpSubjectClause,
   followUpTurnReminder,
   isWalkthroughQuestion,
   FOLLOWUP_WALKTHROUGH_WORD_BUDGET,
@@ -178,5 +179,65 @@ describe("isWalkthroughQuestion", () => {
   it("and nothing else", () => {
     for (const q of ["Why was 8. Nc7+ a mistake?", "what should I study?", "thanks!"])
       expect(isWalkthroughQuestion(q), q).toBe(false);
+  });
+});
+
+describe("the subject of a turn (PR 2.5)", () => {
+  const subject = (
+    side: "w" | "b",
+    player: "w" | "b",
+    confirmed: boolean
+  ) => ({ side, player, confirmed });
+
+  it("the clause, in each variant, is reviewed as a snapshot", () => {
+    expect({
+      blackForWhite: followUpSubjectClause(subject("b", "w", true)),
+      whiteForBlack: followUpSubjectClause(subject("w", "b", true)),
+      blackUnconfirmed: followUpSubjectClause(subject("b", "w", false)),
+      whiteUnconfirmed: followUpSubjectClause(subject("w", "b", false)),
+    }).toMatchSnapshot();
+  });
+
+  it("is empty for the player's own side", () => {
+    expect(followUpSubjectClause(subject("w", "w", true))).toBe("");
+    expect(followUpSubjectClause(subject("b", "b", false))).toBe("");
+  });
+
+  it("quotes the cached prompt's subject rule as the prompt writes it", () => {
+    const stable = getFollowUpSystemPromptStable("friendly");
+    const rule = stable
+      .split("\n")
+      .find((l) => l.startsWith("- Coach the side named in USER CONTEXT"))!
+      .slice(2);
+    expect(followUpSubjectClause(subject("b", "w", true))).toContain(
+      `This sets aside "${rule}" for this turn.`
+    );
+  });
+
+  it("the reminder restates the subject inside the same brackets", () => {
+    const head =
+      "[At most 100 words. Two or three sentences, then the token line if a line proves it, then the Lesson if there is one to teach. Only moves the facts give for the move asked about.";
+    expect(followUpTurnReminder("why?", subject("b", "w", true))).toBe(
+      `${head} This turn is about Black's moves. The player is still "you", and Black is "your opponent".]`
+    );
+    expect(followUpTurnReminder("why?", subject("w", "w", true))).toBe(
+      `${head} This turn is about White's moves, the player's own.]`
+    );
+    expect(followUpTurnReminder("why?", subject("b", "w", false))).toBe(
+      `${head} This turn is about Black's moves. Name both sides by colour.]`
+    );
+    expect(followUpTurnReminder("why?", null)).toBe(`${head}]`);
+    expect(followUpTurnReminder("why?")).toBe(`${head}]`);
+  });
+
+  it("no em dash or semicolon in the new wording outside the quoted rule", () => {
+    for (const s of [
+      followUpSubjectClause(subject("b", "w", true)),
+      followUpSubjectClause(subject("w", "b", false)),
+      followUpTurnReminder("why?", subject("b", "w", true)),
+    ]) {
+      const own = s.replace(/"Coach the side named in USER CONTEXT[^"]*"/, "");
+      expect(own).not.toMatch(/[—;]/);
+    }
   });
 });

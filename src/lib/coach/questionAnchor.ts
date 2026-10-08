@@ -29,9 +29,11 @@ export interface QuestionAnchor {
   fenAfter: string;
   /**
    * How the question named the move; "what-if" when the client's verified
-   * what-if placed it (lib/coach/clientEvals.ts), whatever the words said.
+   * what-if placed it (lib/coach/clientEvals.ts), whatever the words said;
+   * "cursor" for the move before the board on screen, when a turn about a
+   * side asks what that side was thinking and names no move.
    */
-  matched: "numbered" | "move-number" | "bare-san" | "what-if";
+  matched: "numbered" | "move-number" | "bare-san" | "what-if" | "cursor";
   /**
    * A move the question wrote in notation at that spot that is NOT the one
    * played ("why not 8. Qxc1?"): an alternative, not a misreading.
@@ -62,6 +64,69 @@ const CUED_PAWN_RE =
 
 const strip = (s: string) => s.replace(/[+#!?]/g, "").toLowerCase();
 
+/** The owner written right before a move: "my", "my opponent's", "Black's". */
+const OWNER_BEFORE_RE =
+  /\b((?:(?:my|the)\s+)?opponent['’]s|my|his|her|their|white['’]?s?|black['’]?s?)\s+(?:own\s+)?$/i;
+/** The owner written right after a move number: "move 20 for Black", "by White". */
+const OWNER_AFTER_RE = /^\s*(?:for|by)\s+(white|black)\b/i;
+/** "after Black's move 7": the move asked about is the reply to it. */
+const REPLY_BEFORE_RE =
+  /\b(?:after|following|in\s+(?:reply|response|answer)\s+to)\s+$/i;
+/** "move 3 pawns": a count of things moved, not a move number. */
+const NOT_A_MOVE_AFTER_RE =
+  /^\s+(?:pawns?|pieces?|times?|squares?|knights?|bishops?|rooks?|queens?|kings?)\b/i;
+
+/**
+ * The side an owner names, and where the owner starts in `before`. A
+ * colour always counts; "my", "my opponent's", "his" only when the player's
+ * side is confirmed (it is otherwise the board orientation, a guess).
+ */
+function ownerOf(
+  before: string,
+  after: string,
+  playerColor: "w" | "b",
+  sideConfirmed: boolean
+): { side: "w" | "b"; start: number } | null {
+  const other = playerColor === "w" ? "b" : "w";
+  const b = OWNER_BEFORE_RE.exec(before);
+  if (b) {
+    const word = b[1].toLowerCase();
+    if (word.startsWith("white")) return { side: "w", start: b.index };
+    if (word.startsWith("black")) return { side: "b", start: b.index };
+    if (sideConfirmed)
+      return { side: word === "my" ? playerColor : other, start: b.index };
+    return null;
+  }
+  const a = OWNER_AFTER_RE.exec(after);
+  if (a)
+    return {
+      side: a[1].toLowerCase() === "white" ? "w" : "b",
+      start: before.length,
+    };
+  return null;
+}
+
+/** How a turn about a side reads the question (questionPerspective.ts). */
+export interface AnchorSideOptions {
+  /** Whose "move N" a bare number is: the turn's subject, else the player. */
+  defaultSide: "w" | "b";
+  /** Whether "my", "my opponent's", "his" may be read against the player's side. */
+  sideConfirmed: boolean;
+  /**
+   * The subject came from this message's words: a bare "move N" is that
+   * side's or none, never the other side's in its place.
+   */
+  strictDefault?: boolean;
+  /**
+   * A bare move played by both sides ("O-O") is the default side's when it
+   * played it. Set when the turn has a subject; without one, the nearest
+   * occurrence to the board on screen, as before.
+   */
+  preferDefaultSide?: boolean;
+  /** Called with a move the words name that the game never played (the side had no move N). */
+  onMissing?: (missing: { moveNumber: number; color: "w" | "b" }) => void;
+}
+
 function fenAt(moves: readonly string[], halfMoves: number): string | null {
   try {
     const g = new Chess();
@@ -69,6 +134,21 @@ function fenAt(moves: readonly string[], halfMoves: number): string | null {
     return g.fen();
   } catch {
     return null;
+  }
+}
+
+/** Whether `san` is a legal move in the game's position before `index`. */
+function legalAt(
+  moves: readonly string[],
+  index: number,
+  san: string
+): boolean {
+  const fen = fenAt(moves, index);
+  if (!fen) return false;
+  try {
+    return !!new Chess(fen).move(san);
+  } catch {
+    return false;
   }
 }
 
@@ -131,7 +211,18 @@ export function resolveQuestionAnchor(
   question: string,
   moves: readonly string[],
   playerColor: "w" | "b" = "w",
-  viewedPly?: number
+  viewedPly?: number,
+  /**
+   * The follow-up route's reading under COACH_PERSPECTIVE
+   * (questionPerspective.ts). With it, "move N" is `defaultSide`'s move N,
+   * an owner beside a move is read ("my" the player's, "my opponent's" and
+   * "his" the other side's, "Black's" and "for Black" that colour's, with
+   * no fallback to the other side), "after Black's move 7" is the reply,
+   * "20. Ka7" is Black's 20th when Ka7 is Black's move there and no move
+   * for White, and a bare move prefers the default side's occurrences.
+   * Absent, the reading is exactly what it was.
+   */
+  opts?: AnchorSideOptions
 ): QuestionAnchor | null {
   if (!question || moves.length === 0) return null;
   const text = question.trim();
@@ -143,7 +234,21 @@ export function resolveQuestionAnchor(
   for (const m of Array.from(text.matchAll(NUMBERED_RE))) {
     const n = Number(m[1]);
     const black = m[2].length >= 2;
-    const index = (n - 1) * 2 + (black ? 1 : 0);
+    let index = (n - 1) * 2 + (black ? 1 : 0);
+    // "20. Ka7" for Black's 20... Ka7: no move for White there, and the
+    // other side's move at that number.
+    if (opts) {
+      const otherIndex = (n - 1) * 2 + (black ? 0 : 1);
+      if (
+        index >= 0 &&
+        index < moves.length &&
+        otherIndex < moves.length &&
+        strip(moves[index]) !== strip(m[3]) &&
+        strip(moves[otherIndex]) === strip(m[3]) &&
+        !legalAt(moves, index, m[3])
+      )
+        index = otherIndex;
+    }
     if (index >= 0 && index < moves.length) numbered.push({ index, san: m[3] });
   }
   // "Move 3: Nxd4" gives no side: whichever side played that move there.
@@ -171,6 +276,30 @@ export function resolveQuestionAnchor(
   for (const m of Array.from(text.matchAll(MOVE_NUMBER_RE))) {
     const n = Number(m[1] ?? m[2]);
     if (!Number.isFinite(n) || n < 1) continue;
+    if (opts) {
+      const before = text.slice(0, m.index ?? 0);
+      const after = text.slice((m.index ?? 0) + m[0].length);
+      if (NOT_A_MOVE_AFTER_RE.test(after)) continue;
+      const owner = ownerOf(before, after, playerColor, opts.sideConfirmed);
+      if (owner) {
+        const index = (n - 1) * 2 + (owner.side === "b" ? 1 : 0);
+        const reply = REPLY_BEFORE_RE.test(before.slice(0, owner.start));
+        const a = build(moves, index + (reply ? 1 : 0), "move-number");
+        if (a) return a;
+        if (index >= moves.length)
+          opts.onMissing?.({ moveNumber: n, color: owner.side });
+        continue;
+      }
+      const own = (n - 1) * 2 + (opts.defaultSide === "b" ? 1 : 0);
+      const other = (n - 1) * 2 + (opts.defaultSide === "b" ? 0 : 1);
+      const a =
+        build(moves, own, "move-number") ??
+        (opts.strictDefault ? null : build(moves, other, "move-number"));
+      if (a) return a;
+      if (own >= moves.length)
+        opts.onMissing?.({ moveNumber: n, color: opts.defaultSide });
+      continue;
+    }
     const own = (n - 1) * 2 + (playerColor === "b" ? 1 : 0);
     const other = (n - 1) * 2 + (playerColor === "b" ? 0 : 1);
     const a =
@@ -180,15 +309,38 @@ export function resolveQuestionAnchor(
 
   // 3. A bare move: the occurrence nearest the viewed board, else the first.
   const bare = [
-    ...Array.from(text.matchAll(BARE_SAN_RE)).map((m) => m[1]),
-    ...Array.from(text.matchAll(CUED_PAWN_RE)).map((m) => m[1]),
+    ...Array.from(text.matchAll(BARE_SAN_RE)).map((m) => ({
+      san: m[1],
+      at: m.index ?? 0,
+    })),
+    ...Array.from(text.matchAll(CUED_PAWN_RE)).map((m) => ({
+      san: m[1],
+      at: (m.index ?? 0) + m[0].lastIndexOf(m[1]),
+    })),
   ];
-  for (const san of bare) {
+  for (const { san, at } of bare) {
     const key = strip(san);
-    const hits: number[] = [];
+    let hits: number[] = [];
     moves.forEach((mv, i) => {
       if (strip(mv) === key) hits.push(i);
     });
+    if (opts && hits.length > 0) {
+      // "my O-O-O", "Black's O-O-O": that side's; otherwise the default
+      // side's when it played the move, else wherever it was played.
+      const owner = ownerOf(
+        text.slice(0, at),
+        "",
+        playerColor,
+        opts.sideConfirmed
+      );
+      const sideOf = (i: number) => (i % 2 === 0 ? "w" : "b");
+      if (owner) hits = hits.filter((i) => sideOf(i) === owner.side);
+      else if (
+        opts.preferDefaultSide &&
+        hits.some((i) => sideOf(i) === opts.defaultSide)
+      )
+        hits = hits.filter((i) => sideOf(i) === opts.defaultSide);
+    }
     if (hits.length === 0) continue;
     let best = hits[0];
     if (typeof viewedPly === "number") {

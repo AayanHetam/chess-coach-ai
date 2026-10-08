@@ -116,6 +116,12 @@ export const chatSchema = z.object({
   // ever lets the route answer a whole-message order with no model call;
   // never interpolated into a prompt.
   pageActions: z.unknown().optional(),
+  // The side the reader has the coach look at the game from
+  // (lib/coach/questionPerspective.ts): "w", "b", "white" or "black".
+  // Unknown so a value the route does not read is ignored, not a 400.
+  // Read only under COACH_PERSPECTIVE; never interpolated into a prompt
+  // (the route writes its own colour name from it).
+  perspective: z.unknown().optional(),
   conversationHistory: z
     .array(
       z.object({

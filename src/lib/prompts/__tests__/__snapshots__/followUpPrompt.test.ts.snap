@@ -55,3 +55,36 @@ PRACTICE
 A GREETING OR THANKS
 - One friendly sentence in character, then one concrete thing worth looking at next. Nothing else."
 `;
+
+exports[`the subject of a turn (PR 2.5) > the clause, in each variant, is reviewed as a snapshot 1`] = `
+{
+  "blackForWhite": "THIS TURN IS ABOUT BLACK'S MOVES
+For this answer, Black's decisions are the subject. This sets aside "Coach the side named in USER CONTEXT. The opponent's slips get a passing clause at most; the player's decisions are the subject." for this turn.
+The player is still "you" and played White. Call Black "your opponent" or "Black". Never call Black "you", and never write "your" about a Black piece or move ("your queen", "your 12th move").
+In THE SHAPE, what the opponent gets to do is what White, the player, got to do in reply.
+Name a better Black move in a sentence of its own, with its number ("12... Kd8 was the move").
+Copy an evaluation exactly as the facts write it, from White's perspective, and never restate it as Black's.
+The Lesson, when there is one, is what the player can take from Black's play into their own games.",
+  "blackUnconfirmed": "THIS TURN IS ABOUT BLACK'S MOVES
+For this answer, Black's decisions are the subject. This sets aside "Coach the side named in USER CONTEXT. The opponent's slips get a passing clause at most; the player's decisions are the subject." for this turn.
+Which side the player played is not confirmed, so name both sides by colour ("White", "Black") and call neither side "you".
+In THE SHAPE, what the opponent gets to do is what White got to do in reply.
+Name a better Black move in a sentence of its own, with its number ("12... Kd8 was the move").
+Copy an evaluation exactly as the facts write it, from White's perspective, and never restate it as Black's.
+The Lesson, when there is one, is what the player can take from Black's play into their own games.",
+  "whiteForBlack": "THIS TURN IS ABOUT WHITE'S MOVES
+For this answer, White's decisions are the subject. This sets aside "Coach the side named in USER CONTEXT. The opponent's slips get a passing clause at most; the player's decisions are the subject." for this turn.
+The player is still "you" and played Black. Call White "your opponent" or "White". Never call White "you", and never write "your" about a White piece or move ("your queen", "your 12th move").
+In THE SHAPE, what the opponent gets to do is what Black, the player, got to do in reply.
+Name a better White move in a sentence of its own, with its number ("12. Kd2 was the move").
+Copy an evaluation exactly as the facts write it, from White's perspective.
+The Lesson, when there is one, is what the player can take from White's play into their own games.",
+  "whiteUnconfirmed": "THIS TURN IS ABOUT WHITE'S MOVES
+For this answer, White's decisions are the subject. This sets aside "Coach the side named in USER CONTEXT. The opponent's slips get a passing clause at most; the player's decisions are the subject." for this turn.
+Which side the player played is not confirmed, so name both sides by colour ("White", "Black") and call neither side "you".
+In THE SHAPE, what the opponent gets to do is what Black got to do in reply.
+Name a better White move in a sentence of its own, with its number ("12. Kd2 was the move").
+Copy an evaluation exactly as the facts write it, from White's perspective.
+The Lesson, when there is one, is what the player can take from White's play into their own games.",
+}
+`;

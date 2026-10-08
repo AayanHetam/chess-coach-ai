@@ -11,6 +11,7 @@
  */
 
 import type { ClientEvals } from "./clientEvals";
+import type { PageTurnKind } from "./pageActions";
 
 export interface ChatTurn {
   role: "user" | "assistant";
@@ -27,6 +28,12 @@ export interface ChatRequestBodyInput {
   currentPly?: number;
   /** A what-if's own numbers for this question (clientEvals.ts), when its search had them in time. */
   clientEvals?: ClientEvals | null;
+  /**
+   * The orders this page can carry out itself (pageActions.ts), sent only
+   * while page actions are on: the route may then answer one with no model
+   * call, and never otherwise.
+   */
+  pageActions?: readonly PageTurnKind[] | null;
 }
 
 export interface ChatRequestBody {
@@ -36,6 +43,7 @@ export interface ChatRequestBody {
   fen?: string;
   moveIndex?: number;
   clientEvals?: ClientEvals;
+  pageActions?: PageTurnKind[];
 }
 
 export function buildChatRequestBody(
@@ -55,5 +63,8 @@ export function buildChatRequestBody(
     moveIndex: input.currentPly,
     // Only when there are numbers: an absent field is the turn as before.
     ...(input.clientEvals ? { clientEvals: input.clientEvals } : {}),
+    ...(input.pageActions && input.pageActions.length > 0
+      ? { pageActions: [...input.pageActions] }
+      : {}),
   };
 }

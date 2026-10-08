@@ -24,6 +24,7 @@
  */
 import type { MastiMood } from "@/components/masti/manifest";
 import { coachErrorMood, type CoachErrorKind } from "@/components/masti/mood";
+import type { PageAction, PageTurn } from "@/lib/coach/pageActions";
 
 /** The coach endpoint answered 401: the session is gone or was never there. */
 export class CoachAuthError extends Error {}
@@ -56,6 +57,14 @@ export interface CoachReplyHandlers {
   /** D4: the stream ended without a `done` event; the answer is a fragment. */
   onTruncated: () => void;
   onAnchor: (anchor: CoachReplyAnchor) => void;
+  /**
+   * The server answered an order itself, with no model call
+   * (lib/coach/pageActions.ts): the turn is the page's, not the coach's.
+   * `turn` is null when the page cannot read what was served.
+   */
+  onPageTurn?: (turn: PageTurn | null) => void;
+  /** Things the page does beside an answer (the router's, from pathway PR 3.4). */
+  onActions?: (actions: PageAction[]) => void;
 }
 
 /** A patch for the coach's placeholder: the last message, when it is the coach's. */
@@ -96,6 +105,14 @@ export interface CoachReplySink {
   setError(kind: CoachErrorKind | null): void;
   /** Put the anchored position on the board and leave a way back. */
   jumpTo(jump: CoachReplyJump): void;
+  /**
+   * Carry out an order the server answered for the page: drop the empty
+   * placeholder, keep the question out of the model's history, and do and
+   * acknowledge it as if it had been read before the fetch.
+   */
+  servePageTurn(turn: PageTurn | null): void;
+  /** Do what the server asked beside its answer; the answer is still the answer. */
+  applyActions(actions: PageAction[]): void;
 }
 
 export interface CoachReplyRun {
@@ -172,9 +189,13 @@ export async function runCoachReply(run: CoachReplyRun): Promise<void> {
   sink.setError(null);
 
   let accumulated = "";
+  // An order the server answered itself: its text is not an answer, and
+  // nothing the coach would do after an answer follows.
+  let served = false;
   try {
     await stream({
       onDelta: (chunk) => {
+        if (served) return;
         if (accumulated.length === 0) sink.setPhase("streaming");
         accumulated += chunk;
         sink.patchLastCoach({ content: accumulated });
@@ -199,8 +220,19 @@ export async function runCoachReply(run: CoachReplyRun): Promise<void> {
       onTruncated: () => {
         sink.patchLastCoach({ incomplete: true, mascot: "nervous" });
       },
+      onPageTurn: (turn) => {
+        if (served) return;
+        served = true;
+        sink.servePageTurn(turn);
+      },
+      // Only ever from the response's own `actions` field, never from the
+      // answer's words: nothing the model writes reaches the board.
+      onActions: (actions) => {
+        if (served || actions.length === 0) return;
+        sink.applyActions(actions);
+      },
     });
-    onDone?.(accumulated);
+    if (!served) onDone?.(accumulated);
   } catch (err) {
     const kind = coachReplyErrorKind(err);
     sink.setError(kind);

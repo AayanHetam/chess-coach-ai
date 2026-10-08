@@ -30,6 +30,11 @@ import {
 } from "@/lib/coach/clientEvals";
 import { resolveQuestionIntent } from "@/lib/coach/questionIntent";
 import {
+  pageTurnKind,
+  parsePageTurn,
+  readPageTurnKinds,
+} from "@/lib/coach/pageActions";
+import {
   buildAnchorBlock,
   anchorAlternativeFen,
   anchorLicensedLines,
@@ -210,6 +215,7 @@ export async function POST(request: NextRequest) {
       fen: clientFen,
       moveIndex,
       clientEvals: clientEvalsRaw,
+      pageActions: pageActionsRaw,
     } = parsed.data;
 
     // API-key presence is validated inside callLLM(); both Anthropic and
@@ -217,6 +223,61 @@ export async function POST(request: NextRequest) {
 
     // === FAST PATH: Context-cached follow-up ===
     if (contextId && userMessage) {
+      // An order the sending page can carry out itself ("flip the board",
+      // "go to move 20": lib/coach/pageActions.ts) is answered here, with no
+      // model call, before the context, the anchor and everything after
+      // them. Only for a page that said which orders it can do, and only for
+      // a whole-message order of one of those kinds; a colour on its own
+      // needs the page's own state (is it asking which side?), so it is
+      // left to the page. The page reads the words first itself, so this is
+      // the backstop for a page whose reading is older than this one; the
+      // response carries the order, never words that claim it was done: the
+      // page writes its own acknowledgement.
+      const pageKinds = readPageTurnKinds(pageActionsRaw);
+      if (pageKinds.length > 0) {
+        const turn = parsePageTurn(userMessage);
+        if (
+          turn &&
+          pageKinds.includes(pageTurnKind(turn)) &&
+          !(
+            turn.type === "preference" &&
+            turn.preference.kind === "side" &&
+            turn.preference.bare
+          )
+        ) {
+          const requestId = extractRequestId(request.headers);
+          const timing = {
+            elapsedMs: Date.now() - startedAt,
+            prepMs: 0,
+            llmMs: 0,
+            refereeMs: 0,
+            retryCount: 0,
+          };
+          log.info("followup_page_turn", {
+            requestId,
+            kind: pageTurnKind(turn),
+          });
+          // Its own branch, so these turns stay out of the follow-up latency medians.
+          log.info("chat_fastpath_timing", {
+            requestId,
+            branch: "page",
+            ...timing,
+          });
+          return NextResponse.json({
+            gameAnalysis: {
+              analysis: "",
+              served: "page",
+              ...(turn.type === "action"
+                ? { actions: [turn.action] }
+                : { preference: turn.preference }),
+              cached: false,
+              fastPath: true,
+              timing,
+            },
+          });
+        }
+      }
+
       const context = getAnalysisContext(contextId);
       if (!context) {
         // Context expired or not found — tell client to fall back to full analysis

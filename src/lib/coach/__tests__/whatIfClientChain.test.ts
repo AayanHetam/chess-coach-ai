@@ -27,6 +27,10 @@ const ROOTS = [
   // The what-if wire type and its verifier: the client builds the payload
   // against it, the route checks it.
   "lib/coach/clientEvals.ts",
+  // Orders the page carries out itself: the words, read on the client and
+  // by the route alike, and the page's plan for them.
+  "lib/coach/pageActions.ts",
+  "components/preview-analysis/pageActionPlan.ts",
 ];
 const FORBIDDEN = ["lib/prompts/", "app/api/"];
 

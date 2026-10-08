@@ -110,6 +110,12 @@ export const chatSchema = z.object({
   // into a 400. Read only on the context-cached fast path, and only under
   // COACH_WHATIF_EVALS; never interpolated into a prompt as sent.
   clientEvals: z.unknown().optional(),
+  // The orders the sending page can carry out itself
+  // (lib/coach/pageActions.ts). Unknown for the same reason: the route
+  // reads it as a list of known kinds and ignores anything else. It only
+  // ever lets the route answer a whole-message order with no model call;
+  // never interpolated into a prompt.
+  pageActions: z.unknown().optional(),
   conversationHistory: z
     .array(
       z.object({
@@ -262,9 +268,7 @@ import { NextResponse } from "next/server";
 export function validateRequest<T>(
   schema: z.ZodType<T>,
   body: unknown
-):
-  | { success: true; data: T }
-  | { success: false; response: NextResponse } {
+): { success: true; data: T } | { success: false; response: NextResponse } {
   const result = schema.safeParse(body);
   if (result.success) {
     return { success: true, data: result.data };

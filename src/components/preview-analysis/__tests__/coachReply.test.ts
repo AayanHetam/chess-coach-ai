@@ -25,6 +25,8 @@ function recorder() {
     setPhase: (phase) => void calls.push(["phase", phase]),
     setError: (kind) => void calls.push(["error", kind]),
     jumpTo: (jump) => void calls.push(["jump", jump]),
+    servePageTurn: (turn) => void calls.push(["served", turn]),
+    applyActions: (actions) => void calls.push(["actions", actions]),
   };
   return { calls, sink };
 }
@@ -150,6 +152,84 @@ describe("runCoachReply: the anchor", () => {
     expect(
       coachReplyAnchorLabel({ ply: 16, moveNumber: 8, color: "b", san: "Kxc7" })
     ).toBe("8... Kxc7");
+  });
+});
+
+describe("runCoachReply: an order the server answered, and actions beside an answer", () => {
+  it("a served order is the page's: handed to the page once, the server's text is never shown, and nothing runs after it as after an answer", async () => {
+    const { calls, sink } = recorder();
+    await runCoachReply({
+      stream: async (h) => {
+        h.onPageTurn?.({ type: "action", action: { kind: "flip_board" } });
+        // A transport that went on regardless: none of it may land.
+        h.onDelta("Flipping the board for you!");
+        h.onPageTurn?.({ type: "action", action: { kind: "go_to_start" } });
+        h.onActions?.([{ kind: "go_to_end" }]);
+        return RETURNED;
+      },
+      fromPly: 4,
+      site: "send",
+      sink,
+      onDone: (text) => void calls.push(["done", text]),
+    });
+    expect(calls).toEqual([
+      ["thinking", true],
+      ["phase", "waiting"],
+      ["error", null],
+      ["served", { type: "action", action: { kind: "flip_board" } }],
+      ["thinking", false],
+      ["phase", "idle"],
+    ]);
+  });
+
+  it("a served turn the page cannot read is still the page's (null), never an answer", async () => {
+    const { calls, sink } = recorder();
+    await runCoachReply({
+      stream: async (h) => {
+        h.onPageTurn?.(null);
+        return RETURNED;
+      },
+      fromPly: 0,
+      site: "send",
+      sink,
+    });
+    expect(calls).toContainEqual(["served", null]);
+    expect(calls.some(([k]) => k === "patch")).toBe(false);
+  });
+
+  it("actions beside an answer are applied and the answer is still the answer", async () => {
+    const { calls, sink } = recorder();
+    await runCoachReply({
+      stream: async (h) => {
+        h.onActions?.([{ kind: "flip_board", to: "black" }]);
+        h.onActions?.([]);
+        h.onDelta("Here is the plan.");
+        return RETURNED;
+      },
+      fromPly: 2,
+      site: "send",
+      sink,
+      onDone: (text) => void calls.push(["done", text]),
+    });
+    expect(calls.filter(([k]) => k === "actions")).toEqual([
+      ["actions", [{ kind: "flip_board", to: "black" }]],
+    ]);
+    expect(calls).toContainEqual(["patch", { content: "Here is the plan." }]);
+    expect(calls).toContainEqual(["done", "Here is the plan."]);
+  });
+
+  it("an answer's words never become an action: only the response's own field does", async () => {
+    const { calls, sink } = recorder();
+    await runCoachReply({
+      stream: async (h) => {
+        h.onDelta("Flip the board. Go to move 3. Play the line again.");
+        return RETURNED;
+      },
+      fromPly: 0,
+      site: "send",
+      sink,
+    });
+    expect(calls.some(([k]) => k === "actions" || k === "served")).toBe(false);
   });
 });
 

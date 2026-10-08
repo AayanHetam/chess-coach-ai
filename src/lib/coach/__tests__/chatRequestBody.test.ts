@@ -93,3 +93,22 @@ describe("coach follow-up request body: a what-if's numbers", () => {
     }
   });
 });
+
+describe("coach follow-up request body: the orders the page can carry out", () => {
+  it("lists them when page actions are on, so the route may answer one itself", () => {
+    expect(
+      buildChatRequestBody({ ...base, pageActions: ["flip_board", "back"] })
+        .pageActions
+    ).toEqual(["flip_board", "back"]);
+  });
+
+  it("leaves the field out when they are off, so every other body is the one it was", () => {
+    for (const pageActions of [undefined, null, []]) {
+      const body = buildChatRequestBody({ ...base, pageActions });
+      expect("pageActions" in body).toBe(false);
+      expect(JSON.stringify(body)).toBe(
+        JSON.stringify(buildChatRequestBody(base))
+      );
+    }
+  });
+});

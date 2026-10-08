@@ -279,4 +279,83 @@ test.describe("the board's rectangle", () => {
     // The outcome is in the conversation, not above the board.
     await expect(page.getByText(/Drill left at puzzle 1 of 1/)).toBeVisible();
   });
+
+  // Orders the page carries out itself (pageActions.ts, behind
+  // NEXT_PUBLIC_COACH_PAGE_ACTIONS: CI builds with it on, a local build
+  // without it skips). A flip, a typed go-to, the coach's jump undone by
+  // "back", and a drill that refuses an order and is left by one: the
+  // board's box does not move for any of them.
+  test("does not move for orders typed to the coach, in a drill or out of one", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await stubEverything(page);
+    await page.goto(`/analysis?pgn=${encodeURIComponent(PGN)}`);
+    const composer = page.getByPlaceholder(
+      "Ask anything — answering without engine analysis."
+    );
+    await expect(composer).toBeVisible({ timeout: 60_000 });
+    const on =
+      (await page
+        .locator("[data-page-actions]")
+        .first()
+        .getAttribute("data-page-actions")) === "on";
+    test.skip(!on && !process.env.CI, "built without page actions");
+    expect(on, "the CI legs build with page actions on").toBe(true);
+    const rest = await boardRect(page);
+    const say = async (text: string, ack: string | RegExp) => {
+      await composer.fill(text);
+      await composer.press("Enter");
+      await expect(
+        page
+          .getByText(ack, typeof ack === "string" ? { exact: true } : {})
+          .last()
+      ).toBeVisible({ timeout: 10_000 });
+    };
+
+    // (The go-to first: with the side unknown, a flip changes whose move
+    // "move 8" is, for the coach and for the page alike.)
+    await say("go to move 8", "Here's 8. Nc7+, White's move 8.");
+    expectSameRect(rest, await boardRect(page), "a typed go-to");
+    await say("flip the board", "Flipped. Black is at the bottom.");
+    expectSameRect(rest, await boardRect(page), "a typed flip");
+    await say("flip", "Flipped. White is at the bottom.");
+
+    // The review, then the coach's jump, then "back" as its way back.
+    await composer.fill("analyse this game");
+    await composer.press("Enter");
+    await expect(page.getByText("simply takes the queen on c1")).toBeVisible({
+      timeout: 30_000,
+    });
+    await say("go to the start", "Back to the start.");
+    await composer.fill("Why was 8. Nc7+ a mistake?");
+    await composer.press("Enter");
+    const jump = page.getByTestId("coach-jump-banner");
+    await expect(jump).toBeVisible({ timeout: 30_000 });
+    await say("back", "Back to the start.");
+    await expect(jump).toHaveCount(0);
+    expectSameRect(rest, await boardRect(page), "back from the coach's jump");
+
+    // A drill owns the board: an order is refused in words, "back" leaves
+    // it, and the drill says so itself (one line, not two).
+    await page.getByText("Practice back rank mate").click();
+    await page.getByText("Back-rank mate", { exact: true }).first().click();
+    await page
+      .getByRole("button", { name: "Load this position onto the main board" })
+      .first()
+      .click();
+    const drill = page.getByTestId("drill-strip-state");
+    await expect(drill).toBeVisible({ timeout: 10_000 });
+    await say(
+      "go to move 3",
+      "You're in a drill. Say “back” to leave it first."
+    );
+    await expect(drill).toBeVisible();
+    expectSameRect(rest, await boardRect(page), "an order refused in a drill");
+    await composer.fill("back");
+    await composer.press("Enter");
+    await expect(drill).toHaveCount(0);
+    await expect(page.getByText(/Drill left at puzzle 1 of 1/)).toBeVisible();
+    expectSameRect(rest, await boardRect(page), "leaving a drill by order");
+  });
 });

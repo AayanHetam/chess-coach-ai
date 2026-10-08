@@ -128,6 +128,15 @@ jobs:
     # 25 gives real headroom over the observed worst case while turning an
     # invisible six-hour wedge into a visible failure you can retry.
     timeout-minutes: 25
+    # Player-visible features ship behind a flag and the Playwright legs run
+    # them on (IDEAL_PRODUCT_PATHWAY.md, "Rules that hold on every PR"). A
+    # NEXT_PUBLIC_ flag is inlined by the build, so it is set for the whole
+    # job: the build below and the specs that check it both see it. Until a
+    # flag's own flip, production builds with it off, so these legs are not
+    # Vercel-parity for it.
+    env:
+      # Orders the page carries out itself (lib/coach/pageActions.ts).
+      NEXT_PUBLIC_COACH_PAGE_ACTIONS: "1"
     steps:
       - uses: actions/checkout@v4
         with:

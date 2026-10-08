@@ -191,7 +191,9 @@ const PAWN_CUE_BEFORE_RE =
 const PAWN_CUE_AFTER_RE = /^\s*(?:instead|rather)\b/i;
 const SET_ASIDE_BEFORE_RE =
   /\b(?:instead\s+of|rather\s+than|in\s+place\s+of)\s*$/i;
-const CONTEXT_BEFORE_RE = /\b(?:after|following)\s*$/i;
+/** "after Bc4", "after my opponent's Bc4", "after White played Bc4": the line the alternative follows. */
+const CONTEXT_BEFORE_RE =
+  /\b(?:after|following)\s+(?:(?:(?:my|the)\s+opponent['’]s|my|his|her|their|white['’]s|black['’]s|the\s+move)\s+|(?:i|he|she|they|we|white|black|(?:my|the)\s+opponent)\s+(?:played|plays|play)\s+|playing\s+)?$/i;
 /** What may stand between the moves of an "after" line: spaces, a comma, "and", "then". */
 const LINE_GAP_RE = /^[\s,]*(?:(?:and\s+)?then\s+|and\s+)?$/i;
 /** "move 8", "my 8th move": a number with no side. */
@@ -208,10 +210,15 @@ const INSTEAD_RE = /\b(?:instead|rather)\b/i;
  * "here is" (a lead-in), and not a bare "next" ("next time" is another game).
  */
 const NEXT_AFTER_RE =
-  /^\s*(?:right\s+)?(?:here(?!['’]s\b|\s+is\b)|now|from\s+here|from\s+this\s+position|in\s+this\s+position|at\s+this\s+point|(?:on\s+the\s+)?next\s+move)\b/i;
-/** "Here, what about Nd5?", "Now Nd5?": the clause that holds the move opens with the cue. */
+  /^\s*(?:(?:be|is|was|been|have\s+been|work|works|worked|good|better|best|ok|okay|possible|playable|stronger|right|correct)\s+){0,3}(?:right\s+)?(?:here(?!['’]s\b|\s+is\b)|now|from\s+here|from\s+this\s+position|in\s+this\s+position|at\s+this\s+point|(?:on\s+the\s+)?next\s+move)\b/i;
+/**
+ * "Here, what about Nd5?", "Now Nd5?", "In this position, is Nd5 good?":
+ * the clause that holds the move opens with the cue and goes straight to
+ * the question. Not "Now, I wonder why not Nd5": "now" there is a word of
+ * the sentence, not the position.
+ */
 const NEXT_CLAUSE_RE =
-  /^\s*(?:(?:so|ok|okay|and|but|well|hmm)[,\s]+)*(?:right\s+)?(?:here(?!['’]s\b|\s+is\b)|now|from\s+here|from\s+this\s+position|in\s+this\s+position|at\s+this\s+point)\b/i;
+  /^\s*(?:(?:so|ok|okay|and|but|well|hmm)[,\s]+)*(?:right\s+)?(?:here(?!['’]s\b|\s+is\b)|now|from\s+here|from\s+this\s+position|in\s+this\s+position|at\s+this\s+point)\s*[,:]?\s*(?:(?:what\s+about|how\s+about|why\s+not|what\s+if|is|was|would|could|should|can|does|do|let['’]?s)\b[^,;]*)?$/i;
 /** "Why X instead of Y?" asks why X was played: Y is the alternative. */
 const WHY_PLAYED_BEFORE_RE =
   /\bwhy\s+(?:(?:did|do|does|would|was|is)\s+(?:(?:i|you|he|she|they|we|white|black|(?:my|the)\s+opponent)\s+)?)?(?:(?:play|go\s+for|choose|pick|push|castle)\s+)?$/i;
@@ -233,7 +240,8 @@ const OWNER_BEFORE_RE =
   /\b((?:my\s+|the\s+)?opponent['’]s|my|his|her|their|white['’]s|black['’]s)\s+$/i;
 const SIDE_AFTER_RE = /^\s*(?:for|by)\s+(white|black)\b/i;
 
-const stripSan = (san: string) => san.replace(/[+#!?]/g, "").toLowerCase();
+/** SAN without its check or comment marks, case kept: Bxc4 is not the pawn's bxc4. */
+const stripSan = (san: string) => san.replace(/[+#!?]/g, "");
 const sameSan = (a: string, b: string) => stripSan(a) === stripSan(b);
 
 /**
@@ -336,8 +344,47 @@ function moveNumberAt(ctx: WhatIfContext, index: number): number | null {
   }
 }
 
-const playedAt = (ctx: WhatIfContext, index: number, san: string) =>
-  !!ctx.sans[index] && sameSan(ctx.sans[index], san);
+/** The game replayed once per question: the position before each ply and the move played from it. */
+const walks = new WeakMap<WhatIfContext, { fens: string[]; ucis: string[] }>();
+function gameWalk(ctx: WhatIfContext): { fens: string[]; ucis: string[] } {
+  const known = walks.get(ctx);
+  if (known) return known;
+  const fens: string[] = [];
+  const ucis: string[] = [];
+  try {
+    const g = ctx.rootFen ? new Chess(ctx.rootFen) : new Chess();
+    for (const san of ctx.sans) {
+      fens.push(g.fen());
+      const m = g.move(san);
+      ucis.push(uciOf(m));
+    }
+  } catch {
+    /* the walk stops at an unplayable move */
+  }
+  const walk = { fens, ucis };
+  walks.set(ctx, walk);
+  return walk;
+}
+
+const DEST_RE = /([a-h][1-8])(?:=[NBRQ])?$/;
+
+/**
+ * Was `san` the game's move at `index`? By its spelling, or as the same move
+ * spelt another way ("Nd5" for Nxd5, "Nd2" for Nbd2 when only one knight
+ * goes there): played on that board, it is the game's move.
+ */
+function playedAt(ctx: WhatIfContext, index: number, san: string): boolean {
+  const played = ctx.sans[index];
+  if (!played) return false;
+  if (sameSan(played, san)) return true;
+  const to = DEST_RE.exec(stripSan(san));
+  if (!to || DEST_RE.exec(stripSan(played))?.[1] !== to[1]) return false;
+  const walk = gameWalk(ctx);
+  const fen = walk.fens[index];
+  if (!fen) return false;
+  const m = tryMove(new Chess(fen), san);
+  return !!m && m.uci === walk.ucis[index];
+}
 
 interface Reading {
   index: number;
@@ -648,7 +695,11 @@ function afterLine(
         (pinned[i] === undefined || pinned[i] === k + i)
     );
     if (!fits) continue;
-    for (const at of instead ? [k + r, k + r - 1] : [k + r]) {
+    // After the line's last move, or in its place with "instead" or a
+    // number that says so ("after 7... Qxc1 8. Nc7+, why not 8. Qxc1?").
+    const places =
+      instead || altIndex === k + r - 1 ? [k + r, k + r - 1] : [k + r];
+    for (const at of places) {
       if (altIndex !== undefined && at !== altIndex) continue;
       if (
         moveNumber !== null &&
@@ -766,6 +817,19 @@ export function resolveWhatIf(
             ? fromPlayedMove(question, named, ctx)
             : fromBoard(question, named[0], ctx);
   if (!reading) return null;
+  // On a what-if's own board, a move that is also the reply there is
+  // asked about that board unless the reading replaces the what-if itself:
+  // the words placed it elsewhere in the game, the reader may mean the
+  // board in front of them, and that is left to the coach.
+  if (ctx.onWhatIf && reading.index !== ctx.onWhatIf.index) {
+    let reply: { uci: string; san: string } | null = null;
+    try {
+      reply = tryMove(new Chess(ctx.onWhatIf.fen), reading.asked.san);
+    } catch {
+      reply = null;
+    }
+    if (reply) return null;
+  }
 
   const { index, board, played } = reading;
   const asked: WhatIfMove = { role: "asked", ...reading.asked };

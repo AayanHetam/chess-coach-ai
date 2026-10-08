@@ -884,7 +884,8 @@ describe("resolveWhatIf: which side the alternative is for", () => {
     expect(ask!.index).toBe(14);
     expect(ask!.asked).toEqual({ role: "asked", uci: "d1c1", san: "Qxc1" });
     expect(whatIfMoveLabel(ask!)).toBe("8. Qxc1");
-    // Both numbered moves played: the first is the one being replaced.
+    // Both numbered at move 8: the one the game played there (Nc7+) is set
+    // aside, the other is the alternative.
     const two = resolveWhatIf(
       "8. Nc7+ instead of 8. Qxc1?",
       ctx({ viewedPly: 0 })
@@ -1161,8 +1162,9 @@ describe("resolveWhatIf: a bare alternative, the cues and the player's side", ()
   it("'here's', 'here is' and 'next time' are not the 'here' cue", () => {
     for (const q of [
       "what about Nd5? next time I'll try it",
-      "what about Nd5, here's my idea",
-      "what about Nd5, here is why",
+      "what about Nd5 here's my idea",
+      "what about Nd5 here is why",
+      "here's the thing, what about Nd5?",
     ])
       expect(resolveWhatIf(q, at7({ playerSideKnown: false })), q).toBeNull();
   });
@@ -1430,6 +1432,57 @@ describe("resolveWhatIf: one reading or nothing", () => {
       "instead of 8. Qxc1 what about Nd6+?",
     ])
       expect(label(q, game(SANS, 15)), q).toBeNull();
+  });
+
+  it("an 'after' line may name who played it, and a numbered alternative may replace its last move", () => {
+    expectAll([
+      [
+        "after my opponent's Bc4, what about Nxe4?",
+        game(OPEN, 7, { playerColor: "b" }),
+        "4... Nxe4 @7",
+      ],
+      [
+        "after White played Bc4, what about Nxe4?",
+        game(OPEN, 7, { playerColor: "b" }),
+        "4... Nxe4 @7",
+      ],
+      [
+        "after 7... Qxc1 8. Nc7+, why not 8. Qxc1?",
+        game(SANS, 15),
+        "8. Qxc1 @14",
+      ],
+    ]);
+  });
+
+  it("a move is the game's by what it does, not by how it is spelt, and case tells a piece from a pawn", () => {
+    // 4. Nxd4 written without its x.
+    expectAll([["why Nd4 instead of Nc3?", game(SANS, 7), "4. Nc3 @6"]]);
+    // 4. bxc4, the pawn's capture; the bishop could have taken.
+    const B3 = "b3 Nc6 e3 Ne5 Nc3 Nc4 bxc4".split(" ");
+    expectAll([["why bxc4 instead of Bxc4?", game(B3, 7), "4. Bxc4 @6"]]);
+  });
+
+  it("'here' after a short predicate is the cue, and 'now' that opens a clause of its own is not", () => {
+    const side = { playerSideKnown: false };
+    expectAll([
+      ["is Nd5 better here?", game(OPEN, 7, side), "4... Nd5 @7"],
+      ["would Nd5 work now?", game(OPEN, 7, side), "4... Nd5 @7"],
+      ["Now, I wonder why not Nd5", game(OPEN, 7, side), "4. Nd5 @6"],
+      ["Here, what about Nd5?", game(OPEN, 7, side), "4... Nd5 @7"],
+    ]);
+  });
+
+  it("on a what-if's own board, a reading elsewhere in the game of a move that is also the reply there draws nothing", () => {
+    const onQxc1 = {
+      ...game(SANS, 14),
+      onWhatIf: { index: 14, fen: FEN_AFTER_8_QXC1 },
+    };
+    // Black's ...Ne5 is a reply on the board shown; "move 9" reads White's
+    // 9. Ne5 in the game. On the mainline it is drawn.
+    expect(label("what about Ne5 on move 9?", onQxc1)).toBeNull();
+    expect(label("what about Ne5 on move 9?", game(SANS, 14))).toBe(
+      "9. Ne5 @16"
+    );
   });
 
   it("on a what-if's own board, a move that is also the reply there is drawn only when the words pick the replacement", () => {

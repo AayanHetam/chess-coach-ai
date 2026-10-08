@@ -130,7 +130,7 @@ export default function Play() {
               >
                 {mode === "lichess"
                   ? "Play your game here. When it's over, bring it to my analysis board and we'll find the turning point together."
-                  : "Load your Chess.com daily games and I'll show you which ones are waiting on your move."}
+                  : "Load your Chess.com games and pick one. I'll walk you through it on my analysis board."}
               </MastiSays>
             </Box>
           </Box>

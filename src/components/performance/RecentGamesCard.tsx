@@ -34,7 +34,13 @@ const RESULT_TONE: Record<string, { color: string; bg: string }> = {
   none: { color: "rgba(255,255,255,0.4)", bg: "rgba(255,255,255,0.04)" },
 };
 
-function GameRow({ game, now }: { game: RecentGame; now: number }) {
+export function RecentGameRow({
+  game,
+  now,
+}: {
+  game: RecentGame;
+  now: number;
+}) {
   const router = useRouter();
   const tone = RESULT_TONE[game.result ?? "none"];
   const when = formatRelativeTime(game.playedAt, now);
@@ -380,7 +386,7 @@ export function RecentGamesCard({
 
       <Box sx={{ mx: -1.25 }}>
         {visible.map((g) => (
-          <GameRow key={g.id} game={g} now={now} />
+          <RecentGameRow key={g.id} game={g} now={now} />
         ))}
       </Box>
 

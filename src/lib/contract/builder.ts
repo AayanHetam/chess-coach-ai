@@ -21,7 +21,7 @@ import { logger } from "@/lib/logging";
 const log = logger.child({ module: "contract-builder" });
 import type { AnyMotif } from "@/lib/tactics";
 import { buildMotifLicense } from "./motifScope";
-import { queryChessdb, type ChessdbResult } from "@/lib/grounding/chessdb";
+import { chessdbWhiteView, queryChessdb, type ChessdbResult } from "@/lib/grounding/chessdb";
 import { compileVoterResult } from "@/lib/grounding/voter";
 import { queryLc0, shouldCallLc0, lc0AgreesWithSf, __isLc0Configured, type Lc0Result } from "@/lib/grounding/lc0";
 import {
@@ -155,10 +155,11 @@ function buildSayables(motifs: AnyMotif[], relational: RelationalFactsBlock | nu
 
 // ── Degraded source wrappers ────────────────────────────────────────────────
 function degradeChessdb(result: ChessdbResult | null): InsightContract["chessdb"] {
-  if (result && result.outcome !== "unknown" && result.score_cp !== null) {
+  const view = result ? chessdbWhiteView(result) : null;
+  if (view) {
     return {
       status: "ok",
-      value: { evalCp: result.score_cp, outcomeText: result.outcome },
+      value: { evalCp: view.cp, mate: view.mate, outcomeText: view.verdict },
       provenance: { source: "chessdb", confidence: "engine_verified" },
     };
   }

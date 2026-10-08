@@ -241,7 +241,10 @@ export interface InsightContract {
   /** Always [] on the game path today — see honesty note. */
   pieceRoleChanges: RoleChange[];
   // Degraded per-insight sources (post PR-A labels)
-  chessdb: Degraded<{ evalCp: number; outcomeText: string }>;
+  /** White-centric like EvalFact — degradeChessdb turns chessdb's side-to-move
+   * score around. evalCp is null for a forced result: `mate` carries an
+   * engine mate, a tablebase result has neither and outcomeText says it. */
+  chessdb: Degraded<{ evalCp: number | null; mate: number | null; outcomeText: string }>;
   syzygy: Degraded<{ category: string; dtmMoves: number | null }>;
   lc0: Degraded<{ evalCp: number; agreesWithSf: boolean }>;
   visibility: Degraded<{ probPlaysBest: number; level: string }>;

@@ -23,6 +23,7 @@ import { ArrowLeft, Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
+import { Masti, type MastiMood } from "@/components/masti";
 import CourseCard from "@/components/courses/CourseCard";
 import CourseShelf from "@/components/courses/CourseShelf";
 import { loadCourseIndex } from "@/lib/courses/load";
@@ -266,11 +267,13 @@ export default function CoursesPage({ entries }: Props) {
 
           {entries.length === 0 ? (
             <Empty
+              mood="defeated"
               title="No courses are built into this deployment"
               body="The generated course files are missing. Nothing is broken on your side."
             />
           ) : visible.length === 0 ? (
             <Empty
+              mood={searching ? "nervous" : "wave"}
               title={searching ? `Nothing matches “${query.trim()}”` : "Nothing here yet"}
               body={
                 filter === "mine"
@@ -317,9 +320,10 @@ function SearchResults({
   );
 }
 
-function Empty({ title, body }: { title: string; body: string }) {
+function Empty({ title, body, mood }: { title: string; body: string; mood?: MastiMood }) {
   return (
     <Box sx={{ py: 8, maxWidth: 520 }}>
+      {mood && <Masti mood={mood} size={110} loops={2} decorative style={{ marginBottom: 12 }} />}
       <Typography sx={{ color: "#fff", fontSize: "1.05rem", fontWeight: 700, mb: 0.75 }}>{title}</Typography>
       <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.9rem", lineHeight: 1.6 }}>{body}</Typography>
     </Box>

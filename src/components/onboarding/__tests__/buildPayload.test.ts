@@ -6,8 +6,11 @@ import {
   derivedRating,
   derivedFocusThemes,
   emptyAnswers,
+  isQuizHandleValid,
   QuizAnswers,
 } from "../quizConfig";
+import { emptyPerfDrafts } from "@/lib/curriculum/perfGoalDrafts";
+import { hasCompleteGoal } from "@/lib/curriculum/goalPatch";
 
 function answers(partial: Partial<QuizAnswers>): QuizAnswers {
   return { ...emptyAnswers(), ...partial };
@@ -299,5 +302,156 @@ describe("the promised target date", () => {
     );
     expect("goalTargetDate" in p).toBe(false);
     expect("goalStartRating" in p).toBe(false);
+  });
+});
+
+describe("per-control goals from the quiz", () => {
+  const withGoals = (
+    over: Partial<Record<"bullet" | "blitz" | "rapid", { start: string; goal: string }>>
+  ) => ({ ...emptyPerfDrafts(), ...over });
+
+  it("stores each control's target and an overall goal derived from one anchor", () => {
+    // The platform branch asks control by control, so buildPayload routes
+    // through buildPerfGoalPatch. The overall pair still has to come out,
+    // because it is what GoalProgressCard and the trend forecast read.
+    const p = buildPayload(
+      answers({
+        playStyle: "chesscom",
+        username: "aayan",
+        time: "30-plus",
+        daysPerWeek: 4,
+        perfDrafts: withGoals({
+          blitz: { start: "1425", goal: "1600" },
+          rapid: { start: "1815", goal: "2000" },
+        }),
+      }),
+      1815,
+      { platform: "chesscom", perf: "rapid" }
+    );
+    expect(p.perfGoals).toEqual({
+      blitz: { start: 1425, goal: 1600 },
+      rapid: { start: 1815, goal: 2000 },
+    });
+    // Anchored on the control the platform rating came from.
+    expect(p.goalStartRating).toBe(1815);
+    expect(p.goalRating).toBe(2000);
+    // And renderable, which is the whole point of writing it at all.
+    expect(hasCompleteGoal(p)).toBe(true);
+  });
+
+  it("falls back to the highest established control when the anchor sat one out", () => {
+    // selectCalibrationRating's "highest established rating wins", applied to
+    // whichever controls the user actually aimed at.
+    const p = buildPayload(
+      answers({
+        playStyle: "chesscom",
+        time: "30-plus",
+        daysPerWeek: 4,
+        perfDrafts: withGoals({
+          bullet: { start: "1271", goal: "1400" },
+          rapid: { start: "1815", goal: "2000" },
+        }),
+      }),
+      1815,
+      { platform: "chesscom", perf: "classical" }
+    );
+    expect(p.goalStartRating).toBe(1815);
+  });
+
+  it("writes no goal at all when the form was left blank", () => {
+    // Absent, not zero. Skipping the step is a legitimate answer and /profile
+    // asks again.
+    const p = buildPayload(
+      answers({
+        playStyle: "chesscom",
+        time: "30-plus",
+        daysPerWeek: 4,
+        perfDrafts: emptyPerfDrafts(),
+      }),
+      1815,
+      { platform: "chesscom", perf: "rapid" }
+    );
+    expect("perfGoals" in p).toBe(false);
+    expect("goalRating" in p).toBe(false);
+    expect("goalTargetDate" in p).toBe(false);
+    // The schedule is still theirs, and the daily planner needs it.
+    expect(p.dailyTimeCommitment).toBe("30-plus");
+    expect(p.practiceDaysPerWeek).toBe(4);
+  });
+
+  it("refuses the whole patch rather than keeping the controls that parsed", () => {
+    // "We kept two of your three goals" is not a thing any screen says, and
+    // the step blocks this shape anyway — this is the second line of defence.
+    const p = buildPayload(
+      answers({
+        playStyle: "chesscom",
+        time: "30-plus",
+        daysPerWeek: 4,
+        perfDrafts: withGoals({
+          blitz: { start: "1425", goal: "1600" },
+          rapid: { start: "1815", goal: "1700" }, // downward
+        }),
+      }),
+      1815,
+      { platform: "chesscom", perf: "rapid" }
+    );
+    expect("perfGoals" in p).toBe(false);
+    expect("goalRating" in p).toBe(false);
+  });
+
+  it("drops them when the user backed up and left the platform branch", () => {
+    // Back does not clear answers, so the draft still carries what they typed
+    // on the chess.com branch. Writing it anyway would store per-control goals
+    // from a form they can no longer see, on a scale they are no longer on.
+    const p = buildPayload(
+      answers({
+        playStyle: "otb",
+        selfAssess: { years: 2, spot: 2, tournaments: 2 },
+        time: "30-plus",
+        daysPerWeek: 4,
+        perfDrafts: withGoals({ blitz: { start: "1425", goal: "1600" } }),
+      })
+    );
+    expect("perfGoals" in p).toBe(false);
+  });
+
+  it("reads lichess numbers on the lichess scale", () => {
+    // Lichess runs ~200 points hot against the calibration scale, so storing
+    // a raw lichess 2000 as the overall goal would move the target.
+    const raw = { rapid: { start: "1815", goal: "2000" } };
+    const lichess = buildPayload(
+      answers({ playStyle: "lichess", time: "30-plus", daysPerWeek: 4, perfDrafts: withGoals(raw) }),
+      undefined,
+      { platform: "lichess", perf: "rapid" }
+    );
+    const chesscom = buildPayload(
+      answers({ playStyle: "chesscom", time: "30-plus", daysPerWeek: 4, perfDrafts: withGoals(raw) }),
+      undefined,
+      { platform: "chesscom", perf: "rapid" }
+    );
+    expect(lichess.goalRating).not.toBe(chesscom.goalRating);
+    // The per-control numbers stay RAW either way — they are what we show.
+    expect(lichess.perfGoals).toEqual(chesscom.perfGoals);
+  });
+});
+
+describe("isQuizHandleValid", () => {
+  it("treats no handle as fine — the step is optional", () => {
+    expect(isQuizHandleValid(undefined)).toBe(true);
+    expect(isQuizHandleValid("  ")).toBe(true);
+  });
+
+  it("applies the same format rules the claim will", () => {
+    expect(isQuizHandleValid("lazerwizard")).toBe(true);
+    expect(isQuizHandleValid("ab")).toBe(false);
+    expect(isQuizHandleValid("admin")).toBe(false);
+    expect(isQuizHandleValid("has spaces")).toBe(false);
+  });
+
+  it("never smuggles the handle into the profile patch", () => {
+    // Claiming is an atomic transaction on its own endpoint, and the profile
+    // PATCH route refuses the field — folding it in would silently drop it.
+    const p = buildPayload(answers({ playStyle: "new", handle: "lazerwizard" }));
+    expect("handle" in p).toBe(false);
   });
 });

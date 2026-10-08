@@ -28,6 +28,7 @@ import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 import { pieceSetAtom } from "@/components/board/states";
 import { Pill } from "@/components/courses/ChapterRow";
+import { Masti, MastiAvatar } from "@/components/masti";
 import { endWords, evalWords, numbered } from "@/lib/courses/lines";
 import { sourceWords } from "@/lib/courses/probes";
 import { branchesOf, defaultBranch, replay, type Branch } from "@/lib/courses/walk";
@@ -244,10 +245,20 @@ export default function ChapterReaderPage(props: Props) {
               }}
             >
               {!node ? (
-                <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.88rem", lineHeight: 1.6 }}>
-                  The course stops here. Past this point nobody in the corpus went often enough for
-                  us to call anything theory.
-                </Typography>
+                <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+                  {/* The end of the book is a takeaway, not a fault, so Masti
+                      has an idea. The copy beside him says so; he is decorative. */}
+                  <Masti mood="idea" size={64} loops={2} decorative />
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.88rem", lineHeight: 1.6 }}>
+                      The course stops here. Past this point nobody in the corpus went often enough for
+                      us to call anything theory.
+                    </Typography>
+                    <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.8rem", lineHeight: 1.6, mt: 0.75 }}>
+                      That is the end of what I can teach here. From this move on, it is your game.
+                    </Typography>
+                  </Box>
+                </Box>
               ) : ourTurn ? (
                 <OurMove node={node} side={props.side} />
               ) : (
@@ -260,18 +271,32 @@ export default function ChapterReaderPage(props: Props) {
               )}
 
               {node?.end && (
-                <Box data-testid="reader-end">
-                  <Label>The line stops</Label>
-                  <Typography sx={{ color: "rgba(255,255,255,0.66)", fontSize: "0.86rem", mt: 0.5 }}>
-                    {endWords(node.end as Termination)}
-                  </Typography>
+                <Box data-testid="reader-end" sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+                  {/* The end of a line is the chapter's finished state, and a
+                      takeaway, so Masti has an idea. In the panel, never on the
+                      board; the copy beside him says it, so he is decorative. */}
+                  <Masti mood="idea" size={64} loops={2} decorative data-testid="reader-end-masti" />
+                  <Box sx={{ minWidth: 0 }}>
+                    <Label>The line stops</Label>
+                    <Typography sx={{ color: "rgba(255,255,255,0.66)", fontSize: "0.86rem", mt: 0.5 }}>
+                      {endWords(node.end as Termination)}
+                    </Typography>
+                    <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.8rem", lineHeight: 1.6, mt: 0.75 }}>
+                      {endLine(node.end as Termination)}
+                    </Typography>
+                  </Box>
                 </Box>
               )}
 
               {/* Verbatim, attributed, never rewritten. */}
               {theory && (
                 <Box data-testid="reader-theory">
-                  <Label>{theory.name ? `The theory — ${theory.name}` : "The theory"}</Label>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                    {/* A quoted lesson, so the coach's face is an idea. A still:
+                        this block re-renders on every step through the line. */}
+                    <MastiAvatar mood="idea" size={20} ring={false} />
+                    <Label>{theory.name ? `The theory — ${theory.name}` : "The theory"}</Label>
+                  </Box>
                   {theory.excerpt.split(/\n{2,}/).map((para, i) => (
                     <Typography
                       key={i}
@@ -386,6 +411,22 @@ export default function ChapterReaderPage(props: Props) {
 function evalNote(cp: number | undefined, side: "white" | "black"): string | null {
   const words = evalWords(cp ?? null, side);
   return words && words !== "balanced" ? `The engine calls this ${words}` : null;
+}
+
+/**
+ * Masti's word on why a line stops, in his voice. One sentence each, and
+ * nothing a reader could take for analysis: the reason is the course's own
+ * termination, never a judgement on the position.
+ */
+function endLine(end: Termination): string {
+  switch (end) {
+    case "depth":
+      return "That is as deep as I take you for now. It grows with your rating, so come back when it does.";
+    case "wall":
+      return "The games run out here, so my book does too. From this move on, it is your game.";
+    case "pruned":
+      return "Almost nobody plays this, so I will not drill it. Meet it over the board and sound chess will do.";
+  }
 }
 
 /** Our move, and everything that is true about it. */

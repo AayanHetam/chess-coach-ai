@@ -18,6 +18,7 @@ import { Chessboard } from "react-chessboard";
 import { Chess, Square } from "chess.js";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useScreenSize } from "@/hooks/useScreenSize";
+import { useLostDragRecovery } from "@/hooks/useLostDragRecovery";
 import { pieceSetAtom } from "@/components/board/states";
 import { Piece, CustomPieces } from "react-chessboard/dist/chessboard/types";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -43,6 +44,9 @@ interface PatternTrainingProps {
 // their own copy with the same silent-truncation bug on long puzzles.
 
 export default function PatternTraining({ onBack }: PatternTrainingProps) {
+  // A drag the browser never finishes leaves the lifted square empty and a
+  // phantom piece frozen over the board, until this puts it back.
+  useLostDragRecovery();
   const screenSize = useScreenSize();
   const pieceSet = useAtomValue(pieceSetAtom);
 

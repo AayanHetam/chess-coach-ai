@@ -34,6 +34,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { BookOpen, Check, ChevronRight, Pencil, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Masti, MastiAvatar, type MastiMood } from "@/components/masti";
 import { resolveUserRating } from "@/lib/coach/userRating";
 import { bandFor, nextBand, sufficiency, verdict, type Band } from "@/lib/repertoire/levels";
 import { provenanceOf } from "@/lib/repertoire/provenance";
@@ -271,6 +272,7 @@ export default function LearnPage() {
     return (
       <Shell>
         <Empty
+          mood="defeated"
           title="The opening map is not loading"
           body="Nothing is lost — anything you have already chosen is saved on this device. Try again in a moment."
         />
@@ -280,7 +282,7 @@ export default function LearnPage() {
   if (!map || !hydrated) {
     return (
       <Shell>
-        <Empty title="Reading the opening map" body="Three and a half million games' worth." />
+        <Empty mood="thinking" title="Reading the opening map" body="Three and a half million games' worth." />
       </Shell>
     );
   }
@@ -1240,6 +1242,7 @@ function Note({ children, tone }: { children: React.ReactNode; tone?: "good" | "
       }}
     >
       {tone === "good" && <Check size={13} aria-hidden />}
+      {tone === "warn" && <MastiAvatar mood="nervous" size={18} ring={false} />}
       <span>{children}</span>
     </Typography>
   );
@@ -1532,9 +1535,14 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Empty({ title, body }: { title: string; body: string }) {
+function Empty({ title, body, mood }: { title: string; body: string; mood?: MastiMood }) {
   return (
     <Box sx={{ maxWidth: 520, mx: "auto", px: 3, py: 10 }}>
+      {/* Masti reads while the map loads and is dizzy when it will not; the
+          copy underneath already says which, so he is decorative. */}
+      {mood && (
+        <Masti mood={mood} size={120} loops={mood === "thinking" ? 0 : 2} decorative style={{ marginBottom: 12 }} />
+      )}
       <Typography sx={{ color: "#fff", fontSize: "1.1rem", fontWeight: 700, mb: 1 }}>{title}</Typography>
       <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.92rem", lineHeight: 1.65 }}>{body}</Typography>
     </Box>

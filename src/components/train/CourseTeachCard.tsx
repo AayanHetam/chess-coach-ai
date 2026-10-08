@@ -33,6 +33,7 @@ import type { CourseProbe } from "@/lib/courses/probes";
 import { sourceWords } from "@/lib/courses/probes";
 import { cpForSide, evalWords } from "@/lib/courses/lines";
 import type { OpeningTheory } from "@/types/theory";
+import { MastiAvatar } from "@/components/masti";
 
 const EMBER = "#FB923C";
 const MONO = "ui-monospace, SFMono-Regular, monospace";
@@ -64,6 +65,12 @@ export function CourseTeachCard({ probe, played, side, theory, onContinue }: Cou
           color: "rgba(255,255,255,0.92)",
         }}
       >
+        <MastiAvatar
+          mood="idea"
+          size={24}
+          ring={false}
+          style={{ verticalAlign: "middle", marginRight: 8 }}
+        />
         Not the course move.
       </Typography>
 

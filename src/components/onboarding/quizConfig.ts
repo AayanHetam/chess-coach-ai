@@ -7,7 +7,15 @@
 
 import type { UserProfileUpdates } from "@/lib/firestoreUsers";
 import { QUIZ_GOAL_OPTIONS } from "./quizThemes";
-import { buildGoalPatch } from "@/lib/curriculum/goalPatch";
+import { buildGoalPatch, buildPerfGoalPatch } from "@/lib/curriculum/goalPatch";
+import {
+  anyPerfGoalSet,
+  emptyPerfDrafts,
+  parsePerfDrafts,
+  type PerfDrafts,
+} from "@/lib/curriculum/perfGoalDrafts";
+import { checkHandle } from "@/lib/auth/handle";
+import type { Platform } from "@/lib/rating/platformRatings";
 // Re-exported so the many existing `from "./quizConfig"` imports keep working
 // while the definition itself lives outside the quizConfig/goalPatch cycle.
 export {
@@ -44,8 +52,27 @@ export interface QuizAnswers {
   goals: string[];
   // Daily time budget:
   time?: TimeCommitment;
-  /** Target rating — the question the whole plan is built around. */
+  /**
+   * Target rating — the question the whole plan is built around.
+   *
+   * Asked only on the SELF-ASSESSMENT branch, where there is one coarse
+   * rating and so only one goal worth naming. Platform players answer
+   * `perfDrafts` instead: they have a real number per time control, and one
+   * blended goal across bullet, blitz and rapid is a target for a player who
+   * does not exist.
+   */
   goalRating?: number;
+  /**
+   * Per-control current/goal ratings, as typed. Strings on purpose — this is
+   * a form draft that survives a refresh, and a half-entered "14" is a legal
+   * intermediate state rather than the number fourteen.
+   */
+  perfDrafts: PerfDrafts;
+  /**
+   * The public handle they want. Claimed AFTER auth (the claim is a
+   * transaction on a session), so at quiz time this is only format-checked.
+   */
+  handle?: string;
   /** Days per week they intend to practise (1-7). */
   daysPerWeek?: number;
   /**
@@ -58,7 +85,21 @@ export interface QuizAnswers {
 }
 
 export function emptyAnswers(): QuizAnswers {
-  return { selfAssess: {}, goals: [], dailyReminder: true, daysPerWeek: 4 };
+  return {
+    selfAssess: {},
+    goals: [],
+    dailyReminder: true,
+    daysPerWeek: 4,
+    perfDrafts: emptyPerfDrafts(),
+  };
+}
+
+/** Format-only handle check, for the pre-auth quiz step. Empty is fine —
+ *  picking a handle is optional and /profile asks again for anyone who skips. */
+export function isQuizHandleValid(handle: string | undefined): boolean {
+  const typed = (handle ?? "").trim();
+  if (typed.length === 0) return true;
+  return checkHandle(typed).ok;
 }
 
 /** Days-per-week choices for the practice-frequency step. */
@@ -225,6 +266,17 @@ export function derivedFocusThemes(answers: QuizAnswers): string[] {
 }
 
 /**
+ * Where the per-control numbers came from, so the builder can read them on the
+ * right scale. Absent means "typed by hand", which normalizeRating treats as
+ * the chess.com scale — the conservative reading of an unlabelled number.
+ */
+export interface QuizGoalAnchor {
+  platform?: Platform;
+  /** The control the platform's headline rating was taken from. */
+  perf?: string;
+}
+
+/**
  * Build the single profile patch written after auth. Mirrors the
  * handleSaveUsernames discipline: omit empty/undefined keys so we never clobber
  * an existing value with a blank, and only include studyGoals when the quiz
@@ -240,7 +292,8 @@ export function derivedFocusThemes(answers: QuizAnswers): string[] {
  */
 export function buildPayload(
   answers: QuizAnswers,
-  currentRating?: number
+  currentRating?: number,
+  anchor?: QuizGoalAnchor
 ): UserProfileUpdates {
   const payload: UserProfileUpdates = {};
 
@@ -271,8 +324,6 @@ export function buildPayload(
   if (studyGoals.length > 0) payload.studyGoals = studyGoals;
 
   if (answers.time) payload.dailyTimeCommitment = answers.time;
-  if (typeof answers.goalRating === "number")
-    payload.goalRating = answers.goalRating;
   if (typeof answers.daysPerWeek === "number") {
     payload.practiceDaysPerWeek = answers.daysPerWeek;
   }
@@ -289,13 +340,44 @@ export function buildPayload(
   // Prefer the anchor the projection was actually SHOWN from; fall back to the
   // self-assessed one. Never fabricate — if neither exists (lookup 404'd, or
   // no established rating) buildGoalPatch returns null and nothing is written.
-  const goalPatch = buildGoalPatch({
-    currentRating: currentRating ?? derivedRating(answers),
-    goalRating: answers.goalRating,
-    time: answers.time,
-    daysPerWeek: answers.daysPerWeek,
-  });
-  if (goalPatch) Object.assign(payload, goalPatch);
+  //
+  // Platform players answer control by control, so their patch comes from
+  // buildPerfGoalPatch — which picks an anchor control, normalizes it onto the
+  // calibration scale, and then delegates to buildGoalPatch anyway. Still one
+  // assembler; only the number of questions in front of it differs.
+  //
+  // Gated on the branch, like the username above it. Going Back and switching
+  // play style leaves the old branch's answers in the draft: without this, a
+  // player who typed chess.com goals and then said "over the board" would have
+  // per-control targets written from a form they can no longer see, read on a
+  // platform scale they are no longer on.
+  const perfPatch =
+    usesPlatformPath(answers.playStyle) && anyPerfGoalSet(answers.perfDrafts)
+      ? buildPerfGoalPatch({
+          drafts: parsePerfDrafts(answers.perfDrafts),
+          platform: anchor?.platform,
+          anchorPerf: anchor?.perf,
+          time: answers.time,
+          daysPerWeek: answers.daysPerWeek,
+        })
+      : null;
+
+  if (perfPatch) {
+    Object.assign(payload, perfPatch);
+  } else {
+    // A goal with no schedule behind it still belongs to the user — it is the
+    // DATE that cannot be invented, not the target. Written before the patch
+    // so it survives a projection the model refuses to make.
+    if (typeof answers.goalRating === "number")
+      payload.goalRating = answers.goalRating;
+    const goalPatch = buildGoalPatch({
+      currentRating: currentRating ?? derivedRating(answers),
+      goalRating: answers.goalRating,
+      time: answers.time,
+      daysPerWeek: answers.daysPerWeek,
+    });
+    if (goalPatch) Object.assign(payload, goalPatch);
+  }
 
   // Always written, both ways: an explicit false is the user declining, which
   // must be recorded rather than left undefined and re-asked.

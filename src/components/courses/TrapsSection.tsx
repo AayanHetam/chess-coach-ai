@@ -18,12 +18,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { Box, Typography } from "@mui/material";
-import { AlertTriangle, Crosshair } from "lucide-react";
 import OpeningDiagram from "@/components/learn/OpeningDiagram";
+import { MastiAvatar } from "@/components/masti";
 import type { CourseTraps } from "@/lib/book/traps";
 import type { Trap } from "@/types/traps";
 
-const EMBER = "#FB923C";
 const MONO = '"SF Mono", ui-monospace, Menlo, monospace';
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
@@ -70,9 +69,12 @@ export default function TrapsSection({ traps, side }: TrapsSectionProps) {
         are moves that get played often and then lose — no engine was asked for an opinion.
       </Typography>
 
+      {/* Masti reads the two lists the way the reader should: worried by the
+          moves that cost you, lit up by the ones that cost them. Stills, as
+          every avatar is. */}
       {traps.yours.length > 0 && (
         <Group
-          icon={<AlertTriangle size={14} color={EMBER} aria-hidden />}
+          icon={<MastiAvatar mood="nervous" size={22} ring={false} />}
           title="What you are most likely to fall for"
           traps={traps.yours}
           total={traps.totalYours}
@@ -82,7 +84,7 @@ export default function TrapsSection({ traps, side }: TrapsSectionProps) {
       )}
       {traps.theirs.length > 0 && (
         <Group
-          icon={<Crosshair size={14} color="rgba(255,255,255,0.45)" aria-hidden />}
+          icon={<MastiAvatar mood="idea" size={22} ring={false} />}
           title="What your opponents fall for"
           traps={traps.theirs}
           total={traps.totalTheirs}

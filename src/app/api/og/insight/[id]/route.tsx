@@ -1,4 +1,6 @@
 import { ImageResponse } from "next/og";
+import { brandMarkOgDataUri } from "@/lib/og/brand";
+import { mastiOgDataUri } from "@/lib/og/masti";
 import { getInsight } from "@/lib/insights";
 import { excerptCoachContent } from "@/lib/og/excerptCoachContent";
 import {
@@ -75,6 +77,9 @@ export async function GET(
 
   const board = parseFenToBoard(fen);
 
+  const masti = mastiOgDataUri("idea");
+  const brand = brandMarkOgDataUri();
+
   return new ImageResponse(
     (
       <div
@@ -90,6 +95,16 @@ export async function GET(
           fontFamily: "system-ui, sans-serif",
         }}
       >
+        {/* Masti, top-right, above the header pill (the row keeps 116px clear). */}
+        {masti && (
+          <img
+            src={masti}
+            alt=""
+            width={96}
+            height={120}
+            style={{ position: "absolute", right: 40, top: 16 }}
+          />
+        )}
         {/* Header */}
         <div
           style={{
@@ -97,25 +112,14 @@ export async function GET(
             alignItems: "center",
             justifyContent: "space-between",
             marginBottom: 24,
+            paddingRight: 116,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                backgroundColor: EMBER,
-                color: BG,
-                fontSize: 24,
-                fontWeight: 800,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              CM
-            </div>
+            {brand && (
+              // eslint-disable-next-line @next/next/no-img-element -- satori draws a plain img from a data URI
+              <img src={brand} alt="" width={40} height={40} />
+            )}
             <div
               style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}
             >

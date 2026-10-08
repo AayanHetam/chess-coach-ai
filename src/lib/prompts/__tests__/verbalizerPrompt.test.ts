@@ -17,9 +17,9 @@ import { renderInsightHeader } from "@/lib/contract/insightGrammar";
 import { makeContract, makeInsight } from "@/lib/contract/__tests__/insightFactory";
 
 describe("version topology (tech-lead decision #1)", () => {
-  it("verbalizer is 4.1 (line stories) and legacy stays 3.6 — never bumped by this program", () => {
+  it("verbalizer is 4.1 (line stories) and legacy is 3.7 — never bumped by this program", () => {
     expect(VERBALIZER_PROMPT_VERSION).toBe("4.1");
-    expect(PROMPT_VERSION).toBe("3.6");
+    expect(PROMPT_VERSION).toBe("3.7");
   });
 });
 

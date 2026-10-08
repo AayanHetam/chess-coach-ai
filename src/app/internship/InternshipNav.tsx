@@ -2,6 +2,7 @@
 
 import { Box, Button, Container, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 export default function InternshipNav() {
   const [scrolled, setScrolled] = useState(false);
@@ -42,7 +43,7 @@ export default function InternshipNav() {
             textDecoration: "none",
           }}
         >
-          <img src="/logo.svg" width={32} height={32} alt="Chess Masti" />
+          <BrandMark size={32} />
           <Typography
             variant="h6"
             sx={{
@@ -54,7 +55,7 @@ export default function InternshipNav() {
               fontSize: "1.1rem",
             }}
           >
-            Chess Coach AI
+            Chess Masti
           </Typography>
         </Box>
 

@@ -2,7 +2,8 @@
 
 import { Box, Typography } from "@mui/material";
 import { motion } from "framer-motion";
-import { Sparkles, User } from "lucide-react";
+import { User } from "lucide-react";
+import { MastiAvatar, type MastiMood } from "@/components/masti";
 import { PuzzleCoachMiniboard } from "./PuzzleCoachMiniboard";
 import { GlossifiedText } from "./ChessTermGlossary";
 import { DemoMoveCard } from "./DemoMoveCard";
@@ -50,6 +51,8 @@ interface PuzzleCoachBubbleProps {
    *  popover surfaces a "Show on board" button. (PR-C.3) */
   mentions?: TermMention[];
   onShowCoachHighlight?: (highlight: CoachHighlight) => void;
+  /** Masti's face beside a coach bubble. Streaming always shows "thinking". */
+  mood?: MastiMood;
 }
 
 /** Render coach content with inline miniboards / demo cards in place of tags. */
@@ -144,6 +147,7 @@ export function PuzzleCoachBubble({
   onCoachDemoRequest,
   mentions,
   onShowCoachHighlight,
+  mood,
 }: PuzzleCoachBubbleProps) {
   const isUser = role === "user";
 
@@ -162,30 +166,31 @@ export function PuzzleCoachBubble({
           mb: 2,
         }}
       >
-        <Box
-          sx={{
-            flexShrink: 0,
-            width: 28,
-            height: 28,
-            borderRadius: "50%",
-            background: isUser
-              ? "rgba(255,122,26,0.18)"
-              : "rgba(22,18,14,0.7)",
-            border: isUser
-              ? "1px solid rgba(255,122,26,0.35)"
-              : "1px solid rgba(255,255,255,0.08)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            mt: 0.25,
-          }}
-        >
-          {isUser ? (
+        {isUser ? (
+          <Box
+            sx={{
+              flexShrink: 0,
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              background: "rgba(255,122,26,0.18)",
+              border: "1px solid rgba(255,122,26,0.35)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              mt: 0.25,
+            }}
+          >
             <User size={14} color="#FFD1A8" />
-          ) : (
-            <Sparkles size={14} color="#FF7A1A" />
-          )}
-        </Box>
+          </Box>
+        ) : (
+          <MastiAvatar
+            mood={streaming ? "thinking" : (mood ?? "idea")}
+            size={28}
+            ring={false}
+            style={{ marginTop: 2 }}
+          />
+        )}
 
         <Box
           sx={{
@@ -263,21 +268,9 @@ export function PuzzleCoachThinkingBubble() {
           mb: 2,
         }}
       >
-        <Box
-          sx={{
-            flexShrink: 0,
-            width: 28,
-            height: 28,
-            borderRadius: "50%",
-            background: "rgba(22,18,14,0.7)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Sparkles size={14} color="#FF7A1A" />
-        </Box>
+        {/* Loops while visible: the bubble unmounts on the first token, so
+            this is the one place an endless loop is the right length. */}
+        <MastiAvatar mood="thinking" size={28} ring={false} animated loops={0} />
         <Box
           sx={{
             px: 1.75,

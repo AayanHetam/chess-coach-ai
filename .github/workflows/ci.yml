@@ -104,6 +104,20 @@ jobs:
 
   build-and-e2e:
     runs-on: ubuntu-latest
+    # Split 2026-09-22 into one leg per Playwright project. On the 2-core
+    # runner the two projects together took 19 minutes in the E2E step and
+    # every run since 2026-09-21, main's included, was cancelled at the
+    # 25-minute job budget with every reached test passing: a green suite
+    # that never finished. Each leg now runs one project, about half the
+    # wall clock, inside the same budgets. The validator gate and the
+    # contract smoke do not depend on the project, so they run in the
+    # desktop leg only. fail-fast is off so a red phone leg never hides a
+    # green desktop one, or the other way round.
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [local-desktop-light, local-mobile-light]
+    name: build-and-e2e (${{ matrix.project }})
     # A healthy run is ~9-12 minutes. Without this the job inherits GitHub's
     # 6-hour default, and on 2026-08-19 that is exactly what happened: four
     # runs — including main's own post-merge run — sat wedged for 5+ hours
@@ -132,6 +146,7 @@ jobs:
       # against silent bit-rot (the eval harnesses in scripts/eval/ are
       # manual/API-billed and can't run here; this is the free floor).
       - name: Validator gate (deterministic fixtures)
+        if: matrix.project == 'local-desktop-light'
         run: npx tsx scripts/mastermind/validator-gate-dryrun.ts
 
       # Contract-fidelity smoke (PR-CI-2) — builds CoachContracts for the 10
@@ -139,6 +154,7 @@ jobs:
       # fabrications with zero false fires on the clean control. No network;
       # the live BEFORE/AFTER baseline runs stay manual (API-billed).
       - name: Contract fidelity smoke (--dry-run, no network)
+        if: matrix.project == 'local-desktop-light'
         run: npx tsx scripts/eval/contract_fidelity_eval.ts --dry-run
 
       # Vercel-parity gate. Vercel runs `next build` (which runs eslint with
@@ -181,6 +197,10 @@ jobs:
       # the old ceiling had passed 343 tests and failed none. The budget is here
       # to catch a HANG, so it wants headroom over the honest runtime, not a
       # number the suite is about to grow into again.
-      - name: E2E critical journeys
+      #
+      # One project per leg since 2026-09-22 (see the job comment): a single
+      # project is about 9-10 minutes on the runner, so 20 is the same 2x
+      # headroom this budget was sized for when it was set.
+      - name: E2E critical journeys (${{ matrix.project }})
         timeout-minutes: 20
-        run: npx playwright test --project=local-desktop-light --project=local-mobile-light
+        run: npx playwright test --project=${{ matrix.project }}

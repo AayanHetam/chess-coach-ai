@@ -25,8 +25,13 @@ import { chessMastiDarkTheme } from "@/theme/chessMasti";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import { ACCENTS, type Accent } from "@/components/ui/accents";
-import { puzzleStatsAtom, puzzleRushScoresAtom } from "@/lib/puzzleRating";
+import {
+  getSolveRate,
+  puzzleStatsAtom,
+  puzzleRushScoresAtom,
+} from "@/lib/puzzleRating";
 import { coordinateTrainerBestAtom } from "@/lib/coordinateTrainer";
+import { MastiSays, scoreMood } from "@/components/masti";
 
 /**
  * /practice — a thin modes hub.
@@ -57,6 +62,23 @@ export default function Practice() {
     rushScores.survivalBest,
   );
   const coordinateBest = useAtomValue(coordinateTrainerBestAtom);
+
+  // Masti greets the hub from the solve rate the page already shows (the
+  // Puzzles card and PuzzleStats read the same atom): no attempts is a wave,
+  // a strong rate a celebration, a weak one a worried face. He reads the
+  // stats, never a board.
+  const heroMood = scoreMood(stats.totalSolved, stats.totalAttempts);
+  const solveRate = getSolveRate(stats);
+  const heroLine =
+    heroMood === "excited"
+      ? `You're solving ${solveRate}% of your puzzles. Pick a mode and let's push it higher.`
+      : heroMood === "idea"
+        ? `${solveRate}% solved so far. Every miss has one idea in it, and I'll point it out.`
+        : heroMood === "nervous"
+          ? `${solveRate}% solved. Check every capture and every check before you move, and that number climbs.`
+          : heroMood === "defeated"
+            ? "Nothing solved yet. Every player starts here. Let's find your first one."
+            : "Nothing on the scoreboard yet. Pick a mode and I'll keep count.";
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -240,34 +262,63 @@ export default function Practice() {
         <NavPill active="practice" />
 
         <Box sx={{ width: "100%", maxWidth: 1120, mx: "auto", py: { xs: 2, md: 3 } }}>
-          <Typography
+          <Box
             sx={{
-              fontWeight: 700,
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              fontSize: "0.72rem",
-              color: VIOLET.bright,
-              mb: 0.75,
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "flex-end",
+              justifyContent: "space-between",
+              gap: 2,
+              mb: 4,
             }}
           >
-            Train
-          </Typography>
-          <Typography
-            variant="h4"
-            sx={{ fontWeight: 800, mb: 0.5, color: "rgba(255,255,255,0.94)" }}
-          >
-            Practice
-          </Typography>
-          <Typography sx={{ mb: 4, color: "rgba(255,255,255,0.62)" }}>
-            Five ways to sharpen your game.
-          </Typography>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                sx={{
+                  fontWeight: 700,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  fontSize: "0.72rem",
+                  color: VIOLET.bright,
+                  mb: 0.75,
+                }}
+              >
+                Train
+              </Typography>
+              <Typography
+                variant="h4"
+                sx={{
+                  fontWeight: 800,
+                  mb: 0.5,
+                  color: "rgba(255,255,255,0.94)",
+                }}
+              >
+                Practice
+              </Typography>
+              <Typography sx={{ color: "rgba(255,255,255,0.62)" }}>
+                Five ways to sharpen your game.
+              </Typography>
+            </Box>
+            {/* The hub's one animated figure. 96px keeps him under the fluid
+                threshold, so the row simply wraps under the heading on phones. */}
+            <MastiSays
+              mood={heroMood}
+              size={96}
+              side="right"
+              maxWidth={340}
+              priority
+              data-testid="practice-masti"
+            >
+              {heroLine}
+            </MastiSays>
+          </Box>
 
           <Grid container spacing={2.5} sx={{ mb: 4 }}>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <ModeCard
                 icon={<ExtensionIcon fontSize="inherit" />}
                 title="Puzzles"
-                desc="Adaptive puzzles tuned to your rating, with the AI coach walking through every miss. Your main training."
+                desc="Adaptive puzzles tuned to your rating, with Masti walking through every miss. Your main training."
                 cta="Open Puzzles"
                 onClick={() => router.push("/puzzles")}
                 accent={ACCENTS.violet}

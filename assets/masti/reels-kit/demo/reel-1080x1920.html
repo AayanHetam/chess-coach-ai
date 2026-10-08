@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Masti reel demo</title>
+<link rel="stylesheet" href="../overlay/masti-overlay.css">
+<style>
+  html, body { margin: 0; background: #0D1420; }
+  .stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: #0D1420; color: #F2E7DA; font-family: system-ui, sans-serif; }
+  .board { position: absolute; left: 40px; top: 420px; width: 1000px; height: 1000px; display: grid; grid-template-columns: repeat(8, 1fr); border-radius: 12px; overflow: hidden; }
+  .board i { display: block; }
+  .board i:nth-child(16n+1), .board i:nth-child(16n+3), .board i:nth-child(16n+5), .board i:nth-child(16n+7),
+  .board i:nth-child(16n+10), .board i:nth-child(16n+12), .board i:nth-child(16n+14), .board i:nth-child(16n+16) { background: #F2E7DA; }
+  .board i { background: #C2673B; }
+  .goal { position: absolute; left: 48px; top: 120px; font-size: 64px; font-weight: 800; letter-spacing: -0.02em; }
+  .badge { position: absolute; right: 48px; top: 132px; padding: 14px 28px; border-radius: 999px; background: #F97316; color: #0D1420; font-weight: 800; font-size: 34px; }
+  .countdown { position: absolute; right: 64px; bottom: 360px; font-size: 200px; font-weight: 900; color: #F97316; line-height: 1; }
+  .rail { position: absolute; right: 0; top: 0; width: 120px; height: 100%; background: rgba(255,255,255,0.03); }
+  .caption { position: absolute; left: 0; right: 0; bottom: 0; height: 260px; background: rgba(255,255,255,0.03); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="goal">White to play. Mate in 2.</div>
+  <div class="badge">1600</div>
+  <div class="board">
+    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  </div>
+  <div class="countdown">5</div>
+  <!-- Masti: bottom-left, under the board, clear of the caption band and the action rail. -->
+  <div data-masti="thinking" data-height="220" data-frames="20" data-frame-w="300" data-frame-h="375" data-delay="62"
+       data-autoplay style="left: 48px; bottom: 272px;"></div>
+  <div class="rail" title="Instagram action rail (keep clear)"></div>
+  <div class="caption" title="Instagram caption band (keep clear)"></div>
+</div>
+<script src="../overlay/masti-overlay.js"></script>
+</body>
+</html>

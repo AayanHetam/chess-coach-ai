@@ -24,6 +24,7 @@ import { Box, Typography } from "@mui/material";
 import { motion } from "framer-motion";
 import { ArrowRight, Check } from "lucide-react";
 import type { Tally } from "@/lib/learn/chapterRound";
+import { Masti, scoreMood, type MastiMood } from "@/components/masti";
 
 const EMBER = "#FB923C";
 
@@ -69,6 +70,19 @@ export function RoundSummary({
 }: RoundSummaryProps) {
   const closed = tally.total > 0 && tally.known === tally.total;
   const fell = openBefore !== null ? openBefore - tally.open : 0;
+  // Masti follows the headline, not the round score: the number that leads is
+  // how much the chapter shrank, so a round that shrank it is a good round.
+  const mood: MastiMood = empty
+    ? "idea"
+    : closed
+      ? "excited"
+      : drill
+        ? scoreMood(right, right + wrong)
+        : fell >= 3
+          ? "excited"
+          : fell > 0
+            ? "idea"
+            : "nervous";
 
   return (
     <Box
@@ -79,7 +93,15 @@ export function RoundSummary({
       transition={{ duration: 0.22, ease: "easeOut" }}
       sx={{ width: "100%", maxWidth: 560, display: "grid", gap: 3 }}
     >
-      <Box>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 2,
+        }}
+      >
+        <Box>
         <Typography
           sx={{
             fontSize: "0.7rem",
@@ -112,6 +134,14 @@ export function RoundSummary({
                   ? `${fell} fewer to learn.`
                   : "Nothing new stuck that time."}
         </Typography>
+        </Box>
+        <Masti
+          mood={mood}
+          size={88}
+          loops={2}
+          decorative
+          data-testid="round-summary-masti"
+        />
       </Box>
 
       {/* The chapter, not the round. This is the number that only falls. */}

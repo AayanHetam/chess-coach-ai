@@ -14,11 +14,25 @@ import { DRAFT_STORAGE_KEY, FLUSH_STORAGE_KEY } from "./quizConfig";
 export interface FlushEnvelope {
   payload: UserProfileUpdates;
   createdAt: number;
+  /**
+   * The handle the quiz asked for, carried ALONGSIDE the payload rather than
+   * inside it. Claiming a handle is an atomic transaction on its own endpoint
+   * and the profile PATCH route refuses the field outright, so folding it into
+   * the patch would silently drop it.
+   */
+  handle?: string;
 }
 
-export function writeFlushPayload(payload: UserProfileUpdates): void {
+export function writeFlushPayload(
+  payload: UserProfileUpdates,
+  handle?: string
+): void {
   try {
-    const envelope: FlushEnvelope = { payload, createdAt: Date.now() };
+    const envelope: FlushEnvelope = {
+      payload,
+      createdAt: Date.now(),
+      ...(handle ? { handle } : {}),
+    };
     window.localStorage.setItem(FLUSH_STORAGE_KEY, JSON.stringify(envelope));
   } catch {
     /* storage unavailable — non-fatal */

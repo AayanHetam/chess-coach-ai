@@ -37,6 +37,15 @@ export interface RegenerateResult {
   cumulativeIssues: ValidatorIssue[];
   totalCostUsd: number;
   telemetry: TelemetryEvent[];
+  /**
+   * On `fallback_used`, the model's most recent draft: the text the
+   * validators rejected, when at least one attempt completed. A route with a
+   * sentence-level referee of its own (the follow-up path of /api/chat) may
+   * serve it, minus the sentences the issues name, instead of the template
+   * that `finalResponse` then holds. Absent on every other outcome, and when
+   * the loop aborted before a call.
+   */
+  lastDraft?: string;
 }
 
 const SONNET_INPUT_PER_M = 3.0;
@@ -353,6 +362,7 @@ export async function regenerateUntilValid(opts: RegenerateOpts): Promise<Regene
     finalResponse: fallbackResponse,
     retryCount: retry,
     finalOutcome: "fallback_used",
+    ...(finalResponse ? { lastDraft: finalResponse } : {}),
     cumulativeIssues,
     totalCostUsd,
     telemetry,

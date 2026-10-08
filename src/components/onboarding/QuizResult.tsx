@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 import { Box, Button, Chip, Typography } from "@mui/material";
+import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
+import { Masti } from "@/components/masti";
 import {
   QuizAnswers,
   bandLabel,
@@ -15,6 +17,11 @@ import {
   QuizFocusThemeId,
   QUIZ_GOAL_OPTIONS,
 } from "./quizThemes";
+import { GOAL_PERFS } from "@/lib/curriculum/goalPatch";
+import {
+  PERF_LABEL,
+  parseRatingField,
+} from "@/lib/curriculum/perfGoalDrafts";
 
 const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
 const ORANGE_HOVER = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
@@ -89,23 +96,44 @@ export default function QuizResult({
     const time = TIME_OPTIONS.find((t) => t.key === answers.time);
     if (time)
       lines.push(`Sessions sized for your "${time.label.toLowerCase()}" goal.`);
+    // Read the targets back to them. They typed these a screen ago, and a
+    // signup that never acknowledges them reads as a form that went nowhere.
+    const targets = GOAL_PERFS.filter(
+      (perf) => parseRatingField(answers.perfDrafts[perf].goal) !== undefined
+    ).map((perf) => `${PERF_LABEL[perf]} ${answers.perfDrafts[perf].goal}`);
+    if (targets.length > 0) {
+      lines.push(`Progress tracked against ${targets.join(", ")}.`);
+    } else if (typeof answers.goalRating === "number") {
+      lines.push(`Progress tracked against your ${answers.goalRating} goal.`);
+    }
     return lines;
   }, [answers, band, platformName, weaknessLabels]);
 
   return (
     <Box>
-      <Typography
+      <Box
         sx={{
-          color: "#FB923C",
-          fontWeight: 700,
-          fontSize: "0.78rem",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
           mb: 1,
         }}
       >
-        Your chess profile
-      </Typography>
+        <Typography
+          sx={{
+            color: "#FB923C",
+            fontWeight: 700,
+            fontSize: "0.78rem",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+          }}
+        >
+          Your chess profile
+        </Typography>
+        {/* The quiz just worked out who they are; that is an idea. */}
+        <Masti mood="idea" size={64} loops={2} decorative />
+      </Box>
 
       <Typography
         component="h2"
@@ -199,6 +227,10 @@ export default function QuizResult({
       </Box>
 
       <Button
+        // Signed out, this button and the caption below it are the "create
+        // an account" ask, hidden under the ChessUSA preview prefix. See
+        // SIGN_IN_ATTR.
+        {...(authed ? {} : SIGN_IN_PROPS)}
         fullWidth
         onClick={onUnlock}
         disabled={submitting}
@@ -222,6 +254,7 @@ export default function QuizResult({
           : "Unlock your full plan + first puzzles"}
       </Button>
       <Typography
+        {...(authed ? {} : SIGN_IN_PROPS)}
         sx={{
           color: "rgba(255,255,255,0.4)",
           fontSize: "0.76rem",

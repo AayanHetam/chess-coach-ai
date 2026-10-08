@@ -23,10 +23,10 @@ import {
   TrendingDown,
   Psychology,
   School,
-  Chat,
   Launch,
 } from "@mui/icons-material";
 import { PlayerFeedbackData, GameViolation } from "@/types/feedback";
+import { MastiAvatar } from "@/components/masti";
 
 interface Props {
   data: PlayerFeedbackData;
@@ -106,9 +106,12 @@ export default function PlayerFeedbackResults({
             alignItems="center"
             mb={2}
           >
-            <Typography variant="h5">
-              Feedback for {data.username} ({data.platform})
-            </Typography>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <MastiAvatar mood="idea" size={36} />
+              <Typography variant="h5">
+                Feedback for {data.username} ({data.platform})
+              </Typography>
+            </Stack>
             <Button variant="outlined" onClick={handleReset}>
               Analyze Another Player
             </Button>
@@ -239,13 +242,18 @@ export default function PlayerFeedbackResults({
                                 gap={1}
                                 mt={1}
                               >
-                                <Tooltip title="Analyze with AI Coach">
+                                <Tooltip title="Analyze with Masti">
                                   <IconButton
                                     size="small"
                                     onClick={() => handleAnalyzeWithAI(game)}
                                     color="primary"
                                   >
-                                    <Chat fontSize="small" />
+                                    {/* His face on every row: a still, never a burst. */}
+                                    <MastiAvatar
+                                      mood="idea"
+                                      size={22}
+                                      ring={false}
+                                    />
                                   </IconButton>
                                 </Tooltip>
                                 <Typography variant="body2" fontSize="0.8rem">
@@ -369,13 +377,18 @@ export default function PlayerFeedbackResults({
                                 gap={1}
                                 mt={1}
                               >
-                                <Tooltip title="Analyze with AI Coach">
+                                <Tooltip title="Analyze with Masti">
                                   <IconButton
                                     size="small"
                                     onClick={() => handleAnalyzeWithAI(game)}
                                     color="primary"
                                   >
-                                    <Chat fontSize="small" />
+                                    {/* His face on every row: a still, never a burst. */}
+                                    <MastiAvatar
+                                      mood="idea"
+                                      size={22}
+                                      ring={false}
+                                    />
                                   </IconButton>
                                 </Tooltip>
                                 <Typography variant="body2" fontSize="0.8rem">

@@ -49,6 +49,19 @@ export interface SuggestionInput {
     | null;
   /** Opening name if known (header tag OR detectOpening result). */
   openingName?: string | null;
+  /**
+   * The side the reader played. The "walk me through the blunder" and
+   * "why was this brilliant" chips are about THEIR moves: without the
+   * filter the worst blunder in the game is as likely to be the opponent's,
+   * and the chip then contradicts the player-perspective rule the coach
+   * itself enforces. Null or absent: no filter (side unknown).
+   */
+  playerColor?: "w" | "b" | null;
+}
+
+/** enginePositions[i] is the position AFTER half-move i; White played the odd ones. */
+function moverOf(ply: number): "w" | "b" {
+  return ply % 2 === 1 ? "w" : "b";
 }
 
 const PINNED_SUGGESTION: Suggestion = {
@@ -101,10 +114,12 @@ function isEndgame(loadedGame: Chess): boolean {
  */
 function findWorstMistakePly(
   enginePositions: PositionEval[] | null | undefined,
+  playerColor?: "w" | "b" | null,
 ): number | null {
   if (!enginePositions || enginePositions.length === 0) return null;
   let worstPly: number | null = null;
   for (let i = 0; i < enginePositions.length; i++) {
+    if (playerColor && moverOf(i) !== playerColor) continue;
     const c = enginePositions[i].moveClassification;
     if (
       c === MoveClassification.Blunder ||
@@ -122,9 +137,11 @@ function findWorstMistakePly(
 
 function findFirstBrilliantPly(
   enginePositions: PositionEval[] | null | undefined,
+  playerColor?: "w" | "b" | null,
 ): number | null {
   if (!enginePositions) return null;
   for (let i = 0; i < enginePositions.length; i++) {
+    if (playerColor && moverOf(i) !== playerColor) continue;
     if (enginePositions[i].moveClassification === MoveClassification.Brilliant) {
       return i;
     }
@@ -148,7 +165,7 @@ export function generateSuggestions(input: SuggestionInput): Suggestion[] {
     generated.push({ text });
   };
 
-  const { loadedGame, enginePositions, mistakeContext, openingName } = input;
+  const { loadedGame, enginePositions, mistakeContext, openingName, playerColor } = input;
 
   // Rule 1: active mistake context (highest priority — the user is
   // staring at this exact move right now).
@@ -158,7 +175,7 @@ export function generateSuggestions(input: SuggestionInput): Suggestion[] {
   }
 
   // Rule 2: worst blunder/mistake in the game.
-  const worstPly = findWorstMistakePly(enginePositions);
+  const worstPly = findWorstMistakePly(enginePositions, playerColor);
   if (worstPly !== null && loadedGame) {
     const moves = loadedGame.history({ verbose: true }) as Move[];
     // enginePositions[i] corresponds to the position AFTER the i'th move
@@ -181,7 +198,7 @@ export function generateSuggestions(input: SuggestionInput): Suggestion[] {
   }
 
   // Rule 3: first brilliant move.
-  const brilliantPly = findFirstBrilliantPly(enginePositions);
+  const brilliantPly = findFirstBrilliantPly(enginePositions, playerColor);
   if (brilliantPly !== null && loadedGame) {
     const moves = loadedGame.history({ verbose: true }) as Move[];
     const san = moves[brilliantPly - 1]?.san;

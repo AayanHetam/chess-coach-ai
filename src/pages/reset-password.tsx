@@ -8,8 +8,56 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { Icon } from "@iconify/react";
 import { PageTitle } from "@/components/pageTitle";
+import { Masti, type MastiMood } from "@/components/masti";
+
+/**
+ * The card header: the coach in place of the old lock glyph, wearing the
+ * face the page's state already implies. Sized by the size prop so the box
+ * is right before hydration (no Emotion SSR on the Pages Router).
+ */
+function ResetHeader({ mood, title }: { mood: MastiMood; title: string }) {
+  return (
+    <Box
+      sx={{
+        background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
+        py: 3,
+        px: 3,
+        textAlign: "center",
+      }}
+    >
+      <Masti
+        mood={mood}
+        size={88}
+        loops={mood === "thinking" ? 0 : 2}
+        priority
+      />
+      <Typography variant="h6" sx={{ color: "#fff", fontWeight: 700, mt: 1 }}>
+        {title}
+      </Typography>
+    </Box>
+  );
+}
+
+/**
+ * Display only, read off state the page already holds. A dead link (no
+ * token in the URL, or the server saying the reset link is invalid, used or
+ * expired: see /api/auth/reset-password) is the dizzy face; any other
+ * error is a worried one; a submit in flight reads; success celebrates.
+ */
+function mastiMoodFor(i: {
+  token: string;
+  done: boolean;
+  submitting: boolean;
+  error: string | null;
+}): MastiMood {
+  if (i.done) return "excited";
+  if (!i.token) return "defeated";
+  if (i.submitting) return "thinking";
+  if (i.error && /reset link/i.test(i.error)) return "defeated";
+  if (i.error) return "nervous";
+  return "wave";
+}
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -51,15 +99,28 @@ export default function ResetPasswordPage() {
     }
   };
 
+  const mood = mastiMoodFor({ token, done, submitting, error });
+
   if (!token && !done) {
     return (
       <>
         <PageTitle title="Reset password" />
         <Box sx={{ display: "flex", justifyContent: "center", py: 8, px: 2 }}>
-          <Paper sx={{ p: 4, maxWidth: 440, width: "100%", borderRadius: 4 }}>
-            <Alert severity="error">
-              No reset token in the URL. Open the link from your reset email.
-            </Alert>
+          <Paper
+            sx={{
+              p: 0,
+              maxWidth: 440,
+              width: "100%",
+              borderRadius: 4,
+              overflow: "hidden",
+            }}
+          >
+            <ResetHeader mood={mood} title="That link is incomplete" />
+            <Box sx={{ p: 3 }}>
+              <Alert severity="error">
+                No reset token in the URL. Open the link from your reset email.
+              </Alert>
+            </Box>
           </Paper>
         </Box>
       </>
@@ -79,19 +140,10 @@ export default function ResetPasswordPage() {
             overflow: "hidden",
           }}
         >
-          <Box
-            sx={{
-              background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
-              py: 3,
-              px: 3,
-              textAlign: "center",
-            }}
-          >
-            <Icon icon="mdi:lock-reset" width={40} color="#fff" />
-            <Typography variant="h6" sx={{ color: "#fff", fontWeight: 700, mt: 1 }}>
-              Choose a new password
-            </Typography>
-          </Box>
+          <ResetHeader
+            mood={mood}
+            title={done ? "New password, fresh start" : "Choose a new password"}
+          />
 
           <Box component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>
             {done ? (

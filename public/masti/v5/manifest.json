@@ -1,0 +1,438 @@
+{
+  "version": "v5",
+  "generatedBy": "scripts/masti/build-assets.mjs",
+  "states": {
+    "wave": {
+      "source": "01-talking-explaining",
+      "anim": null,
+      "still": {
+        "webp": {
+          "path": "/masti/v5/still/wave.webp",
+          "width": 640,
+          "height": 800,
+          "bytes": 73924
+        },
+        "webp2x": {
+          "path": "/masti/v5/still/wave@2x.webp",
+          "width": 1122,
+          "height": 1402,
+          "bytes": 156966
+        },
+        "png": {
+          "path": "/masti/v5/still/wave.png",
+          "width": 640,
+          "height": 800,
+          "bytes": 128758
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v5/still/wave-sm.webp",
+            "bytes": 29360
+          },
+          "png": {
+            "path": "/masti/v5/still/wave-sm.png",
+            "bytes": 41343
+          }
+        }
+      }
+    },
+    "excited": {
+      "source": "05-celebration",
+      "anim": null,
+      "still": {
+        "webp": {
+          "path": "/masti/v5/still/excited.webp",
+          "width": 640,
+          "height": 800,
+          "bytes": 64000
+        },
+        "webp2x": {
+          "path": "/masti/v5/still/excited@2x.webp",
+          "width": 1122,
+          "height": 1402,
+          "bytes": 135344
+        },
+        "png": {
+          "path": "/masti/v5/still/excited.png",
+          "width": 640,
+          "height": 800,
+          "bytes": 116605
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v5/still/excited-sm.webp",
+            "bytes": 24846
+          },
+          "png": {
+            "path": "/masti/v5/still/excited-sm.png",
+            "bytes": 36634
+          }
+        }
+      }
+    },
+    "idea": {
+      "source": "02-talking-emphasis",
+      "anim": null,
+      "still": {
+        "webp": {
+          "path": "/masti/v5/still/idea.webp",
+          "width": 640,
+          "height": 800,
+          "bytes": 74586
+        },
+        "webp2x": {
+          "path": "/masti/v5/still/idea@2x.webp",
+          "width": 1122,
+          "height": 1402,
+          "bytes": 157632
+        },
+        "png": {
+          "path": "/masti/v5/still/idea.png",
+          "width": 640,
+          "height": 800,
+          "bytes": 129399
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v5/still/idea-sm.webp",
+            "bytes": 29626
+          },
+          "png": {
+            "path": "/masti/v5/still/idea-sm.png",
+            "bytes": 41967
+          }
+        }
+      }
+    },
+    "nervous": {
+      "source": "11-confused-shrug",
+      "anim": null,
+      "still": {
+        "webp": {
+          "path": "/masti/v5/still/nervous.webp",
+          "width": 640,
+          "height": 800,
+          "bytes": 66822
+        },
+        "webp2x": {
+          "path": "/masti/v5/still/nervous@2x.webp",
+          "width": 1122,
+          "height": 1402,
+          "bytes": 145886
+        },
+        "png": {
+          "path": "/masti/v5/still/nervous.png",
+          "width": 640,
+          "height": 800,
+          "bytes": 119641
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v5/still/nervous-sm.webp",
+            "bytes": 26300
+          },
+          "png": {
+            "path": "/masti/v5/still/nervous-sm.png",
+            "bytes": 37607
+          }
+        }
+      }
+    },
+    "defeated": {
+      "source": "06-facepalm",
+      "anim": null,
+      "still": {
+        "webp": {
+          "path": "/masti/v5/still/defeated.webp",
+          "width": 640,
+          "height": 800,
+          "bytes": 50824
+        },
+        "webp2x": {
+          "path": "/masti/v5/still/defeated@2x.webp",
+          "width": 1122,
+          "height": 1402,
+          "bytes": 108460
+        },
+        "png": {
+          "path": "/masti/v5/still/defeated.png",
+          "width": 640,
+          "height": 800,
+          "bytes": 89425
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v5/still/defeated-sm.webp",
+            "bytes": 20220
+          },
+          "png": {
+            "path": "/masti/v5/still/defeated-sm.png",
+            "bytes": 28618
+          }
+        }
+      }
+    },
+    "thinking": {
+      "source": "07-thinking",
+      "anim": null,
+      "still": {
+        "webp": {
+          "path": "/masti/v5/still/thinking.webp",
+          "width": 640,
+          "height": 800,
+          "bytes": 73846
+        },
+        "webp2x": {
+          "path": "/masti/v5/still/thinking@2x.webp",
+          "width": 1122,
+          "height": 1402,
+          "bytes": 157594
+        },
+        "png": {
+          "path": "/masti/v5/still/thinking.png",
+          "width": 640,
+          "height": 800,
+          "bytes": 123793
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v5/still/thinking-sm.webp",
+            "bytes": 28322
+          },
+          "png": {
+            "path": "/masti/v5/still/thinking-sm.png",
+            "bytes": 42869
+          }
+        }
+      }
+    },
+    "shocked": {
+      "source": "03-shocked-jaw-drop",
+      "anim": null,
+      "still": {
+        "webp": {
+          "path": "/masti/v5/still/shocked.webp",
+          "width": 640,
+          "height": 800,
+          "bytes": 72960
+        },
+        "webp2x": {
+          "path": "/masti/v5/still/shocked@2x.webp",
+          "width": 1122,
+          "height": 1402,
+          "bytes": 157006
+        },
+        "png": {
+          "path": "/masti/v5/still/shocked.png",
+          "width": 640,
+          "height": 800,
+          "bytes": 120995
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v5/still/shocked-sm.webp",
+            "bytes": 28440
+          },
+          "png": {
+            "path": "/masti/v5/still/shocked-sm.png",
+            "bytes": 37880
+          }
+        }
+      }
+    },
+    "panic": {
+      "source": "04-losing-his-mind",
+      "anim": null,
+      "still": {
+        "webp": {
+          "path": "/masti/v5/still/panic.webp",
+          "width": 640,
+          "height": 800,
+          "bytes": 74656
+        },
+        "webp2x": {
+          "path": "/masti/v5/still/panic@2x.webp",
+          "width": 1122,
+          "height": 1402,
+          "bytes": 161938
+        },
+        "png": {
+          "path": "/masti/v5/still/panic.png",
+          "width": 640,
+          "height": 800,
+          "bytes": 127074
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v5/still/panic-sm.webp",
+            "bytes": 29598
+          },
+          "png": {
+            "path": "/masti/v5/still/panic-sm.png",
+            "bytes": 39837
+          }
+        }
+      }
+    },
+    "pointing": {
+      "source": "08-pointing-guess",
+      "anim": null,
+      "still": {
+        "webp": {
+          "path": "/masti/v5/still/pointing.webp",
+          "width": 640,
+          "height": 800,
+          "bytes": 74364
+        },
+        "webp2x": {
+          "path": "/masti/v5/still/pointing@2x.webp",
+          "width": 1122,
+          "height": 1402,
+          "bytes": 158192
+        },
+        "png": {
+          "path": "/masti/v5/still/pointing.png",
+          "width": 640,
+          "height": 800,
+          "bytes": 127468
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v5/still/pointing-sm.webp",
+            "bytes": 29156
+          },
+          "png": {
+            "path": "/masti/v5/still/pointing-sm.png",
+            "bytes": 39965
+          }
+        }
+      }
+    },
+    "smug": {
+      "source": "09-smug-unimpressed",
+      "anim": null,
+      "still": {
+        "webp": {
+          "path": "/masti/v5/still/smug.webp",
+          "width": 640,
+          "height": 800,
+          "bytes": 64274
+        },
+        "webp2x": {
+          "path": "/masti/v5/still/smug@2x.webp",
+          "width": 1122,
+          "height": 1402,
+          "bytes": 136764
+        },
+        "png": {
+          "path": "/masti/v5/still/smug.png",
+          "width": 640,
+          "height": 800,
+          "bytes": 107054
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v5/still/smug-sm.webp",
+            "bytes": 25242
+          },
+          "png": {
+            "path": "/masti/v5/still/smug-sm.png",
+            "bytes": 36805
+          }
+        }
+      }
+    },
+    "laughing": {
+      "source": "10-laughing",
+      "anim": null,
+      "still": {
+        "webp": {
+          "path": "/masti/v5/still/laughing.webp",
+          "width": 640,
+          "height": 800,
+          "bytes": 59434
+        },
+        "webp2x": {
+          "path": "/masti/v5/still/laughing@2x.webp",
+          "width": 1122,
+          "height": 1402,
+          "bytes": 125926
+        },
+        "png": {
+          "path": "/masti/v5/still/laughing.png",
+          "width": 640,
+          "height": 800,
+          "bytes": 109049
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v5/still/laughing-sm.webp",
+            "bytes": 22976
+          },
+          "png": {
+            "path": "/masti/v5/still/laughing-sm.png",
+            "bytes": 34505
+          }
+        }
+      }
+    },
+    "banana": {
+      "source": "12-banana-rating",
+      "anim": null,
+      "still": {
+        "webp": {
+          "path": "/masti/v5/still/banana.webp",
+          "width": 640,
+          "height": 800,
+          "bytes": 77154
+        },
+        "webp2x": {
+          "path": "/masti/v5/still/banana@2x.webp",
+          "width": 1122,
+          "height": 1402,
+          "bytes": 160348
+        },
+        "png": {
+          "path": "/masti/v5/still/banana.png",
+          "width": 640,
+          "height": 800,
+          "bytes": 130283
+        },
+        "sm": {
+          "width": 320,
+          "height": 400,
+          "webp": {
+            "path": "/masti/v5/still/banana-sm.webp",
+            "bytes": 30402
+          },
+          "png": {
+            "path": "/masti/v5/still/banana-sm.png",
+            "bytes": 42191
+          }
+        }
+      }
+    }
+  }
+}

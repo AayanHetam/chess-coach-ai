@@ -46,6 +46,23 @@ describe("quizStorage flush helpers", () => {
     expect(typeof env!.createdAt).toBe("number");
   });
 
+  it("carries the handle alongside the payload, not inside it", () => {
+    // Claiming a handle is an atomic transaction on its own endpoint and the
+    // profile PATCH route refuses the field, so folding it into the patch
+    // would silently drop the one thing the user typed by hand.
+    writeFlushPayload({ selfReportedRating: 1300 }, "lazerwizard");
+    const env = readFlushPayload();
+    expect(env!.handle).toBe("lazerwizard");
+    expect("handle" in env!.payload).toBe(false);
+  });
+
+  it("omits the handle key entirely when none was picked", () => {
+    writeFlushPayload({ selfReportedRating: 1300 });
+    const env = readFlushPayload();
+    expect(env).not.toBeNull();
+    expect("handle" in env!).toBe(false);
+  });
+
   it("returns null when nothing is stored", () => {
     expect(readFlushPayload()).toBeNull();
   });

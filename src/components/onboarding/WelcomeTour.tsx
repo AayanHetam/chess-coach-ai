@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { Box, Modal, Stack, Typography } from "@mui/material";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { CalendarCheck, Puzzle, X, Zap } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { X } from "lucide-react";
+import { Masti, type MastiMood } from "@/components/masti";
 import { useAuth } from "@/contexts/AuthContext";
 import { NUDGE_DISMISS_KEY } from "@/components/onboarding/OnboardingNudge";
 import {
@@ -36,7 +36,8 @@ type TourStep = {
   navLabel: string;
   title: string;
   body: string;
-  icon: LucideIcon;
+  /** Masti acts the step out: a hint for puzzles, reading for analysis, a jump for the plan. */
+  mood: MastiMood;
 };
 
 // Deliberately not nav order: the tour sells the loop — solve now, understand
@@ -49,19 +50,19 @@ const STEPS: TourStep[] = [
     navLabel: PRACTICE_LABEL,
     title: "Solve puzzles, with a coach",
     body: "Practice serves puzzles picked for your level. Miss one and the coach walks through why the right move works — not just what it was.",
-    icon: Puzzle,
+    mood: "idea",
   },
   {
     navLabel: ANALYZE_LABEL,
     title: "See where your games turned",
     body: "Import a game from Chess.com or Lichess, or paste any PGN. Analyze finds the turning points and explains them in plain English.",
-    icon: Zap,
+    mood: "thinking",
   },
   {
     navLabel: PLAN_LABEL,
     title: "Plan ties it together",
     body: "Plan is home base: a short daily set of puzzles, openings and review, tracked toward your rating goal. Start here each day.",
-    icon: CalendarCheck,
+    mood: "excited",
   },
 ];
 
@@ -142,7 +143,6 @@ export default function WelcomeTour() {
 
   const current = STEPS[step];
   const isLast = step === STEPS.length - 1;
-  const Icon = current.icon;
 
   return (
     <Modal
@@ -308,22 +308,14 @@ export default function WelcomeTour() {
               exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
               transition={{ duration: 0.2, ease }}
             >
-              <Box
-                sx={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: "12px",
-                  background: orangeGradient,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow:
-                    "0 0 24px rgba(249,115,22,0.45), inset 0 1px 0 rgba(255,255,255,0.18)",
-                  mb: 1.5,
-                }}
-              >
-                <Icon size={20} color="#0A0A0A" />
-              </Box>
+              <Masti
+                mood={current.mood}
+                size={72}
+                loops={2}
+                replayKey={step}
+                decorative
+                style={{ marginBottom: 8 }}
+              />
               <Typography
                 component="h2"
                 sx={{

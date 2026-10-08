@@ -1,64 +1,27 @@
 "use client";
 
-import { Chess, type Square } from "chess.js";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import Head from "next/head";
 import Image from "next/image";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import {
   ArrowRight,
-  Bot,
-  Check,
-  CheckCircle2,
-  Clipboard,
-  Cpu,
-  Crosshair,
   Download,
-  Flame,
   Globe,
-  GraduationCap,
-  Lightbulb,
-  Link2,
-  Minus,
   MousePointerClick,
-  Puzzle,
   Quote,
-  RotateCcw,
   ShieldCheck,
   Sparkles,
-  TrendingUp,
-  Wrench,
-  X,
 } from "lucide-react";
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
-import type { DrawShape } from "@/components/ui/ChessgroundBoard";
-import { DEFAULT_PUZZLE_THEME } from "@/components/puzzle/boardTheme";
-import { surfaceAccent, type Accent } from "@/components/ui/accents";
-
-const ChessgroundBoard = dynamic(
-  () =>
-    import("@/components/ui/ChessgroundBoard").then((m) => m.ChessgroundBoard),
-  { ssr: false }
-);
-
-// Board square colors for the puzzle demo — the same tokens every puzzle
-// surface renders, so the first board a visitor sees is the board they solve on.
-const PUZZLE_DARK = DEFAULT_PUZZLE_THEME.dark;
-const PUZZLE_LIGHT = DEFAULT_PUZZLE_THEME.light;
-import { BentoCard } from "@/components/ui/BentoCard";
+import type { ReactNode } from "react";
+import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
+import { Masti, MastiAvatar, mastiStillSrcSet } from "@/components/masti";
+import { HeroMastiStage } from "@/components/landing/HeroMasti";
 import { BorderBeam } from "@/components/ui/BorderBeam";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
-import { NumberTicker } from "@/components/ui/NumberTicker";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 import { InternalHomeCard } from "@/components/intern/InternalHomeCard";
 import { useAuth } from "@/contexts/AuthContext";
@@ -73,54 +36,9 @@ import {
 const HOME_TITLE = "Chess Masti AI — engine-grounded chess coaching, free";
 const HOME_DESC =
   "AI chess coach: Stockfish 17 evaluates first, Claude explains, a hallucination validator checks every claim. 100,000+ Lichess puzzles in a Neo4j graph. Free.";
-const HOME_OG_IMAGE = "https://chessmasti.com/social-networks-1200x630.png";
+const HOME_OG_IMAGE = "https://chessmasti.com/og/home";
 
-/**
- * Identity accents for the product surfaces this page advertises — the same
- * colours the in-app nav and /plan wear (SURFACE_ACCENTS), so the landing
- * page teaches the site's colour language before the visitor signs in.
- * Ember stays the action colour: the hero, every CTA, and the coach itself
- * keep their palette untouched. All values are static constants, so nothing
- * here can diverge between prerender and hydration.
- */
-const PRACTICE_ACCENT = surfaceAccent("practice"); // violet
-const ANALYSIS_ACCENT = surfaceAccent("analysis"); // cyan
-const PLAY_ACCENT = surfaceAccent("play"); // jade
-const SCOUT_ACCENT = surfaceAccent("scout"); // rose
-
-/**
- * The /plan GlassCard accent recipe, shaped for BentoCard's `style` prop:
- * faint radial tint at the card top, accent border, soft glow. The glass
- * base stays BentoCard's own rgba(20,22,28,0.55).
- */
-function bentoAccentStyle(a: Accent): CSSProperties {
-  return {
-    background: `radial-gradient(120% 55% at 50% 0%, ${a.tint}, transparent 70%), linear-gradient(180deg, rgba(20,22,28,0.55), rgba(20,22,28,0.55))`,
-    border: `1px solid ${a.border}`,
-    boxShadow: `0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06), ${a.glow}`,
-  };
-}
-
-/** Decorative top hairline from the /plan card treatment (its ::before). */
-function AccentHairline({ a }: { a: Accent }) {
-  return (
-    <Box
-      aria-hidden
-      sx={{
-        position: "absolute",
-        top: 0,
-        left: "8%",
-        right: "8%",
-        height: "1.5px",
-        background: `linear-gradient(90deg, transparent, ${a.base}, transparent)`,
-        opacity: 0.65,
-        pointerEvents: "none",
-      }}
-    />
-  );
-}
-
-const launchTheme = createTheme({
+export const launchTheme = createTheme({
   palette: {
     mode: "dark",
     primary: { main: "#F97316" },
@@ -302,20 +220,9 @@ function GlassChatPreview() {
         spacing={1.25}
         sx={{ mb: 2.5 }}
       >
-        <Box
-          sx={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #F97316 0%, #A855F7 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "0 0 20px rgba(249,115,22,0.4)",
-          }}
-        >
-          <Sparkles size={16} color="#0A0A0A" />
-        </Box>
+        {/* The coach has a face now: Masti, mid-idea, because the bubble
+            under him is the answer. Still image, a 32px loop would be noise. */}
+        <MastiAvatar mood="idea" size={32} />
         <Box>
           <Typography
             sx={{
@@ -325,7 +232,7 @@ function GlassChatPreview() {
               lineHeight: 1.1,
             }}
           >
-            Coach
+            Masti
           </Typography>
           <Typography
             sx={{
@@ -418,156 +325,230 @@ function GlassChatPreview() {
   );
 }
 
-function Hero() {
+export function Hero() {
   return (
     <Box
+      component="section"
+      aria-labelledby="hero-heading"
       sx={{
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", md: "1.05fr 0.95fr" },
-        gap: { xs: 6, md: 8 },
+        gridTemplateColumns: { xs: "1fr", md: "1.08fr 0.92fr" },
         alignItems: "center",
-        py: { xs: 6, md: 10 },
+        columnGap: { md: 5, lg: 7 },
+        rowGap: { xs: 1.5 },
+        pt: { xs: 1, md: 2 },
+        pb: { xs: 5, md: 8 },
       }}
     >
-      <Box>
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.22, 0.61, 0.36, 1] }}
-        >
-          <EyebrowBadge>
-            DEMOCRATIZING HIGH-QUALITY CHESS EDUCATION
-          </EyebrowBadge>
-        </motion.div>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: { xs: "center", md: "flex-start" },
+          textAlign: { xs: "center", md: "left" },
+        }}
+      >
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.22, 0.61, 0.36, 1], delay: 0.2 }}
+      >
+        <Box sx={{ mt: { xs: 1.5, md: 0 } }}>
+          <EyebrowBadge>CHESS EDUCATION FOR EVERYONE</EyebrowBadge>
+        </Box>
+      </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.7,
-            ease: [0.22, 0.61, 0.36, 1],
-            delay: 0.1,
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          duration: 0.7,
+          ease: [0.22, 0.61, 0.36, 1],
+          delay: 0.3,
+        }}
+      >
+        <Typography
+          id="hero-heading"
+          variant="h1"
+          sx={{
+            mt: 2,
+            fontSize: { xs: "2.15rem", sm: "3rem", md: "3.6rem", lg: "4rem" },
+            color: "rgba(255,255,255,0.96)",
+            maxWidth: 920,
+            mx: { xs: "auto", md: 0 },
           }}
         >
-          <Typography
-            variant="h1"
+          <Box
+            component="span"
             sx={{
-              mt: 3,
-              fontSize: { xs: "2.6rem", sm: "3.4rem", md: "4.2rem" },
+              background:
+                "linear-gradient(135deg, #F97316 0%, #FB923C 50%, #FBBF24 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            Meet Masti.
+          </Box>{" "}
+          Chess coaching for everyone.
+        </Typography>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          duration: 0.7,
+          ease: [0.22, 0.61, 0.36, 1],
+          delay: 0.4,
+        }}
+      >
+        <Typography
+          sx={{
+            mt: { xs: 2, md: 2.5 },
+            fontSize: { xs: "0.98rem", md: "1.12rem", lg: "1.18rem" },
+            lineHeight: 1.5,
+            color: "rgba(255,255,255,0.66)",
+            maxWidth: { xs: 720, md: 600 },
+            mx: { xs: "auto", md: 0 },
+          }}
+        >
+          World-class chess coaching has been out of reach for most players.
+          Masti changes that: Stockfish 17 calculates, Masti explains in plain
+          words, and a validator checks every claim.{" "}
+          <Box
+            component="span"
+            sx={{ color: "rgba(255,255,255,0.92)", fontWeight: 600 }}
+          >
+            The same caliber, free for everyone.
+          </Box>
+        </Typography>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          duration: 0.7,
+          ease: [0.22, 0.61, 0.36, 1],
+          delay: 0.5,
+        }}
+      >
+        <Stack
+          direction="row"
+          spacing={2}
+          justifyContent={{ xs: "center", md: "flex-start" }}
+          sx={{ mt: { xs: 3, md: 3.5 }, flexWrap: "wrap" }}
+        >
+          {/* Program-first (2026-08-10): the plan is the product, so it
+              leads. "Analyze a game" stays as the secondary action: it is
+              the conversion path for AEO traffic arriving on coach queries
+              and must not be removed. */}
+          <StartPlanCTA />
+          <GhostCTA href="/analysis">Analyze a game</GhostCTA>
+        </Stack>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          duration: 0.7,
+          ease: [0.22, 0.61, 0.36, 1],
+          delay: 0.6,
+        }}
+      >
+        <GmBackedLine />
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1, delay: 0.7 }}
+      >
+        <Stack
+          direction="row"
+          spacing={3}
+          justifyContent={{ xs: "center", md: "flex-start" }}
+          sx={{
+            mt: 3.5,
+            color: "rgba(255,255,255,0.42)",
+            fontSize: "0.78rem",
+            letterSpacing: "0.04em",
+            flexWrap: "wrap",
+          }}
+        >
+          <Box>Engine-grounded AI coaching</Box>
+          {/* The account line and its separator drop out under the
+              ChessUSA preview prefix. See SIGN_IN_ATTR. */}
+          <Box {...SIGN_IN_PROPS}>·</Box>
+          <Box {...SIGN_IN_PROPS}>Free account, no card</Box>
+          <Box>·</Box>
+          <Box>Lichess sync</Box>
+        </Stack>
+      </motion.div>
+      </Box>
+
+      {/* The headline leads and Masti follows: on a phone the stage sits
+          under the copy, from md up he stands big to its right. Either way
+          the primary CTA lands above the fold (masti.spec asserts it at
+          390x664 and at 1280x720). */}
+      <HeroMastiStage />
+    </Box>
+  );
+}
+
+/**
+ * The coach chat, right under the hero: the product Masti was pointing at.
+ * One card, centered, so the conversation is the second thing a visitor
+ * reads and the first thing they can picture themselves doing.
+ */
+function AskMastiSection() {
+  return (
+    <Box
+      component="section"
+      aria-labelledby="ask-masti-heading"
+      sx={{ pt: { xs: 2, md: 2 }, pb: { xs: 4, md: 6 } }}
+    >
+      <RevealOnScroll>
+        <Box sx={{ maxWidth: 720, mx: "auto", textAlign: "center", mb: 4 }}>
+          <EyebrowBadge>ASK MASTI ANYTHING</EyebrowBadge>
+          <Typography
+            id="ask-masti-heading"
+            variant="h2"
+            sx={{
+              mt: 2.5,
+              fontSize: { xs: "1.8rem", md: "2.4rem" },
               color: "rgba(255,255,255,0.96)",
             }}
           >
-            Chess coaching,{" "}
+            Every answer starts with the engine{" "}
             <Box
               component="span"
               sx={{
-                background:
-                  "linear-gradient(135deg, #F97316 0%, #FB923C 50%, #FBBF24 100%)",
+                background: "linear-gradient(135deg, #F97316, #A855F7)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
               }}
             >
-              for everyone.
+              and ends in plain words.
             </Box>
           </Typography>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.7,
-            ease: [0.22, 0.61, 0.36, 1],
-            delay: 0.2,
-          }}
-        >
-          <Typography
-            sx={{
-              mt: 3,
-              fontSize: { xs: "1.05rem", md: "1.2rem" },
-              lineHeight: 1.55,
-              color: "rgba(255,255,255,0.66)",
-              maxWidth: 560,
-            }}
-          >
-            World-class chess coaching has been out of reach for many players.
-            We&apos;re changing that. Stockfish 17 + a smart AI coach + a
-            hallucination validator deliver{" "}
-            <Box
-              component="span"
-              sx={{ color: "rgba(255,255,255,0.92)", fontWeight: 600 }}
-            >
-              the same caliber, free for everyone.
-            </Box>
-          </Typography>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.7,
-            ease: [0.22, 0.61, 0.36, 1],
-            delay: 0.32,
-          }}
-        >
-          <Stack direction="row" spacing={2} sx={{ mt: 4.5, flexWrap: "wrap" }}>
-            {/* Program-first (2026-08-10): the plan is the product, so it
-                leads. "Analyze a game" stays as the secondary action — it is
-                the conversion path for AEO traffic arriving on coach queries
-                and must not be removed. */}
-            <StartPlanCTA />
-            <GhostCTA href="/analysis">Analyze a game</GhostCTA>
-          </Stack>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.7,
-            ease: [0.22, 0.61, 0.36, 1],
-            delay: 0.42,
-          }}
-        >
-          <GmBackedLine />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 0.55 }}
-        >
-          <Stack
-            direction="row"
-            spacing={3}
-            sx={{
-              mt: 4,
-              color: "rgba(255,255,255,0.42)",
-              fontSize: "0.78rem",
-              letterSpacing: "0.04em",
-              flexWrap: "wrap",
-            }}
-          >
-            <Box>Engine-grounded AI coaching</Box>
-            <Box>·</Box>
-            <Box>Free account, no card</Box>
-            <Box>·</Box>
-            <Box>Lichess sync</Box>
-          </Stack>
-        </motion.div>
-      </Box>
-
-      <Box sx={{ perspective: "1200px" }}>
-        <GlassChatPreview />
-      </Box>
+        </Box>
+      </RevealOnScroll>
+      <RevealOnScroll delay={0.08}>
+        <Box sx={{ maxWidth: 680, mx: "auto", perspective: "1200px" }}>
+          <GlassChatPreview />
+        </Box>
+      </RevealOnScroll>
     </Box>
   );
 }
 
-function MarqueeStrip() {
+export function MarqueeStrip() {
   const items = [
+    "Masti, your coach",
     "Stockfish 17",
     "Engine-grounded AI coach",
     "Hallucination validator",
@@ -580,7 +561,7 @@ function MarqueeStrip() {
   return (
     <Box
       sx={{
-        my: { xs: 6, md: 8 },
+        my: { xs: 2, md: 2.5 },
         py: 2.5,
         borderTop: "1px solid rgba(255,255,255,0.06)",
         borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -619,1380 +600,9 @@ function MarqueeStrip() {
   );
 }
 
-function HowItWorks() {
-  const steps = [
-    {
-      number: "01",
-      icon: Clipboard,
-      iconColor: "#F97316",
-      iconBg: "rgba(249,115,22,0.12)",
-      iconBorder: "rgba(249,115,22,0.3)",
-      title: "Drop your game.",
-      body: "Paste a PGN, a Lichess link, or play one live — the coach picks up wherever you are.",
-    },
-    {
-      number: "02",
-      icon: Cpu,
-      iconColor: "#A855F7",
-      iconBg: "rgba(168,85,247,0.12)",
-      iconBorder: "rgba(168,85,247,0.3)",
-      title: "Engine + AI analyze.",
-      body: "Stockfish 17 evaluates every move. Our AI coach turns the numbers into a plain-English lesson. A validator checks every claim before you see it.",
-    },
-    {
-      number: "03",
-      icon: TrendingUp,
-      iconColor: "#22c55e",
-      iconBg: "rgba(34,197,94,0.12)",
-      iconBorder: "rgba(34,197,94,0.3)",
-      title: "You improve.",
-      body: "Drill same-motif puzzles the coach surfaces, then face Maia-2 at your rating. Progress, on loop.",
-    },
-  ];
-
-  return (
-    <Box sx={{ py: { xs: 6, md: 10 } }}>
-      <RevealOnScroll>
-        <Box sx={{ maxWidth: 720, mb: 6 }}>
-          <EyebrowBadge>HOW IT WORKS</EyebrowBadge>
-          <Typography
-            variant="h2"
-            sx={{
-              mt: 2.5,
-              fontSize: { xs: "2rem", md: "2.8rem" },
-              color: "rgba(255,255,255,0.96)",
-            }}
-          >
-            Three steps from{" "}
-            <Box
-              component="span"
-              sx={{
-                background: "linear-gradient(135deg, #F97316, #A855F7)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              game played
-            </Box>{" "}
-            to lesson learned.
-          </Typography>
-        </Box>
-      </RevealOnScroll>
-
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
-          gap: 2.5,
-        }}
-      >
-        {steps.map((step, i) => {
-          const Icon = step.icon;
-          return (
-            <RevealOnScroll key={step.number} delay={i * 0.1}>
-              <Box
-                sx={{
-                  position: "relative",
-                  borderRadius: "1.5rem",
-                  background: "rgba(20,22,28,0.55)",
-                  backdropFilter: "blur(14px) saturate(140%)",
-                  WebkitBackdropFilter: "blur(14px) saturate(140%)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  boxShadow:
-                    "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
-                  p: 4,
-                  height: "100%",
-                  transition: "all 240ms cubic-bezier(0.22, 0.61, 0.36, 1)",
-                  "&:hover": {
-                    transform: "translateY(-3px)",
-                    boxShadow:
-                      "0 16px 48px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.1)",
-                  },
-                }}
-              >
-                <Stack direction="row" alignItems="center" spacing={2} mb={3}>
-                  <Typography
-                    sx={{
-                      fontSize: "0.9rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.18em",
-                      color: "rgba(255,255,255,0.4)",
-                      fontFamily: "Monaco, Menlo, monospace",
-                    }}
-                  >
-                    {step.number}
-                  </Typography>
-                  <Box
-                    sx={{
-                      flex: 1,
-                      height: 1,
-                      background:
-                        "linear-gradient(90deg, rgba(255,255,255,0.12), transparent)",
-                    }}
-                  />
-                  <Box
-                    sx={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: "10px",
-                      background: step.iconBg,
-                      border: `1px solid ${step.iconBorder}`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Icon size={20} color={step.iconColor} />
-                  </Box>
-                </Stack>
-                <Typography
-                  variant="h3"
-                  sx={{
-                    fontSize: "1.35rem",
-                    color: "rgba(255,255,255,0.96)",
-                    mb: 1.5,
-                  }}
-                >
-                  {step.title}
-                </Typography>
-                <Typography
-                  sx={{
-                    color: "rgba(255,255,255,0.6)",
-                    fontSize: "0.95rem",
-                    lineHeight: 1.55,
-                  }}
-                >
-                  {step.body}
-                </Typography>
-              </Box>
-            </RevealOnScroll>
-          );
-        })}
-      </Box>
-    </Box>
-  );
-}
-
-function BentoSection() {
-  return (
-    <Box sx={{ py: { xs: 4, md: 6 } }}>
-      <RevealOnScroll>
-        <Box sx={{ maxWidth: 720, mb: 6 }}>
-          <EyebrowBadge>THE COACHING STACK</EyebrowBadge>
-          <Typography
-            variant="h2"
-            sx={{
-              mt: 2.5,
-              fontSize: { xs: "2rem", md: "2.8rem" },
-              color: "rgba(255,255,255,0.96)",
-            }}
-          >
-            GM-caliber coaching,{" "}
-            <Box
-              component="span"
-              sx={{
-                background: "linear-gradient(135deg, #F97316, #A855F7)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              free for everyone.
-            </Box>
-          </Typography>
-          <Typography
-            sx={{
-              mt: 2.5,
-              fontSize: "1.05rem",
-              lineHeight: 1.55,
-              color: "rgba(255,255,255,0.6)",
-            }}
-          >
-            Stockfish-grounded analysis, motif drilling, and opponent prep work
-            together in one free coaching experience. Here&apos;s the stack that
-            makes it possible.
-          </Typography>
-        </Box>
-      </RevealOnScroll>
-
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(12, 1fr)" },
-          gridAutoRows: { md: "minmax(220px, auto)" },
-          gap: 2.5,
-        }}
-      >
-        <BentoCard
-          gridColumn={{ xs: "1 / -1", md: "span 7" }}
-          beam
-          revealDelay={0}
-          style={bentoAccentStyle(ANALYSIS_ACCENT)}
-        >
-          <AccentHairline a={ANALYSIS_ACCENT} />
-          <Stack
-            sx={{ height: "100%", justifyContent: "space-between" }}
-            spacing={3}
-          >
-            <Box
-              sx={{
-                width: 44,
-                height: 44,
-                borderRadius: "12px",
-                background: ANALYSIS_ACCENT.soft,
-                border: `1px solid ${ANALYSIS_ACCENT.border}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Cpu size={22} color={ANALYSIS_ACCENT.bright} />
-            </Box>
-            <Box>
-              <Typography
-                variant="h3"
-                sx={{
-                  fontSize: "1.5rem",
-                  color: "rgba(255,255,255,0.96)",
-                  mb: 1.5,
-                }}
-              >
-                Stockfish 17, in your browser.
-              </Typography>
-              <Typography
-                sx={{
-                  color: "rgba(255,255,255,0.62)",
-                  lineHeight: 1.55,
-                  fontSize: "0.98rem",
-                  mb: 3,
-                }}
-              >
-                The world's strongest engine evaluates every move via WASM —
-                locally. Coaching commentary always starts from real numbers,
-                then the coaching request is sent securely to Anthropic or the
-                configured OpenAI fallback.
-              </Typography>
-              <Stack direction="row" spacing={1.5}>
-                {["+1.8", "Best: Nd5", "Depth 22"].map((tag) => (
-                  <Box
-                    key={tag}
-                    sx={{
-                      px: 1.5,
-                      py: 0.5,
-                      borderRadius: "8px",
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      fontSize: "0.78rem",
-                      color: "rgba(255,255,255,0.78)",
-                      fontFamily: "Monaco, Menlo, monospace",
-                    }}
-                  >
-                    {tag}
-                  </Box>
-                ))}
-              </Stack>
-            </Box>
-          </Stack>
-        </BentoCard>
-
-        <BentoCard
-          gridColumn={{ xs: "1 / -1", md: "span 5" }}
-          revealDelay={0.08}
-        >
-          <Stack
-            sx={{ height: "100%", justifyContent: "space-between" }}
-            spacing={3}
-          >
-            <Box
-              sx={{
-                width: 44,
-                height: 44,
-                borderRadius: "12px",
-                background: "rgba(34,197,94,0.12)",
-                border: "1px solid rgba(34,197,94,0.3)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <ShieldCheck size={22} color="#22c55e" />
-            </Box>
-            <Box>
-              <Typography
-                sx={{
-                  fontSize: "3.5rem",
-                  fontWeight: 800,
-                  lineHeight: 1,
-                  letterSpacing: "-0.04em",
-                  background: "linear-gradient(135deg, #22c55e, #16a34a)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                }}
-              >
-                <NumberTicker value={100} suffix="%" />
-              </Typography>
-              <Typography
-                variant="h3"
-                sx={{
-                  fontSize: "1.15rem",
-                  color: "rgba(255,255,255,0.94)",
-                  mt: 1,
-                }}
-              >
-                Of claims fact-checked.
-              </Typography>
-              <Typography
-                sx={{
-                  color: "rgba(255,255,255,0.58)",
-                  fontSize: "0.92rem",
-                  mt: 1.5,
-                  lineHeight: 1.5,
-                }}
-              >
-                A chess.js validator checks every move, line, and evaluation the
-                coach mentions. Hallucinations don't reach the page.
-              </Typography>
-            </Box>
-          </Stack>
-        </BentoCard>
-
-        <BentoCard
-          gridColumn={{ xs: "1 / -1", md: "span 4" }}
-          revealDelay={0.16}
-          style={bentoAccentStyle(PRACTICE_ACCENT)}
-        >
-          <AccentHairline a={PRACTICE_ACCENT} />
-          <Box
-            sx={{
-              width: 44,
-              height: 44,
-              borderRadius: "12px",
-              background: PRACTICE_ACCENT.soft,
-              border: `1px solid ${PRACTICE_ACCENT.border}`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              mb: 3,
-            }}
-          >
-            <Puzzle size={22} color={PRACTICE_ACCENT.bright} />
-          </Box>
-          <Typography
-            sx={{
-              fontSize: "2.6rem",
-              fontWeight: 800,
-              lineHeight: 1,
-              letterSpacing: "-0.03em",
-              color: "rgba(255,255,255,0.96)",
-            }}
-          >
-            <NumberTicker value={100000} />
-          </Typography>
-          <Typography
-            variant="h3"
-            sx={{
-              fontSize: "1.1rem",
-              color: "rgba(255,255,255,0.94)",
-              mt: 1,
-            }}
-          >
-            Lichess puzzles, indexed.
-          </Typography>
-          <Typography
-            sx={{
-              color: "rgba(255,255,255,0.56)",
-              fontSize: "0.9rem",
-              mt: 1.25,
-              lineHeight: 1.5,
-            }}
-          >
-            FEN cosine-similarity reranks puzzles to your weak motifs.
-          </Typography>
-        </BentoCard>
-
-        <BentoCard
-          gridColumn={{ xs: "1 / -1", md: "span 4" }}
-          beam
-          beamDelay={2}
-          revealDelay={0.24}
-          style={bentoAccentStyle(PLAY_ACCENT)}
-        >
-          <AccentHairline a={PLAY_ACCENT} />
-          <Box
-            sx={{
-              width: 44,
-              height: 44,
-              borderRadius: "12px",
-              background: PLAY_ACCENT.soft,
-              border: `1px solid ${PLAY_ACCENT.border}`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              mb: 3,
-            }}
-          >
-            <Bot size={22} color={PLAY_ACCENT.bright} />
-          </Box>
-          <Typography
-            variant="h3"
-            sx={{
-              fontSize: "1.3rem",
-              color: "rgba(255,255,255,0.96)",
-              mb: 1.5,
-            }}
-          >
-            Beat the bot that plays like you.
-          </Typography>
-          <Typography
-            sx={{
-              color: "rgba(255,255,255,0.58)",
-              fontSize: "0.9rem",
-              lineHeight: 1.55,
-            }}
-          >
-            Maia-2 mimics human moves at your rating. No more 3500-Elo crushing
-            — train against your actual ceiling.
-          </Typography>
-        </BentoCard>
-
-        <BentoCard
-          gridColumn={{ xs: "1 / -1", md: "span 4" }}
-          revealDelay={0.32}
-        >
-          <Box
-            sx={{
-              width: 44,
-              height: 44,
-              borderRadius: "12px",
-              background: "rgba(59,130,246,0.12)",
-              border: "1px solid rgba(59,130,246,0.3)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              mb: 3,
-            }}
-          >
-            <Link2 size={22} color="#3B82F6" />
-          </Box>
-          <Typography
-            variant="h3"
-            sx={{
-              fontSize: "1.3rem",
-              color: "rgba(255,255,255,0.96)",
-              mb: 1.5,
-            }}
-          >
-            One-click Lichess sync.
-          </Typography>
-          <Typography
-            sx={{
-              color: "rgba(255,255,255,0.58)",
-              fontSize: "0.9rem",
-              lineHeight: 1.55,
-            }}
-          >
-            OAuth 2.0 PKCE in. Pull your games, push your repertoire, play live
-            — without leaving the coach.
-          </Typography>
-        </BentoCard>
-
-        <BentoCard
-          gridColumn={{ xs: "1 / -1", md: "span 12" }}
-          revealDelay={0.1}
-          style={bentoAccentStyle(SCOUT_ACCENT)}
-        >
-          <AccentHairline a={SCOUT_ACCENT} />
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={4}
-            alignItems={{ md: "center" }}
-            sx={{ height: "100%" }}
-          >
-            <Box
-              sx={{
-                width: 56,
-                height: 56,
-                borderRadius: "14px",
-                background: SCOUT_ACCENT.soft,
-                border: `1px solid ${SCOUT_ACCENT.border}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <Crosshair size={28} color={SCOUT_ACCENT.bright} />
-            </Box>
-            <Box sx={{ flex: 1 }}>
-              <Typography
-                variant="h3"
-                sx={{
-                  fontSize: { xs: "1.4rem", md: "1.7rem" },
-                  color: "rgba(255,255,255,0.96)",
-                  mb: 1,
-                }}
-              >
-                Scout your next opponent.{" "}
-                <Box
-                  component="span"
-                  sx={{ color: "rgba(255,255,255,0.5)", fontWeight: 500 }}
-                >
-                  Tells show you what to play.
-                </Box>
-              </Typography>
-              <Typography
-                sx={{
-                  color: "rgba(255,255,255,0.58)",
-                  fontSize: "1rem",
-                  lineHeight: 1.55,
-                  maxWidth: 720,
-                }}
-              >
-                Drop a Lichess or Chess.com handle. We surface their opening
-                tendencies, blunder patterns, and time-trouble breakpoints — so
-                you walk in with a plan, not a hope.
-              </Typography>
-            </Box>
-            <Box>
-              <GhostCTA href="/scout">Try Scout</GhostCTA>
-            </Box>
-          </Stack>
-        </BentoCard>
-      </Box>
-    </Box>
-  );
-}
-
-function DailyPuzzleSection() {
-  // Classic knight fork puzzle — White N on d5, Black K on e8 + R on a8.
-  // Solution: 1.Nc7+ forks K and R, winning the rook next move.
-  const initialFen = "r3k3/8/8/3N4/8/8/8/4K3 w - - 0 1";
-  const solution = { from: "d5" as Square, to: "c7" as Square };
-  // Computed after mount, never during render.
-  //
-  // This page is statically prerendered, so anything derived from the clock
-  // at render time is the BUILD machine's clock, frozen into the HTML. From
-  // the day after a deploy onward the server said one date and every browser
-  // said another: React hit a text mismatch (#425), hydration failed (#418)
-  // and the entire root was discarded and re-rendered on the client (#423).
-  // Production was doing that on every single homepage visit -- the SSR HTML
-  // read AUGUST 22 while browsers read AUGUST 23.
-  //
-  // Deferring to an effect makes the server render and the client's FIRST
-  // render agree by construction: both emit no date. The viewer then gets
-  // their own local date a tick later, which is the only correct one anyway,
-  // since "today" varies by timezone as well as by how stale the build is.
-  const [today, setToday] = useState<string | null>(null);
-  useEffect(() => {
-    setToday(
-      new Date().toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-      })
-    );
-  }, []);
-
-  const [position, setPosition] = useState(initialFen);
-  const [status, setStatus] = useState<"playing" | "wrong" | "solved">(
-    "playing"
-  );
-  const [tries, setTries] = useState(0);
-  const [hintShown, setHintShown] = useState(false);
-
-  // Compute legal destinations for chessground to highlight on click
-  const dests = useMemo(() => {
-    if (status === "solved") return new Map<string, string[]>();
-    const c = new Chess(position);
-    const map = new Map<string, string[]>();
-    c.moves({ verbose: true }).forEach((m) => {
-      const arr = map.get(m.from) ?? [];
-      arr.push(m.to);
-      map.set(m.from, arr);
-    });
-    return map;
-  }, [position, status]);
-
-  // Green arrow hint (revealed when "Hint" clicked) + red flash on wrong
-  const shapes = useMemo<DrawShape[]>(() => {
-    const out: DrawShape[] = [];
-    if (hintShown && status !== "solved") {
-      out.push({ orig: solution.from, brush: "paleGreen" });
-    }
-    return out;
-  }, [hintShown, status]);
-
-  const handleMove = (from: string, to: string) => {
-    if (status === "solved") return;
-    if (from === solution.from && to === solution.to) {
-      const g = new Chess(initialFen);
-      g.move({ from: solution.from, to: solution.to });
-      setPosition(g.fen());
-      setStatus("solved");
-      return;
-    }
-    // Wrong move — flash board, revert position
-    setStatus("wrong");
-    setTries((t) => t + 1);
-    setTimeout(() => {
-      setPosition(initialFen);
-      setStatus((s) => (s === "wrong" ? "playing" : s));
-    }, 650);
-  };
-
-  const handleReset = () => {
-    setPosition(initialFen);
-    setStatus("playing");
-    setTries(0);
-    setHintShown(false);
-  };
-
-  // Build the "Open in /analysis" link with the puzzle FEN encoded
-  const analysisLink = `/analysis?puzzleFen=${encodeURIComponent(initialFen)}&solution=${encodeURIComponent(`${solution.from}-${solution.to}`)}`;
-  const askCoachLink = `/analysis?puzzleFen=${encodeURIComponent(initialFen)}&solution=${encodeURIComponent(`${solution.from}-${solution.to}`)}&prompt=${encodeURIComponent("Help me understand why Nc7+ wins here.")}`;
-
-  return (
-    <Box sx={{ py: { xs: 6, md: 10 } }}>
-      <RevealOnScroll>
-        <Box sx={{ maxWidth: 720, mb: 6 }}>
-          <EyebrowBadge>
-            PUZZLE OF THE DAY{today ? ` · ${today.toUpperCase()}` : ""}
-          </EyebrowBadge>
-          <Typography
-            variant="h2"
-            sx={{
-              mt: 2.5,
-              fontSize: { xs: "2rem", md: "2.8rem" },
-              color: "rgba(255,255,255,0.96)",
-            }}
-          >
-            One puzzle a day.{" "}
-            <Box
-              component="span"
-              sx={{
-                background: "linear-gradient(135deg, #F97316, #A855F7)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              Coached, not just rated.
-            </Box>
-          </Typography>
-        </Box>
-      </RevealOnScroll>
-
-      <RevealOnScroll delay={0.1}>
-        <Box
-          sx={{
-            position: "relative",
-            borderRadius: "2rem",
-            background: `linear-gradient(135deg, ${PRACTICE_ACCENT.tint}, rgba(20,22,28,0.6))`,
-            backdropFilter: "blur(16px) saturate(150%)",
-            WebkitBackdropFilter: "blur(16px) saturate(150%)",
-            border: `1px solid ${PRACTICE_ACCENT.border}`,
-            boxShadow: `0 16px 48px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06), ${PRACTICE_ACCENT.glow}`,
-            p: { xs: 4, md: 6 },
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "1.05fr 0.95fr" },
-            gap: { xs: 4, md: 6 },
-            alignItems: "center",
-            overflow: "hidden",
-            "&::before": {
-              content: '""',
-              position: "absolute",
-              top: 0,
-              left: "8%",
-              right: "8%",
-              height: "1.5px",
-              background: `linear-gradient(90deg, transparent, ${PRACTICE_ACCENT.base}, transparent)`,
-              opacity: 0.65,
-              pointerEvents: "none",
-            },
-          }}
-        >
-          <Box
-            aria-hidden
-            sx={{
-              position: "absolute",
-              width: "50%",
-              height: "150%",
-              top: "-25%",
-              right: "-15%",
-              background: `radial-gradient(ellipse at center, ${PRACTICE_ACCENT.soft}, transparent 60%)`,
-              pointerEvents: "none",
-            }}
-          />
-
-          <Box sx={{ position: "relative", zIndex: 1 }}>
-            <Stack direction="row" spacing={1.5} alignItems="center" mb={2}>
-              <Box
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: "10px",
-                  background: PRACTICE_ACCENT.soft,
-                  border: `1px solid ${PRACTICE_ACCENT.border}`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Flame size={20} color={PRACTICE_ACCENT.bright} />
-              </Box>
-              <Box>
-                <Typography
-                  sx={{
-                    fontSize: "0.72rem",
-                    fontWeight: 700,
-                    letterSpacing: "0.14em",
-                    color: "rgba(255,255,255,0.5)",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Today's puzzle
-                </Typography>
-                <Typography
-                  sx={{
-                    fontSize: "0.92rem",
-                    fontWeight: 600,
-                    color: "rgba(255,255,255,0.92)",
-                  }}
-                >
-                  Endgame · Knight fork
-                </Typography>
-              </Box>
-            </Stack>
-
-            <Typography
-              variant="h3"
-              sx={{
-                fontSize: { xs: "1.6rem", md: "2rem" },
-                color: "rgba(255,255,255,0.96)",
-                mt: 2,
-                mb: 2,
-                lineHeight: 1.15,
-              }}
-            >
-              {status === "solved" ? (
-                <>
-                  Brilliant.{" "}
-                  <Box
-                    component="span"
-                    sx={{
-                      background: "linear-gradient(135deg, #22c55e, #16a34a)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                      backgroundClip: "text",
-                    }}
-                  >
-                    Nc7+ wins the rook.
-                  </Box>
-                </>
-              ) : (
-                <>White to play. Find the winning move.</>
-              )}
-            </Typography>
-
-            {status !== "solved" && (
-              <Typography
-                sx={{
-                  color: "rgba(255,255,255,0.6)",
-                  fontSize: "1rem",
-                  lineHeight: 1.55,
-                  mb: 3,
-                }}
-              >
-                Drag the knight to win material. Wrong moves bounce back — same
-                way the coach guards you mid-game.
-                {hintShown && (
-                  <Box
-                    component="span"
-                    sx={{
-                      display: "block",
-                      mt: 2,
-                      p: 2,
-                      borderRadius: "10px",
-                      background: "rgba(249,115,22,0.08)",
-                      border: "1px solid rgba(249,115,22,0.2)",
-                      color: "rgba(255,255,255,0.85)",
-                      fontSize: "0.92rem",
-                      fontStyle: "italic",
-                    }}
-                  >
-                    💡 The knight on d5 can attack both the king and the rook
-                    from a single square.
-                  </Box>
-                )}
-              </Typography>
-            )}
-
-            {status === "solved" && (
-              <Box
-                sx={{
-                  p: 2.5,
-                  borderRadius: "12px",
-                  background: "rgba(34,197,94,0.08)",
-                  border: "1px solid rgba(34,197,94,0.25)",
-                  mb: 3,
-                }}
-              >
-                <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                  <CheckCircle2 size={20} color="#22c55e" />
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: "0.95rem",
-                        color: "rgba(255,255,255,0.92)",
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      Knight to c7 forks the king on e8 and rook on a8. King
-                      must move, then Nxa8 wins the rook.
-                    </Typography>
-                    {tries > 0 && (
-                      <Typography
-                        sx={{
-                          fontSize: "0.82rem",
-                          color: "rgba(255,255,255,0.5)",
-                          mt: 1,
-                        }}
-                      >
-                        Solved in {tries + 1} {tries === 0 ? "try" : "tries"}.
-                      </Typography>
-                    )}
-                  </Box>
-                </Stack>
-              </Box>
-            )}
-
-            <Stack direction="row" spacing={1.25} sx={{ flexWrap: "wrap" }}>
-              {status === "solved" ? (
-                <>
-                  <Button
-                    onClick={handleReset}
-                    variant="outlined"
-                    startIcon={<RotateCcw size={16} />}
-                    sx={{
-                      color: "rgba(255,255,255,0.92)",
-                      borderColor: "rgba(255,255,255,0.18)",
-                      fontWeight: 600,
-                      px: 2.25,
-                      py: 1.2,
-                      borderRadius: "999px",
-                      background: "rgba(255,255,255,0.03)",
-                      "&:hover": {
-                        borderColor: "rgba(255,255,255,0.32)",
-                        background: "rgba(255,255,255,0.06)",
-                      },
-                    }}
-                  >
-                    Try again
-                  </Button>
-                  <PrimaryCTA href="/puzzles">More puzzles</PrimaryCTA>
-                  <Button
-                    component={Link}
-                    href={askCoachLink}
-                    prefetch={false}
-                    variant="outlined"
-                    startIcon={<Sparkles size={16} />}
-                    sx={{
-                      color: "#FB923C",
-                      borderColor: "rgba(249,115,22,0.32)",
-                      fontWeight: 600,
-                      px: 2.25,
-                      py: 1.2,
-                      borderRadius: "999px",
-                      background: "rgba(249,115,22,0.08)",
-                      "&:hover": {
-                        borderColor: "rgba(249,115,22,0.5)",
-                        background: "rgba(249,115,22,0.14)",
-                      },
-                    }}
-                  >
-                    Ask the coach
-                  </Button>
-                  <Button
-                    component={Link}
-                    href={analysisLink}
-                    prefetch={false}
-                    variant="outlined"
-                    sx={{
-                      color: "rgba(255,255,255,0.78)",
-                      borderColor: "rgba(255,255,255,0.12)",
-                      fontWeight: 600,
-                      px: 2.25,
-                      py: 1.2,
-                      borderRadius: "999px",
-                      background: "rgba(255,255,255,0.02)",
-                      "&:hover": {
-                        borderColor: "rgba(255,255,255,0.28)",
-                        background: "rgba(255,255,255,0.05)",
-                      },
-                    }}
-                  >
-                    Open in /analysis
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    onClick={() => setHintShown(true)}
-                    disabled={hintShown}
-                    variant="outlined"
-                    startIcon={<Lightbulb size={16} />}
-                    sx={{
-                      color: "rgba(255,255,255,0.92)",
-                      borderColor: "rgba(255,255,255,0.18)",
-                      fontWeight: 600,
-                      px: 2.5,
-                      py: 1.25,
-                      borderRadius: "999px",
-                      background: "rgba(255,255,255,0.03)",
-                      "&.Mui-disabled": {
-                        color: "rgba(255,255,255,0.3)",
-                        borderColor: "rgba(255,255,255,0.08)",
-                      },
-                      "&:hover": {
-                        borderColor: "rgba(255,255,255,0.32)",
-                        background: "rgba(255,255,255,0.06)",
-                      },
-                    }}
-                  >
-                    {hintShown ? "Hint shown" : "Show hint"}
-                  </Button>
-                  <Button
-                    component={Link}
-                    href={askCoachLink}
-                    prefetch={false}
-                    variant="outlined"
-                    startIcon={<Sparkles size={16} />}
-                    sx={{
-                      color: "#FB923C",
-                      borderColor: "rgba(249,115,22,0.3)",
-                      fontWeight: 600,
-                      px: 2.5,
-                      py: 1.25,
-                      borderRadius: "999px",
-                      background: "rgba(249,115,22,0.06)",
-                      "&:hover": {
-                        borderColor: "rgba(249,115,22,0.5)",
-                        background: "rgba(249,115,22,0.12)",
-                      },
-                    }}
-                  >
-                    Ask the coach
-                  </Button>
-                  <GhostCTA href="/puzzles">Skip to full deck</GhostCTA>
-                </>
-              )}
-            </Stack>
-
-            <Stack
-              direction="row"
-              spacing={3}
-              sx={{
-                mt: 3.5,
-                color: "rgba(255,255,255,0.42)",
-                fontSize: "0.78rem",
-                letterSpacing: "0.04em",
-                flexWrap: "wrap",
-              }}
-            >
-              <Box>100,000 puzzles in the deck</Box>
-              <Box>·</Box>
-              <Box>Adaptive to your rating</Box>
-            </Stack>
-          </Box>
-
-          <Box
-            sx={{
-              position: "relative",
-              zIndex: 1,
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Box
-              sx={{
-                position: "relative",
-                borderRadius: "16px",
-                overflow: "hidden",
-                boxShadow:
-                  status === "solved"
-                    ? "0 24px 60px rgba(0,0,0,0.5), 0 0 0 2px rgba(34,197,94,0.45), inset 0 1px 0 rgba(255,255,255,0.04)"
-                    : status === "wrong"
-                      ? "0 24px 60px rgba(0,0,0,0.5), 0 0 0 2px rgba(239,68,68,0.5), inset 0 1px 0 rgba(255,255,255,0.04)"
-                      : "0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.04)",
-                maxWidth: 380,
-                width: "100%",
-                aspectRatio: "1",
-                transition:
-                  "box-shadow 240ms cubic-bezier(0.22, 0.61, 0.36, 1)",
-              }}
-            >
-              <ChessgroundBoard
-                fen={position}
-                viewOnly={status === "solved"}
-                movableColor="white"
-                dests={dests}
-                onMove={handleMove}
-                shapes={shapes}
-              />
-            </Box>
-          </Box>
-        </Box>
-      </RevealOnScroll>
-    </Box>
-  );
-}
-
-function Comparison() {
-  const columns = [
-    {
-      name: "DIY tools",
-      tagline: "Stockfish + textbooks",
-      icon: Wrench,
-      highlighted: false,
-      features: [
-        {
-          label: "Engine-grounded analysis",
-          status: "yes" as const,
-          note: "Raw",
-        },
-        { label: "Plain-English explanations", status: "no" as const },
-        { label: "Personalized to your weaknesses", status: "no" as const },
-        { label: "Available 24/7", status: "yes" as const },
-        { label: "Catches AI hallucinations", status: "na" as const },
-      ],
-    },
-    {
-      name: "Chess Masti",
-      tagline: "Engine-grounded coaching",
-      icon: Sparkles,
-      highlighted: true,
-      features: [
-        {
-          label: "Engine-grounded analysis",
-          status: "yes" as const,
-          note: "Curated",
-        },
-        { label: "Plain-English explanations", status: "yes" as const },
-        { label: "Personalized to your weaknesses", status: "yes" as const },
-        { label: "Available 24/7", status: "yes" as const },
-        {
-          label: "Catches AI hallucinations",
-          status: "yes" as const,
-          note: "Validator",
-        },
-      ],
-    },
-    {
-      name: "GM coach",
-      tagline: "Human expert",
-      icon: GraduationCap,
-      highlighted: false,
-      features: [
-        { label: "Engine-grounded analysis", status: "partial" as const },
-        { label: "Plain-English explanations", status: "yes" as const },
-        { label: "Personalized to your weaknesses", status: "yes" as const },
-        { label: "Available 24/7", status: "no" as const },
-        { label: "Catches AI hallucinations", status: "na" as const },
-      ],
-    },
-  ];
-
-  const renderStatusIcon = (
-    status: "yes" | "no" | "partial" | "na",
-    highlighted: boolean
-  ) => {
-    if (status === "yes") {
-      return (
-        <Box
-          sx={{
-            width: 18,
-            height: 18,
-            borderRadius: "50%",
-            background: highlighted
-              ? "rgba(249,115,22,0.18)"
-              : "rgba(34,197,94,0.15)",
-            border: highlighted
-              ? "1px solid rgba(249,115,22,0.4)"
-              : "1px solid rgba(34,197,94,0.35)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          <Check
-            size={11}
-            color={highlighted ? "#F97316" : "#22c55e"}
-            strokeWidth={3}
-          />
-        </Box>
-      );
-    }
-    if (status === "no") {
-      return (
-        <Box
-          sx={{
-            width: 18,
-            height: 18,
-            borderRadius: "50%",
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          <X size={11} color="rgba(255,255,255,0.4)" strokeWidth={3} />
-        </Box>
-      );
-    }
-    if (status === "partial") {
-      return (
-        <Box
-          sx={{
-            width: 18,
-            height: 18,
-            borderRadius: "50%",
-            background: "rgba(234,179,8,0.12)",
-            border: "1px solid rgba(234,179,8,0.3)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          <Minus size={11} color="#eab308" strokeWidth={3} />
-        </Box>
-      );
-    }
-    return (
-      <Box
-        sx={{
-          width: 18,
-          height: 18,
-          borderRadius: "50%",
-          background: "rgba(255,255,255,0.02)",
-          border: "1px dashed rgba(255,255,255,0.1)",
-          flexShrink: 0,
-        }}
-      />
-    );
-  };
-
-  return (
-    <Box sx={{ py: { xs: 6, md: 10 } }}>
-      <RevealOnScroll>
-        <Box sx={{ maxWidth: 720, mb: 6 }}>
-          <EyebrowBadge>COMPARE THE EXPERIENCE</EyebrowBadge>
-          <Typography
-            variant="h2"
-            sx={{
-              mt: 2.5,
-              fontSize: { xs: "2rem", md: "2.8rem" },
-              color: "rgba(255,255,255,0.96)",
-            }}
-          >
-            Coaching built around your games.{" "}
-            <Box
-              component="span"
-              sx={{
-                background: "linear-gradient(135deg, #F97316, #A855F7)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              Clear, grounded, and always available.
-            </Box>
-          </Typography>
-        </Box>
-      </RevealOnScroll>
-
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
-          gap: 2.5,
-          alignItems: "stretch",
-        }}
-      >
-        {columns.map((col, i) => {
-          const Icon = col.icon;
-          return (
-            <RevealOnScroll
-              key={col.name}
-              delay={i * 0.1}
-              style={{ height: "100%" }}
-            >
-              <Box
-                sx={{
-                  position: "relative",
-                  borderRadius: "1.5rem",
-                  background: col.highlighted
-                    ? "linear-gradient(180deg, rgba(249,115,22,0.08), rgba(20,22,28,0.65))"
-                    : "rgba(20,22,28,0.5)",
-                  backdropFilter: "blur(14px) saturate(140%)",
-                  WebkitBackdropFilter: "blur(14px) saturate(140%)",
-                  border: col.highlighted
-                    ? "1px solid rgba(249,115,22,0.35)"
-                    : "1px solid rgba(255,255,255,0.08)",
-                  boxShadow: col.highlighted
-                    ? "0 16px 48px rgba(0,0,0,0.45), 0 0 0 1px rgba(249,115,22,0.18), inset 0 1px 0 rgba(255,255,255,0.08)"
-                    : "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)",
-                  p: 4,
-                  height: "100%",
-                  overflow: "hidden",
-                }}
-              >
-                {col.highlighted && <BorderBeam duration={10} />}
-                <Box sx={{ position: "relative", zIndex: 1 }}>
-                  {col.highlighted && (
-                    <Box
-                      sx={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 0.5,
-                        px: 1.25,
-                        py: 0.4,
-                        borderRadius: "999px",
-                        background: "rgba(249,115,22,0.18)",
-                        border: "1px solid rgba(249,115,22,0.35)",
-                        mb: 2,
-                      }}
-                    >
-                      <Sparkles size={11} color="#F97316" />
-                      <Typography
-                        sx={{
-                          fontSize: "0.65rem",
-                          fontWeight: 700,
-                          letterSpacing: "0.14em",
-                          color: "#F97316",
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        Featured
-                      </Typography>
-                    </Box>
-                  )}
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    spacing={1.5}
-                    mb={1.5}
-                  >
-                    <Box
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: "10px",
-                        background: col.highlighted
-                          ? "rgba(249,115,22,0.18)"
-                          : "rgba(255,255,255,0.05)",
-                        border: col.highlighted
-                          ? "1px solid rgba(249,115,22,0.4)"
-                          : "1px solid rgba(255,255,255,0.08)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Icon
-                        size={18}
-                        color={
-                          col.highlighted ? "#F97316" : "rgba(255,255,255,0.7)"
-                        }
-                      />
-                    </Box>
-                    <Box>
-                      <Typography
-                        sx={{
-                          fontSize: "1.2rem",
-                          fontWeight: 700,
-                          color: "rgba(255,255,255,0.96)",
-                          lineHeight: 1.1,
-                        }}
-                      >
-                        {col.name}
-                      </Typography>
-                      <Typography
-                        sx={{
-                          fontSize: "0.78rem",
-                          color: "rgba(255,255,255,0.5)",
-                          lineHeight: 1.1,
-                          mt: 0.5,
-                        }}
-                      >
-                        {col.tagline}
-                      </Typography>
-                    </Box>
-                  </Stack>
-
-                  <Box
-                    sx={{
-                      height: 1,
-                      background:
-                        "linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)",
-                      my: 3,
-                    }}
-                  />
-
-                  <Stack spacing={1.5}>
-                    {col.features.map((f) => (
-                      <Stack
-                        key={f.label}
-                        direction="row"
-                        alignItems="center"
-                        spacing={1.5}
-                      >
-                        {renderStatusIcon(f.status, col.highlighted)}
-                        <Typography
-                          sx={{
-                            fontSize: "0.92rem",
-                            color:
-                              f.status === "no" || f.status === "na"
-                                ? "rgba(255,255,255,0.42)"
-                                : "rgba(255,255,255,0.85)",
-                            flex: 1,
-                          }}
-                        >
-                          {f.label}
-                        </Typography>
-                        {"note" in f && f.note && (
-                          <Typography
-                            sx={{
-                              fontSize: "0.7rem",
-                              color: "rgba(255,255,255,0.45)",
-                              fontFamily: "Monaco, Menlo, monospace",
-                              letterSpacing: "0.02em",
-                            }}
-                          >
-                            {f.note}
-                          </Typography>
-                        )}
-                      </Stack>
-                    ))}
-                  </Stack>
-                </Box>
-              </Box>
-            </RevealOnScroll>
-          );
-        })}
-      </Box>
-    </Box>
-  );
-}
-
 function ChromeExtension() {
   return (
-    <Box sx={{ py: { xs: 6, md: 10 } }}>
+    <Box sx={{ py: { xs: 2, md: 3 } }}>
       <RevealOnScroll>
         <Box
           sx={{
@@ -2280,82 +890,6 @@ function ChromeExtension() {
   );
 }
 
-function StatsStrip() {
-  const stats = [
-    {
-      value: 3500,
-      prefix: "",
-      suffix: "+",
-      label: "Engine Elo behind every verdict",
-    },
-    // Measured, not rounded: public/data/lichess_puzzles_100k.csv has exactly
-    // 100,000 rows and the Neo4j graph reports 99,850, so there is no "+".
-    { value: 100000, prefix: "", suffix: "", label: "Puzzles indexed" },
-    { value: 100, prefix: "", suffix: "%", label: "Claims fact-checked" },
-  ];
-
-  return (
-    <RevealOnScroll>
-      <Box
-        sx={{
-          my: { xs: 6, md: 10 },
-          py: 5,
-          px: { xs: 3, md: 5 },
-          borderRadius: "1.5rem",
-          background: "rgba(20,22,28,0.4)",
-          border: "1px solid rgba(255,255,255,0.06)",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
-        }}
-      >
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
-            gap: { xs: 4, md: 2 },
-          }}
-        >
-          {stats.map((s) => (
-            <Box key={s.label}>
-              <Typography
-                sx={{
-                  fontSize: { xs: "2.2rem", md: "2.8rem" },
-                  fontWeight: 800,
-                  letterSpacing: "-0.03em",
-                  lineHeight: 1,
-                  background:
-                    "linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,255,255,0.6))",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                }}
-              >
-                <NumberTicker
-                  value={s.value}
-                  prefix={s.prefix}
-                  suffix={s.suffix}
-                />
-              </Typography>
-              <Typography
-                sx={{
-                  mt: 1.5,
-                  fontSize: "0.84rem",
-                  color: "rgba(255,255,255,0.5)",
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  fontWeight: 600,
-                }}
-              >
-                {s.label}
-              </Typography>
-            </Box>
-          ))}
-        </Box>
-      </Box>
-    </RevealOnScroll>
-  );
-}
-
 /** "A and B", or "A, B and C" for longer lists. */
 function joinNames(names: readonly string[]): string {
   if (names.length <= 1) return names.join("");
@@ -2446,57 +980,6 @@ function GmBackedLine() {
 }
 
 /**
- * Source credits for third-party portraits. Rendered in the footer, not
- * under the section, so the endorsement reads clean where it matters and
- * the attribution still ships on the same page.
- */
-function TestimonialPhotoCredits() {
-  const credits = EXPERT_TESTIMONIALS.flatMap((t) =>
-    t.photo?.credit ? [{ id: t.id, name: t.name, credit: t.photo.credit }] : []
-  );
-  if (credits.length === 0) return null;
-  return (
-    <Typography
-      component="p"
-      sx={{
-        m: 0,
-        fontSize: "0.72rem",
-        lineHeight: 1.6,
-        color: "rgba(255,255,255,0.32)",
-        "& a": {
-          color: "inherit",
-          textDecorationColor: "rgba(255,255,255,0.2)",
-        },
-        "& a:hover": { color: "rgba(255,255,255,0.55)" },
-      }}
-    >
-      {credits.map(({ id, name, credit }) => (
-        <Box component="span" key={id} sx={{ display: "block" }}>
-          Photo of {name}: {credit.author ? `${credit.author}, ` : null}
-          {credit.license && credit.licenseUrl ? (
-            <>
-              <a
-                href={credit.licenseUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {credit.license}
-              </a>
-              ,{" "}
-            </>
-          ) : null}
-          via{" "}
-          <a href={credit.sourceUrl} target="_blank" rel="noopener noreferrer">
-            {credit.sourceName}
-          </a>
-          , cropped.
-        </Box>
-      ))}
-    </Typography>
-  );
-}
-
-/**
  * Circular portrait filling the card's left third. Falls back to the
  * person's initials when no photograph is on file, so both cards keep the
  * same geometry whether or not a photo has been supplied.
@@ -2580,10 +1063,10 @@ function ExpertTestimonials() {
       component="section"
       id="gm-backed"
       aria-labelledby="expert-testimonials-heading"
-      sx={{ py: { xs: 6, md: 10 }, scrollMarginTop: 96 }}
+      sx={{ py: { xs: 2, md: 3 }, scrollMarginTop: 96 }}
     >
       <RevealOnScroll>
-        <Box sx={{ maxWidth: 720, mb: 6 }}>
+        <Box sx={{ maxWidth: 720, mb: 3 }}>
           <EyebrowBadge>BACKED BY GRANDMASTERS</EyebrowBadge>
           <Typography
             id="expert-testimonials-heading"
@@ -2753,7 +1236,7 @@ function FinalCTA() {
     <RevealOnScroll>
       <Box
         sx={{
-          my: { xs: 8, md: 12 },
+          my: { xs: 3, md: 4 },
           position: "relative",
           borderRadius: "2rem",
           background:
@@ -2783,6 +1266,9 @@ function FinalCTA() {
           }}
         />
         <Box sx={{ position: "relative" }}>
+          <Box sx={{ display: "flex", justifyContent: "center", mb: 2.5 }}>
+            <Masti mood="excited" size={150} loops={2} replayOnHover />
+          </Box>
           <Typography
             variant="h2"
             sx={{
@@ -2791,7 +1277,7 @@ function FinalCTA() {
               mb: 2,
             }}
           >
-            GM-quality chess coaching.{" "}
+            Meet Masti at the board.{" "}
             <Box
               component="span"
               sx={{
@@ -2802,7 +1288,7 @@ function FinalCTA() {
                 backgroundClip: "text",
               }}
             >
-              Free coaching.
+              Free, for everyone.
             </Box>
           </Typography>
           <Typography
@@ -2815,8 +1301,8 @@ function FinalCTA() {
               lineHeight: 1.55,
             }}
           >
-            Engine analysis runs in your browser with no account at all. The
-            coach needs a free account — no card — and its requests are sent
+            Engine analysis runs in your browser with no account at all. Masti
+            needs a free account — no card — and his requests are sent
             securely to Anthropic or OpenAI. Every coaching feature is free.
           </Typography>
           <Stack
@@ -2850,19 +1336,7 @@ function Footer() {
         }}
       >
         <Stack direction="row" spacing={1.5} alignItems="center">
-          <Box
-            sx={{
-              width: 22,
-              height: 22,
-              borderRadius: "6px",
-              background: "linear-gradient(135deg, #F97316, #A855F7)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Sparkles size={12} color="#0A0A0A" />
-          </Box>
+          <MastiAvatar mood="wave" size={22} ring={false} />
           <Typography
             sx={{
               fontSize: "0.85rem",
@@ -2903,9 +1377,6 @@ function Footer() {
           ))}
         </Stack>
       </Box>
-      <Box sx={{ mt: 3, textAlign: { xs: "center", md: "left" } }}>
-        <TestimonialPhotoCredits />
-      </Box>
     </Box>
   );
 }
@@ -2917,6 +1388,16 @@ export default function LandingPage() {
         <title key="title">{HOME_TITLE}</title>
         <meta key="description" name="description" content={HOME_DESC} />
         <link key="canonical" rel="canonical" href="https://chessmasti.com/" />
+        {/* Masti is the first thing on the first screen on every viewport,
+            so his still is fetched with the HTML rather than after the JS
+            decides on the srcset. */}
+        <link
+          key="masti-hero-preload"
+          rel="preload"
+          as="image"
+          type="image/webp"
+          imageSrcSet={mastiStillSrcSet("wave")}
+        />
 
         <meta key="og:type" property="og:type" content="website" />
         <meta
@@ -2984,26 +1465,6 @@ export default function LandingPage() {
           ::-webkit-scrollbar-track { background: #08090C; }
           ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 6px; }
           ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
-          /* Chessground puzzle board — warm wood theme, white coords */
-          .cg-wrap cg-board square.light { background-color: ${PUZZLE_LIGHT} !important; }
-          .cg-wrap cg-board square.dark { background-color: ${PUZZLE_DARK} !important; }
-          .cg-wrap cg-board square.last-move {
-            background-color: rgba(249, 115, 22, 0.42) !important;
-          }
-          .cg-wrap cg-board square.move-dest {
-            background: radial-gradient(circle, rgba(34,197,94,0.55) 22%, transparent 24%) !important;
-          }
-          .cg-wrap cg-board square.oc.move-dest {
-            background: radial-gradient(circle, transparent 55%, rgba(34,197,94,0.55) 60%, rgba(34,197,94,0.4) 70%, transparent 71%) !important;
-          }
-          .cg-wrap cg-board square.selected {
-            background-color: rgba(249, 115, 22, 0.5) !important;
-          }
-          .cg-wrap coords, .cg-wrap coords coord {
-            color: #FFFFFF !important;
-            font-weight: 700;
-            text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.6);
-          }
         `}</style>
       </Head>
       <GradientBackdrop />
@@ -3022,14 +1483,10 @@ export default function LandingPage() {
           {/* Renders only for logged-in CMIP interns; renders nothing for customers. */}
           <InternalHomeCard />
           <Hero />
+          <AskMastiSection />
           <ExpertTestimonials />
           <MarqueeStrip />
-          <HowItWorks />
-          <BentoSection />
-          <DailyPuzzleSection />
-          <Comparison />
           <ChromeExtension />
-          <StatsStrip />
           <FinalCTA />
           <Footer />
         </Box>

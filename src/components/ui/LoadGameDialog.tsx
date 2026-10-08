@@ -11,7 +11,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { Loader } from "@/components/ui/Loader";
+import { Masti } from "@/components/masti";
 import { Chess } from "chess.js";
 import {
   describePgnError,
@@ -485,7 +485,7 @@ function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
   if (!games) {
     return (
       <Stack alignItems="center" spacing={1.5} sx={{ py: 4 }}>
-        <Loader size={36} showLabel={false} />
+        <Masti mood="thinking" size={72} loops={0} decorative />
         <Typography
           sx={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.5)" }}
         >
@@ -498,20 +498,7 @@ function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
   if (sortedGames.length === 0) {
     return (
       <Stack alignItems="center" spacing={1.5} sx={{ py: 5, px: 2 }}>
-        <Box
-          sx={{
-            width: 56,
-            height: 56,
-            borderRadius: "999px",
-            background: "rgba(249,115,22,0.08)",
-            border: "1px solid rgba(249,115,22,0.24)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Bookmark size={22} color="#FB923C" />
-        </Box>
+        <Masti mood="idea" size={80} loops={2} decorative />
         <Typography
           sx={{
             fontSize: "0.92rem",

@@ -61,9 +61,11 @@ test.describe("coach move links", () => {
       .catch(() => false);
     test.skip(!appeared, "coach composer never unlocked on this machine — resolveMoveRef is unit-tested");
 
-    // The greeting no longer promises that a tab will "light up".
+    // The greeting no longer promises that a tab will "light up", nor that a
+    // tab "fills in": the strip under the board carries every move's verdict.
     await expect(page.getByText(/light up/)).toHaveCount(0);
-    await expect(page.getByText(/fills in with each move's verdict/)).toBeVisible();
+    await expect(page.getByText(/fills in with each move/)).toHaveCount(0);
+    await expect(page.getByText(/the line under the board says what each one does/)).toBeVisible();
 
     await composer.fill("analyse this game");
     await composer.press("Enter");

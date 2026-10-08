@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Masti } from "@/components/masti";
 import { contentPageStyles } from "../_seo/styles";
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
     siteName: "Chess Masti AI",
     images: [
       {
-        url: "https://chessmasti.com/social-networks-1200x630.png",
+        url: "https://chessmasti.com/og/home",
         width: 1200,
         height: 630,
         alt: "Chess Masti AI",
@@ -30,14 +31,29 @@ export const metadata: Metadata = {
     title: "Chess Masti AI — Accessibility Statement",
     description:
       "Our commitment to WCAG 2.1 AA, known limitations, and how to report a barrier.",
-    images: ["https://chessmasti.com/social-networks-1200x630.png"],
+    images: ["https://chessmasti.com/og/home"],
   },
 };
+
+const extraStyles = `
+.cm-a11y-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin-bottom: 0.5em;
+}
+.cm-a11y-head h1 {
+  margin: 0;
+}
+`;
 
 export default function AccessibilityPage() {
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: contentPageStyles }} />
+      <style
+        dangerouslySetInnerHTML={{ __html: contentPageStyles + extraStyles }}
+      />
       <main className="cm-content">
         <nav className="cm-nav" aria-label="Site navigation">
           <Link href="/">Chess Masti AI</Link>
@@ -47,14 +63,25 @@ export default function AccessibilityPage() {
 
         <article>
           <header>
-            <h1>Accessibility Statement</h1>
+            <div className="cm-a11y-head">
+              {/* A still, never a burst: this is the page that promises
+                  motion is optional, and the figure wraps under the heading
+                  at phone width rather than squeezing it. */}
+              <Masti
+                mood="wave"
+                size={88}
+                animated={false}
+                label="Masti the Monkey, the Chess Masti coach, saying hello"
+              />
+              <h1>Accessibility Statement</h1>
+            </div>
             <p className="cm-lede">
               Chess Masti AI should be usable by everyone who wants to get
               better at chess — including people who rely on screen readers,
               keyboard navigation, magnification, or reduced motion. This page
               says where we are honestly: what works, what doesn&apos;t yet,
               and how to tell us when something is in your way. Last updated
-              2026-08-26.
+              2026-09-22.
             </p>
           </header>
 
@@ -106,6 +133,13 @@ export default function AccessibilityPage() {
                 and game review are self-paced. Timed play is always an
                 explicit choice.
               </li>
+              <li>
+                <strong>Reduced motion for the mascot</strong>: Masti the
+                Monkey, the coach figure you meet around the site, respects the{" "}
+                <code>prefers-reduced-motion</code> setting. His animations
+                never autoplay for visitors who have it turned on; they see his
+                still picture instead, with the same text alternative.
+              </li>
             </ul>
           </section>
 
@@ -138,7 +172,8 @@ export default function AccessibilityPage() {
               <li>
                 <strong>Animation</strong>: the site uses short motion effects
                 and does not yet honour the{" "}
-                <code>prefers-reduced-motion</code> setting everywhere.
+                <code>prefers-reduced-motion</code> setting everywhere. Masti,
+                the mascot, already does (see above).
               </li>
             </ul>
           </section>

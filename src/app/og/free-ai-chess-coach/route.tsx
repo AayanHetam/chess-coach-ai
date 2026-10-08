@@ -1,9 +1,21 @@
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
+import { brandMarkOgDataUri } from "@/lib/og/brand";
+import { mastiOgDataUri } from "@/lib/og/masti";
 
-export const runtime = "edge";
+/**
+ * Node runtime, like the other three OG cards: Masti's still is read from
+ * public/ with fs and listed in next.config.js outputFileTracingIncludes so
+ * it ships with the function. This card used to run on the edge and bundle
+ * the PNG with fetch(new URL(..., import.meta.url)), which took the function
+ * from 0.96 MB to 1.06 MB compressed, past Vercel's 1 MB edge limit, and
+ * failed every deploy of the branch after the build had passed.
+ */
+export const runtime = "nodejs";
 
 export async function GET(_req: NextRequest) {
+  const masti = mastiOgDataUri("wave");
+  const brand = brandMarkOgDataUri();
   return new ImageResponse(
     (
       <div
@@ -32,6 +44,17 @@ export async function GET(_req: NextRequest) {
           }}
         />
 
+        {/* Masti, waving from the free right half. */}
+        {masti && (
+          <img
+            src={masti}
+            alt=""
+            width={288}
+            height={360}
+            style={{ position: "absolute", right: 40, bottom: 0 }}
+          />
+        )}
+
         {/* brand mark */}
         <div
           style={{
@@ -41,21 +64,10 @@ export async function GET(_req: NextRequest) {
             marginBottom: 40,
           }}
         >
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: "rgba(255,107,43,0.2)",
-              border: "1px solid rgba(255,107,43,0.5)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 20,
-            }}
-          >
-            ♟
-          </div>
+          {brand && (
+            // eslint-disable-next-line @next/next/no-img-element -- satori draws a plain img from a data URI
+            <img src={brand} alt="" width={40} height={40} />
+          )}
           <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 20, letterSpacing: "0.04em" }}>
             chessmasti.com
           </span>
@@ -84,7 +96,7 @@ export async function GET(_req: NextRequest) {
             fontSize: 28,
             color: "rgba(255,255,255,0.55)",
             lineHeight: 1.5,
-            maxWidth: 800,
+            maxWidth: 700,
           }}
         >
           <span>Stockfish analysis.</span>

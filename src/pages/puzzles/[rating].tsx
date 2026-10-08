@@ -5,6 +5,7 @@ import NextLink from "next/link";
 import { Box, Button, Chip, Link as MuiLink, Typography } from "@mui/material";
 import { getPuzzleCorpus } from "@/lib/puzzle-feed/loadPuzzles";
 import {
+  BOARD_CAPTION_SX,
   InteractivePuzzleBoard,
   StaticBoardDiagram,
   toLandingPuzzle,
@@ -12,6 +13,7 @@ import {
 } from "@/components/puzzle/landingPuzzle";
 import { PuzzleSignInGate } from "@/components/puzzle/PuzzleSignInGate";
 import { useViewer } from "@/hooks/useViewer";
+import { MastiSays } from "@/components/masti";
 
 /**
  * /puzzles/<rating> — statically generated SEO landing pages, one per
@@ -168,15 +170,10 @@ function PuzzleCard({
             label={`Chess puzzle rated ${puzzle.rating}, ${sideLabel} to move`}
             eager={index === 0}
           />
-          <Typography
-            sx={{
-              mt: 1,
-              textAlign: "center",
-              fontSize: "0.82rem",
-              fontWeight: 600,
-              color: "rgba(255,255,255,0.6)",
-            }}
-          >
+          {/* BOARD_CAPTION_SX, not a local copy: this caption and the
+              interactive one it is swapped for after mount have to occupy
+              the same line box, or every card below this one moves. */}
+          <Typography sx={{ ...BOARD_CAPTION_SX, color: "rgba(255,255,255,0.6)" }}>
             {sideLabel} to move
           </Typography>
         </>
@@ -244,12 +241,37 @@ export default function PuzzleRatingLandingPage({
         >
           Chess Puzzles Rated {band}–{bandMax}
         </Typography>
-        <Typography
-          sx={{ color: "rgba(255,255,255,0.6)", maxWidth: 640, mb: 3.5 }}
-        >
-          Eight of the most-played Lichess puzzles rated {band}–{bandMax}.
-          Solve them right here — tap or drag a piece to move.
-        </Typography>
+        {/* Masti carries the intro. He stays a still for a signed-out
+            visitor, whose animated figure is the sign-in gate further down
+            (one burst per view), and waves at a signed-in solver. Nothing
+            here reads a board: the per-puzzle status faces live in the
+            cards. */}
+        <Box sx={{ mb: 3.5 }}>
+          <MastiSays
+            mood="wave"
+            size={88}
+            animated={signedIn}
+            priority
+            maxWidth={560}
+            data-testid="puzzle-band-masti"
+          >
+            <Typography component="p" sx={{ m: 0 }}>
+              {`Eight of the most-played Lichess puzzles rated ${band} to ${bandMax}. Solve them right here: tap or drag a piece to move.`}
+            </Typography>
+            <Typography
+              component="p"
+              sx={{
+                m: 0,
+                mt: 0.75,
+                fontSize: "0.9rem",
+                color: "rgba(255,255,255,0.72)",
+              }}
+            >
+              My tip: look for checks, captures and threats before you touch a
+              piece.
+            </Typography>
+          </MastiSays>
+        </Box>
 
         <Box sx={GRID_SX}>
           {freePuzzles.map((p, i) => (
@@ -285,7 +307,7 @@ export default function PuzzleRatingLandingPage({
               py: 1.1,
             }}
           >
-            Train endless puzzles in the Puzzle Coach
+            Train endless puzzles with Masti
           </Button>
         </Box>
 

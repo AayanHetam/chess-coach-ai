@@ -276,3 +276,42 @@ export function playSanOnFen(
     return null;
   }
 }
+
+export interface LinePreview extends RecommendedPreview {
+  /** SANs played since leaving the mainline, in order. */
+  path: string[];
+}
+
+/**
+ * Replay the mainline to `anchorPly` half-moves, then play `sans` on top —
+ * the proof line's "show this on the board" action, k plies deep. Unlike
+ * `buildRecommendedPreview` there is no tolerance window: the line came from
+ * the engine's own PV at that exact position, so an illegal move here is
+ * corrupt data, and the answer is null rather than a guess. */
+export function buildLinePreview(
+  allMoves: Array<Pick<Move, "san">>,
+  anchorPly: number,
+  sans: readonly string[],
+  rootFen?: string
+): LinePreview | null {
+  if (anchorPly < 0 || anchorPly > allMoves.length || sans.length === 0) return null;
+  let g: Chess;
+  try {
+    g = rootFen ? new Chess(rootFen) : new Chess();
+    for (let i = 0; i < anchorPly; i++) g.move(allMoves[i].san);
+  } catch {
+    return null;
+  }
+  let last: Move | null = null;
+  const path: string[] = [];
+  for (const san of sans) {
+    try {
+      last = g.move(san);
+    } catch {
+      return null;
+    }
+    path.push(last.san);
+  }
+  if (!last) return null;
+  return { fen: g.fen(), from: last.from, to: last.to, san: last.san, anchorPly, path };
+}

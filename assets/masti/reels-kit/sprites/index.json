@@ -1,0 +1,55 @@
+{
+  "version": "v4",
+  "frameWidth": 300,
+  "frameHeight": 375,
+  "moods": {
+    "wave": {
+      "mood": "wave",
+      "frames": 24,
+      "frameWidth": 300,
+      "frameHeight": 375,
+      "delayMs": 50,
+      "loopMs": 1200
+    },
+    "excited": {
+      "mood": "excited",
+      "frames": 24,
+      "frameWidth": 300,
+      "frameHeight": 375,
+      "delayMs": 50,
+      "loopMs": 1200
+    },
+    "idea": {
+      "mood": "idea",
+      "frames": 22,
+      "frameWidth": 300,
+      "frameHeight": 375,
+      "delayMs": 55,
+      "loopMs": 1210
+    },
+    "nervous": {
+      "mood": "nervous",
+      "frames": 24,
+      "frameWidth": 300,
+      "frameHeight": 375,
+      "delayMs": 50,
+      "loopMs": 1200
+    },
+    "defeated": {
+      "mood": "defeated",
+      "frames": 24,
+      "frameWidth": 300,
+      "frameHeight": 375,
+      "delayMs": 50,
+      "loopMs": 1200
+    },
+    "thinking": {
+      "mood": "thinking",
+      "frames": 20,
+      "frameWidth": 300,
+      "frameHeight": 375,
+      "delayMs": 62,
+      "loopMs": 1240
+    }
+  }
+}

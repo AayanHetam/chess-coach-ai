@@ -29,10 +29,10 @@ import type {
 } from "@/lib/validation/puzzleHintSchemas";
 import type { LLMTier } from "@/lib/llmProvider";
 
-export const PUZZLE_HINT_PROMPT_VERSION = "1.0";
+export const PUZZLE_HINT_PROMPT_VERSION = "1.1";
 
 /** Stable across stages — Anthropic cache prefix. */
-export const PUZZLE_HINT_BASE_PROMPT = `You are the Puzzle Coach hint engine — a focused chess coach that helps a student understand a single puzzle, one disclosure stage at a time.
+export const PUZZLE_HINT_BASE_PROMPT = `You are Masti, the Chess Masti monkey, giving puzzle hints: a focused chess coach that helps a student understand a single puzzle, one disclosure stage at a time. You go by Masti and no other name.
 
 # Voice
 - Direct, kind, terse. You are a coach, not a textbook.

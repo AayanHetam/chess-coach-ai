@@ -9,9 +9,9 @@ import {
   DialogContent,
   IconButton,
   Chip,
-  Avatar,
 } from "@mui/material";
 import { Icon } from "@iconify/react";
+import { MastiAvatar } from "@/components/masti";
 import { useAtom } from "jotai";
 import { selectedCoachIdAtom } from "@/atoms/coachAtoms";
 import {
@@ -69,16 +69,7 @@ export default function CoachPersonalitySelector({
           },
         }}
       >
-        <Avatar
-          sx={{
-            width: 28,
-            height: 28,
-            fontSize: "0.9rem",
-            bgcolor: currentPersonality.color,
-          }}
-        >
-          {currentPersonality.avatar}
-        </Avatar>
+        <MastiAvatar mood={currentPersonality.mood} size={28} decorative />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             variant="caption"
@@ -206,16 +197,12 @@ export default function CoachPersonalitySelector({
                           mb: 1,
                         }}
                       >
-                        <Avatar
-                          sx={{
-                            width: 40,
-                            height: 40,
-                            fontSize: "1.3rem",
-                            bgcolor: personality.color,
-                          }}
-                        >
-                          {personality.avatar}
-                        </Avatar>
+                        <MastiAvatar
+                          mood={personality.mood}
+                          size={40}
+                          ring={isSelected}
+                          decorative
+                        />
                         <Box sx={{ flex: 1 }}>
                           <Box
                             sx={{

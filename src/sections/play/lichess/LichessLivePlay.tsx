@@ -108,10 +108,48 @@ export default function LichessLivePlay() {
     return Math.min(Math.min(width - 340, 800), height * 0.85 - 80);
   }, [screen]);
 
-  /* ── Not authenticated ─────────────────────────────────────────────────── */
-  if (authChecked && !authenticated) {
+  /* ── Auth check still in flight ────────────────────────────────────────── */
+  //
+  // Until /api/lichess/me answers we do not know which of the views below is
+  // the right one, so we render neither.
+  //
+  // This used to fall straight through to the Idle / Lobby view at the bottom
+  // of this component, which meant a signed-out visitor was shown a working
+  // lobby — profile card, time controls, "Start a game" — for as long as the
+  // round trip took, and only then had it replaced by the connect card. On a
+  // throttled mobile that was ~4.7s of a lobby that was never theirs, and the
+  // swap was 0.12 of CLS measured on production: React reconciles the two
+  // trees, reuses the nodes they have in common, and every reused node counts
+  // as an element that moved.
+  //
+  // The `key` on each branch is load-bearing. Without it React sees the same
+  // <Box> in the same slot and patches it in place, which is exactly the
+  // node-reuse that scores as a shift. With it, each view mounts fresh, and a
+  // newly inserted element has no previous position to have moved from.
+  if (!authChecked) {
     return (
-      <Box sx={{ maxWidth: 480, mx: 'auto' }}>
+      <Box
+        key="lichess-auth-checking"
+        sx={{
+          maxWidth: 480,
+          mx: 'auto',
+          minHeight: 420,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Typography sx={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.9rem' }}>
+          Checking your Lichess connection…
+        </Typography>
+      </Box>
+    );
+  }
+
+  /* ── Not authenticated ─────────────────────────────────────────────────── */
+  if (!authenticated) {
+    return (
+      <Box key="lichess-connect" sx={{ maxWidth: 480, mx: 'auto' }}>
         <Stack spacing={4} alignItems="center" sx={{ py: 6 }}>
           {/* Logo / hero */}
           <Box
@@ -212,7 +250,7 @@ export default function LichessLivePlay() {
   /* ── Playing / finished ────────────────────────────────────────────────── */
   if ((phase === 'playing' || phase === 'finished') && game && gameState && yourColor) {
     return (
-      <Stack spacing={2} alignItems="center" sx={{ width: '100%' }}>
+      <Stack key="lichess-board" spacing={2} alignItems="center" sx={{ width: '100%' }}>
         {streamError && (
           <Alert severity="warning" sx={{ alignSelf: 'stretch' }}>
             {streamError} — trying to reconnect…
@@ -236,7 +274,7 @@ export default function LichessLivePlay() {
   /* ── Seeking ───────────────────────────────────────────────────────────── */
   if (phase === 'seeking') {
     return (
-      <Box sx={{ maxWidth: 520, mx: 'auto' }}>
+      <Box key="lichess-seeking" sx={{ maxWidth: 520, mx: 'auto' }}>
         <Stack spacing={3} alignItems="center" sx={{ py: 4 }}>
           {/* Top status */}
           <Stack direction="row" spacing={1.5} alignItems="center">
@@ -338,8 +376,10 @@ export default function LichessLivePlay() {
   }
 
   /* ── Idle / Lobby ──────────────────────────────────────────────────────── */
+  // Keyed for the same reason as the branches above: a fresh mount rather
+  // than a patch over whatever view preceded it.
   return (
-    <Box sx={{ maxWidth: 520, mx: 'auto' }}>
+    <Box key="lichess-lobby" sx={{ maxWidth: 520, mx: 'auto' }}>
       <Stack spacing={3}>
         {/* ── Profile card ── */}
         <Box

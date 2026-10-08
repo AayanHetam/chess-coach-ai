@@ -9,6 +9,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { Box, Container, Typography, Button } from "@mui/material";
 import { getScoutSnapshot } from "@/lib/scoutSnapshots";
+import { Masti, MastiSays } from "@/components/masti";
 import type { ScoutSnapshotRecord } from "@/types/scoutSnapshot";
 import type { OpeningSummary } from "@/types/scout";
 
@@ -101,6 +102,7 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
     return (
       <Box sx={{ background: BG, minHeight: "100vh", color: "#fff", py: 8 }}>
         <Container maxWidth="md">
+          <Masti mood="defeated" size={140} loops={2} decorative style={{ marginBottom: 16 }} />
           <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
             Scout report not found
           </Typography>
@@ -125,6 +127,7 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
   const tells = analytics.tells;
   const prepWhite = analytics.prep.asWhite.weaknesses.slice(0, 3);
   const prepBlack = analytics.prep.asBlack.weaknesses.slice(0, 3);
+  const hasPrep = prepWhite.length > 0 || prepBlack.length > 0;
   const titleLine = `${username} · ${platform}`;
   const description = `Scout report for ${username} on ${platform}. Tells ${Math.round(
     tells.total
@@ -195,6 +198,17 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
                 {profile.archetype}
               </Box>
             )}
+            {/* Masti fronts the report: a scout dossier is his idea of a
+                good read, whoever it is about. Still on the server, one
+                bounded burst after mount. */}
+            <Box sx={{ display: "flex", justifyContent: "center", mt: 3, textAlign: "left" }}>
+              <MastiSays mood="idea" size={88} priority maxWidth={440} data-testid="share-scout-masti">
+                I read {profile.totalGames} of {username}&apos;s games.{" "}
+                {hasPrep
+                  ? "Start with the tells, then take the openings below into your prep."
+                  : "Start with the tells: that is where a player leaks."}
+              </MastiSays>
+            </Box>
           </Box>
 
           {/* Two-column layout */}
@@ -401,7 +415,7 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
                   "&:hover": { borderColor: "rgba(255,255,255,0.25)", color: "#fff" },
                 }}
               >
-                Try the AI coach
+                Meet Masti, your AI coach
               </Button>
             </Box>
           </Box>

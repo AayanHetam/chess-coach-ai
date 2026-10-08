@@ -82,6 +82,7 @@ import {
 import { useViewer } from '@/hooks/useViewer';
 import type { Collisions } from '@/types/scout';
 import { getAuthHeader } from '@/lib/auth/getAuthHeader';
+import { Masti, MastiAvatar, MastiSays, type MastiMood } from '@/components/masti';
 
 // ─── Search bar ─────────────────────────────────────────────────────────────
 
@@ -1121,6 +1122,21 @@ export default function ScoutPage() {
   );
 
   const hasResult = !!scoutResult && !!tree;
+  // A valid account with nothing in the window: the archive answered, but
+  // with no games. The dashboard has nothing to say about it, Masti does.
+  const emptyResult = !!scoutResult && scoutResult.totalGames === 0;
+  // Masti is the scout's face in the sticky header. The mood is read off
+  // state the page already has: the fetch and rebuild flags, the error, and
+  // whether a report is on screen. He reads while the archive loads, has an
+  // idea once the dossier is up, and is dizzy on an error or an empty one.
+  const headerMood: MastiMood =
+    loading || building
+      ? 'thinking'
+      : error || emptyResult
+        ? 'defeated'
+        : hasResult
+          ? 'idea'
+          : 'wave';
 
   return (
     <ThemeProvider theme={chessMastiDarkTheme}>
@@ -1160,21 +1176,7 @@ export default function ScoutPage() {
         }}
       >
         <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5, px: 0.5 }}>
-          <Box
-            sx={{
-              width: 34,
-              height: 34,
-              borderRadius: 2,
-              background: ACCENTS.rose.soft,
-              border: `1px solid ${ACCENTS.rose.border}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: ACCENTS.rose.bright,
-            }}
-          >
-            <Icon icon="mdi:binoculars" width={20} />
-          </Box>
+          <MastiAvatar mood={headerMood} size={36} data-testid="scout-masti-face" />
           <Box sx={{ flex: 1 }}>
             <Typography sx={{ fontWeight: 800, fontSize: '1.05rem', lineHeight: 1, color: 'rgba(255,255,255,0.94)' }}>
               Scout
@@ -1202,6 +1204,7 @@ export default function ScoutPage() {
       {error && (
         <Alert
           severity="error"
+          icon={<MastiAvatar mood="defeated" size={22} ring={false} />}
           sx={{
             mb: 2,
             borderRadius: '12px',
@@ -1270,9 +1273,41 @@ export default function ScoutPage() {
         <ScoutLanding onFocusSearch={focusSearch} />
       )}
 
+      {/* Empty result: the account exists, the window holds no games */}
+      {scoutResult && emptyResult && !loading && (
+        <Paper
+          elevation={0}
+          data-testid="scout-empty-result"
+          sx={{
+            p: { xs: 3, md: 4 },
+            borderRadius: '1.5rem',
+            background: 'rgba(20,22,28,0.55)',
+            backdropFilter: 'blur(14px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+            textAlign: 'center',
+          }}
+        >
+          <Masti mood="defeated" size={120} loops={2} decorative style={{ marginBottom: 12 }} />
+          <Typography sx={{ fontWeight: 800, fontSize: '1.05rem', color: 'rgba(255,255,255,0.94)', mb: 0.75 }}>
+            No games to read
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', maxWidth: 460, mx: 'auto', lineHeight: 1.6 }}>
+            I went through {scoutResult.username}&apos;s {scoutResult.platform} archive and came back
+            empty: no games in this window. Try a longer window up top.
+          </Typography>
+        </Paper>
+      )}
+
       {/* Dashboard */}
-      {hasResult && analytics && scoutResult && (
+      {hasResult && analytics && scoutResult && !emptyResult && (
         <Stack spacing={2.5}>
+          <MastiSays mood="idea" size={72} loops={2} maxWidth={560} data-testid="scout-masti-says">
+            I read {scoutResult.totalGames.toLocaleString()} of {scoutResult.username}&apos;s games so
+            you don&apos;t have to. Start with the tells, then take the prep lines into your next game.
+          </MastiSays>
+
           {formatOptions.length > 1 && (
             <FormatFilterBar
               value={formatFilter}
@@ -1369,7 +1404,7 @@ export default function ScoutPage() {
                 gap: 1.5,
               }}
             >
-              <CircularProgress size={18} sx={{ color: ACCENTS.rose.bright }} />
+              <MastiAvatar mood="thinking" size={28} ring={false} />
               <Typography variant="body2" color="text.secondary">
                 Loading <strong>{yourUsername}</strong>&apos;s games and computing collisions…
               </Typography>

@@ -19,8 +19,9 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { Logo } from "./Logo";
 import { surfaceAccent } from "./accents";
+import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
+import { BrandMark } from "./BrandMark";
 import ChatHistoryList from "@/components/chat/ChatHistoryList";
 import { EmployeePill } from "@/components/intern/EmployeePill";
 import { useViewer } from "@/hooks/useViewer";
@@ -175,20 +176,7 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                 gap: 1.5,
               }}
             >
-              <Box
-                sx={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: "10px",
-                  background: "linear-gradient(135deg, #F97316, #EA580C)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 0 16px rgba(249,115,22,0.4)",
-                }}
-              >
-                <Logo variant="bold" size={20} color="#0A0A0A" />
-              </Box>
+              <BrandMark size={36} />
               <Box>
                 <Typography
                   sx={{
@@ -537,6 +525,8 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                       component="button"
                       type="button"
                       onClick={handleSignIn}
+                      // Hidden under the ChessUSA preview prefix. See SIGN_IN_ATTR.
+                      {...SIGN_IN_PROPS}
                       sx={{
                         display: "flex",
                         alignItems: "center",

@@ -7,6 +7,7 @@ import { app } from "@/lib/firebase";
 import { recordVisit } from "@/lib/visitorTracker";
 import { track } from "@/lib/tracking/client";
 import { clientHasConsent } from "@/lib/tracking/consent";
+import { isPartnerPreviewPath } from "@/components/ads/PartnerSlot";
 
 declare global {
   interface Window {
@@ -31,6 +32,20 @@ export default function AnalyticsProvider() {
 
   useEffect(() => {
     if (!pathname) return;
+
+    /**
+     * Partner placement previews are a sales asset shown to one advertiser,
+     * not traffic. Counting them would inflate GA4, the Firestore visit log
+     * and the warehouse — including the very page-view numbers we quote to
+     * that advertiser.
+     *
+     * This mount is App Router only, which used to mean the preview could not
+     * reach it at all. That stopped being true when the previews became a URL
+     * prefix over the whole site: /partners/ChessUSA/3/faq rewrites onto the
+     * App Router /faq page and lands right here. Vercel Analytics is filtered
+     * separately in ConsentGatedAnalytics.
+     */
+    if (isPartnerPreviewPath(pathname)) return;
 
     const url =
       pathname +

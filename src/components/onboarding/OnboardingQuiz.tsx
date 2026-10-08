@@ -19,7 +19,9 @@ import {
 } from "./quizConfig";
 import { QUIZ_GOAL_OPTIONS } from "./quizThemes";
 import GoalRatingPicker from "./GoalRatingPicker";
-import { useQuizCurrentRating } from "./useQuizCurrentRating";
+import PerfGoalStep from "./PerfGoalStep";
+import HandleStep from "./HandleStep";
+import { useQuizCurrentRating, type QuizRating } from "./useQuizCurrentRating";
 import { isUsernameValid } from "./useOnboardingQuiz";
 import TacticDiagram from "./TacticDiagram";
 import QuizIcon, { type QuizIconName } from "./QuizIcon";
@@ -82,13 +84,15 @@ interface OnboardingQuizProps {
   /**
    * Called when the user unlocks from the result screen.
    *
-   * `currentRating` is the anchor the goal projection was displayed from — the
-   * live platform number when they gave a username. It has to travel with the
-   * answers: buildPayload cannot re-derive it, because the derivation returns
-   * undefined on the platform path, and the promise would be shown on screen
-   * and then quietly not stored.
+   * The rating travels WITH the answers rather than being re-derived: it is
+   * the anchor the goal projection was displayed from, and buildPayload cannot
+   * work it out again, because the derivation returns undefined on the
+   * platform path. The promise would be shown on screen and then quietly not
+   * stored. The platform and anchor control come along for the same reason —
+   * per-control goals are raw platform numbers, and reading them on the wrong
+   * scale silently moves the target.
    */
-  onUnlock: (answers: QuizAnswers, currentRating?: number) => void;
+  onUnlock: (answers: QuizAnswers, rating: QuizRating) => void;
   submitting?: boolean;
   /** True when the viewer is already signed in (mandatory-onboarding flow). */
   authed?: boolean;
@@ -103,7 +107,8 @@ export default function OnboardingQuiz({
   // Reads the visitor's real rating so the goal projection is anchored to them
   // rather than to a guess. Resolves to undefined when unknown, which the
   // picker renders honestly instead of substituting a number.
-  const { currentRating, status: ratingStatus } = useQuizCurrentRating(q.answers);
+  const rating = useQuizCurrentRating(q.answers);
+  const { currentRating, status: ratingStatus } = rating;
 
   // Avoid a flash of empty/then-restored content before the draft hydrates.
   if (!q.hydrated) {
@@ -118,7 +123,7 @@ export default function OnboardingQuiz({
       return (
         <QuizResult
           answers={q.answers}
-          onUnlock={() => onUnlock(q.answers, currentRating)}
+          onUnlock={() => onUnlock(q.answers, rating)}
           onBack={q.back}
           submitting={submitting}
           authed={authed}
@@ -269,6 +274,36 @@ export default function OnboardingQuiz({
               minutesPerDay={minutesPerDayFor(q.answers.time)}
               daysPerWeek={q.answers.daysPerWeek ?? 4}
               ratingStatus={ratingStatus}
+            />
+          </QuizStep>
+        );
+
+      case "perf-goals":
+        return (
+          <QuizStep
+            title="Where do you want each time control to be?"
+            helper="Set a goal on the ones you play — leave the rest blank."
+          >
+            <PerfGoalStep
+              drafts={q.answers.perfDrafts}
+              rating={rating}
+              time={q.answers.time}
+              daysPerWeek={q.answers.daysPerWeek}
+              onChange={q.setPerfDraft}
+              onSeedCurrents={q.seedPerfCurrents}
+            />
+          </QuizStep>
+        );
+
+      case "handle":
+        return (
+          <QuizStep
+            title="Pick your handle"
+            helper="It's how we'll address you, and you can sign in with it instead of your email. Don't use your full name — other players can see this."
+          >
+            <HandleStep
+              value={q.answers.handle ?? ""}
+              onChange={q.setHandle}
             />
           </QuizStep>
         );

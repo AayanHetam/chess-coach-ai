@@ -21,6 +21,7 @@ import { Box, Typography } from "@mui/material";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import OpeningDiagram from "@/components/learn/OpeningDiagram";
+import { MastiSays, type MastiMood } from "@/components/masti";
 import { numbered } from "@/lib/courses/lines";
 import { getSessionFromCookieHeader } from "@/lib/auth/sessionToken";
 import { getUserById } from "@/lib/server/users";
@@ -44,6 +45,14 @@ interface Props {
 }
 
 export default function DrillPickerPage(props: Props) {
+  // Masti reads the one number this page has. A course with nothing to ask at
+  // this level is not a fault, it is a lesson about levels, so he has an idea
+  // rather than a knock; otherwise it is hello.
+  const mood: MastiMood = props.asked === 0 ? "idea" : "wave";
+  const mastiLine =
+    props.asked === 0
+      ? "There is nothing for me to ask at your level yet. Read the course first; the drill deepens as your rating does."
+      : "Pick a chapter or a study and I ask every decision in it, cold. Miss one and it comes back around before the round is out.";
   return (
     <>
       <Head>
@@ -71,9 +80,19 @@ export default function DrillPickerPage(props: Props) {
           <ChevronLeft size={16} aria-hidden /> {props.courseName}
         </Box>
 
-        <Box sx={{ display: "flex", gap: 2, alignItems: "center", mt: 1 }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 2,
+            alignItems: "center",
+            mt: 1,
+            // Masti wraps under the title on phones and sits at the right end
+            // of the row from md up.
+            flexWrap: { xs: "wrap", md: "nowrap" },
+          }}
+        >
           <OpeningDiagram moves={props.root} side={props.side} px={72} />
-          <Box sx={{ minWidth: 0 }}>
+          <Box sx={{ minWidth: 0, flex: "1 1 0" }}>
             <Typography
               component="h1"
               sx={{ color: "#fff", fontSize: { xs: "1.35rem", md: "1.7rem" }, fontWeight: 800, letterSpacing: "-0.02em" }}
@@ -84,6 +103,25 @@ export default function DrillPickerPage(props: Props) {
               Pick anything and be asked it cold, whether or not you owe it. Nothing here is
               unlocked by anything else.
             </Typography>
+          </Box>
+          <Box
+            data-testid="drill-masti"
+            sx={{
+              flex: { xs: "1 1 100%", md: "0 0 auto" },
+              display: "flex",
+              justifyContent: { xs: "flex-start", md: "flex-end" },
+              minWidth: 0,
+            }}
+          >
+            <MastiSays
+              mood={mood}
+              size={80}
+              side="right"
+              maxWidth={250}
+              loops={2}
+            >
+              {mastiLine}
+            </MastiSays>
           </Box>
         </Box>
 

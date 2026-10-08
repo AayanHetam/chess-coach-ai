@@ -1,10 +1,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // ChessComPlay
 //
-// Chess.com's Published Data API is READ-ONLY (no OAuth for playing). So this
-// section shows the user's ongoing daily games and lets them open each one on
-// chess.com to make a move. Live/Blitz/Rapid games aren't exposed at all via
-// the public API, so we explicitly call that out in the UI.
+// Chess.com's Published Data API is READ-ONLY (no OAuth for playing), so
+// nothing is played here. The tab loads a player's recent finished games, any
+// time control, each one a click away from the analysis board, plus their
+// ongoing daily games with a link out to chess.com to make the move.
+//
+// It used to show the daily games alone. Most players have none, so the tab
+// answered "0 ongoing" and stopped there: a visitor trying the site read it as
+// a page that does nothing. When a name has no games at all, the empty state
+// now says so (and when the account was last online) and points somewhere.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -25,6 +30,8 @@ import {
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import { Chessboard } from 'react-chessboard';
+import { RecentGameRow } from '@/components/performance/RecentGamesCard';
+import type { RecentGame } from '@/lib/performance/recentGames';
 
 interface ChessComGame {
   url: string;
@@ -48,7 +55,19 @@ interface ChessComResponse {
   games: ChessComGame[];
 }
 
+/** `/api/chesscom/recent`: finished games, newest first. */
+interface RecentResponse {
+  username: string;
+  everPlayed: boolean;
+  /** Epoch ms, or null when Chess.com does not say. */
+  lastOnline: number | null;
+  games: RecentGame[];
+}
+
 const STORAGE_KEY = 'chessmasti.chesscom.username';
+
+/** A public account with games in every time control, for trying the tab. */
+const SAMPLE_PLAYER = 'hikaru';
 
 function humanMoveBy(moveBy: number | null): string {
   if (!moveBy) return 'No deadline';
@@ -72,12 +91,37 @@ function humanTimeControl(tc?: string): string {
   return `${moves} move${moves > 1 ? 's' : ''} / ${days >= 1 ? `${days}d` : `${Math.round(secs / 3600)}h`}`;
 }
 
+/** "February 2008", for "last online in …". */
+function monthYear(ms: number): string {
+  return new Date(ms).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+async function getJson<T>(url: string): Promise<{ data: T | null; error: string | null }> {
+  try {
+    const res = await fetch(url);
+    const body = await res.json();
+    if (!res.ok) return { data: null, error: body.error ?? 'Failed to fetch games' };
+    return { data: body as T, error: null };
+  } catch (e) {
+    return { data: null, error: (e as Error).message };
+  }
+}
+
+const sectionLabelSx = {
+  fontSize: '0.72rem',
+  fontWeight: 700,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  color: 'rgba(255,255,255,0.45)',
+} as const;
+
 export default function ChessComPlay() {
   const [username, setUsername] = useState('');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<ChessComResponse | null>(null);
+  const [recent, setRecent] = useState<RecentResponse | null>(null);
 
   // Restore last-used username from localStorage (client-only).
   useEffect(() => {
@@ -92,22 +136,17 @@ export default function ChessComPlay() {
   const fetchGames = useCallback(async (name: string) => {
     setLoading(true);
     setError(null);
-    try {
-      const res = await fetch(`/api/chesscom/ongoing?username=${encodeURIComponent(name)}`);
-      const body = await res.json();
-      if (!res.ok) {
-        setError(body.error ?? 'Failed to fetch games');
-        setData(null);
-      } else {
-        setData(body as ChessComResponse);
-        localStorage.setItem(STORAGE_KEY, name);
-      }
-    } catch (e) {
-      setError((e as Error).message);
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
+    const q = encodeURIComponent(name);
+    const [ongoing, finished] = await Promise.all([
+      getJson<ChessComResponse>(`/api/chesscom/ongoing?username=${q}`),
+      getJson<RecentResponse>(`/api/chesscom/recent?username=${q}`),
+    ]);
+    setData(ongoing.data);
+    setRecent(finished.data);
+    // Either list is worth showing alone; the error is for what is missing.
+    setError(finished.error ?? ongoing.error);
+    if (ongoing.data || finished.data) localStorage.setItem(STORAGE_KEY, name);
+    setLoading(false);
   }, []);
 
   // Auto-fetch whenever we have a settled username.
@@ -115,11 +154,24 @@ export default function ChessComPlay() {
     if (username) void fetchGames(username);
   }, [username, fetchGames]);
 
+  const trySample = useCallback(() => {
+    setInput(SAMPLE_PLAYER);
+    setUsername(SAMPLE_PLAYER);
+  }, []);
+
   const summary = useMemo(() => {
-    if (!data) return null;
-    const toMove = data.games.filter((g) => g.yourTurn).length;
-    return { total: data.total, toMove };
-  }, [data]);
+    if (!data && !recent) return null;
+    return {
+      total: data?.total ?? 0,
+      toMove: data?.games.filter((g) => g.yourTurn).length ?? 0,
+      recent: recent?.games.length ?? 0,
+    };
+  }, [data, recent]);
+
+  // Read once per render so every row agrees about "now".
+  const now = Date.now();
+  const nothingToShow =
+    !loading && !!summary && summary.total === 0 && summary.recent === 0 && !error;
 
   return (
     <Card
@@ -155,10 +207,10 @@ export default function ChessComPlay() {
               </Box>
               <Box>
                 <Typography sx={{ fontWeight: 800, fontSize: '1.2rem' }}>
-                  Your Chess.com daily games
+                  Your Chess.com games
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Read-only · Chess.com doesn&apos;t expose playing via public API
+                  Open any recent game on Masti&apos;s analysis board
                 </Typography>
               </Box>
             </Stack>
@@ -167,6 +219,7 @@ export default function ChessComPlay() {
                 size="small"
                 onClick={() => fetchGames(username)}
                 disabled={loading}
+                aria-label="Reload games"
                 sx={{ color: 'text.secondary' }}
               >
                 <Icon icon="mdi:refresh" width={18} />
@@ -185,9 +238,10 @@ export default function ChessComPlay() {
               '& .MuiAlert-icon': { color: '#93c5fd' },
             }}
           >
-            Chess.com hasn&apos;t published an API for live matchmaking. You can see your
-            ongoing <strong>daily</strong> games here and jump back to chess.com to make
-            a move. For live play <em>inside</em> ChessMasti, use the Lichess tab.
+            Enter a Chess.com username to load its recent games, then pick one and Masti
+            walks you through it. Chess.com doesn&apos;t let other sites make moves, so
+            daily games link back to chess.com. To play <em>inside</em> Chess Masti, use
+            the Lichess tab.
           </Alert>
 
           <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
@@ -249,6 +303,16 @@ export default function ChessComPlay() {
             <Stack direction="row" spacing={1}>
               <Chip
                 size="small"
+                label={`${summary.recent} recent`}
+                sx={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: 'rgba(255,255,255,0.94)',
+                  fontWeight: 700,
+                }}
+              />
+              <Chip
+                size="small"
                 label={`${summary.total} ongoing`}
                 sx={{
                   background: 'rgba(255,255,255,0.06)',
@@ -274,27 +338,84 @@ export default function ChessComPlay() {
 
           {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
 
-          {/* Games grid */}
-          {data && data.games.length === 0 && !error && (
+          {nothingToShow && (
             <Box sx={{ py: 4, textAlign: 'center', color: 'rgba(255,255,255,0.55)' }}>
               <Icon icon="mdi:chess-pawn" width={40} style={{ opacity: 0.4 }} />
               <Typography variant="body2" sx={{ mt: 1 }}>
-                No ongoing daily games for <strong>{data.username}</strong>.
+                {recent && !recent.everPlayed ? (
+                  <>
+                    <strong>{recent.username}</strong> hasn&apos;t played any games on Chess.com
+                    {recent.lastOnline ? ` and was last online in ${monthYear(recent.lastOnline)}` : ''}.
+                  </>
+                ) : (
+                  <>
+                    No recent games for <strong>{recent?.username ?? data?.username}</strong>.
+                  </>
+                )}
               </Typography>
+              <Typography variant="body2" sx={{ mt: 0.5, color: 'rgba(255,255,255,0.45)' }}>
+                Check the spelling, try a sample player, or paste any game on the analysis board.
+              </Typography>
+              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 1 }}>
+                <Button
+                  size="small"
+                  onClick={trySample}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    borderRadius: '0.6rem',
+                    px: 1.5,
+                    color: '#94c95f',
+                    border: '1px solid rgba(129,182,76,0.4)',
+                    '&:hover': { background: 'rgba(129,182,76,0.1)' },
+                  }}
+                >
+                  See {SAMPLE_PLAYER}&apos;s games
+                </Button>
+                <Button
+                  size="small"
+                  href="/analysis"
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    borderRadius: '0.6rem',
+                    px: 1.5,
+                    color: '#FB923C',
+                    border: '1px solid rgba(249,115,22,0.4)',
+                    '&:hover': { background: 'rgba(249,115,22,0.1)' },
+                  }}
+                >
+                  Open the analysis board
+                </Button>
+              </Box>
+            </Box>
+          )}
+
+          {recent && recent.games.length > 0 && (
+            <Box>
+              <Typography sx={sectionLabelSx}>Recent games</Typography>
+              <Box sx={{ mx: -1.25, mt: 0.5 }}>
+                {recent.games.map((g) => (
+                  <RecentGameRow key={g.id} game={g} now={now} />
+                ))}
+              </Box>
             </Box>
           )}
 
           {data && data.games.length > 0 && (
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
-                gap: 2,
-              }}
-            >
-              {data.games.map((g) => (
-                <ChessComGameCard key={g.url} game={g} you={data.username} />
-              ))}
+            <Box>
+              <Typography sx={{ ...sectionLabelSx, mb: 1.25 }}>Daily games in progress</Typography>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
+                  gap: 2,
+                }}
+              >
+                {data.games.map((g) => (
+                  <ChessComGameCard key={g.url} game={g} you={data.username} />
+                ))}
+              </Box>
             </Box>
           )}
         </Stack>

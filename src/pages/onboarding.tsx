@@ -6,6 +6,8 @@ import OnboardingQuiz from "@/components/onboarding/OnboardingQuiz";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthDialog } from "@/contexts/AuthDialogContext";
 import { buildPayload, QuizAnswers } from "@/components/onboarding/quizConfig";
+import type { QuizRating } from "@/components/onboarding/useQuizCurrentRating";
+import { postHandleClaim } from "@/lib/auth/handleClient";
 import {
   writeFlushPayload,
   clearAllQuizStorage,
@@ -52,8 +54,15 @@ export default function OnboardingPage() {
   userRef.current = user;
 
   const handleUnlock = useCallback(
-    async (answers: QuizAnswers, currentRating?: number) => {
-      const payload = buildPayload(answers, currentRating);
+    async (answers: QuizAnswers, rating: QuizRating) => {
+      const payload = buildPayload(answers, rating.currentRating, {
+        platform: rating.platform,
+        perf: rating.perf,
+      });
+      // The handle is NOT part of the profile patch: claiming one is an atomic
+      // transaction on its own endpoint (see lib/server/handles.ts), and the
+      // profile PATCH route deliberately refuses to write the field.
+      const handle = answers.handle?.trim() || undefined;
 
       if (user) {
         // Signed in but not yet onboarded (e.g. a Google signup who arrived
@@ -68,11 +77,20 @@ export default function OnboardingPage() {
           });
         } catch (err) {
           console.error("Onboarding direct save failed:", err);
-        } finally {
-          clearAllQuizStorage();
-          setSubmitting(false);
-          router.push("/plan");
         }
+        // Non-fatal on purpose. A handle that was taken in the meantime must
+        // not cost them the profile they just filled in — /profile's
+        // HandleCard renders for anyone without one and asks again.
+        if (handle) {
+          try {
+            await postHandleClaim(handle);
+          } catch (err) {
+            console.warn("Onboarding handle claim failed:", err);
+          }
+        }
+        clearAllQuizStorage();
+        setSubmitting(false);
+        router.push("/plan");
         return;
       }
 
@@ -80,7 +98,7 @@ export default function OnboardingPage() {
       // signup gate (email/password or Google OAuth). The email path closes the
       // dialog once signup completes, so `user` is set — head to the payoff.
       // If they close without signing up, `user` is null and we stay put.
-      writeFlushPayload(payload);
+      writeFlushPayload(payload, handle);
       openAuthDialog({
         onClose: () => {
           if (userRef.current) router.replace("/plan");

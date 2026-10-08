@@ -17,6 +17,7 @@ import { Chessboard } from 'react-chessboard';
 import { CustomPieces, Piece, Square } from 'react-chessboard/dist/chessboard/types';
 import { EngineName } from '@/types/enums';
 import { useEngine } from '@/hooks/useEngine';
+import { useLostDragRecovery } from '@/hooks/useLostDragRecovery';
 import { getTwinBotMove, TwinBotMove } from '@/lib/twinBot';
 import { OpeningTreeNode, Platform, ProfileSnapshot } from '@/types/scout';
 
@@ -85,6 +86,9 @@ export default function TwinBotGame({
   topWeakness,
   pieceSet,
 }: TwinBotGameProps) {
+  // A drag the browser never finishes leaves the lifted square empty and a
+  // phantom piece frozen over the board, until this puts it back.
+  useLostDragRecovery();
   const engine = useEngine(EngineName.Stockfish16_1Lite);
 
   const [game, setGame] = useState(() => new Chess());

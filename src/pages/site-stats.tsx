@@ -34,6 +34,7 @@ import {
   Cell,
 } from "recharts";
 import { PageTitle } from "@/components/pageTitle";
+import { Masti } from "@/components/masti";
 import {
   getSiteStats,
   getDailyVisitStats,
@@ -75,6 +76,16 @@ export default function SiteStatsPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // The data layer is stubbed (visitorTracker answers with nothing until a
+  // /api/visits proxy lands), so this is false today. It is read off the
+  // same state the cards render from, so the day real numbers arrive the
+  // dashboard takes over on its own.
+  const hasData =
+    (stats?.totalVisits ?? 0) > 0 ||
+    (stats?.totalUniqueVisitors ?? 0) > 0 ||
+    dailyStats.length > 0 ||
+    pageBreakdown.length > 0;
 
   const totalRecentVisits = dailyStats.reduce((acc, d) => acc + d.visits, 0);
   const totalRecentUnique = dailyStats.reduce((acc, d) => acc + d.uniqueVisitors, 0);
@@ -123,6 +134,27 @@ export default function SiteStatsPage() {
             <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
               <Loader size={48} showLabel={false} />
             </Box>
+          ) : !hasData ? (
+            <Paper
+              data-testid="site-stats-empty"
+              sx={{
+                p: { xs: 3, md: 5 },
+                bgcolor: "grey.900",
+                borderRadius: 2,
+                textAlign: "center",
+                maxWidth: 560,
+                mx: "auto",
+              }}
+            >
+              <Masti mood="defeated" size={120} loops={2} decorative style={{ marginBottom: 12 }} />
+              <Typography variant="h6" sx={{ fontWeight: 700, color: "grey.100", mb: 0.75 }}>
+                Nothing to show yet
+              </Typography>
+              <Typography variant="body2" sx={{ color: "grey.500", lineHeight: 1.6 }}>
+                I went looking for visit numbers and came back empty-handed. Visits will appear
+                here as people browse the site.
+              </Typography>
+            </Paper>
           ) : (
             <>
               {/* Top Stats Cards */}

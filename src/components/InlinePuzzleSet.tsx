@@ -15,6 +15,7 @@ import type { ChessPuzzle } from "@/lib/chessPuzzlesService";
 import { usePuzzleBoardState } from "@/hooks/usePuzzleBoardState";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 import InlinePuzzleCoach from "./InlinePuzzleCoach";
+import { MastiAvatar } from "@/components/masti";
 
 /**
  * InlinePuzzleSet — 3 puzzles solved inside the chat bubble (no /practice nav).
@@ -95,7 +96,15 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
     return (
       <StyledPaper ref={containerRef} elevation={2}>
         <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
-          ✅ Nice work — 3 puzzles done
+          <MastiAvatar
+            mood="excited"
+            size={24}
+            ring={false}
+            animated
+            loops={2}
+            style={{ verticalAlign: "middle", marginRight: 6 }}
+          />
+          Nice work — 3 puzzles done
         </Typography>
         {displayTheme && (
           <Typography variant="caption" color="text.secondary">

@@ -48,6 +48,11 @@ test("landing survives without JS crashes", async ({ page }) => {
  * that makes this test able to fail. setFixedTime, not install: it fakes only
  * the reading of the clock and leaves real timers running, so the page's
  * animations and effects behave normally.
+ *
+ * The date line that hit this lived on the "Puzzle of the day" card, which
+ * left the landing in the 2026-09-22 home page cleanup, so nothing on the
+ * page reads the clock today. The test stays as the tripwire for the next
+ * component that does.
  */
 test.describe("landing hydration under a skewed clock", () => {
   test.use({ timezoneId: "UTC" });
@@ -60,19 +65,15 @@ test.describe("landing hydration under a skewed clock", () => {
 
     await page.clock.setFixedTime(new Date("2031-03-09T12:00:00Z"));
     await page.goto("/");
+    // The page has to have rendered for the empty error list to mean anything.
+    await expect(page.locator("h1")).toContainText(/chess coaching/i, {
+      timeout: 15_000,
+    });
     await page.waitForTimeout(3000);
 
     const hydration = errors.filter((m) =>
       /React error #(418|423|425)/.test(m)
     );
     expect(hydration).toEqual([]);
-
-    // The date must still reach the viewer, and must be THEIR date. Without
-    // this, deleting the date outright would satisfy the assertion above for
-    // entirely the wrong reason.
-    await expect(page.getByText(/PUZZLE OF THE DAY/i).first()).toContainText(
-      /MARCH 9/i,
-      { timeout: 10_000 }
-    );
   });
 });

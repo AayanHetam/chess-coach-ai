@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { Box, Modal, Stack, Typography } from "@mui/material";
-import { Sparkles, X } from "lucide-react";
+import { X } from "lucide-react";
+import { Masti } from "@/components/masti";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasFreshPendingFlush } from "@/components/onboarding/quizStorage";
 
@@ -139,22 +140,13 @@ export default function OnboardingNudge() {
           <X size={16} />
         </Box>
 
-        <Box
-          sx={{
-            width: 44,
-            height: 44,
-            borderRadius: "12px",
-            background: orangeGradient,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow:
-              "0 0 24px rgba(249,115,22,0.45), inset 0 1px 0 rgba(255,255,255,0.18)",
-            mb: 1.75,
-          }}
-        >
-          <Sparkles size={20} color="#0A0A0A" />
-        </Box>
+        <Masti
+          mood="wave"
+          size={72}
+          loops={3}
+          decorative
+          style={{ marginBottom: 12 }}
+        />
 
         <Typography
           sx={{

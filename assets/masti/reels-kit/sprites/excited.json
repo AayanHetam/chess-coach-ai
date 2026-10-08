@@ -1,0 +1,8 @@
+{
+  "mood": "excited",
+  "frames": 24,
+  "frameWidth": 300,
+  "frameHeight": 375,
+  "delayMs": 50,
+  "loopMs": 1200
+}

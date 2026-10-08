@@ -19,6 +19,7 @@ import { Box, Typography } from "@mui/material";
 import { useAtomValue } from "jotai";
 import { Chess } from "chess.js";
 import { useAuth } from "@/contexts/AuthContext";
+import { Masti } from "@/components/masti";
 import { pieceSetAtom } from "@/components/board/states";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
@@ -307,6 +308,13 @@ export default function OpeningTrainerPage() {
     return (
       <Shell>
         <Box sx={{ p: 4, maxWidth: 520 }}>
+          <Masti
+            mood={working ? "thinking" : gone ? "idea" : "wave"}
+            size={100}
+            loops={working ? 0 : 2}
+            decorative
+            style={{ marginBottom: 12 }}
+          />
           <Typography sx={{ color: "#fff", fontSize: "1.1rem", fontWeight: 700, mb: 1 }}>
             {gone ? "That line is not in your measurement any more" : "Nothing to train yet"}
           </Typography>

@@ -1,5 +1,6 @@
 import { Box, Button, Grid, Stack, Typography } from '@mui/material';
 import { Icon } from '@iconify/react';
+import { SIGN_IN_PROPS } from '@/components/ads/PartnerSlot';
 import {
   DossierPanel,
   EMBER,
@@ -144,7 +145,13 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
             >
               Scout your first opponent
             </Button>
-            <Stack direction="row" spacing={0.75} alignItems="center">
+            <Stack
+              // Hidden under the ChessUSA preview prefix. See SIGN_IN_ATTR.
+              {...SIGN_IN_PROPS}
+              direction="row"
+              spacing={0.75}
+              alignItems="center"
+            >
               <Icon icon="mdi:check-circle" style={{ color: '#34d399' }} width={16} />
               <Typography
                 variant="caption"

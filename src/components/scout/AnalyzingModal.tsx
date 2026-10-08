@@ -7,7 +7,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { Loader } from "@/components/ui/Loader";
+import { Masti } from '@/components/masti';
 import { Icon } from '@iconify/react';
 
 export type AnalyzingStage = 'connect' | 'download' | 'analyze';
@@ -202,8 +202,12 @@ export default function AnalyzingModal({
             {detail}
           </Typography>
 
+          {/* Masti thinks while the archive downloads: the still until the
+              modal opens, the loop while it is open (when the pack has one),
+              the still again once it closes. The figure stands alone; the
+              modal copy above him already says what is happening. */}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', my: 1.5 }}>
-            <Loader size={48} showLabel={false} />
+            <Masti mood="thinking" size={96} animated={open} loops={0} decorative />
           </Box>
 
           <LinearProgress

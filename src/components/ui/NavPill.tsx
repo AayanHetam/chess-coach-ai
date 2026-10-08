@@ -17,9 +17,11 @@ import { useRouter } from "next/router";
 import { useState, type MouseEvent, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { Menu as MenuIcon, Heart, LogOut, User, Settings } from "lucide-react";
-import { Logo } from "./Logo";
 import { surfaceAccent } from "./accents";
 import { AppDrawer, type NavId } from "./AppDrawer";
+import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
+import { BrandMark } from "./BrandMark";
+import { PartnerSlotPages } from "@/components/ads/PartnerSlotPages";
 import { useAuth } from "@/contexts/AuthContext";
 import ProfileDialog from "@/components/auth/ProfileDialog";
 import { useAuthDialog } from "@/contexts/AuthDialogContext";
@@ -175,6 +177,7 @@ export function NavPill({
         <Box
           component={Link}
           href="/"
+          aria-label="Chess Masti"
           sx={{
             display: "flex",
             alignItems: "center",
@@ -187,21 +190,9 @@ export function NavPill({
             pr: { xs: 0, md: 1 },
           }}
         >
-          <Box
-            sx={{
-              width: 26,
-              height: 26,
-              borderRadius: "8px",
-              background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 0 16px rgba(249,115,22,0.4)",
-              flexShrink: 0,
-            }}
-          >
-            <Logo variant="bold" size={16} color="#0A0A0A" />
-          </Box>
+          {/* The logo, the same mark as the favicon. The link carries the
+              accessible name because the wordmark is hidden on phones. */}
+          <BrandMark size={28} />
           <Box
             sx={{
               display: hasSlots
@@ -490,6 +481,8 @@ export function NavPill({
                 component="button"
                 type="button"
                 aria-label="Sign in"
+                // Hidden under the ChessUSA preview prefix. See SIGN_IN_ATTR.
+                {...SIGN_IN_PROPS}
                 onClick={() => openAuthDialog()}
                 direction="row"
                 spacing={0.75}
@@ -521,6 +514,16 @@ export function NavPill({
           </Box>
         )}
       </Box>
+
+      {/* ChessUSA partner slot, directly below the nav on every surface that
+          renders one — which is both the self-chromed product pages and the
+          ones Layout chromes. It lives HERE rather than in Layout because
+          SELF_CHROMED_ROUTES (/, /analysis, /play, /practice, /plan, /profile,
+          /puzzles, /scout, /courses, /database) mount their own NavPill inside
+          the page, so Layout has no hook below the nav for any of them.
+          Renders nothing at all unless the viewer opened one of the three
+          /partners/chessusa/N links. See PartnerSlot.tsx. */}
+      <PartnerSlotPages />
 
       <AppDrawer
         open={drawerOpen}

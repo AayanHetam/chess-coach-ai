@@ -10,6 +10,7 @@
 import { Box, Button, Typography } from "@mui/material";
 import { motion } from "framer-motion";
 import { ArrowRight, BookOpen, Check, Crown, Target } from "lucide-react";
+import { Masti, MastiAvatar } from "@/components/masti";
 import type { RepertoireHole } from "@/lib/learn/repertoireHole";
 import type { TrainerLine, TrainerState } from "@/lib/learn/trainerSession";
 import type { MasterView } from "@/lib/master/ideas";
@@ -327,6 +328,15 @@ function Drill({ state, line }: TrainerPanelProps) {
           }}
         >
           <Typography sx={{ color: BAD, fontSize: "0.86rem", lineHeight: 1.55 }}>
+            <MastiAvatar
+              mood="nervous"
+              size={22}
+              ring={false}
+              animated
+              loops={1}
+              replayKey={state.lastWrong}
+              style={{ verticalAlign: "middle", marginRight: 6 }}
+            />
             <Mono>{state.lastWrong}</Mono> is the move we are replacing.
             {target && (
               <>
@@ -360,6 +370,7 @@ function Done({ state, line, hole, nextReview }: TrainerPanelProps) {
     const clean = state.misses === 0;
     return (
       <Block>
+        <Masti mood={clean ? "excited" : "idea"} size={80} loops={2} decorative style={{ marginBottom: 8 }} />
         <Label icon={<Check size={15} />}>{clean ? "Still there" : "Needed a nudge"}</Label>
         <Typography sx={{ color: "#fff", fontSize: "1.1rem", fontWeight: 700, lineHeight: 1.4, mb: 1 }}>
           {clean
@@ -378,6 +389,7 @@ function Done({ state, line, hole, nextReview }: TrainerPanelProps) {
   if (!hole) return null;
   return (
     <Block>
+      <Masti mood="excited" size={80} loops={2} decorative style={{ marginBottom: 8 }} />
       <Label icon={<Check size={15} />}>Repaired</Label>
       <Typography sx={{ color: "#fff", fontSize: "1.1rem", fontWeight: 700, lineHeight: 1.4, mb: 1 }}>
         {line.target

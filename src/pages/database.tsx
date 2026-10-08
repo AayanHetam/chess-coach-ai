@@ -8,29 +8,30 @@ import { PageTitle } from "@/components/pageTitle";
 import { chessMastiDarkTheme } from "@/theme/chessMasti";
 import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
+import {
+  GAMES_TABLE_MAX_WIDTH,
+  GAMES_TABLE_MIN_HEIGHT,
+} from "@/sections/database/gamesTableLayout";
 
 // The actual grid + perspective-selection dialog lives in its own chunk
 // so /database's First Load doesn't have to ship @mui/x-data-grid (huge)
 // before the page renders anything. See src/sections/database/GamesTable.tsx.
-const GamesTable = dynamic(
-  () => import("@/sections/database/GamesTable"),
-  {
-    ssr: false,
-    loading: () => (
-      <Skeleton
-        variant="rectangular"
-        height={360}
-        sx={{
-          borderRadius: "1.5rem",
-          width: "100%",
-          maxWidth: 1100,
-          bgcolor: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}
-      />
-    ),
-  },
-);
+const GamesTable = dynamic(() => import("@/sections/database/GamesTable"), {
+  ssr: false,
+  loading: () => (
+    <Skeleton
+      variant="rectangular"
+      height={GAMES_TABLE_MIN_HEIGHT}
+      sx={{
+        borderRadius: "1.5rem",
+        width: "100%",
+        maxWidth: GAMES_TABLE_MAX_WIDTH,
+        bgcolor: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+      }}
+    />
+  ),
+});
 
 export default function GameDatabase() {
   const { games } = useGameDatabase(true);
@@ -78,7 +79,27 @@ export default function GameDatabase() {
             </Typography>
           </Grid>
 
-          <Grid maxWidth="100%" minWidth="50px">
+          {/* The table region has to be the same box before and after the
+              @mui/x-data-grid chunk lands, in BOTH axes.
+
+              It was neither. Vertically the 360px skeleton was replaced by a
+              163px empty grid. Horizontally this cell was `minWidth="50px"`
+              and shrink-to-fit, so it was 50px wide until the DataGrid's
+              column widths defined it and then snapped to the full 358 —
+              which is why fixing only the height made the score worse
+              rather than better: a stable-height box sliding sideways has a
+              bigger impact region than a short one.
+
+              Full-width cell, both children capped at the same 1100 and
+              centred, one shared height floor. Nothing left to jump. */}
+          <Grid
+            size={12}
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              minHeight: GAMES_TABLE_MIN_HEIGHT,
+            }}
+          >
             <GamesTable games={games} />
           </Grid>
         </Grid>

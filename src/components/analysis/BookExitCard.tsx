@@ -34,9 +34,19 @@ export interface BookExitCardProps {
   sans: string[];
   /** The colour the reader played. */
   side: "white" | "black";
+  /**
+   * "card" is the glass panel. "plain" is the same words as a passage of
+   * the coach's greeting: a small label, the headline, the detail, the
+   * moves as one line, no box.
+   */
+  variant?: "card" | "plain";
 }
 
-export default function BookExitCard({ sans, side }: BookExitCardProps) {
+export default function BookExitCard({
+  sans,
+  side,
+  variant = "card",
+}: BookExitCardProps) {
   const [state, setState] = useState<BookExitResponse | null>(null);
   const [failed, setFailed] = useState(false);
   // The request is keyed on the game's CONTENT, not the array's identity. The
@@ -75,6 +85,91 @@ export default function BookExitCard({ sans, side }: BookExitCardProps) {
   const body = renderBookExit(state);
   if (!body) return null;
 
+  if (variant === "plain") {
+    return (
+      <Box role="status" data-testid="book-exit" sx={{ mt: 1.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.6, mb: 0.35 }}>
+          <BookOpen size={12} color={EMBER} aria-hidden />
+          <Typography
+            sx={{
+              fontSize: "0.64rem",
+              fontWeight: 800,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.45)",
+            }}
+          >
+            {body.label}
+          </Typography>
+        </Box>
+        <Typography
+          sx={{
+            color: "rgba(255,255,255,0.9)",
+            fontSize: "0.92rem",
+            fontWeight: 500,
+            lineHeight: 1.6,
+          }}
+        >
+          {body.headline}
+        </Typography>
+        {body.detail && (
+          <Typography
+            sx={{
+              color: "rgba(255,255,255,0.6)",
+              fontSize: "0.84rem",
+              lineHeight: 1.6,
+              mt: 0.35,
+            }}
+          >
+            {body.detail}
+          </Typography>
+        )}
+        {body.moves.length > 0 && (
+          <Typography
+            sx={{
+              mt: 0.5,
+              fontSize: "0.82rem",
+              color: "rgba(255,255,255,0.7)",
+              lineHeight: 1.6,
+            }}
+          >
+            {body.moves.map((m) => (
+              <Box component="span" key={m.san} sx={{ mr: 1.5 }}>
+                <Box
+                  component="span"
+                  sx={{ fontFamily: MONO, color: "rgba(255,255,255,0.88)" }}
+                >
+                  {m.san}
+                </Box>{" "}
+                <Box
+                  component="span"
+                  sx={{
+                    color: "rgba(255,255,255,0.45)",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {pct(m.perMille)}
+                </Box>
+              </Box>
+            ))}
+          </Typography>
+        )}
+        {body.disclaimer && (
+          <Typography
+            sx={{
+              color: "rgba(255,255,255,0.4)",
+              fontSize: "0.74rem",
+              lineHeight: 1.6,
+              mt: 0.5,
+            }}
+          >
+            {body.disclaimer}
+          </Typography>
+        )}
+      </Box>
+    );
+  }
+
   return (
     <Box
       role="status"
@@ -102,12 +197,24 @@ export default function BookExitCard({ sans, side }: BookExitCardProps) {
           {body.label}
         </Typography>
       </Box>
-      <Typography sx={{ color: "#fff", fontSize: "0.95rem", fontWeight: 600, lineHeight: 1.45 }}>
+      <Typography
+        sx={{
+          color: "#fff",
+          fontSize: "0.95rem",
+          fontWeight: 600,
+          lineHeight: 1.45,
+        }}
+      >
         {body.headline}
       </Typography>
       {body.detail && (
         <Typography
-          sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.82rem", lineHeight: 1.6, mt: 0.75 }}
+          sx={{
+            color: "rgba(255,255,255,0.6)",
+            fontSize: "0.82rem",
+            lineHeight: 1.6,
+            mt: 0.75,
+          }}
         >
           {body.detail}
         </Typography>
@@ -127,11 +234,21 @@ export default function BookExitCard({ sans, side }: BookExitCardProps) {
                 border: "1px solid rgba(255,255,255,0.08)",
               }}
             >
-              <Typography sx={{ fontFamily: MONO, fontSize: "0.8rem", color: "rgba(255,255,255,0.85)" }}>
+              <Typography
+                sx={{
+                  fontFamily: MONO,
+                  fontSize: "0.8rem",
+                  color: "rgba(255,255,255,0.85)",
+                }}
+              >
                 {m.san}
               </Typography>
               <Typography
-                sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.45)", fontVariantNumeric: "tabular-nums" }}
+                sx={{
+                  fontSize: "0.72rem",
+                  color: "rgba(255,255,255,0.45)",
+                  fontVariantNumeric: "tabular-nums",
+                }}
               >
                 {pct(m.perMille)}
               </Typography>
@@ -140,7 +257,14 @@ export default function BookExitCard({ sans, side }: BookExitCardProps) {
         </Box>
       )}
       {body.disclaimer && (
-        <Typography sx={{ color: "rgba(255,255,255,0.4)", fontSize: "0.72rem", lineHeight: 1.6, mt: 1.25 }}>
+        <Typography
+          sx={{
+            color: "rgba(255,255,255,0.4)",
+            fontSize: "0.72rem",
+            lineHeight: 1.6,
+            mt: 1.25,
+          }}
+        >
           {body.disclaimer}
         </Typography>
       )}

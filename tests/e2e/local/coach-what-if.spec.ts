@@ -49,8 +49,8 @@ const FOLLOWUP =
 
 /**
  * `chatDelayMs` holds the coach's words back: by default a little, so the
- * engine is seen to answer first; at 0 the words (and their anchor) come
- * before the line, and the anchor's jump must wait for it.
+ * engine is seen to answer first. At 0 the words come at once, and which
+ * lands first is a race unless the engine is held (holdableEngine).
  */
 async function stubCoach(page: Page, { chatDelayMs = 1500 } = {}) {
   await stubSignedIn(page);
@@ -86,6 +86,53 @@ async function stubCoach(page: Page, { chatDelayMs = 1500 } = {}) {
         },
       }),
     });
+  });
+}
+
+/**
+ * The engine's messages can be held: an init script wraps the page's Worker
+ * so that, between `hold` and `release`, every message a worker posts back
+ * waits, in order, and is delivered at the release. With the engine held
+ * from the send, the coach's words (stubbed to answer at once) are on the
+ * page before the what-if's search has said a word: the order the jump's
+ * hold is for, made certain instead of raced.
+ */
+async function holdableEngine(page: Page) {
+  await page.addInitScript(() => {
+    const Native = window.Worker;
+    const queue: Array<() => void> = [];
+    const state = { on: false };
+    (window as unknown as { __engineHold: unknown }).__engineHold = {
+      hold: () => {
+        state.on = true;
+      },
+      release: () => {
+        state.on = false;
+        for (const deliver of queue.splice(0)) deliver();
+      },
+    };
+    class HeldWorker extends Native {
+      constructor(url: string | URL, options?: WorkerOptions) {
+        super(url, options);
+        // The page's `onmessage` lands on this accessor, never on the
+        // worker's own; the worker's messages reach it through a listener.
+        let handler: ((e: MessageEvent) => unknown) | null = null;
+        Object.defineProperty(this, "onmessage", {
+          configurable: true,
+          get: () => handler,
+          set: (h: ((e: MessageEvent) => unknown) | null) => {
+            handler = h;
+          },
+        });
+        this.addEventListener("message", (event: MessageEvent) => {
+          const h = handler;
+          if (!h) return;
+          if (state.on) queue.push(() => h.call(this, event));
+          else h.call(this, event);
+        });
+      }
+    }
+    window.Worker = HeldWorker as typeof Worker;
   });
 }
 
@@ -166,6 +213,81 @@ async function whatIfTiming(
   };
 }
 
+/**
+ * Record the what-if block's height and place at every status it takes,
+ * inside the page, at the moment the status changes (a MutationObserver's
+ * callback runs before the next paint, and reading offsetHeight there lays
+ * out the state just committed). Read back with recordedPlaces.
+ */
+async function recordWhatIfPlaces(page: Page) {
+  await page.evaluate(() => {
+    const w = window as unknown as {
+      __whatIfPlaces?: Array<{
+        status: string | null;
+        height: number;
+        top: number;
+      }>;
+    };
+    w.__whatIfPlaces = [];
+    const record = (el: HTMLElement) =>
+      w.__whatIfPlaces!.push({
+        status: el.getAttribute("data-status"),
+        height: el.offsetHeight,
+        top: el.offsetTop,
+      });
+    const isBlock = (n: Node): boolean =>
+      n instanceof HTMLElement && n.getAttribute("data-testid") === "what-if";
+    new MutationObserver((records) => {
+      for (const r of records) {
+        if (r.type === "attributes" && isBlock(r.target))
+          record(r.target as HTMLElement);
+        if (r.type === "childList")
+          for (const n of Array.from(r.addedNodes)) {
+            if (!(n instanceof HTMLElement)) continue;
+            const el = isBlock(n)
+              ? n
+              : (n.querySelector(
+                  '[data-testid="what-if"]'
+                ) as HTMLElement | null);
+            if (el) record(el);
+          }
+      }
+    }).observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["data-status"],
+    });
+  });
+}
+
+async function recordedPlaces(page: Page) {
+  return page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          __whatIfPlaces?: Array<{
+            status: string | null;
+            height: number;
+            top: number;
+          }>;
+        }
+      ).__whatIfPlaces ?? []
+  );
+}
+
+/** The marks of a name the page set after `t0`. */
+async function marksAfter(page: Page, name: string, t0: number) {
+  return page.evaluate(
+    ({ name, t0 }) =>
+      performance
+        .getEntriesByName(name)
+        .map((e) => e.startTime)
+        .filter((t) => t >= t0),
+    { name, t0 }
+  );
+}
+
 /** The board's box in the document, to the pixel (see board-rectangle.spec.ts). */
 async function boardRect(page: Page) {
   const box = await page
@@ -231,6 +353,7 @@ test.describe("the client what-if", () => {
     const rest = await boardRect(page);
 
     await composer.fill("what about 8. Qxc1 instead?");
+    await recordWhatIfPlaces(page);
     const t0 = await startClock(page);
     const sentAt = Date.now();
     await composer.press("Enter");
@@ -239,24 +362,6 @@ test.describe("the client what-if", () => {
     const whatIf = page.getByTestId("what-if").last();
     await expect(whatIf).toBeVisible({ timeout: 5_000 });
     await expect(whatIf).toHaveAttribute("data-status", /checking|drawn|final/);
-    // Where the block sits in the transcript's own column, which does not
-    // change when the transcript scrolls to the newest message.
-    const placeOf = () =>
-      whatIf.evaluate((el) => ({
-        top: (el as HTMLElement).offsetTop,
-        height: (el as HTMLElement).offsetHeight,
-        status: el.getAttribute("data-status"),
-      }));
-    // Taken while the engine is still checking, so the comparison below is
-    // the placeholder against the drawn line; on a fast machine the first
-    // partial can land before this read, and then the check is not made.
-    const reserved = await placeOf();
-    const reservationSeen = reserved.status === "checking";
-    if (!reservationSeen)
-      testInfo.annotations.push({
-        type: "reservation",
-        description: `the block was already ${reserved.status} when its reserved place was read`,
-      });
 
     // The exit criterion: the line within two seconds of the send, at a
     // stable depth, on the page's own clock.
@@ -282,7 +387,7 @@ test.describe("the client what-if", () => {
     const summary = whatIf.getByTestId("what-if-summary");
     await expect(summary).toContainText("8. Qxc1");
     await expect(summary).toContainText(/8\. Qxc1 [+-]\d+\.\d\d/);
-    await expect(summary).toContainText(/played 8\. Nc7\+ [+-]\d+\.\d\d/);
+    await expect(summary).toContainText(/played Nc7\+ [+-]\d+\.\d\d/);
     // The depth in the words is the depth on the block, read together (the
     // search deepens between two reads).
     const together = await whatIf.evaluate((el) => ({
@@ -290,8 +395,33 @@ test.describe("the client what-if", () => {
       text: el.querySelector('[data-testid="what-if-summary"]')?.textContent,
     }));
     expect(together.text).toContain(`d${together.depth}`);
-    // A what-if is one quiet line: no chip, no badge, no box.
-    await expect(line.getByTestId("what-if-line-eval")).toHaveCount(0);
+    // A what-if is one quiet line: no chip, no badge, no box. Neither the
+    // block nor its line draws a border, a background or a shadow.
+    const chrome = await whatIf.evaluate((el) =>
+      [el, el.querySelector('[data-testid="what-if-line"]')]
+        .filter((n): n is Element => n !== null)
+        .map((n) => {
+          const cs = getComputedStyle(n);
+          return {
+            border: [
+              cs.borderTopWidth,
+              cs.borderRightWidth,
+              cs.borderBottomWidth,
+              cs.borderLeftWidth,
+            ].join(" "),
+            background: cs.backgroundColor,
+            image: cs.backgroundImage,
+            shadow: cs.boxShadow,
+          };
+        })
+    );
+    expect(chrome).toHaveLength(2);
+    for (const c of chrome) {
+      expect(c.border).toBe("0px 0px 0px 0px");
+      expect(c.background).toMatch(/^(rgba\(0, 0, 0, 0\)|transparent)$/);
+      expect(c.image).toBe("none");
+      expect(c.shadow).toBe("none");
+    }
 
     // The board answered: the asked move is on it, the strip's first row
     // says so, and the board's box did not move.
@@ -299,15 +429,19 @@ test.describe("the client what-if", () => {
       timeout: 5_000,
     });
     expectSameRect(rest, await boardRect(page), "the what-if");
-    // The reserved space is the space the line took: same place, same height.
-    const drawn = await placeOf();
-    console.log(
-      `[what-if] ${testInfo.project.name}: block ${reserved.height} px while ${reserved.status}, ${drawn.height} px drawn`
+
+    // The reader walks the line while it deepens: its moves stay the ones
+    // tapped (a deeper search may change the engine's reply, and a swap
+    // under the reader would name a move that is not on the board).
+    const plies = line.getByTestId("what-if-line-ply");
+    const walked = await plies.allTextContents();
+    const sanOf = (ply: string) => ply.replace(/^\d+\.+\s*/, "");
+    await plies.nth(1).click();
+    await expect(page.getByTestId("exploration-path")).toContainText(
+      sanOf(walked[1]),
+      { timeout: 5_000 }
     );
-    if (reservationSeen) {
-      expect(Math.abs(drawn.height - reserved.height)).toBeLessThanOrEqual(2);
-      expect(Math.abs(drawn.top - reserved.top)).toBeLessThanOrEqual(2);
-    }
+    await expect(whatIf).toHaveAttribute("data-pinned", "true");
 
     // The coach's words arrive, anchored on the game's move there; the
     // alternative stays on the board and no jump is offered for it.
@@ -326,10 +460,43 @@ test.describe("the client what-if", () => {
       Number(await whatIf.getAttribute("data-depth"))
     ).toBeGreaterThanOrEqual(depth);
     await expect(summary).toContainText(/8\. Qxc1 [+-]\d+\.\d\d/);
-    const finalPlace = await placeOf();
-    expect(Math.abs(finalPlace.height - drawn.height)).toBeLessThanOrEqual(2);
-    expect(Math.abs(finalPlace.top - drawn.top)).toBeLessThanOrEqual(2);
+    expect(await plies.allTextContents()).toEqual(walked);
     expectSameRect(rest, await boardRect(page), "the final depth");
+
+    // Played to its end and then again from the start, after the final
+    // depth: the moves are still the ones walked (the replay's first step
+    // clears the board back to the asked position, which must not let the
+    // deeper line in), and Play runs to the last of them.
+    const play = line.getByTestId("what-if-line-play");
+    const lastSan = sanOf(walked[walked.length - 1]);
+    for (const round of ["on to the end", "again from the start"]) {
+      await play.click();
+      await expect(play, round).toHaveText(/Play/, { timeout: 20_000 });
+      await expect(page.getByTestId("exploration-path"), round).toContainText(
+        lastSan
+      );
+      expect(await plies.allTextContents(), round).toEqual(walked);
+    }
+
+    // The block held one height and one place from the send to the final
+    // depth, read in the page at each status as it was committed.
+    const places = await recordedPlaces(page);
+    console.log(
+      `[what-if] ${testInfo.project.name}: ${places
+        .map((p) => `${p.status} ${p.height}px@${p.top}`)
+        .join(", ")}`
+    );
+    expect(places.map((p) => p.status)).toEqual(
+      expect.arrayContaining(["checking", "drawn", "final"])
+    );
+    expect(places[0].status).toBe("checking");
+    for (const p of places) {
+      expect(
+        Math.abs(p.height - places[0].height),
+        p.status!
+      ).toBeLessThanOrEqual(1);
+      expect(Math.abs(p.top - places[0].top), p.status!).toBeLessThanOrEqual(1);
+    }
 
     // A later question about the move the game played there is not the
     // what-if's reply: its anchor moves the board to 8. Nc7+ as it always
@@ -379,9 +546,13 @@ test.describe("the client what-if", () => {
     page,
   }, testInfo) => {
     test.setTimeout(240_000);
-    // The coach answers at once, so its words and anchor come before the
-    // engine's first deep partial: the anchor's jump must wait for the line.
-    await stubCoach(page, { chatDelayMs: 0 });
+    // The coach's words come well after the two-second budget, so the line
+    // is drawn first and the anchor's jump for the words is dropped (the
+    // other order has its own test, below).
+    await holdableEngine(page);
+    await stubCoach(page, { chatDelayMs: 4_000 });
+    // The live eval runs on the engine, not the cloud's head start.
+    await page.route("**/lichess.org/api/cloud-eval**", (r) => r.abort());
     await page.goto(`/analysis?pgn=${encodeURIComponent(PGN)}`);
     const composer = page.getByPlaceholder(
       "Ask anything about this position..."
@@ -402,15 +573,43 @@ test.describe("the client what-if", () => {
 
     // Move the board one ply: the live eval starts a fresh search for the
     // new position (the arrow keys are ignored while the composer has the
-    // focus, so it gives it up first). Then ask at once, while that search
-    // is in flight: the what-if aborts it in whatever phase it is and goes
-    // ahead of any live eval still waiting.
+    // focus, so the question is typed first and the focus given up). The
+    // engine's replies are held from the moment that search starts, so it
+    // is certainly still searching when the question is sent: the what-if
+    // must abort it, in whatever phase it is, to take the engine. Held, the
+    // search could not finish on a fast machine before the Enter.
+    const searches = () =>
+      page.evaluate(
+        () => performance.getEntriesByName("coach-live-eval:search").length
+      );
+    const searchesBefore = await searches();
+    await composer.fill("what about 8. Qxc1 instead?");
     await composer.blur();
     await page.keyboard.press("ArrowRight");
-    await composer.fill("what about 8. Qxc1 instead?");
+    await page.waitForFunction(
+      (n) => performance.getEntriesByName("coach-live-eval:search").length > n,
+      searchesBefore,
+      { polling: "raf", timeout: 10_000 }
+    );
+    await page.evaluate(() =>
+      (
+        window as unknown as { __engineHold: { hold: () => void } }
+      ).__engineHold.hold()
+    );
     const t0 = await startClock(page);
     const sentAt = Date.now();
     await composer.press("Enter");
+    // The what-if stopped the live search; the engine answers again.
+    await page.waitForFunction(
+      () => performance.getEntriesByName("coach-what-if:preempted").length > 0,
+      null,
+      { polling: "raf", timeout: 5_000 }
+    );
+    await page.evaluate(() =>
+      (
+        window as unknown as { __engineHold: { release: () => void } }
+      ).__engineHold.release()
+    );
 
     const whatIf = page.getByTestId("what-if").last();
     const line = whatIf.getByTestId("what-if-line");
@@ -427,18 +626,32 @@ test.describe("the client what-if", () => {
       Number(await whatIf.getAttribute("data-depth"))
     ).toBeGreaterThanOrEqual(10);
     await expect(whatIf.getByTestId("what-if-summary")).toContainText(
-      /8\. Qxc1 [+-]\d+\.\d\d · played 8\. Nc7\+ [+-]\d+\.\d\d/
+      /8\. Qxc1 [+-]\d+\.\d\d · played Nc7\+ [+-]\d+\.\d\d/
     );
-    // The board answered from the ply the reader was on, although the
-    // coach's words (anchored on 8. Nc7+) were in first: their jump waited
-    // for the line and was dropped when it came.
-    await expect(page.getByText("simply takes the queen")).toBeVisible({
-      timeout: 30_000,
-    });
+    // The board answered from the ply the reader was on, and the coach's
+    // words (anchored on 8. Nc7+) arrive after the line: their jump is
+    // dropped for it, never held.
     await expect(page.getByTestId("exploration-path")).toContainText("Qxc1", {
       timeout: 5_000,
     });
+    await expect(page.getByText("simply takes the queen")).toBeVisible({
+      timeout: 30_000,
+    });
     await expect(page.getByTestId("coach-jump-banner")).toHaveCount(0);
+    expect(
+      await marksAfter(page, "coach-what-if:jump-skipped", t0)
+    ).toHaveLength(1);
+    expect(await marksAfter(page, "coach-what-if:jump-held", t0)).toHaveLength(
+      0
+    );
+    // The what-if stopped the live search while it was still running to
+    // take the engine: the live search ended on its abort, after the ask.
+    expect(await marksAfter(page, "coach-what-if:preempted", t0)).toHaveLength(
+      1
+    );
+    expect(
+      (await marksAfter(page, "coach-live-eval:aborted", t0)).length
+    ).toBeGreaterThanOrEqual(1);
     // And the search runs on to its final depth: the aborted live eval did
     // not take the engine back.
     await expect(whatIf).toHaveAttribute("data-status", "final", {
@@ -450,5 +663,74 @@ test.describe("the client what-if", () => {
     // (the button wears its tooltip as its accessible name).
     await page.getByRole("button", { name: /Leave this line/ }).click();
     await expect(page.getByTestId("exploration-path")).toHaveCount(0);
+  });
+
+  test("when the coach's words come first, their jump waits for the line and is dropped when it is drawn", async ({
+    page,
+  }) => {
+    test.setTimeout(240_000);
+    await holdableEngine(page);
+    await stubCoach(page, { chatDelayMs: 0 });
+    await page.goto(`/analysis?pgn=${encodeURIComponent(PGN)}`);
+    const composer = page.getByPlaceholder(
+      "Ask anything about this position..."
+    );
+    const ready = await composer
+      .waitFor({ state: "visible", timeout: 180_000 })
+      .then(() => true)
+      .catch(() => false);
+    test.skip(!ready, "Stockfish never finished on this machine");
+    await composer.fill("analyse this game");
+    await composer.press("Enter");
+    await expect(page.getByText("the free queen was bigger")).toBeVisible({
+      timeout: 30_000,
+    });
+
+    // The engine is held from the send: the what-if is still checking
+    // when the coach's words and their anchor (8. Nc7+) arrive.
+    await composer.fill("what about 8. Qxc1 instead?");
+    const t0 = await startClock(page);
+    await page.evaluate(() =>
+      (
+        window as unknown as { __engineHold: { hold: () => void } }
+      ).__engineHold.hold()
+    );
+    await composer.press("Enter");
+    const whatIf = page.getByTestId("what-if").last();
+    await expect(page.getByText("simply takes the queen")).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect
+      .poll(
+        async () =>
+          (await marksAfter(page, "coach-what-if:jump-held", t0)).length,
+        { timeout: 5_000 }
+      )
+      .toBe(1);
+    // The jump waits: no banner, the board where the reader left it.
+    await expect(whatIf).toHaveAttribute("data-status", "checking");
+    await expect(page.getByTestId("coach-jump-banner")).toHaveCount(0);
+    await expect(page.getByTestId("exploration-path")).toHaveCount(0);
+
+    // The engine answers: the line is drawn, the alternative goes on the
+    // board, and the held jump is dropped for it.
+    await page.evaluate(() =>
+      (
+        window as unknown as { __engineHold: { release: () => void } }
+      ).__engineHold.release()
+    );
+    await expect(whatIf.getByTestId("what-if-line")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByTestId("exploration-path")).toContainText("Qxc1", {
+      timeout: 5_000,
+    });
+    await expect(page.getByTestId("coach-jump-banner")).toHaveCount(0);
+    expect(await marksAfter(page, "coach-what-if:jump-held", t0)).toHaveLength(
+      1
+    );
+    expect(
+      await marksAfter(page, "coach-what-if:jump-skipped", t0)
+    ).toHaveLength(0);
   });
 });

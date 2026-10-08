@@ -8,12 +8,16 @@
  * so the two numbers mean the same thing (UciEngine.evaluateMoves: one
  * `searchmoves` search, one depth, a cold table).
  *
- * This is the pure half. It reads the question with the same resolvers the
- * chat route uses (questionAnchor.ts, questionIntent.ts), so the client and
- * the server agree on which move is asked about and where; it turns the
- * asked notation into a move legal in that position, picks the moves worth
+ * It reads the question with the same resolvers the chat route uses
+ * (questionAnchor.ts, questionIntent.ts), so the client and the server
+ * agree on which move is asked about and where; it turns the asked
+ * notation into a move legal in that position, picks the moves worth
  * scoring beside it, and turns a search result into the line ProofLine
- * draws. The engine, the mutex and the message live with the page.
+ * draws. It also holds the runner (one search through the page's engine
+ * turn, lib/engine/engineTurn.ts, ended by the caller's signal or a bound),
+ * the store the line reads its state from, and the gate on the coach's
+ * jump for the same question. The engine instance and the board live with
+ * the page.
  *
  * Scores are White-relative, like every number the page shows (MoveEval in
  * types/eval.ts says so); the pair is compared with itself and never with
@@ -78,6 +82,13 @@ export interface WhatIfContext {
    * resolver cannot see, so it draws nothing; a numbered one still resolves.
    */
   exploring?: boolean;
+  /**
+   * The board shows a what-if's own alternative, played at `index` (the
+   * exploration the page put there for it), and `fen` is the position after
+   * it. A bare alternative is then the next one at the same ply, unless it
+   * is also the reply on that board and nothing in the words picks one.
+   */
+  onWhatIf?: { index: number; fen: string };
 }
 
 /** The asked move's number beside the others', from one result. */
@@ -140,36 +151,156 @@ function tryMove(
   }
 }
 
-/** A move named with its number: "8. Qxc1", "8... Kd8". */
-interface NumberedRef {
-  number: number;
-  color: "w" | "b";
+/**
+ * A move the question wrote, where it wrote it, and what the words around
+ * it make of it: "instead of Y" / "rather than Y" mark Y as the move set
+ * aside, and "after Y" marks Y as the line the alternative follows, with
+ * the moves written straight after it ("after 7... Qxc1 8. Nc7+").
+ */
+interface QuestionMove {
   san: string;
+  /** The number and side written beside it ("8. Qxc1", "8... Kd8"), if any. */
+  numbered?: { number: number; color: "w" | "b" };
+  role: "plain" | "set-aside" | "context";
+  /** Where the notation sits in the question, its number included. */
+  start: number;
+  end: number;
 }
+
+/** One move the question names, however often it is written. */
+interface NamedMove {
+  san: string;
+  numbered?: { number: number; color: "w" | "b" };
+  role: "plain" | "set-aside";
+  tokens: QuestionMove[];
+}
+
+type Side = "w" | "b";
 
 const SAN_CORE =
   "(?:[NBRQK][a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?|[a-h]x[a-h][1-8](?:=[NBRQ])?[+#]?|[a-h][1-8](?:=[NBRQ])?[+#]?)";
-const NUMBERED_RE = new RegExp(
-  `(?<![A-Za-z0-9])(\\d{1,3})\\s*(\\.{1,3})\\s*(${SAN_CORE})(?![A-Za-z0-9])`,
+/** A move in notation, optionally numbered. */
+const MOVE_TOKEN_RE = new RegExp(
+  `(?<![A-Za-z0-9])(?:(\\d{1,3})\\s*(\\.{1,3})\\s*)?(${SAN_CORE})(?![A-Za-z0-9])`,
   "g"
 );
+/** A bare pawn push ("e4") is a square as often as a move: it counts beside a cue only. */
+const PAWN_PUSH_RE = /^[a-h][1-8](?:=[NBRQ])?[+#]?$/;
+const PAWN_CUE_BEFORE_RE =
+  /\b(?:play|plays|played|playing|push|pushes|pushed|pushing|try|tried|move|moved|with|after|following|instead\s+of|rather\s+than|in\s+place\s+of|than|why|not|about|if)\s*$/i;
+const PAWN_CUE_AFTER_RE = /^\s*(?:instead|rather)\b/i;
+const SET_ASIDE_BEFORE_RE =
+  /\b(?:instead\s+of|rather\s+than|in\s+place\s+of)\s*$/i;
+const CONTEXT_BEFORE_RE = /\b(?:after|following)\s*$/i;
+/** What may stand between the moves of an "after" line: spaces, a comma, "and", "then". */
+const LINE_GAP_RE = /^[\s,]*(?:(?:and\s+)?then\s+|and\s+)?$/i;
 /** "move 8", "my 8th move": a number with no side. */
 const MOVE_NUMBER_RE =
   /\bmove\s+(\d{1,3})\b|\b(\d{1,3})(?:st|nd|rd|th)\s+move\b/i;
 /** "instead", "rather than", "why not": the alternative replaces the move the strip names, the one just played. */
 const REPLACE_CUE_RE =
   /\b(?:instead|rather\s+than|why\s+not|why\s+didn'?t|(?:should|could|would)(?:n'?t)?\s+(?:i|you|he|she|they|we)\s+have)\b/i;
-/** "here", "now", "from here": the alternative is the next move from the position shown. */
-const NEXT_CUE_RE = /\b(?:here|now|from\s+here|in\s+this\s+position|next)\b/i;
+/** "Instead" and "rather": with an "after" line, the alternative may replace the line's last move. */
+const INSTEAD_RE = /\b(?:instead|rather)\b/i;
+/**
+ * "Nd5 here", "Nd5 now", "Nd5 from this position": the next move from the
+ * position shown, when the words sit beside the move. Not "here's" or
+ * "here is" (a lead-in), and not a bare "next" ("next time" is another game).
+ */
+const NEXT_AFTER_RE =
+  /^\s*(?:right\s+)?(?:here(?!['’]s\b|\s+is\b)|now|from\s+here|from\s+this\s+position|in\s+this\s+position|at\s+this\s+point|(?:on\s+the\s+)?next\s+move)\b/i;
+/** "Here, what about Nd5?", "Now Nd5?": the clause that holds the move opens with the cue. */
+const NEXT_CLAUSE_RE =
+  /^\s*(?:(?:so|ok|okay|and|but|well|hmm)[,\s]+)*(?:right\s+)?(?:here(?!['’]s\b|\s+is\b)|now|from\s+here|from\s+this\s+position|in\s+this\s+position|at\s+this\s+point)\b/i;
+/** "Why X instead of Y?" asks why X was played: Y is the alternative. */
+const WHY_PLAYED_BEFORE_RE =
+  /\bwhy\s+(?:(?:did|do|does|would|was|is)\s+(?:(?:i|you|he|she|they|we|white|black|(?:my|the)\s+opponent)\s+)?)?(?:(?:play|go\s+for|choose|pick|push|castle)\s+)?$/i;
+
+const MOVE_VERB =
+  "(?:play|plays|played|playing|go|goes|went|push|pushes|pushed|take|takes|took|try|tries|tried|castle|castles|castled|choose|chose|answer|answered|reply|replied|respond|responded|move|moves|moved)";
+const AUXILIARY =
+  "(?:(?:could|should|would|might|must|can|will|shall|did|do|does|didn['’]?t|don['’]?t|doesn['’]?t|couldn['’]?t|shouldn['’]?t|wouldn['’]?t|can['’]?t|won['’]?t|not|never|just|also|still|really|then|have|has|had)\\s+)*";
+/**
+ * Who plays the move, from the words right before it: "could I have
+ * played", "what if Black plays", "why didn't my opponent play", "my Nd5".
+ * A pronoun anywhere else in the message says nothing about the move.
+ */
+const SUBJECT_BEFORE_RE = new RegExp(
+  `\\b(i(?:['’](?:d|ll|ve))?|(?:my|the)\\s+opponent|opponent|he|she|they|white|black)\\s+${AUXILIARY}${MOVE_VERB}\\s+(?:with\\s+)?$`,
+  "i"
+);
+const OWNER_BEFORE_RE =
+  /\b((?:my\s+|the\s+)?opponent['’]s|my|his|her|their|white['’]s|black['’]s)\s+$/i;
+const SIDE_AFTER_RE = /^\s*(?:for|by)\s+(white|black)\b/i;
 
 const stripSan = (san: string) => san.replace(/[+#!?]/g, "").toLowerCase();
+const sameSan = (a: string, b: string) => stripSan(a) === stripSan(b);
 
-function numberedReferences(question: string): NumberedRef[] {
-  return Array.from(question.matchAll(NUMBERED_RE)).map((m) => ({
-    number: Number(m[1]),
-    color: m[2].length >= 2 ? "b" : "w",
-    san: m[3],
-  }));
+/**
+ * The moves a question wrote, in order. A bare pawn push counts beside a
+ * cue ("why not d4?", "d4 instead"), or inside an "after" line, where the
+ * line itself is the cue ("after 1.e4 e5 2.Nf3").
+ */
+function questionMoves(question: string): QuestionMove[] {
+  const out: QuestionMove[] = [];
+  for (const m of Array.from(question.matchAll(MOVE_TOKEN_RE))) {
+    const start = m.index ?? 0;
+    const end = start + m[0].length;
+    const san = m[3];
+    const numbered = m[1]
+      ? {
+          number: Number(m[1]),
+          color: (m[2].length >= 2 ? "b" : "w") as "w" | "b",
+        }
+      : undefined;
+    const before = question.slice(0, start);
+    const last = out[out.length - 1];
+    const inLine =
+      last?.role === "context" &&
+      LINE_GAP_RE.test(question.slice(last.end, start));
+    if (
+      !inLine &&
+      !numbered &&
+      PAWN_PUSH_RE.test(san) &&
+      !PAWN_CUE_BEFORE_RE.test(before) &&
+      !PAWN_CUE_AFTER_RE.test(question.slice(end))
+    )
+      continue;
+    const role: QuestionMove["role"] = inLine
+      ? "context"
+      : SET_ASIDE_BEFORE_RE.test(before)
+        ? "set-aside"
+        : CONTEXT_BEFORE_RE.test(before)
+          ? "context"
+          : "plain";
+    out.push({ san, numbered, role, start, end });
+  }
+  return out;
+}
+
+/** The moves outside the "after" line, one per notation; null when one is written two ways. */
+function namedMoves(moves: readonly QuestionMove[]): NamedMove[] | null {
+  const out: NamedMove[] = [];
+  for (const m of moves) {
+    if (m.role === "context") continue;
+    const named = out.find((n) => sameSan(n.san, m.san));
+    if (!named) {
+      out.push({ san: m.san, numbered: m.numbered, role: m.role, tokens: [m] });
+      continue;
+    }
+    if (named.role !== m.role) return null;
+    if (m.numbered) {
+      if (
+        named.numbered &&
+        (named.numbered.number !== m.numbered.number ||
+          named.numbered.color !== m.numbered.color)
+      )
+        return null;
+      named.numbered = m.numbered;
+    }
+    named.tokens.push(m);
+  }
+  return out;
 }
 
 /**
@@ -194,65 +325,410 @@ function indexOfNumbered(
   return k >= 0 && k <= sans.length ? k : null;
 }
 
+/** The move number of the position `index` half-moves into the game. */
+function moveNumberAt(ctx: WhatIfContext, index: number): number | null {
+  try {
+    const root = ctx.rootFen ? new Chess(ctx.rootFen) : new Chess();
+    const offset = root.turn() === "b" ? 1 : 0;
+    return root.moveNumber() + Math.floor((index + offset) / 2);
+  } catch {
+    return null;
+  }
+}
+
+const playedAt = (ctx: WhatIfContext, index: number, san: string) =>
+  !!ctx.sans[index] && sameSan(ctx.sans[index], san);
+
 interface Reading {
   index: number;
   board: Chess;
   asked: { uci: string; san: string };
   played: { uci: string; san: string } | null;
+  /** The named move taken for the alternative, when two were named. */
+  alt?: NamedMove;
 }
 
 /**
- * The alternative played from `index`, when one of the candidates is legal
- * there: a candidate that differs from the move the game played there, or,
- * when `allowPlayed`, the played move itself asked about by name ("what
- * about 8. Nc7+?" scores it against the best).
+ * The alternative `san` played from `index`, when it is legal there and,
+ * unless `allowPlayed`, not the move the game played there ("what about
+ * 8. Nc7+?" asks about the played move by name and scores it against the
+ * best).
  */
 function readingAt(
   ctx: WhatIfContext,
   index: number,
-  candidates: readonly string[],
+  san: string,
   allowPlayed: boolean
 ): Reading | null {
+  if (index < 0 || index > ctx.sans.length) return null;
   const board = replay(ctx.rootFen, ctx.sans, index);
   if (!board) return null;
   const playedSan = ctx.sans[index];
   const played = playedSan ? tryMove(board, playedSan) : null;
-  const legal = candidates
-    .map((san) => tryMove(board, san))
-    .filter((m): m is { uci: string; san: string } => m !== null);
-  const other = legal.find((m) => !played || m.uci !== played.uci);
-  const same = played ? legal.find((m) => m.uci === played.uci) : undefined;
-  const asked = other ?? (allowPlayed ? same : undefined);
+  const asked = tryMove(board, san);
   if (!asked) return null;
+  if (played && asked.uci === played.uci && !allowPlayed) return null;
   return { index, board, asked, played };
+}
+
+const isReading = (r: Reading | null): r is Reading => r !== null;
+
+/**
+ * The side the words give the moves in `tokens`: who plays them ("could I
+ * have played", "what if Black plays", "why didn't my opponent play"),
+ * whose they are ("my Nd5", "Black's e5"), or "for White". "I" and "my
+ * opponent" name a side only once the player's side is known. "conflict"
+ * when the words name both.
+ */
+function sideNamed(
+  question: string,
+  tokens: readonly QuestionMove[],
+  ctx: WhatIfContext
+): Side | null | "conflict" {
+  const sides = new Set<Side>();
+  const opponent: Side = ctx.playerColor === "w" ? "b" : "w";
+  const add = (word: string) => {
+    const w = word.toLowerCase();
+    if (w.startsWith("white")) sides.add("w");
+    else if (w.startsWith("black")) sides.add("b");
+    else if (!ctx.playerSideKnown) return;
+    else if (/opponent|^(?:he|she|they|his|her|their)$/.test(w))
+      sides.add(opponent);
+    else sides.add(ctx.playerColor);
+  };
+  for (const t of tokens) {
+    const before = question.slice(0, t.start);
+    const subject =
+      SUBJECT_BEFORE_RE.exec(before) ?? OWNER_BEFORE_RE.exec(before);
+    if (subject) add(subject[1]);
+    const after = SIDE_AFTER_RE.exec(question.slice(t.end));
+    if (after) add(after[1]);
+  }
+  if (sides.size > 1) return "conflict";
+  return sides.size === 1 ? Array.from(sides)[0] : null;
+}
+
+/** The readings of the side the words name, one per place and move. */
+function onSide(readings: readonly Reading[], side: Side | null): Reading[] {
+  const seen = new Set<string>();
+  return readings.filter((r) => {
+    if (side && r.board.turn() !== side) return false;
+    const key = `${r.index}:${r.asked.uci}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/** A numbered reference's index, checked against the board there. */
+function numberedIndex(
+  ctx: WhatIfContext,
+  ref: { number: number; color: "w" | "b" }
+): number | null {
+  const k = indexOfNumbered(ctx.rootFen, ctx.sans, ref);
+  if (k === null) return null;
+  const board = replay(ctx.rootFen, ctx.sans, k);
+  if (!board || board.moveNumber() !== ref.number || board.turn() !== ref.color)
+    return null;
+  return k;
+}
+
+/** Is there a next-move cue beside this token ("Nd5 here", "Now, what about Nd5")? */
+function nextCueBeside(question: string, t: QuestionMove): boolean {
+  if (NEXT_AFTER_RE.test(question.slice(t.end))) return true;
+  const before = question.slice(0, t.start);
+  // The clause the move sits in: after the last sentence break, not the
+  // dots of a move number ("7... Qxc1", "1.e4").
+  let from = 0;
+  for (const m of Array.from(before.matchAll(/[?!;]|(?<![\d.])\.(?!\.)/g)))
+    from = (m.index ?? 0) + 1;
+  return NEXT_CLAUSE_RE.test(before.slice(from));
+}
+
+/**
+ * Each named move where the game played it, with the other in its place:
+ * "what about Qxc1 instead of Nc7+?" and "why Nc7+ instead of Qxc1?" both
+ * read 8. Qxc1 off the game, which decides which move is which. Within
+ * `plies` when given (a "move N" question).
+ */
+function replacements(
+  ctx: WhatIfContext,
+  named: readonly NamedMove[],
+  plies?: readonly number[]
+): Reading[] {
+  const out: Reading[] = [];
+  const at = plies ?? ctx.sans.map((_, k) => k);
+  for (const [played, alt] of [
+    [named[0], named[1]],
+    [named[1], named[0]],
+  ]) {
+    for (const k of at) {
+      if (!playedAt(ctx, k, played.san)) continue;
+      const r = readingAt(ctx, k, alt.san, false);
+      if (r) out.push({ ...r, alt });
+    }
+  }
+  return out;
+}
+
+/**
+ * The readings that read the words' way round: "why X instead of Y?" asks
+ * why X was played, so Y is the alternative; any other form ("what about
+ * X instead of Y?", "why not X instead of Y?", "X instead of Y?") asks
+ * about X. All of them when the words do not set the two moves against
+ * each other.
+ */
+function inWordsOrder(
+  question: string,
+  named: readonly NamedMove[],
+  readings: readonly Reading[]
+): Reading[] {
+  const plain = named.find((n) => n.role === "plain");
+  const setAside = named.find((n) => n.role === "set-aside");
+  if (!plain || !setAside) return [...readings];
+  const whyPlayed = plain.tokens.some((t) =>
+    WHY_PLAYED_BEFORE_RE.test(question.slice(0, t.start))
+  );
+  const alt = whyPlayed ? setAside : plain;
+  return readings.filter((r) => r.alt === alt);
+}
+
+/**
+ * A move the question numbered sits at its own number counted from the
+ * game's root ("after 7... Qxc1, why not 8. Qxc1?" is White's move 8). One
+ * numbered move alone is the alternative there, or the played move asked
+ * about by name. Beside another named move, the game decides: the one
+ * played at that number is set aside and the other is the alternative
+ * ("instead of 8. Nc7+, what about Nd6+?", "8. Nc7+ instead of 8. Qxc1?");
+ * when neither or both were played there, nothing.
+ */
+function fromNumbers(
+  question: string,
+  named: readonly NamedMove[],
+  ctx: WhatIfContext
+): Reading | null {
+  const side = sideNamed(
+    question,
+    named.flatMap((n) => n.tokens),
+    ctx
+  );
+  if (side === "conflict") return null;
+  const placed = named.map((n) => ({
+    n,
+    index: n.numbered ? numberedIndex(ctx, n.numbered) : null,
+  }));
+  if (placed.some((p) => p.n.numbered && p.index === null)) return null;
+  let reading: Reading | null = null;
+  if (placed.length === 1) {
+    const { n, index } = placed[0];
+    if (n.role !== "plain") return null;
+    reading = readingAt(ctx, index!, n.san, true);
+  } else {
+    const [a, b] = placed;
+    if (a.n.numbered && b.n.numbered) {
+      if (a.index !== b.index) return null;
+      const aPlayed = playedAt(ctx, a.index!, a.n.san);
+      if (aPlayed === playedAt(ctx, b.index!, b.n.san)) return null;
+      reading = readingAt(ctx, a.index!, (aPlayed ? b : a).n.san, false);
+    } else {
+      const num = a.n.numbered ? a : b;
+      const bare = a.n.numbered ? b : a;
+      const k = num.index!;
+      if (playedAt(ctx, k, num.n.san))
+        reading = readingAt(ctx, k, bare.n.san, false);
+      else if (playedAt(ctx, k, bare.n.san))
+        reading = readingAt(ctx, k, num.n.san, false);
+      else return null;
+    }
+  }
+  if (!reading) return null;
+  return side && reading.board.turn() !== side ? null : reading;
+}
+
+/**
+ * "Move 4" with no side: the alternative is read at White's and Black's
+ * move 4. One named move: where it is legal (or was played), and legal for
+ * both, the side the words name, else the player's when it is known. Two:
+ * where one of them was played there, the other in its place, read the
+ * words' way round.
+ */
+function onMoveNumber(
+  question: string,
+  named: readonly NamedMove[],
+  n: number,
+  ctx: WhatIfContext
+): Reading | null {
+  const side = sideNamed(
+    question,
+    named.flatMap((m) => m.tokens),
+    ctx
+  );
+  if (side === "conflict") return null;
+  const plies = (["w", "b"] as const)
+    .map((color) => numberedIndex(ctx, { number: n, color }))
+    .filter((k): k is number => k !== null);
+  if (named.length === 1) {
+    const alt = named[0];
+    if (alt.role !== "plain") return null;
+    const left = onSide(
+      plies.map((k) => readingAt(ctx, k, alt.san, true)).filter(isReading),
+      side
+    );
+    if (left.length === 1) return left[0];
+    if (left.length === 2 && !side && ctx.playerSideKnown)
+      return left.find((r) => r.board.turn() === ctx.playerColor) ?? null;
+    return null;
+  }
+  const left = onSide(
+    inWordsOrder(question, named, replacements(ctx, named, plies)),
+    side
+  );
+  return left.length === 1 ? left[0] : null;
+}
+
+/**
+ * Two moves named, neither numbered: one of them where the game played it,
+ * the other in its place (replacements), read the words' way round and on
+ * the side they name. Nothing unless exactly one place is left.
+ */
+function fromPlayedMove(
+  question: string,
+  named: readonly NamedMove[],
+  ctx: WhatIfContext
+): Reading | null {
+  const side = sideNamed(
+    question,
+    named.flatMap((m) => m.tokens),
+    ctx
+  );
+  if (side === "conflict") return null;
+  const left = onSide(
+    inWordsOrder(question, named, replacements(ctx, named)),
+    side
+  );
+  return left.length === 1 ? left[0] : null;
+}
+
+/**
+ * "After Y, what about X?": Y is a line the game played (one move or
+ * several, "after 7... Qxc1 8. Nc7+"), found where it was played, and X is
+ * the next move after it; with "instead" X may also replace the line's
+ * last move ("after 7... Qxc1 8. Nc7+, what about Nd6+ instead?"). A line
+ * the game never played, a second move beside X, or two places that fit,
+ * and nothing is drawn. The side the words name is X's, not the line's.
+ */
+function afterLine(
+  question: string,
+  line: readonly QuestionMove[],
+  named: readonly NamedMove[],
+  moveNumber: number | null,
+  ctx: WhatIfContext
+): Reading | null {
+  if (named.length !== 1 || named[0].role !== "plain") return null;
+  const alt = named[0];
+  const side = sideNamed(question, alt.tokens, ctx);
+  if (side === "conflict") return null;
+  let altIndex: number | undefined;
+  if (alt.numbered) {
+    const k = numberedIndex(ctx, alt.numbered);
+    if (k === null) return null;
+    altIndex = k;
+  }
+  const pinned = line.map((m) =>
+    m.numbered ? numberedIndex(ctx, m.numbered) : undefined
+  );
+  if (pinned.some((k) => k === null)) return null;
+  const r = line.length;
+  const instead = INSTEAD_RE.test(question);
+  const readings: Reading[] = [];
+  for (let k = 0; k + r <= ctx.sans.length; k++) {
+    const fits = line.every(
+      (m, i) =>
+        playedAt(ctx, k + i, m.san) &&
+        (pinned[i] === undefined || pinned[i] === k + i)
+    );
+    if (!fits) continue;
+    for (const at of instead ? [k + r, k + r - 1] : [k + r]) {
+      if (altIndex !== undefined && at !== altIndex) continue;
+      if (
+        moveNumber !== null &&
+        moveNumberAt(ctx, k + r - 1) !== moveNumber &&
+        moveNumberAt(ctx, at) !== moveNumber
+      )
+        continue;
+      const reading = readingAt(ctx, at, alt.san, false);
+      if (reading) readings.push(reading);
+    }
+  }
+  const left = onSide(readings, side);
+  return left.length === 1 ? left[0] : null;
+}
+
+/**
+ * A bare alternative alone, read against the board. The strip at ply N
+ * names move N, the one just played, so "what about Nd5 instead?" replaces
+ * it (the position before it, the side that moved), while "what about Nd5
+ * here?" is the next move from the position shown. Legal at both, the side
+ * the words name decides ("could I have played Nd5 here?"), then the cue:
+ * a replace cue alone takes the move just played, anything else draws
+ * nothing. Only on the mainline (with an exploration or a drill on the
+ * board the question is about a board this resolver cannot see), except
+ * on a what-if's own alternative: there the next alternative replaces it
+ * at the same ply, unless the move is also the reply on the board shown
+ * and nothing in the words picks the replacement.
+ */
+function fromBoard(
+  question: string,
+  alt: NamedMove,
+  ctx: WhatIfContext
+): Reading | null {
+  if (alt.role !== "plain") return null;
+  const side = sideNamed(question, alt.tokens, ctx);
+  if (side === "conflict") return null;
+  const replace = REPLACE_CUE_RE.test(question);
+  const next = alt.tokens.some((t) => nextCueBeside(question, t));
+  if (ctx.onWhatIf) {
+    // "Here" is the board shown, off the mainline: the coach's words.
+    if (next && !replace) return null;
+    const reading = readingAt(ctx, ctx.onWhatIf.index, alt.san, !replace);
+    if (!reading) return null;
+    if (side) return reading.board.turn() === side ? reading : null;
+    let reply: { uci: string; san: string } | null = null;
+    try {
+      reply = tryMove(new Chess(ctx.onWhatIf.fen), alt.san);
+    } catch {
+      reply = null;
+    }
+    return reply && !replace ? null : reading;
+  }
+  if (ctx.exploring) return null;
+  const viewed = Math.max(0, Math.min(ctx.viewedPly, ctx.sans.length));
+  const plies = next && !replace ? [viewed] : [viewed - 1, viewed];
+  const left = onSide(
+    plies
+      .map((k) => readingAt(ctx, k, alt.san, k === viewed && !replace))
+      .filter(isReading),
+    side
+  );
+  if (left.length === 1) return left[0];
+  if (left.length === 2 && replace && !next) return left[0];
+  return null;
 }
 
 /**
  * The alternative a question names, as a move legal in the position it is
  * asked about, with the moves to score beside it. Null when the question
- * is not a what-if, names no move that is legal where it is asked about,
- * or leaves the board it means open (the coach still answers in words;
- * the board stays where it is).
+ * is not a what-if, names no move legal where it is asked about, or leaves
+ * the place it means open: two readings fit and nothing in the words
+ * picks one, the words name a side that cannot play it there, or the
+ * question names more than two moves besides an "after" line. The coach
+ * still answers in words and the board stays where it is. A wrong ply,
+ * number or side is never drawn.
  *
- * Where the alternative is played from:
- * 1. A move the question numbered sits at its own number, counted from
- *    the game's root. Of several, the one that is NOT the move the game
- *    played there carries the alternative ("after 7... Qxc1, why not
- *    8. Qxc1?" is about White's move 8); when every numbered move was
- *    played, the first is the move being replaced ("instead of 8. Nc7+,
- *    what about Nd6+?").
- * 2. "move 8" with no side: the ply of that number where the alternative
- *    is legal; where it is legal for both, the player's side when it is
- *    known, else nothing.
- * 3. A bare alternative beside the move it replaces, named ("what about
- *    Nd5 instead of Bc4?"): the occurrence of that move nearest the board.
- * 4. A bare alternative alone. The strip at ply N names move N, the one
- *    just played, so "what about Nd5 instead?" replaces it (the position
- *    before it, the side that moved), while "what about Nd5 here?" is the
- *    next move from the position shown. With neither cue the two are
- *    tried and the board decides; legal for both sides, it is left to the
- *    coach's words. Only on the mainline: with an exploration or a drill
- *    on the board the question is about a board this resolver cannot see.
+ * Where the alternative is played from, in order: after an "after" line
+ * (afterLine); at a number the question wrote (fromNumbers); at "move N"
+ * (onMoveNumber); where one of two named moves was played (fromPlayedMove);
+ * against the board shown (fromBoard).
  */
 export function resolveWhatIf(
   question: string,
@@ -272,88 +748,35 @@ export function resolveWhatIf(
     playerColor: ctx.playerColor,
   });
   if (intent.intent !== "what_if") return null;
-  const named = anchor?.askedSan ? [anchor.askedSan] : (intent.moves ?? []);
-  if (named.length === 0) return null;
+  const moves = questionMoves(question);
+  const line = moves.filter((m) => m.role === "context");
+  const named = namedMoves(moves);
+  if (!named || named.length === 0 || named.length > 2) return null;
+  const mn = MOVE_NUMBER_RE.exec(question);
+  const moveNumber = mn ? Number(mn[1] ?? mn[2]) : null;
 
-  const viewed = Math.max(0, Math.min(ctx.viewedPly, sans.length));
-  const replaceCue = REPLACE_CUE_RE.test(question);
-  const nextCue = !replaceCue && NEXT_CUE_RE.test(question);
-  const numbered = numberedReferences(question);
-  const moveNumber =
-    numbered.length === 0 ? MOVE_NUMBER_RE.exec(question) : null;
-
-  let reading: Reading | null = null;
-  if (numbered.length > 0) {
-    let own: { ref: NumberedRef; index: number } | null = null;
-    let replaced: { ref: NumberedRef; index: number } | null = null;
-    for (const ref of numbered) {
-      const k = indexOfNumbered(ctx.rootFen, sans, ref);
-      if (k === null) continue;
-      const there = sans[k];
-      if (!there || stripSan(there) !== stripSan(ref.san)) {
-        own = { ref, index: k };
-        break;
-      }
-      if (!replaced) replaced = { ref, index: k };
-    }
-    const pick = own ?? replaced;
-    if (!pick) return null;
-    const board = replay(ctx.rootFen, sans, pick.index);
-    // The number the player typed must be the board's, or the label lies.
-    if (
-      !board ||
-      board.moveNumber() !== pick.ref.number ||
-      board.turn() !== pick.ref.color
-    )
-      return null;
-    reading = readingAt(ctx, pick.index, own ? [own.ref.san] : named, true);
-  } else if (moveNumber) {
-    const n = Number(moveNumber[1] ?? moveNumber[2]);
-    const other: "w" | "b" = ctx.playerColor === "w" ? "b" : "w";
-    const readings = [ctx.playerColor, other]
-      .map((color) => {
-        const k = indexOfNumbered(ctx.rootFen, sans, { number: n, color });
-        return k === null ? null : readingAt(ctx, k, named, true);
-      })
-      .filter((r): r is Reading => r !== null);
-    if (readings.length === 1) reading = readings[0];
-    else if (readings.length === 2 && ctx.playerSideKnown)
-      reading = readings[0];
-    else return null;
-  } else if (
-    anchor &&
-    anchor.matched === "bare-san" &&
-    named.some((san) => stripSan(san) !== stripSan(anchor.san))
-  ) {
-    reading = readingAt(ctx, anchor.index, named, true);
-  } else {
-    if (ctx.exploring) return null;
-    const before = viewed >= 1 ? viewed - 1 : null;
-    const order = replaceCue
-      ? [before, viewed]
-      : nextCue
-        ? [viewed]
-        : [viewed, before];
-    const readings = order
-      .filter((k): k is number => k !== null)
-      .map((k) => readingAt(ctx, k, named, !replaceCue))
-      .filter((r): r is Reading => r !== null);
-    if (readings.length === 0) return null;
-    if (readings.length > 1 && !replaceCue && !nextCue) return null;
-    reading = readings[0];
-  }
+  const reading =
+    line.length > 0
+      ? afterLine(question, line, named, moveNumber, ctx)
+      : named.some((n) => n.numbered)
+        ? fromNumbers(question, named, ctx)
+        : moveNumber !== null
+          ? onMoveNumber(question, named, moveNumber, ctx)
+          : named.length === 2
+            ? fromPlayedMove(question, named, ctx)
+            : fromBoard(question, named[0], ctx);
   if (!reading) return null;
 
   const { index, board, played } = reading;
   const asked: WhatIfMove = { role: "asked", ...reading.asked };
-  const moves: WhatIfMove[] = [asked];
+  const askedMoves: WhatIfMove[] = [asked];
   if (played && played.uci !== asked.uci)
-    moves.push({ role: "played", ...played });
+    askedMoves.push({ role: "played", ...played });
   const best = ctx.enginePositions?.[index]?.lines?.[0];
   if (best && best.depth > 0 && best.pv?.[0]) {
     const m = tryMove(board, uciParams(best.pv[0]));
-    if (m && !moves.some((x) => x.uci === m.uci))
-      moves.push({ role: "best", ...m });
+    if (m && !askedMoves.some((x) => x.uci === m.uci))
+      askedMoves.push({ role: "best", ...m });
   }
 
   return {
@@ -362,7 +785,7 @@ export function resolveWhatIf(
     moveNumber: board.moveNumber(),
     color: board.turn(),
     asked,
-    moves,
+    moves: askedMoves,
     rule: anchor?.askedSan ? "asked_san" : "phrase",
   };
 }
@@ -447,7 +870,11 @@ export interface WhatIfEngine {
 export interface WhatIfRun {
   ask: WhatIfAsk;
   engine: WhatIfEngine;
-  /** The page's engine turn (lib/engine/engineTurn.ts): the search waits for the live eval and the sweep, and they wait for it. */
+  /**
+   * The page's engine turn (lib/engine/engineTurn.ts): the search waits for
+   * the live eval, and the live eval waits for it. The review's sweep is not
+   * in the turn: a what-if is refused while it runs ("busy").
+   */
   turn: EngineTurn;
   /** The depth the search runs to. */
   depth?: number;
@@ -496,19 +923,33 @@ export async function runWhatIf(run: WhatIfRun): Promise<MovesEval | null> {
       const search = new AbortController();
       const onOuterAbort = () => search.abort();
       signal?.addEventListener("abort", onOuterAbort, { once: true });
-      const bound = setTimeout(() => search.abort(), timeoutMs);
+      let bound: ReturnType<typeof setTimeout> | undefined;
+      // The job settles at the bound whatever the engine does: the search
+      // is told to stop, and the turn is released even if the engine never
+      // answers the stop.
+      const giveUp = new Promise<never>((_, reject) => {
+        bound = setTimeout(() => {
+          search.abort();
+          reject(new Error("What-if search given up"));
+        }, timeoutMs);
+      });
+      const searching = engine.evaluateMoves({
+        fen: ask.fen,
+        moves: ask.moves.map((m) => m.uci),
+        depth,
+        signal: search.signal,
+        onPartial: (partial) => {
+          if (isStale() || search.signal.aborted || partial.depth < firstDepth)
+            return;
+          onResult(partial, false);
+        },
+      });
+      searching.catch(() => {
+        /* settled through the race below */
+      });
       try {
-        const result = await engine.evaluateMoves({
-          fen: ask.fen,
-          moves: ask.moves.map((m) => m.uci),
-          depth,
-          signal: search.signal,
-          onPartial: (partial) => {
-            if (isStale() || partial.depth < firstDepth) return;
-            onResult(partial, false);
-          },
-        });
-        if (isStale()) return null;
+        const result = await Promise.race([searching, giveUp]);
+        if (isStale() || search.signal.aborted) return null;
         onResult(result, true);
         return result;
       } catch {
@@ -627,6 +1068,47 @@ export function whatIfJumpDecision(
   return "apply";
 }
 
+/**
+ * The page's hold on the coach's jump for a what-if's own reply, kept out
+ * of the page so the sequence is tested: a jump that arrives while the
+ * what-if is checking is held; it is dropped when the line is drawn or a
+ * newer reply starts, and handed back when the what-if settles with no
+ * line. The page still decides whether the reader moved on meanwhile.
+ */
+export interface WhatIfJumpGate<J> {
+  /** A reply started: a jump held for an older one is no longer anyone's. */
+  replyStarted(): void;
+  /** The coach's jump for what-if `id`'s own reply, given its state now. */
+  jump(id: number, state: WhatIfState | undefined, jump: J): WhatIfJumpDecision;
+  /** What-if `id` drew its line: its held jump is dropped. */
+  drawn(id: number): void;
+  /** What-if `id` settled; its held jump when no line was drawn, else null. */
+  settled(id: number, drawn: boolean): J | null;
+}
+
+export function createWhatIfJumpGate<J>(): WhatIfJumpGate<J> {
+  let held: { id: number; jump: J } | null = null;
+  return {
+    replyStarted: () => {
+      held = null;
+    },
+    jump: (id, state, jump) => {
+      const decision = whatIfJumpDecision(state);
+      if (decision === "defer") held = { id, jump };
+      return decision;
+    },
+    drawn: (id) => {
+      if (held?.id === id) held = null;
+    },
+    settled: (id, drawn) => {
+      if (held?.id !== id) return null;
+      const jump = held.jump;
+      held = null;
+      return drawn ? null : jump;
+    },
+  };
+}
+
 // ─── Where the state lives ──────────────────────────────────────────────────
 
 /**
@@ -682,7 +1164,7 @@ const ROLE_WORD: Record<WhatIfRole, string> = {
 };
 
 /**
- * The one line of plain words above the drawn line: the asked move's
+ * The words above the drawn line (two lines are reserved for them): the asked move's
  * number beside the others' from the same search, with the depth; or what
  * is being checked; or why nothing could be.
  */
@@ -707,10 +1189,11 @@ export function whatIfSummary(state: WhatIfState): string {
     default: {
       const [asked, ...others] = state.scores;
       const parts = [`${label} ${asked?.evalDisplay ?? "?"}`];
-      for (const o of others) {
-        const san = moveLabel(state.ask.moveNumber, state.ask.color, o.san);
-        parts.push(`${ROLE_WORD[o.role]} ${san} ${o.evalDisplay ?? "?"}`);
-      }
+      // The moves compared are played from the same position, so the
+      // number is written once, on the asked move: the three-role form then
+      // fits the two reserved lines on a phone.
+      for (const o of others)
+        parts.push(`${ROLE_WORD[o.role]} ${o.san} ${o.evalDisplay ?? "?"}`);
       parts.push(`d${state.depth}`);
       return parts.join(" · ");
     }

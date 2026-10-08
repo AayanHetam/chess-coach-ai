@@ -39,9 +39,9 @@ import {
 import { ProofLine } from "@/components/preview-analysis/ProofLine";
 import { WhatIfLine } from "@/components/preview-analysis/WhatIfLine";
 import {
+  createWhatIfJumpGate,
   createWhatIfStore,
   initialWhatIfState,
-  whatIfJumpDecision,
   resolveWhatIf,
   runWhatIf,
   whatIfLine,
@@ -52,6 +52,10 @@ import {
   type WhatIfStore,
 } from "@/components/preview-analysis/coachWhatIf";
 import { createEngineTurn, type EngineTurn } from "@/lib/engine/engineTurn";
+import {
+  EngineSearchAbortedError,
+  EngineShutDownError,
+} from "@/lib/engine/uciEngine";
 import { splitInsightWhy } from "@/components/preview-analysis/insightWhy";
 import { MoveAnalysisCard } from "@/components/preview-analysis/MoveAnalysisCard";
 import {
@@ -533,11 +537,21 @@ const AI_DISABLED = isAiDisabledPublic();
  * User Timing marks for a what-if ("coach-what-if:asked", ":partial",
  * ":drawn", ":board"), so the time from the question to the first partial,
  * to the line's paint and to the board's move can be read in devtools and
- * by the e2e that holds the two-second budget. Local to the browser;
- * nothing is sent anywhere.
+ * by the e2e that holds the two-second budget; ":preempted" when it stopped
+ * a live search still running (which then marks "coach-live-eval:aborted"),
+ * ":jump-held" / ":jump-skipped" when the coach's jump for
+ * its own reply waited for the line or was dropped for it. Local to the
+ * browser; nothing is sent anywhere.
  */
 export function markWhatIf(
-  stage: "asked" | "partial" | "drawn" | "board",
+  stage:
+    | "asked"
+    | "partial"
+    | "drawn"
+    | "board"
+    | "preempted"
+    | "jump-held"
+    | "jump-skipped",
   detail?: Record<string, unknown>
 ): void {
   if (typeof performance === "undefined" || !performance.mark) return;
@@ -7554,7 +7568,10 @@ export default function AnalysisPage() {
         setAnalysisProgress(100);
       })
       .catch((err) => {
-        if (cancelled) return;
+        // The engine was swapped mid-sweep: the swap shuts the old one down
+        // before this effect's cleanup runs, so its rejection lands first.
+        // The new engine's sweep is the one that counts.
+        if (cancelled || err instanceof EngineShutDownError) return;
         const msg = err instanceof Error ? err.message : String(err);
         console.warn("[preview/analysis] Stockfish failed:", msg);
         setAnalysisError(msg);
@@ -8374,28 +8391,47 @@ export default function AnalysisPage() {
     const timer = window.setTimeout(() => {
       liveSearchAbortRef.current = abort;
       engineTurn
-        .run<PositionEval | null>(() =>
-          cancelled
-            ? Promise.resolve(null)
-            : engine.evaluatePositionWithUpdate({
-                fen,
-                depth: linesSettings.depth,
-                multiPv: linesSettings.count,
-                allowCloud: !linesSettings.preferLocalEngine,
-                signal: abort.signal,
-                setPartialEval: (ev) => {
-                  if (!cancelled && ev.lines.length)
-                    setLiveEval({ fen, position: ev });
-                },
-              })
-        )
+        .run<PositionEval | null>(() => {
+          if (cancelled) return Promise.resolve(null);
+          // For the e2e that asks a what-if while this search runs.
+          try {
+            performance.mark("coach-live-eval:search");
+          } catch {
+            /* no marks here */
+          }
+          return engine.evaluatePositionWithUpdate({
+            fen,
+            depth: linesSettings.depth,
+            multiPv: linesSettings.count,
+            allowCloud: !linesSettings.preferLocalEngine,
+            signal: abort.signal,
+            setPartialEval: (ev) => {
+              if (!cancelled && ev.lines.length)
+                setLiveEval({ fen, position: ev });
+            },
+          });
+        })
         .then((ev) => {
           if (cancelled || !ev || !ev.lines.length) return;
           liveEvalCacheRef.current.set(liveCacheKey, ev);
           setLiveEval({ fen, position: ev });
         })
-        .catch(() => {
-          /* engine busy or shut down — bar stays pending */
+        .catch((err) => {
+          // Engine busy or shut down — bar stays pending. Ended by its
+          // abort (the board moved, or a what-if took the engine): marked
+          // for the e2e that asks a what-if while this search runs.
+          if (err instanceof EngineSearchAbortedError) {
+            try {
+              performance.mark("coach-live-eval:aborted");
+            } catch {
+              /* no marks here */
+            }
+          }
+        })
+        .finally(() => {
+          // Settled: there is no live search for a what-if to stop.
+          if (liveSearchAbortRef.current === abort)
+            liveSearchAbortRef.current = null;
         });
     }, 180);
     return () => {
@@ -8873,7 +8909,7 @@ export default function AnalysisPage() {
   // through the exploration preview while its line is drawn under the
   // question. The coach's request is untouched and runs beside it.
   const whatIfSeqRef = useRef(0);
-  /** The search of the what-if in flight, ended by a new game, a newer what-if or the page going. */
+  /** The search of the what-if in flight, ended by a new game, a newer what-if, a review restart or the page going. */
   const whatIfAbortRef = useRef<AbortController | null>(null);
   // Bumped on every game load: a result for the previous game is dropped,
   // and its search is stopped so the new game's sweep is not behind it.
@@ -8883,6 +8919,13 @@ export default function AnalysisPage() {
     whatIfAbortRef.current?.abort();
     whatIfAbortRef.current = null;
   }, [loadedGame]);
+  // The review restarts with new engine settings (the reset effect above
+  // clears the sweep in this commit, the sweep starts in the next): a
+  // what-if still searching is stopped now, so the sweep is not behind it,
+  // and it reads "busy".
+  useEffect(() => {
+    whatIfAbortRef.current?.abort("busy");
+  }, [engineSettings.depth, engineSettings.engineName]);
   const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
@@ -8900,26 +8943,36 @@ export default function AnalysisPage() {
   useEffect(() => {
     takeoverPreviewRef.current = takeoverPreview;
   }, [takeoverPreview]);
-  // The coach's jump for a what-if's own reply that arrived while the
-  // what-if was still checking (whatIfJumpDecision): applied if no line
-  // comes, dropped when one is drawn or a newer reply starts.
-  const pendingJumpRef = useRef<{
-    id: number;
-    jump: { fromPly: number; toPly: number; label: string };
-  } | null>(null);
+  const drillOnRef = useRef(drillState !== null);
+  useEffect(() => {
+    drillOnRef.current = drillState !== null;
+  }, [drillState]);
+  const rightTabRef = useRef(rightTab);
+  useEffect(() => {
+    rightTabRef.current = rightTab;
+  }, [rightTab]);
+  // The exploration a what-if put on the board for its alternative: a bare
+  // follow-up asked on it is the next alternative at the same ply.
+  const whatIfPreviewRef = useRef<ExplorationPreview | null>(null);
+  // Every coach jump applied: a what-if does not draw over a jump that
+  // came after it was asked, nor apply its own held jump over one.
+  const jumpSeqRef = useRef(0);
   /** The coach's anchor jump: the anchored position on the board, and the way back. */
   const applyCoachJump = useCallback(
     (jump: { fromPly: number; toPly: number; label: string }) => {
+      jumpSeqRef.current += 1;
       setCoachJump(jump);
       setTakeoverPreview(null);
       setCurrentPly(jump.toPly);
     },
     []
   );
-  const drillOnRef = useRef(drillState !== null);
-  useEffect(() => {
-    drillOnRef.current = drillState !== null;
-  }, [drillState]);
+  // The coach's jump for a what-if's own reply (coachWhatIf.ts,
+  // createWhatIfJumpGate): held while the what-if checks, dropped when its
+  // line is drawn or a newer reply starts, handed back when none comes.
+  const [whatIfJumpGate] = useState(() =>
+    createWhatIfJumpGate<{ fromPly: number; toPly: number; label: string }>()
+  );
 
   // The states live outside the transcript (coachWhatIf.ts, WhatIfStore):
   // a partial re-renders the line under the question and nothing else.
@@ -8932,8 +8985,15 @@ export default function AnalysisPage() {
 
   /** The alternative a question names, legal where it is asked about; null when there is none to draw. */
   const resolveWhatIfAsk = useCallback(
-    (question: string): WhatIfAsk | null =>
-      resolveWhatIf(question, {
+    (question: string): WhatIfAsk | null => {
+      // On a what-if's own alternative, a bare follow-up is the next
+      // alternative at that ply; any other exploration, or a drill, is a
+      // board this resolver cannot see, and a bare alternative is left to
+      // the coach's words.
+      const ownPreview =
+        takeoverPreview !== null &&
+        takeoverPreview === whatIfPreviewRef.current;
+      return resolveWhatIf(question, {
         sans: gameSans,
         rootFen,
         viewedPly: currentPly,
@@ -8942,11 +9002,17 @@ export default function AnalysisPage() {
         // side is then drawn only where it is legal for one side.
         playerSideKnown: playerSide != null,
         enginePositions,
-        // The chat grounds a bare question on the board shown; this
-        // resolver reads the mainline, so with an exploration or a drill
-        // on the board a bare alternative is left to the coach's words.
-        exploring: takeoverPreview !== null || drillState !== null,
-      }),
+        exploring:
+          (takeoverPreview !== null && !ownPreview) || drillState !== null,
+        onWhatIf:
+          ownPreview && drillState === null
+            ? {
+                index: takeoverPreview!.anchorPly,
+                fen: takeoverPreview!.fen,
+              }
+            : undefined,
+      });
+    },
     [
       gameSans,
       rootFen,
@@ -8973,16 +9039,30 @@ export default function AnalysisPage() {
       const isStale = () =>
         whatIfEpochRef.current !== epoch || !mountedRef.current;
       let drawn = false;
-      // The exploration on the board as the question was sent, if any: one
-      // the reader opens while waiting is theirs to keep.
+      let boardMoved = false;
+      // The board as the question was sent: an exploration the reader opens
+      // while waiting, a jump that lands, another view, or a drill is
+      // theirs, and the what-if leaves the board alone.
       const previewAtSend = takeoverPreviewRef.current;
+      const jumpSeqAtSend = jumpSeqRef.current;
+      const boardStillTheirs = () =>
+        !isStale() &&
+        !drillOnRef.current &&
+        rightTabRef.current === "coach" &&
+        takeoverPreviewRef.current === previewAtSend &&
+        jumpSeqRef.current === jumpSeqAtSend;
       // The question was just typed: it goes ahead of the live evals still
       // waiting, and the live search in progress is aborted in whatever
-      // phase it is (its effect swallows the rejection and the bar stays
-      // pending until the board moves again), so the first partial is not
-      // behind a depth-18 search for a square the reader has left.
+      // phase it is, so the first partial is not behind a depth-18 search
+      // for a square the reader has left. If the board then does not move,
+      // the live eval is asked again for the square it was on.
       const turn = engineTurn;
-      liveSearchAbortRef.current?.abort();
+      const live = liveSearchAbortRef.current;
+      const preemptedLive = live !== null && !live.signal.aborted;
+      if (preemptedLive) {
+        live.abort();
+        markWhatIf("preempted", { id });
+      }
       // A newer question takes the engine from an older what-if still
       // searching: one drawn keeps its numbers (from the one partial), one
       // not yet drawn says so.
@@ -9003,20 +9083,17 @@ export default function AnalysisPage() {
           if (!line) return;
           drawn = true;
           // The line is the answer: the coach's jump for this question,
-          // if it arrived first and is waiting, is dropped.
-          if (pendingJumpRef.current?.id === id) pendingJumpRef.current = null;
+          // if it arrived first and is held, is dropped.
+          whatIfJumpGate.drawn(id);
           // The board answers: the asked move on the board through the
-          // exploration preview, the way a proof line's Play puts it there,
-          // unless the reader moved on, opened an exploration or a drill
-          // while waiting. After the next frame, so the line under the
-          // question is painted before the board's heavier render (a task
-          // queued at once would run before that paint). The board is not
-          // scrolled into view for it: on a phone the line under the
-          // question is the answer in hand, and its Play reveals the board.
+          // exploration preview, the way a proof line's Play puts it there.
+          // After the next frame, so the line under the question is painted
+          // before the board's heavier render (a task queued at once would
+          // run before that paint). The board is not scrolled into view
+          // for it: on a phone the line under the question is the answer in
+          // hand, and its Play reveals the board.
           afterNextPaint(() => {
-            if (isStale()) return;
-            if (drillOnRef.current) return;
-            if (takeoverPreviewRef.current !== previewAtSend) return;
+            if (!boardStillTheirs()) return;
             const ply = currentPlyRef.current;
             if (ply !== plyAtSend && ply !== ask.index) return;
             const preview = buildLinePreview(
@@ -9027,6 +9104,8 @@ export default function AnalysisPage() {
             );
             if (!preview) return;
             markWhatIf("board", { id, index: ask.index });
+            boardMoved = true;
+            whatIfPreviewRef.current = preview;
             if (ask.index !== ply) keepPreviewOnPlySyncRef.current = true;
             setCurrentPly(ask.index);
             setTakeoverPreview(preview);
@@ -9041,26 +9120,26 @@ export default function AnalysisPage() {
             st.status === "checking"
               ? whatIfUnavailable(
                   st,
-                  abort.signal.aborted ? "superseded" : "failed"
+                  abort.signal.aborted
+                    ? abort.signal.reason === "busy"
+                      ? "busy"
+                      : "superseded"
+                    : "failed"
                 )
               : st
           );
-        // No line came: the coach's jump for this question, if it is
-        // waiting, is applied now, unless the reader moved on meanwhile.
-        const pending = pendingJumpRef.current;
-        if (pending?.id === id) {
-          pendingJumpRef.current = null;
-          if (
-            !drawn &&
-            !drillOnRef.current &&
-            currentPlyRef.current === pending.jump.fromPly &&
-            takeoverPreviewRef.current === previewAtSend
-          )
-            applyCoachJump(pending.jump);
-        }
-        // The live eval was taken from the position on the board and the
-        // board did not move: ask for its number again.
-        if (!drawn) setLiveEvalRetry((n) => n + 1);
+        // No line came: the coach's jump for this question, if it is held,
+        // is applied now, unless the reader moved on meanwhile.
+        const held = whatIfJumpGate.settled(id, drawn);
+        if (
+          held &&
+          boardStillTheirs() &&
+          currentPlyRef.current === held.fromPly
+        )
+          applyCoachJump(held);
+        // The live eval was stopped for this search and the board did not
+        // move: ask for its number again.
+        if (preemptedLive && !boardMoved) setLiveEvalRetry((n) => n + 1);
       });
     },
     [
@@ -9071,6 +9150,7 @@ export default function AnalysisPage() {
       allMoves,
       rootFen,
       applyCoachJump,
+      whatIfJumpGate,
     ]
   );
 
@@ -9082,36 +9162,36 @@ export default function AnalysisPage() {
       patchLastCoach: (patch) =>
         setMessages((prev) => patchLastCoachMessage(prev, patch)),
       setThinking: (on) => {
-        // A new reply: an older what-if's waiting jump is not this one's.
-        if (on) pendingJumpRef.current = null;
+        // A new reply: a jump held for an older what-if is not this one's.
+        if (on) whatIfJumpGate.replyStarted();
         setIsThinking(on);
       },
       setPhase: setCoachPhase,
       setError: setLastCoachError,
       jumpTo: applyCoachJump,
     }),
-    [applyCoachJump]
+    [applyCoachJump, whatIfJumpGate]
   );
   /**
    * The sink for the reply to a question that asked what-if `id`: the
    * board belongs to the what-if for that reply (whatIfJumpDecision), so
-   * the coach's jump is skipped once the line is drawn and waits while it
-   * is checking. Every other reply uses coachSink as it is.
+   * the coach's jump is skipped once the line is drawn and held while it
+   * is checking. Every other reply, a later question about the same move
+   * included, uses coachSink and jumps as before.
    */
   const whatIfReplySink = useCallback(
     (id: number): CoachReplySink => ({
       ...coachSink,
       jumpTo: (jump) => {
-        const decision = whatIfJumpDecision(whatIfStore.get(id));
-        if (decision === "skip") return;
-        if (decision === "defer") {
-          pendingJumpRef.current = { id, jump };
+        const decision = whatIfJumpGate.jump(id, whatIfStore.get(id), jump);
+        if (decision === "apply") {
+          coachSink.jumpTo(jump);
           return;
         }
-        coachSink.jumpTo(jump);
+        markWhatIf(decision === "skip" ? "jump-skipped" : "jump-held", { id });
       },
     }),
-    [coachSink, whatIfStore]
+    [coachSink, whatIfStore, whatIfJumpGate]
   );
 
   const handleTakeoverSendToCoach = useCallback(

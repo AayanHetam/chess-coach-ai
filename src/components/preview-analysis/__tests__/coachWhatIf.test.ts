@@ -4,10 +4,12 @@ import type {
   MovesEval,
   PositionEval,
 } from "@/types/eval";
+import { Chess } from "chess.js";
 import { createEngineTurn } from "@/lib/engine/engineTurn";
 import { parseMovesResults } from "@/lib/engine/helpers/parseMovesResults";
 import {
   askedMoveEval,
+  createWhatIfJumpGate,
   createWhatIfStore,
   initialWhatIfState,
   resolveWhatIf,
@@ -49,6 +51,13 @@ const SANS = [
 /** The position before 8. Nc7+ (14 plies in). */
 const FEN_BEFORE_8 =
   "r1b1kbnr/pp1ppppp/2n5/1N6/4P3/5N2/P1P2PPP/2qQKB1R w Kkq - 0 8";
+
+/** The board a what-if on 8. Qxc1 puts up: Black to move. */
+const FEN_AFTER_8_QXC1 = (() => {
+  const g = new Chess(FEN_BEFORE_8);
+  g.move("Qxc1");
+  return g.fen();
+})();
 
 /** A sweep whose best at ply 14 is Qxc1 and whose other positions are blank. */
 function sweep(bestAt14: string | null): PositionEval[] {
@@ -324,11 +333,13 @@ describe("runWhatIf: one search, reported as it deepens", () => {
           };
         })
     );
+    let finishSearch!: () => void;
     const engine: WhatIfEngine = {
-      evaluateMoves: async () => {
-        log.push("whatif:search");
-        return at(16);
-      },
+      evaluateMoves: () =>
+        new Promise<MovesEval>((res) => {
+          log.push("whatif:search");
+          finishSearch = () => res(at(16));
+        }),
     };
     const done = runWhatIf({
       ask,
@@ -336,16 +347,29 @@ describe("runWhatIf: one search, reported as it deepens", () => {
       turn,
       onResult: () => log.push("whatif:result"),
     });
-    await new Promise((r) => setTimeout(r, 0));
+    const tick = () => new Promise((r) => setTimeout(r, 0));
+    await tick();
     expect(log).toEqual(["live:start"]);
     releaseLive();
     await live;
+    await tick();
+    expect(log).toEqual(["live:start", "live:end", "whatif:search"]);
+    // A job asked while the search runs waits for it to end.
+    const next = turn.run(async () => {
+      log.push("next");
+    });
+    await tick();
+    expect(turn.busy()).toBe(true);
+    expect(log).not.toContain("next");
+    finishSearch();
     await done;
+    await next;
     expect(log).toEqual([
       "live:start",
       "live:end",
       "whatif:search",
       "whatif:result",
+      "next",
     ]);
   });
 
@@ -431,7 +455,7 @@ describe("the state the message carries", () => {
     expect(drawn.line?.sans).toEqual(["Qxc1", "Rb8", "Qf4"]);
     expect(drawn.depth).toBe(10);
     expect(whatIfSummary(drawn)).toBe(
-      "8. Qxc1 +2.10 · played 8. Nc7+ -0.97 · d10"
+      "8. Qxc1 +2.10 · played Nc7+ -0.97 · d10"
     );
     const deeper = whatIfStateFrom(drawn, at(12), false);
     expect(deeper.line?.sans).toBe(drawn.line?.sans);
@@ -495,9 +519,7 @@ describe("the state the message carries", () => {
       cold: true,
     };
     const s = whatIfStateFrom(initialWhatIfState(2, black), result, false);
-    expect(whatIfSummary(s)).toBe(
-      "9... Qa3 +1.50 · played 9... Qxd1+ +0.90 · d11"
-    );
+    expect(whatIfSummary(s)).toBe("9... Qa3 +1.50 · played Qxd1+ +0.90 · d11");
   });
 });
 
@@ -588,7 +610,7 @@ describe("the numbers the what-if shows", () => {
       cold: true,
     };
     const s = whatIfStateFrom(initialWhatIfState(1, loud), result, false);
-    expect(whatIfSummary(s)).toBe("8. Qxc1 +2.51 · played 8. Nc7+ -0.97 · d12");
+    expect(whatIfSummary(s)).toBe("8. Qxc1 +2.51 · played Nc7+ -0.97 · d12");
     expect(s.line?.evalDisplay).toBe("+2.51");
     expect(whatIfSummary(s)).not.toContain("9.99");
   });
@@ -605,9 +627,7 @@ describe("the numbers the what-if shows", () => {
     const result = parseMovesResults(lines, black.fen, ["c1a3", "c1d1"]);
     const s = whatIfStateFrom(initialWhatIfState(3, black), result, true);
     // Black is worse after either move, so both numbers are positive for White.
-    expect(whatIfSummary(s)).toBe(
-      "9... Qa3 +1.50 · played 9... Qxd1+ +0.90 · d11"
-    );
+    expect(whatIfSummary(s)).toBe("9... Qa3 +1.50 · played Qxd1+ +0.90 · d11");
     expect(s.line?.sans).toEqual(["Qa3", "Nb6"]);
     // A mate for Black reads as White's negative mate.
     const mating = parseMovesResults(
@@ -621,7 +641,7 @@ describe("the numbers the what-if shows", () => {
     );
     expect(
       whatIfSummary(whatIfStateFrom(initialWhatIfState(4, black), mating, true))
-    ).toBe("9... Qa3 M-2 · played 9... Qxd1+ +0.90 · d11");
+    ).toBe("9... Qa3 M-2 · played Qxd1+ +0.90 · d11");
   });
 
   it("a line already drawn is cleared when the final result has none for the asked move", () => {
@@ -739,6 +759,37 @@ describe("runWhatIf: the caller's signal", () => {
     expect(ac.signal.aborted).toBe(false);
     expect(turn.busy()).toBe(false);
   });
+
+  it("an engine that never settles, abort or not, is still given up at the bound", async () => {
+    // A wedged worker: the search promise neither resolves nor rejects,
+    // whatever the signal says.
+    let asked = 0;
+    const engine: WhatIfEngine = {
+      evaluateMoves: () => {
+        asked++;
+        return new Promise<MovesEval>(() => {});
+      },
+    };
+    const turn = createEngineTurn();
+    const result = await runWhatIf({
+      ask,
+      engine,
+      turn,
+      timeoutMs: 20,
+      onResult: () => {
+        throw new Error("should not report");
+      },
+    });
+    expect(asked).toBe(1);
+    expect(result).toBeNull();
+    // The live evals queued behind it get the engine.
+    expect(turn.busy()).toBe(false);
+    let next = false;
+    await turn.run(async () => {
+      next = true;
+    });
+    expect(next).toBe(true);
+  });
 });
 
 describe("resolveWhatIf: which side the alternative is for", () => {
@@ -770,7 +821,7 @@ describe("resolveWhatIf: which side the alternative is for", () => {
     expect(ask!.index).toBe(6);
     expect(ask!.asked.san).toBe("Nd5");
     expect(ask!.moves.map((m) => m.san)).toEqual(["Nd5", "Bc4"]);
-    // The same, from a cursor further on: the occurrence nearest the board.
+    // The same from a cursor further on: the game places it, not the cursor.
     expect(
       resolveWhatIf("what about Nd5 instead of Bc4?", open({ viewedPly: 8 }))!
         .index
@@ -934,5 +985,468 @@ describe("the coach's jump for the what-if's own reply", () => {
       );
     // A reply whose what-if the page no longer knows jumps as before.
     expect(whatIfJumpDecision(undefined)).toBe("apply");
+  });
+});
+
+describe("the hold on the coach's jump for the what-if's own reply", () => {
+  const ask = resolveWhatIf("why not 8. Qxc1?", ctx({ viewedPly: 0 }))!;
+  const at10: MovesEval = {
+    fen: FEN_BEFORE_8,
+    depth: 10,
+    moves: [
+      { uci: "d1c1", san: "Qxc1", cp: 210, depth: 10, pv: ["d1c1", "a8b8"] },
+      { uci: "b5c7", san: "Nc7+", cp: -97, depth: 10, pv: ["b5c7"] },
+    ],
+    missing: [],
+    bestMove: "d1c1",
+    source: "local",
+    cold: true,
+  };
+  const jump = { fromPly: 0, toPly: 15, label: "8. Nc7+" };
+  const checking = initialWhatIfState(1, ask);
+
+  it("a jump that arrives while the what-if checks is held, and handed back when no line comes", () => {
+    const gate = createWhatIfJumpGate<typeof jump>();
+    expect(gate.jump(1, checking, jump)).toBe("defer");
+    expect(gate.settled(1, false)).toBe(jump);
+    // Handed back once only.
+    expect(gate.settled(1, false)).toBeNull();
+  });
+
+  it("a held jump is dropped when the line is drawn", () => {
+    const gate = createWhatIfJumpGate<typeof jump>();
+    gate.jump(1, checking, jump);
+    gate.drawn(1);
+    expect(gate.settled(1, true)).toBeNull();
+    // Settling as drawn drops it too, even without the drawn call.
+    gate.jump(1, checking, jump);
+    expect(gate.settled(1, true)).toBeNull();
+  });
+
+  it("a held jump is dropped when a newer reply starts, and is never another what-if's", () => {
+    const gate = createWhatIfJumpGate<typeof jump>();
+    gate.jump(1, checking, jump);
+    gate.replyStarted();
+    expect(gate.settled(1, false)).toBeNull();
+    gate.jump(1, checking, jump);
+    expect(gate.settled(2, false)).toBeNull();
+    gate.drawn(2);
+    expect(gate.settled(1, false)).toBe(jump);
+  });
+
+  it("a line already drawn skips the jump, nothing checked applies it, and neither is held", () => {
+    const gate = createWhatIfJumpGate<typeof jump>();
+    const drawn = whatIfStateFrom(checking, at10, false);
+    expect(gate.jump(1, drawn, jump)).toBe("skip");
+    expect(gate.settled(1, false)).toBeNull();
+    expect(gate.jump(1, whatIfUnavailable(checking, "failed"), jump)).toBe(
+      "apply"
+    );
+    expect(gate.settled(1, false)).toBeNull();
+  });
+});
+
+describe("resolveWhatIf: two moves named, and the move that was played", () => {
+  // 1.e4 c5 2.Nf3 d6 3.d4 cxd4 4.Nxd4 Nf6 5.Nc3 a6 6.Be3 e5 7.Nb3 Be6 8.f3
+  // Be7 9.Qd2 O-O 10.O-O-O Nbd7 11.g4 b5 12.g5 b4 13.Nd5
+  const NAJDORF =
+    "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3 e5 Nb3 Be6 f3 Be7 Qd2 O-O O-O-O Nbd7 g4 b5 g5 b4 Nd5".split(
+      " "
+    );
+  // 1.e4 e5 2.Nf3 Nc6 3.Bc4 Bc5 4.c3 Nf6 5.d3 d6 6.O-O O-O
+  const ITALIAN = "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d3 d6 O-O O-O".split(" ");
+  const OPEN = ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "Bc4", "Bc5"];
+  const on = (
+    sans: string[],
+    viewedPly: number,
+    over: Partial<Parameters<typeof resolveWhatIf>[1]> = {}
+  ) => ({
+    sans,
+    viewedPly,
+    playerColor: "w" as const,
+    playerSideKnown: true,
+    ...over,
+  });
+  const read = (q: string, c: Parameters<typeof resolveWhatIf>[1]) => {
+    const a = resolveWhatIf(q, c);
+    return a
+      ? {
+          label: whatIfMoveLabel(a),
+          index: a.index,
+          moves: a.moves.map((m) => `${m.role}:${m.san}`),
+        }
+      : null;
+  };
+
+  it("the alternative sits where the move set aside was played, even when its own notation was played elsewhere", () => {
+    // 7... Qxc1 was Black's move; the question is about White's 8. Qxc1.
+    for (const q of [
+      "what about Qxc1 instead of Nc7+?",
+      "Qxc1 instead of Nc7+?",
+      "why Nc7+ instead of Qxc1?",
+    ])
+      expect(read(q, on(SANS, 15)), q).toEqual({
+        label: "8. Qxc1",
+        index: 14,
+        moves: ["asked:Qxc1", "played:Nc7+"],
+      });
+    expect(read("what about Nd5 instead of Be3?", on(NAJDORF, 11))).toEqual({
+      label: "6. Nd5",
+      index: 10,
+      moves: ["asked:Nd5", "played:Be3"],
+    });
+    expect(read("what about O-O instead of d3?", on(ITALIAN, 9))).toEqual({
+      label: "5. O-O",
+      index: 8,
+      moves: ["asked:O-O", "played:d3"],
+    });
+  });
+
+  it("never draws a move the game played as the alternative, and draws nothing when the alternative is not legal where the other was played", () => {
+    // White could not castle short at move 9; Black's 9... O-O is not it.
+    expect(read("what about O-O instead of Qd2?", on(NAJDORF, 17))).toBeNull();
+    expect(
+      read("what about Nd6+ instead, or maybe Qxc1?", on(SANS, 14))
+    ).toBeNull();
+    expect(read("instead of 8. Nc7+, what about Nd5?", on(SANS, 0))).toBeNull();
+  });
+
+  it("'after Y' puts the alternative on the move after Y", () => {
+    expect(
+      read("after Bc4, what about Nxe4?", on(OPEN, 7, { playerColor: "b" }))
+    ).toEqual({
+      label: "4... Nxe4",
+      index: 7,
+      moves: ["asked:Nxe4", "played:Bc5"],
+    });
+    for (const q of [
+      "after 7... Qxc1, why not Nd6+?",
+      "after 7... Qxc1 8. Nc7+, what about Nd6+ instead?",
+      "instead of 8. Nc7+, what about Nd6+?",
+    ])
+      for (const viewedPly of [0, 15])
+        expect(read(q, on(SANS, viewedPly))?.label, `${q} @${viewedPly}`).toBe(
+          "8. Nd6+"
+        );
+  });
+
+  it("a move set aside in a 'move N' question picks its ply", () => {
+    expect(
+      read(
+        "what about Nd5 instead of Bc4 on move 4?",
+        on(OPEN, 7, { playerColor: "b" })
+      )?.index
+    ).toBe(6);
+  });
+});
+
+describe("resolveWhatIf: a bare alternative, the cues and the player's side", () => {
+  const OPEN = ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "Bc4", "Bc5"];
+  const at7 = (over: Partial<Parameters<typeof resolveWhatIf>[1]> = {}) => ({
+    sans: OPEN,
+    viewedPly: 7,
+    playerColor: "w" as const,
+    playerSideKnown: true,
+    ...over,
+  });
+
+  it("a first-person question from a player whose side is known is that side's move, whatever the cue", () => {
+    const q = "could I have played Nd5 here?";
+    expect(resolveWhatIf(q, at7({ playerColor: "b" }))!.index).toBe(7);
+    expect(resolveWhatIf(q, at7({ playerColor: "w" }))!.index).toBe(6);
+    // Side unknown, both cues: nothing.
+    expect(resolveWhatIf(q, at7({ playerSideKnown: false }))).toBeNull();
+  });
+
+  it("'here's', 'here is' and 'next time' are not the 'here' cue", () => {
+    for (const q of [
+      "what about Nd5? next time I'll try it",
+      "what about Nd5, here's my idea",
+      "what about Nd5, here is why",
+    ])
+      expect(resolveWhatIf(q, at7({ playerSideKnown: false })), q).toBeNull();
+  });
+
+  it("on a what-if's own alternative, a bare follow-up is the next alternative at that ply", () => {
+    const onQxc1 = {
+      sans: SANS,
+      viewedPly: 14,
+      playerColor: "w" as const,
+      onWhatIf: { index: 14, fen: FEN_AFTER_8_QXC1 },
+    };
+    const own = resolveWhatIf("what about Nd6+ instead?", onQxc1);
+    expect(own).not.toBeNull();
+    expect(own!.index).toBe(14);
+    expect(own!.moves.map((m) => m.san)).toEqual(["Nd6+", "Nc7+"]);
+    // "Here" is the board off the mainline: nothing.
+    expect(resolveWhatIf("what about Nd6+ here?", onQxc1)).toBeNull();
+  });
+});
+
+describe("resolveWhatIf: one reading or nothing", () => {
+  // 1.e4 e5 2.Nf3 Nc6 3.Bb5 a6 4.Ba4 Nf6 5.O-O Be7 6.Re1 b5 7.Bb3 d6 8.c3
+  // O-O 9.h3 Na5 10.Bc2 c5 11.d4
+  const RUY =
+    "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3 O-O h3 Na5 Bc2 c5 d4".split(
+      " "
+    );
+  const OPEN = ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "Bc4", "Bc5"];
+  // At move 8 both castlings are legal for both sides.
+  const BOTH =
+    "d4 d5 Nc3 Nc6 Bf4 Bf5 Qd2 Qd7 Nf3 Nf6 e3 e6 Bd3 Bd6 O-O-O O-O Kb1 Rfe8".split(
+      " "
+    );
+  const FRENCH = ["e4", "e6", "d4", "d5", "exd5", "exd5"];
+  type Over = Partial<Parameters<typeof resolveWhatIf>[1]>;
+  const game = (sans: string[], viewedPly: number, over: Over = {}) => ({
+    sans,
+    viewedPly,
+    playerColor: "w" as const,
+    playerSideKnown: true,
+    ...over,
+  });
+  const label = (q: string, c: Parameters<typeof resolveWhatIf>[1]) => {
+    const a = resolveWhatIf(q, c);
+    return a ? `${whatIfMoveLabel(a)} @${a.index}` : null;
+  };
+  const expectAll = (
+    cases: Array<[string, Parameters<typeof resolveWhatIf>[1], string | null]>
+  ) => {
+    for (const [q, c, want] of cases) expect(label(q, c), q).toBe(want);
+  };
+
+  it("an 'after' line of several moves puts the alternative after its last move, and never draws a move of the line", () => {
+    const blackRoot =
+      "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1";
+    expectAll([
+      ["after 1.e4 e5 2.Nf3, why not Nf6?", game(RUY, 0), "2... Nf6 @3"],
+      ["after 1.e4 e5 2.Nf3, why not d6?", game(RUY, 0), "2... d6 @3"],
+      [
+        "after 1.e4 e5 2.Nf3 Nc6 3.Bb5, why not Nf6?",
+        game(RUY, 0),
+        "3... Nf6 @5",
+      ],
+      ["after 2. Nf3 Nc6 3. Bb5, what about Nf6?", game(RUY, 0), "3... Nf6 @5"],
+      ["after Nf3 Nc6 Bb5, what about Nf6?", game(RUY, 0), "3... Nf6 @5"],
+      ["after Bb5 a6 Ba4, what about Nge7?", game(RUY, 7), "4... Nge7 @7"],
+      ["after Re1 b5 Bb3, what about Na5?", game(RUY, 12), "7... Na5 @13"],
+      ["after Nc6, Bb5, why not Nd4?", game(RUY, 5), "3... Nd4 @5"],
+      ["after 2. Nf3 Nc6 3. Bb5 a6, why not Bc4?", game(RUY, 0), "4. Bc4 @6"],
+      // The d7 pawn: Kd7 is not legal after 8. Nc7+, and Qxc1 is not it.
+      ["after 7. Nb5 Qxc1 8. Nc7+, why not Kd7?", game(SANS, 15), null],
+      [
+        "after 3. d4 cxd4 4. Nxd4, what about Nc6?",
+        {
+          ...game(["c5", "Nf3", "d6", "d4", "cxd4", "Nxd4", "Nf6"], 0),
+          rootFen: blackRoot,
+        },
+        "4... Nc6 @6",
+      ],
+    ]);
+  });
+
+  it("an 'after' move the game never played, or a context move set beside a number, draws nothing", () => {
+    for (const playerSideKnown of [true, false])
+      expectAll([
+        [
+          "after Bb5, what about Nd5 instead?",
+          game(OPEN, 7, { playerSideKnown }),
+          null,
+        ],
+        [
+          "after Bb5, what about Nd4 here?",
+          game(OPEN, 7, { playerSideKnown }),
+          null,
+        ],
+        ["after 8. Qxc1, what about Rb8?", game(SANS, 15), null],
+        ["after 8. Qxc1 Rb8, why not 9. Qf4?", game(SANS, 15), null],
+      ]);
+  });
+
+  it("'after Y on move N' follows Y, at the number Y was played", () => {
+    for (const playerSideKnown of [true, false])
+      expectAll([
+        [
+          "after Nc6 on move 2, what about Bb5?",
+          game(OPEN, 0, { playerSideKnown }),
+          "3. Bb5 @4",
+        ],
+        [
+          "after Nc6 on move 2, what about d4?",
+          game(OPEN, 0, { playerSideKnown }),
+          "3. d4 @4",
+        ],
+        [
+          "after a6 on move 3, what about Bc4?",
+          game(RUY, 0, { playerSideKnown }),
+          "4. Bc4 @6",
+        ],
+        [
+          "after Qxc1 on move 7, why not Qxc1?",
+          game(SANS, 0, { playerSideKnown }),
+          "8. Qxc1 @14",
+        ],
+      ]);
+  });
+
+  it("the move set aside is searched as the alternative where the other was played, whatever the side", () => {
+    for (const playerSideKnown of [true, false])
+      for (const q of [
+        "why Bc4 instead of Nd5 on move 4?",
+        "on move 4, why Bc4 instead of Nd5?",
+        "why Bc4 rather than Nd5 on move 4?",
+        "why did I play Bc4 instead of Nd5 on move 4?",
+      ]) {
+        const ask = resolveWhatIf(q, game(OPEN, 7, { playerSideKnown }));
+        expect(ask && `${whatIfMoveLabel(ask)} @${ask.index}`, q).toBe(
+          "4. Nd5 @6"
+        );
+        expect(ask!.moves.map((m) => `${m.role}:${m.san}`)).toEqual([
+          "asked:Nd5",
+          "played:Bc4",
+        ]);
+      }
+    expectAll([
+      ["why h3 instead of d4?", game(RUY, 17), "9. d4 @16"],
+      ["why h3 rather than d4?", game(RUY, 17), "9. d4 @16"],
+      ["why h3 instead of Bc2?", game(RUY, 17), "9. Bc2 @16"],
+      ["why c3 instead of h3?", game(RUY, 15), "8. h3 @14"],
+      ["why h3 instead of d4 on move 9?", game(RUY, 17), "9. d4 @16"],
+      [
+        "why a6 instead of Nf6?",
+        game(RUY, 6, { playerColor: "b" }),
+        "3... Nf6 @5",
+      ],
+      [
+        "why b5 instead of d6?",
+        game(RUY, 12, { playerColor: "b" }),
+        "6... d6 @11",
+      ],
+      [
+        "why d6 instead of Na5?",
+        game(RUY, 14, { playerColor: "b" }),
+        "7... Na5 @13",
+      ],
+    ]);
+  });
+
+  it("two readings of 'X instead of Y': the words' way round and the side they name, else nothing", () => {
+    expectAll([
+      ["why O-O-O instead of O-O?", game(BOTH, 15), "8. O-O @14"],
+      ["why did I play O-O-O instead of O-O?", game(BOTH, 15), "8. O-O @14"],
+      [
+        "why O-O instead of O-O-O?",
+        game(BOTH, 16, { playerColor: "b" }),
+        "8... O-O-O @15",
+      ],
+      // Black played O-O, not O-O-O: the words and the game disagree.
+      [
+        "why did I play O-O-O instead of O-O?",
+        game(BOTH, 15, { playerColor: "b" }),
+        null,
+      ],
+      ["should I have played e5 instead of exd5?", game(FRENCH, 6), "3. e5 @4"],
+      [
+        "should I have played e5 instead of exd5?",
+        game(FRENCH, 5, { playerColor: "b" }),
+        "3... e5 @5",
+      ],
+      [
+        "should I have played e5 instead of exd5?",
+        game(FRENCH, 6, { playerSideKnown: false }),
+        null,
+      ],
+      // White's Qxd5 is not legal there; Black's is not the player's.
+      ["could I have played Qxd5 instead of exd5?", game(FRENCH, 5), null],
+    ]);
+  });
+
+  it("a side the words name is the side of the move, and only the words beside the move name one", () => {
+    const tenPlies = [...OPEN, "d3", "d6"];
+    expectAll([
+      [
+        "why didn't my opponent play Nd5 instead?",
+        game(tenPlies, 8),
+        "4... Nd5 @7",
+      ],
+      ["what if my opponent played Nd5?", game(OPEN, 7), "4... Nd5 @7"],
+      [
+        "what if my opponent played Nd5?",
+        game(OPEN, 7, { playerColor: "b" }),
+        "4. Nd5 @6",
+      ],
+      [
+        "why not Nd5? I don't get it",
+        game(OPEN, 7, { playerColor: "b" }),
+        "4. Nd5 @6",
+      ],
+      [
+        "what about Nd5 instead? I'm confused",
+        game(OPEN, 7, { playerColor: "b" }),
+        "4. Nd5 @6",
+      ],
+      // "I" against the only legal side, or against the side to move "here".
+      [
+        "could I have played Ng5 here?",
+        game(OPEN, 7, { playerColor: "b" }),
+        null,
+      ],
+      ["what if I play Ng5?", game(OPEN, 7, { playerColor: "b" }), null],
+      ["what if I play Nd5 here?", game(OPEN, 7), null],
+      ["what if I play Nd5 now?", game(OPEN, 7), null],
+      ["what if I play Nd5 here?", game(OPEN, 6, { playerColor: "b" }), null],
+      // Two sides named for the one move.
+      ["could I have played Nd5 for Black?", game(OPEN, 7), null],
+      [
+        "what if I play Nd5 here?",
+        game(OPEN, 7, { playerColor: "b" }),
+        "4... Nd5 @7",
+      ],
+    ]);
+  });
+
+  it("a 'here' or 'now' away from the move does not cancel 'instead'", () => {
+    for (const q of [
+      "why not Nd5 instead, now that I think of it?",
+      "I'm new here, why not Nd5?",
+      "why not Nd5? I know now",
+      "what about Nd5 instead? I'm confused here",
+    ])
+      expect(label(q, game(OPEN, 7, { playerSideKnown: false })), q).toBe(
+        "4. Nd5 @6"
+      );
+    for (const q of [
+      "instead, what about Nd5? anything here?",
+      "what about Nd5 instead? where is the knight going from here",
+    ])
+      expect(label(q, game(OPEN, 7)), q).toBe("4. Nd5 @6");
+  });
+
+  it("numbers that leave the alternative open draw nothing", () => {
+    for (const q of [
+      "instead of 8. Qxc1, what about 8. Nd6+?",
+      "rather than 8. Qxc1, why not 8. Nd6+?",
+      "not 8. Qxc1 but 8. Nd6+?",
+      "instead of 8. Qxc1 what about Nd6+?",
+    ])
+      expect(label(q, game(SANS, 15)), q).toBeNull();
+  });
+
+  it("on a what-if's own board, a move that is also the reply there is drawn only when the words pick the replacement", () => {
+    const onQxc1 = (over: Over = {}) => ({
+      ...game(SANS, 14, over),
+      onWhatIf: { index: 14, fen: FEN_AFTER_8_QXC1 },
+    });
+    expectAll([
+      ["what if Black plays e5?", onQxc1(), null],
+      ["what if I play e5?", onQxc1({ playerColor: "b" }), null],
+      ["what about e5?", onQxc1(), null],
+      ["what about Ne5?", onQxc1(), null],
+      ["what if I play Ne5?", onQxc1({ playerColor: "b" }), null],
+      ["what about Ne5 then?", onQxc1(), null],
+      ["what about Ne5 instead?", onQxc1(), "8. Ne5 @14"],
+      ["what if White plays Ne5?", onQxc1(), "8. Ne5 @14"],
+      ["what about Nd6+?", onQxc1(), "8. Nd6+ @14"],
+    ]);
   });
 });

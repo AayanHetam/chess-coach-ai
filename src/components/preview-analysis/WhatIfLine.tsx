@@ -3,15 +3,28 @@
 /**
  * The board's answer to a what-if, under the question that asked it.
  *
- * One line of plain words (the asked move's number beside the move it is
- * compared with, from the same search, and the depth), then the asked move
- * and the engine's reply as a proof line. The block is on the page from
- * the moment the question is sent, at its full height, with "Checking …"
- * and the line's empty rows in place, so nothing under it moves when the
- * engine's first partial lands, when a deeper one replaces it, or when no
- * answer comes at all. No box, no chip, no badge.
+ * Two reserved lines of plain words (the asked move's number beside the
+ * moves it is compared with, from the same search, and the depth), then the
+ * asked move and the engine's reply as a proof line. The block is on the
+ * page from the moment the question is sent, at its full height, with
+ * "Checking …" and the line's empty rows in place, so nothing under it
+ * moves when the engine's first partial lands, when a deeper one replaces
+ * it, or when no answer comes at all. No box, no chip, no badge.
+ *
+ * The line's moves are pinned once the reader taps or plays it, for the
+ * life of the block: a deeper search can change the engine's reply, and
+ * swapping the moves under a line the reader is walking (or playing again
+ * from the start) would name a move that is not on the board. The numbers
+ * above keep deepening. Only a final search with no line for the asked
+ * move takes the line away, and the words above then say why.
  */
-import React, { useEffect, useMemo, useSyncExternalStore } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Box, Tooltip } from "@mui/material";
 import { ProofLine, ProofLinePlaceholder } from "./ProofLine";
 import {
@@ -44,6 +57,16 @@ export function WhatIfLine({
   const initial = useMemo(() => initialWhatIfState(id, ask), [id, ask]);
   const read = () => store.get(id) ?? initial;
   const state = useSyncExternalStore(store.subscribe, read, read);
+  // The line the reader tapped or played, held from then on.
+  const [pinned, setPinned] = useState<CoachLine | null>(null);
+  const showPly = useCallback(
+    (line: CoachLine, k: number) => {
+      setPinned((held) => held ?? line);
+      onShowPly?.(line, k);
+    },
+    [onShowPly]
+  );
+  const line = state.status === "unavailable" ? null : (pinned ?? state.line);
   const summary = whatIfSummary(state);
   const scored = state.status === "drawn" || state.status === "final";
   // The first paint of the line, for the budget the e2e holds: marked at
@@ -101,6 +124,7 @@ export function WhatIfLine({
       data-testid="what-if"
       data-status={state.status}
       data-depth={state.depth}
+      data-pinned={pinned ? "true" : undefined}
       sx={{ minWidth: 0 }}
     >
       {scored ? (
@@ -110,13 +134,18 @@ export function WhatIfLine({
       ) : (
         summaryRow
       )}
-      {state.line ? (
+      {line ? (
         <ProofLine
-          line={state.line}
+          // A new set of moves is a new line: its highlighted ply and its
+          // Play belong to the moves they were shown on.
+          key={line.sans.join(" ")}
+          line={line}
           playerColor={playerColor}
-          onShowPly={onShowPly}
+          onShowPly={onShowPly ? showPly : undefined}
           label="What if"
           reserveCaption
+          // The moves the moment they are known; their facts a frame later.
+          deferCaptions
           data-testid="what-if-line"
         />
       ) : (

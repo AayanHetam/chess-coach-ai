@@ -30,8 +30,17 @@ vi.mock("../../lichess", async (importOriginal) => {
   };
 });
 
-import { EngineSearchAbortedError, UciEngine } from "../uciEngine";
+import {
+  EngineSearchAbortedError,
+  EngineShutDownError,
+  UciEngine,
+} from "../uciEngine";
+import { createEngineTurn } from "../engineTurn";
 import { EngineName } from "@/types/enums";
+import {
+  resolveWhatIf,
+  runWhatIf,
+} from "@/components/preview-analysis/coachWhatIf";
 
 const FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 /** Fixture 07 before 8. Nc7+ (b5c7); 8. Qxc1 (d1c1) takes the free queen. */
@@ -50,6 +59,8 @@ function makeWorker(opts: { finish?: boolean } = {}) {
     finish: opts.finish ?? false,
     /** Hold the `readyok` to the `isready` that follows a command with this prefix, until `release()`. */
     holdReadyAfter: null as string | null,
+    /** The worker stops answering anything, the way a wedged engine does. */
+    silent: false,
   };
   let searching = false;
   let holding = false;
@@ -67,6 +78,7 @@ function makeWorker(opts: { finish?: boolean } = {}) {
       if (modes.holdReadyAfter && cmd.startsWith(modes.holdReadyAfter))
         holding = true;
       queueMicrotask(() => {
+        if (modes.silent) return;
         if (cmd === "uci") worker.listen("uciok");
         else if (cmd === "isready") {
           if (holding) {
@@ -158,7 +170,9 @@ describe("evaluatePositionWithUpdate: the caller's abort", () => {
     await until(() => partials.length > 0);
     ac.abort();
     await expect(search).rejects.toBeInstanceOf(EngineSearchAbortedError);
-    expect(sent).toContain("stop");
+    // The stop the abort sends, after the search's go (every search also
+    // sends one of its own before the go).
+    expect(sent.slice(sent.indexOf(goes(sent)[0]))).toContain("stop");
 
     modes.finish = true;
     const again = await engine.evaluatePositionWithUpdate({
@@ -223,7 +237,9 @@ describe("evaluateMoves: the caller's abort", () => {
     expect(partials).toEqual([5]);
     ac.abort();
     await expect(search).rejects.toBeInstanceOf(EngineSearchAbortedError);
-    expect(sent).toContain("stop");
+    // The stop the abort sends, after the search's go (every search also
+    // sends one of its own before the go).
+    expect(sent.slice(sent.indexOf(goes(sent)[0]))).toContain("stop");
 
     modes.finish = true;
     const again = await engine.evaluateMoves({
@@ -269,6 +285,44 @@ describe("evaluateMoves: the caller's abort", () => {
   });
 });
 
+describe("an abort in the MultiPV phase", () => {
+  it("leaves the engine's record of the option matching the worker's, so the next search sets its own", async () => {
+    const { worker, sent, modes, release } = makeWorker({ finish: true });
+    mockGetEngineWorker.mockReturnValue(worker);
+    // The engine starts at MultiPV 3 (the review's and the Lines tab's).
+    const engine = await UciEngine.create(EngineName.Stockfish17Lite, "x.js");
+    const before = sent.length;
+    const multiPvSent = () =>
+      sent.slice(before).filter((c) => c.startsWith("setoption name MultiPV"));
+    // A two-move what-if lowers it to 2 and is aborted before the worker
+    // says it is ready.
+    modes.holdReadyAfter = "setoption name MultiPV";
+    const ac = new AbortController();
+    const aborted = engine.evaluateMoves({
+      fen: FEN_BEFORE_8,
+      moves: ["d1c1", "b5c7"],
+      depth: 16,
+      signal: ac.signal,
+    });
+    await until(() => multiPvSent().length === 1);
+    ac.abort();
+    await expect(aborted).rejects.toBeInstanceOf(EngineSearchAbortedError);
+    modes.holdReadyAfter = null;
+    // A three-move search at once: the worker is at 2, so it must ask for 3.
+    const next = engine.evaluateMoves({
+      fen: FEN_BEFORE_8,
+      moves: ["d1c1", "b5c7", "b5d6"],
+      depth: 16,
+    });
+    release();
+    await next;
+    expect(multiPvSent()).toEqual([
+      "setoption name MultiPV value 2",
+      "setoption name MultiPV value 3",
+    ]);
+  });
+});
+
 describe("an engine shut down mid-search", () => {
   it("rejects the search in flight instead of leaving it waiting", async () => {
     const { worker, sent } = makeWorker();
@@ -281,7 +335,7 @@ describe("an engine shut down mid-search", () => {
     });
     await until(() => goes(sent).length > 0);
     engine.shutdown();
-    await expect(search).rejects.toThrow("Engine shut down");
+    await expect(search).rejects.toBeInstanceOf(EngineShutDownError);
     expect(worker.terminate).toHaveBeenCalled();
     expect(sent[sent.length - 1]).toBe("quit");
   });
@@ -328,7 +382,79 @@ describe("the cloud head start", () => {
     );
     await settle();
     engine.shutdown();
-    await expect(search).rejects.toThrow("Engine shut down");
+    await expect(search).rejects.toBeInstanceOf(EngineShutDownError);
     expect(goes(sent.slice(before))).toEqual([]);
+  });
+});
+
+describe("a worker that stops answering before the search", () => {
+  it("an abort still ends the call while its stop goes unanswered", async () => {
+    const { worker, sent, modes } = makeWorker({ finish: true });
+    mockGetEngineWorker.mockReturnValue(worker);
+    const engine = await UciEngine.create(EngineName.Stockfish17Lite, "x.js");
+    const before = sent.length;
+    modes.silent = true;
+    const ac = new AbortController();
+    const search = engine.evaluateMoves({
+      fen: FEN_BEFORE_8,
+      moves: ["d1c1", "b5c7"],
+      depth: 16,
+      signal: ac.signal,
+    });
+    await until(() => sent.slice(before).includes("stop"));
+    await settle();
+    ac.abort();
+    await expect(search).rejects.toBeInstanceOf(EngineSearchAbortedError);
+    expect(goes(sent.slice(before))).toEqual([]);
+  });
+
+  it("the what-if's bound settles the search and frees the turn, with the real engine", async () => {
+    const { worker, modes } = makeWorker({ finish: true });
+    mockGetEngineWorker.mockReturnValue(worker);
+    const engine = await UciEngine.create(EngineName.Stockfish17Lite, "x.js");
+    modes.silent = true;
+    const turn = createEngineTurn();
+    const ask = resolveWhatIf("why not 8. Qxc1?", {
+      sans: ["Nc7+", "Kd8"],
+      rootFen: FEN_BEFORE_8,
+      viewedPly: 0,
+      playerColor: "w",
+    })!;
+    const result = await runWhatIf({
+      ask,
+      engine,
+      turn,
+      timeoutMs: 30,
+      onResult: () => {
+        throw new Error("should not report");
+      },
+    });
+    expect(result).toBeNull();
+    expect(turn.busy()).toBe(false);
+    // The next job gets the turn.
+    expect(await turn.run(async () => "next")).toBe("next");
+  });
+});
+
+describe("an engine swapped out mid-sweep", () => {
+  it("stops the sweep and starts no worker", async () => {
+    const { worker, modes } = makeWorker();
+    mockGetEngineWorker.mockReturnValue(worker);
+    const engine = await UciEngine.create(EngineName.Stockfish17Lite, "x.js");
+    const created = mockGetEngineWorker.mock.calls.length;
+    const fens = [FEN, FEN, FEN];
+    const sweep = engine.evaluateGame({
+      fens,
+      uciMoves: ["e2e4", "e7e5"],
+      depth: 10,
+      perPositionTimeoutMs: 20,
+    });
+    await settle();
+    engine.shutdown();
+    modes.finish = true;
+    await expect(sweep).rejects.toBeInstanceOf(EngineShutDownError);
+    // No worker was started on the shut-down engine.
+    for (let i = 0; i < 5; i++) await settle();
+    expect(mockGetEngineWorker.mock.calls.length).toBe(created);
   });
 });

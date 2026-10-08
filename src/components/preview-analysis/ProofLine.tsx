@@ -25,7 +25,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Tooltip } from "@mui/material";
 import { Pause, Play } from "lucide-react";
-import { captionLine } from "@/lib/coach/lineCaptions";
+import { captionLine, type LineCaptions } from "@/lib/coach/lineCaptions";
 import type { CoachLine } from "./coachLines";
 
 export interface ProofLineProps {
@@ -44,7 +44,36 @@ export interface ProofLineProps {
   stepMs?: number;
   /** Keep the caption row's height when it is empty (fixed-height strips). */
   reserveCaption?: boolean;
+  /**
+   * Paint the moves first and their facts a frame later. The captions are
+   * board arithmetic over every ply (about a tenth of a second for eight
+   * plies on a laptop, four times that on a slow phone), and a line that
+   * must appear the moment its moves are known, a what-if's, should not
+   * wait for them. Use with reserveCaption, so the row the facts arrive in
+   * is already there and nothing moves when they do.
+   */
+  deferCaptions?: boolean;
   "data-testid"?: string;
+}
+
+/** The moves alone, numbered from the line's start: what a line shows before its facts are worked out. */
+function bareCaptions(startFen: string, sans: readonly string[]): LineCaptions {
+  const fields = startFen.split(" ");
+  let mover: "w" | "b" = fields[1] === "b" ? "b" : "w";
+  let n = Number(fields[5]) || 1;
+  const plies = sans.map((san) => {
+    const ply = {
+      san,
+      label: mover === "w" ? `${n}.` : `${n}...`,
+      caption: "",
+      full: "",
+      mover,
+    };
+    if (mover === "b") n += 1;
+    mover = mover === "w" ? "b" : "w";
+    return ply;
+  });
+  return { plies, ledger: "", endsInMate: false, sacrifice: false };
 }
 
 const ACCENT = {
@@ -62,7 +91,8 @@ const MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
  * must not move when it does, so the question is pushed with this in place
  * of the line: the same two rows at the same heights (the heading row with
  * what is being checked, the caption row with a note), and nothing else.
- * If the engine never answers, the note says so and the rows stay.
+ * If the engine never answers, the rows stay (the caller says why, in its
+ * own words: the what-if's summary row above them does).
  */
 export function ProofLinePlaceholder({
   label,
@@ -127,15 +157,44 @@ export function ProofLine({
   label,
   stepMs = 800,
   reserveCaption = false,
+  deferCaptions = false,
   "data-testid": testId = "proof-line",
 }: ProofLineProps) {
   const accent = ACCENT[line.kind];
   const heading =
     label ?? (line.kind === "engine" ? "Engine line" : "In the game");
-  const captions = useMemo(
-    () => captionLine(line.startFen, line.sans, playerColor),
-    [line.startFen, line.sans, playerColor]
+  const now = useMemo(
+    () =>
+      deferCaptions
+        ? bareCaptions(line.startFen, line.sans)
+        : captionLine(line.startFen, line.sans, playerColor),
+    [deferCaptions, line.startFen, line.sans, playerColor]
   );
+  // The facts, worked out after the moves have been painted.
+  const [later, setLater] = useState<{
+    of: LineCaptions;
+    captions: LineCaptions;
+  } | null>(null);
+  useEffect(() => {
+    if (!deferCaptions) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const frame = requestAnimationFrame(() => {
+      timer = setTimeout(
+        () =>
+          setLater({
+            of: now,
+            captions: captionLine(line.startFen, line.sans, playerColor),
+          }),
+        0
+      );
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      if (timer !== undefined) clearTimeout(timer);
+    };
+  }, [deferCaptions, now, line.startFen, line.sans, playerColor]);
+  const ready = !deferCaptions || (later !== null && later.of === now);
+  const captions = ready && later && deferCaptions ? later.captions : now;
   // The ply on the board, 1-based; 0 = the start position; null = untouched.
   const [shown, setShown] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -206,9 +265,13 @@ export function ProofLine({
     shown !== null && shown > 0
       ? captions.plies[Math.min(shown, total) - 1]
       : captions.plies[0];
-  const captionText = captionPly
-    ? `${captionPly.mover === "w" || captionPly === captions.plies[0] ? captionPly.label : ""}${captionPly.san} ${captionPly.caption || "a quiet move"}`
-    : "";
+  // Nothing is said of a move before its facts are worked out: an empty
+  // caption is "a quiet move" only once they are.
+  const captionText = !ready
+    ? ""
+    : captionPly
+      ? `${captionPly.mover === "w" || captionPly === captions.plies[0] ? captionPly.label : ""}${captionPly.san} ${captionPly.caption || "a quiet move"}`
+      : "";
 
   return (
     <Box ref={rootRef} data-testid={testId} sx={{ mt: 0.75, minWidth: 0 }}>
@@ -260,7 +323,7 @@ export function ProofLine({
             return (
               <Tooltip
                 key={`${p.san}-${i}`}
-                title={p.full || "a quiet move"}
+                title={ready ? p.full || "a quiet move" : ""}
                 enterDelay={600}
               >
                 <Box

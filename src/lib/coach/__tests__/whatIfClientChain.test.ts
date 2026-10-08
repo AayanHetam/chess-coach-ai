@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import ts from "typescript";
 
 /**
  * The client reads a what-if with the chat route's own resolvers
@@ -10,7 +11,10 @@ import * as path from "node:path";
  * bundle with them. The test moved to questionShape.ts; this scan keeps
  * the chain from the page's what-if down to the resolvers clear of
  * lib/prompts and of the API routes, transitively, following the value
- * imports a bundler would follow (type-only imports are erased).
+ * imports a bundler would follow (type-only imports are erased). The
+ * imports are read with the TypeScript parser, not a pattern, so a comment
+ * inside an import's braces, a side-effect import, an `import()` or a
+ * `require()` cannot slip a module past it.
  */
 
 const SRC = path.join(process.cwd(), "src");
@@ -23,8 +27,53 @@ const ROOTS = [
 ];
 const FORBIDDEN = ["lib/prompts/", "app/api/"];
 
-const IMPORT_RE =
-  /\b(import|export)\s+(type\s+)?(?:[^'";]*?\s)?from\s+["']([^"']+)["']|\bimport\s*\(\s*["']([^"']+)["']\s*\)/g;
+/** The module specifiers a file loads at run time: type-only imports and exports are erased and left out. */
+export function valueImports(file: string, text: string): string[] {
+  const source = ts.createSourceFile(
+    file,
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+  );
+  const out: string[] = [];
+  const visit = (node: ts.Node) => {
+    if (
+      ts.isImportDeclaration(node) &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
+      const clause = node.importClause;
+      const typeOnly =
+        !!clause &&
+        (clause.isTypeOnly ||
+          (!clause.name &&
+            !!clause.namedBindings &&
+            ts.isNamedImports(clause.namedBindings) &&
+            clause.namedBindings.elements.length > 0 &&
+            clause.namedBindings.elements.every((e) => e.isTypeOnly)));
+      if (!typeOnly) out.push(node.moduleSpecifier.text);
+    } else if (
+      ts.isExportDeclaration(node) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier) &&
+      !node.isTypeOnly
+    ) {
+      out.push(node.moduleSpecifier.text);
+    } else if (
+      ts.isCallExpression(node) &&
+      node.arguments.length > 0 &&
+      ts.isStringLiteral(node.arguments[0]) &&
+      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(node.expression) &&
+          node.expression.text === "require"))
+    ) {
+      out.push(node.arguments[0].text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return out;
+}
 
 function resolveSpec(from: string, spec: string): string | null {
   let base: string;
@@ -56,9 +105,7 @@ function reach(root: string): Map<string, string[]> {
     seen.set(file, chain);
     if (!/\.(ts|tsx)$/.test(file)) continue;
     const text = fs.readFileSync(file, "utf8");
-    for (const m of Array.from(text.matchAll(IMPORT_RE))) {
-      if (m[2]) continue; // import type / export type
-      const spec = m[3] ?? m[4];
+    for (const spec of valueImports(file, text)) {
       const target = resolveSpec(file, spec);
       if (target) stack.push({ file: target, chain: [...chain, file] });
     }
@@ -89,5 +136,28 @@ describe("the client what-if chain", () => {
     expect(files).toContain("lib/coach/questionAnchor.ts");
     expect(files).toContain("lib/coach/questionIntent.ts");
     expect(files).toContain("lib/coach/questionShape.ts");
+  });
+});
+
+describe("the import reader the scan rests on", () => {
+  it("reads the shapes a pattern would miss, and leaves type-only imports out", () => {
+    const text = [
+      "import { a, // the player's move",
+      '  b } from "@/lib/prompts/one";',
+      'import "@/lib/prompts/two";',
+      'const c = require("@/lib/prompts/three");',
+      'const d = () => import("@/lib/prompts/four");',
+      'export { e } from "@/lib/prompts/five";',
+      'import type { F } from "@/lib/prompts/six";',
+      'import { type G } from "@/lib/prompts/seven";',
+      'export type { H } from "@/lib/prompts/eight";',
+    ].join("\n");
+    expect(valueImports("x.ts", text)).toEqual([
+      "@/lib/prompts/one",
+      "@/lib/prompts/two",
+      "@/lib/prompts/three",
+      "@/lib/prompts/four",
+      "@/lib/prompts/five",
+    ]);
   });
 });

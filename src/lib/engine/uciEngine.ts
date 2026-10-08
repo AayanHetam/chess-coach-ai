@@ -68,6 +68,19 @@ export class EngineSearchAbortedError extends Error {
   }
 }
 
+/**
+ * A call on an engine that was shut down (swapped for another, or the page
+ * going): not a failure of the search, and not something to show the
+ * reader. The page swaps the engine before the effects that used the old
+ * one are cleaned up, so their catch sees this first.
+ */
+export class EngineShutDownError extends Error {
+  constructor() {
+    super("Engine shut down");
+    this.name = "EngineShutDownError";
+  }
+}
+
 /** `promise`, or an EngineSearchAbortedError the moment `signal` aborts. */
 function raceAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
   if (!signal) return promise;
@@ -91,6 +104,8 @@ function raceAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
 export class UciEngine {
   public readonly name: EngineName;
   private workers: EngineWorker[] = [];
+  /** Set by shutdown(): the engine takes no more work and starts no worker. */
+  private isShutDown = false;
   private workerQueue: WorkerJob[] = [];
   private isReady = false;
   private enginePath: string;
@@ -166,12 +181,17 @@ export class UciEngine {
       throw new Error(`Invalid MultiPV value : ${multiPv}`);
     }
 
-    await this.sendCommandsToEachWorker(
+    const sent = this.sendCommandsToEachWorker(
       [`setoption name MultiPV value ${multiPv}`, "isready"],
       "readyok"
     );
-
+    // Recorded when posted, not when acknowledged: the worker applies
+    // commands in order, and a caller that leaves before the readyok (a
+    // search aborted in this phase) must not leave the record behind the
+    // worker, or the next search at the old value skips the option and
+    // scores fewer moves than it asked for.
     this.multiPv = multiPv;
+    await sent;
   }
 
   private async setElo(elo: number) {
@@ -206,6 +226,7 @@ export class UciEngine {
 
   public shutdown(): void {
     this.isReady = false;
+    this.isShutDown = true;
     this.workerQueue = [];
 
     for (const worker of this.workers) {
@@ -220,7 +241,7 @@ export class UciEngine {
     // A command still waiting on this worker would otherwise never hear
     // back: a what-if in flight when the engine is swapped stayed
     // "checking" for good.
-    worker.rejectActive?.(new Error("Engine shut down"));
+    worker.rejectActive?.(new EngineShutDownError());
     worker.uci("quit");
     worker.terminate();
   }
@@ -242,8 +263,8 @@ export class UciEngine {
     // An engine shut down has no worker and never will: a command queued
     // here would wait for good (a live eval caught in its cloud head-start
     // by an engine swap did), so it is refused instead.
-    if (this.workers.length === 0)
-      return Promise.reject(new Error("Engine shut down"));
+    if (this.isShutDown || this.workers.length === 0)
+      return Promise.reject(new EngineShutDownError());
     const worker = this.acquireWorker();
 
     if (!worker) {
@@ -347,6 +368,10 @@ export class UciEngine {
   }
 
   private async setWorkersNb(workersNb: number) {
+    // A shut-down engine starts no worker: one started here would never be
+    // terminated (a sweep still running when the engine was swapped got to
+    // this line with no workers left). The sweep's own loop stops it.
+    if (this.isShutDown) return;
     if (workersNb === this.workers.length) return;
 
     if (workersNb < 1) {
@@ -420,6 +445,9 @@ export class UciEngine {
 
     // Process positions sequentially to ensure deterministic results
     for (let i = 0; i < fens.length; i++) {
+      // Swapped out mid-sweep: stop, rather than time out and record a
+      // sentinel for every position left.
+      if (this.isShutDown) throw new EngineShutDownError();
       const fen = fens[i];
 
       const whoIsCheckmated = getWhoIsCheckmated(fen);
@@ -591,9 +619,12 @@ export class UciEngine {
     // one changes what you get.
     const cloudPromise = allowCloud ? getLichessEval(fen, multiPv) : null;
 
-    await this.stopAllCurrentJobs();
+    // Each step before the search ends at once on an abort, even when the
+    // worker never answers it: a caller with a bound (a what-if) must be
+    // able to give the engine up in any phase.
+    await raceAbort(this.stopAllCurrentJobs(), signal);
     bail();
-    await this.setMultiPv(multiPv);
+    await raceAbort(this.setMultiPv(multiPv), signal);
     bail();
 
     console.log(`Evaluating position: ${fen}`);
@@ -705,11 +736,14 @@ export class UciEngine {
     bail();
     const asked = normaliseAskedMoves(fen, moves);
 
-    await this.stopAllCurrentJobs();
+    await raceAbort(this.stopAllCurrentJobs(), signal);
     bail();
-    await this.setMultiPv(asked.length);
+    await raceAbort(this.setMultiPv(asked.length), signal);
     bail();
-    await this.sendCommandsToEachWorker(["ucinewgame", "isready"], "readyok");
+    await raceAbort(
+      this.sendCommandsToEachWorker(["ucinewgame", "isready"], "readyok"),
+      signal
+    );
     bail();
 
     let partialDepth = 0;

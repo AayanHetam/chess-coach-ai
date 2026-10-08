@@ -149,7 +149,11 @@ function compactCases(): Record<string, string> {
         fx.gameEval,
         colour
       );
-    out[`${f}:noeval`] = buildCompactGameContext(fx.moveHistory, undefined, "w");
+    out[`${f}:noeval`] = buildCompactGameContext(
+      fx.moveHistory,
+      undefined,
+      "w"
+    );
     for (const [name, ge] of Object.entries(adversarial(fx.gameEval)))
       for (const colour of ["w", "b"])
         out[`${f}:${name}:${colour}`] = buildCompactGameContext(
@@ -181,6 +185,8 @@ interface Turn {
   body: Record<string, unknown>;
   /** Names a side, an owner or a mis-dotted move: may differ with the flag on. */
   sided?: boolean;
+  /** The coach's draft for this turn, when not the shared one. */
+  draft?: string;
 }
 
 const HISTORY = [
@@ -194,7 +200,10 @@ const TURNS: Turn[] = [
   { name: "bare-san", body: { userMessage: "was Qxc1 a mistake?" } },
   {
     name: "history",
-    body: { userMessage: "and what should I study?", conversationHistory: HISTORY },
+    body: {
+      userMessage: "and what should I study?",
+      conversationHistory: HISTORY,
+    },
   },
   {
     name: "what-if",
@@ -205,11 +214,57 @@ const TURNS: Turn[] = [
         fen: fenAfter(14),
         depth: 12,
         moves: [
-          { role: "asked", uci: "d1c1", cp: 251, depth: 12, pv: ["d1c1", "a8b8"] },
-          { role: "played", uci: "b5c7", cp: -97, depth: 12, pv: ["b5c7", "e8d8"] },
+          {
+            role: "asked",
+            uci: "d1c1",
+            cp: 251,
+            depth: 12,
+            pv: ["d1c1", "a8b8"],
+          },
+          {
+            role: "played",
+            uci: "b5c7",
+            cp: -97,
+            depth: 12,
+            pv: ["b5c7", "e8d8"],
+          },
         ],
       },
     },
+  },
+  {
+    name: "what-if-borrowed-reply",
+    body: {
+      userMessage: "what about 8. Qxc1 instead?",
+      clientEvals: {
+        index: 14,
+        fen: fenAfter(14),
+        depth: 12,
+        moves: [
+          {
+            role: "asked",
+            uci: "d1c1",
+            cp: 251,
+            depth: 12,
+            pv: ["d1c1", "a8b8"],
+          },
+          {
+            role: "played",
+            uci: "b5c7",
+            cp: -97,
+            depth: 12,
+            pv: ["b5c7", "e8d8"],
+          },
+        ],
+      },
+    },
+    draft:
+      "After 8. Qxc1, 8... Kd8 9. Qg5 keeps White a piece up. Instead of 8. Nc7+, 8. Qxc1 8... Kd8 9. Qg5 keeps the piece. Lesson: take what is hanging.",
+  },
+  { name: "never-played", body: { userMessage: "why was move 60 bad?" } },
+  {
+    name: "counted-pawns",
+    body: { userMessage: "why did I move 3 pawns so early?" },
   },
   {
     name: "field-and-phrase",
@@ -237,8 +292,10 @@ const DRAFT =
   "8. Nc7+ forks the king and rook, but 8. Qxc1 wins the queen outright. Lesson: before a fork, take what is hanging.";
 
 let calls: Record<string, unknown>[] = [];
+let draft = DRAFT;
 async function serve(turn: Turn) {
   calls = [];
+  draft = turn.draft ?? DRAFT;
   const res = await POST(
     new NextRequest("http://x/api/chat", {
       method: "POST",
@@ -288,7 +345,7 @@ describe("byte for byte as at 5d592e7", () => {
       if (opts.outputSchema || /claims/i.test(String(opts.system ?? "")))
         return llm('{"claims":[]}');
       calls.push(opts);
-      return llm(DRAFT);
+      return llm(draft);
     });
     const contract = await buildCoachContract({
       moveHistory: MOVES,
@@ -348,33 +405,28 @@ describe("byte for byte as at 5d592e7", () => {
     return out;
   }
 
-  it(
-    "the stored compact context and the route's inputs and response",
-    async () => {
-      const compact = Object.fromEntries(
-        Object.entries(compactCases()).map(([k, v]) => [k, sha(v)])
+  it("the stored compact context and the route's inputs and response", async () => {
+    const compact = Object.fromEntries(
+      Object.entries(compactCases()).map(([k, v]) => [k, sha(v)])
+    );
+    const route = await routeHashes("");
+    if (process.env.GOLDEN_WRITE) {
+      fs.writeFileSync(
+        process.env.GOLDEN_WRITE,
+        JSON.stringify({ compact, route }, null, 1) + "\n"
       );
-      const route = await routeHashes("");
-      if (process.env.GOLDEN_WRITE) {
-        fs.writeFileSync(
-          process.env.GOLDEN_WRITE,
-          JSON.stringify({ compact, route }, null, 1) + "\n"
-        );
-        return;
-      }
-      const golden = JSON.parse(fs.readFileSync(GOLDEN, "utf8"));
-      expect(compact).toEqual(golden.compact);
-      // Flag off: every turn, a side named in the words or the field
-      // included.
-      expect(route).toEqual(golden.route);
-      // Flag on: every turn that names no side, owner or mis-dotted move.
-      const on = await routeHashes("1");
-      for (const [k, v] of Object.entries(on))
-        expect(v, k).toBe(golden.route[k]);
-      expect(Object.keys(on).length).toBe(
-        MODES.length * TURNS.filter((t) => !t.sided).length
-      );
-    },
-    120_000
-  );
+      return;
+    }
+    const golden = JSON.parse(fs.readFileSync(GOLDEN, "utf8"));
+    expect(compact).toEqual(golden.compact);
+    // Flag off: every turn, a side named in the words or the field
+    // included.
+    expect(route).toEqual(golden.route);
+    // Flag on: every turn that names no side, owner or mis-dotted move.
+    const on = await routeHashes("1");
+    for (const [k, v] of Object.entries(on)) expect(v, k).toBe(golden.route[k]);
+    expect(Object.keys(on).length).toBe(
+      MODES.length * TURNS.filter((t) => !t.sided).length
+    );
+  }, 120_000);
 });

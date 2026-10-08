@@ -77,11 +77,12 @@ const GAME =
     " "
   );
 
-const FINAL_FEN = (() => {
+const fenAt = (n: number) => {
   const g = new Chess();
-  for (const m of GAME) g.move(m);
+  for (const m of GAME.slice(0, n)) g.move(m);
   return g.fen();
-})();
+};
+const FINAL_FEN = fenAt(GAME.length);
 
 function gameEval() {
   const positions: Array<Record<string, unknown>> = Array.from(
@@ -570,10 +571,10 @@ describe("a turn about the other side (validators on)", () => {
     expect(sent[0].messages.at(-1).content).not.toContain("This turn is about");
   });
 
-  it("what was Black thinking, asked on the board after a Black move: that move", async () => {
+  it("what was Black thinking, asked on the game's board after a Black move: that move", async () => {
     provider(DRAFT);
     const json = await (
-      await ask("what was Black thinking?", { moveIndex: 14 })
+      await ask("what was Black thinking?", { moveIndex: 14, fen: fenAt(14) })
     ).json();
     expect(json.gameAnalysis.anchor).toMatchObject({
       ply: 14,
@@ -581,6 +582,49 @@ describe("a turn about the other side (validators on)", () => {
       color: "b",
       san: "Qxc1",
     });
+  });
+
+  it("not on an exploration's board, with a move named, or with a scope", async () => {
+    // Exploring 8. Qxc1 Rb8 from the board after 7... Qxc1.
+    const explored = (() => {
+      const g = new Chess(fenAt(14));
+      g.move("Qxc1");
+      g.move("Rb8");
+      return g.fen();
+    })();
+    for (const [q, extra] of [
+      ["what was Black thinking?", { moveIndex: 14, fen: explored }],
+      [
+        "what was Black thinking on move 20?",
+        { moveIndex: 14, fen: fenAt(14) },
+      ],
+      ["what was Black thinking with Qxa2?", { moveIndex: 14, fen: fenAt(14) }],
+      [
+        "what was black thinking in the opening?",
+        { moveIndex: 14, fen: fenAt(14) },
+      ],
+      [
+        "what was my opponent thinking this whole game?",
+        { moveIndex: 14, fen: fenAt(14) },
+      ],
+    ] as const) {
+      const sent = provider(DRAFT);
+      const json = await (await ask(q, extra)).json();
+      expect(json.gameAnalysis.anchor, q).toBeUndefined();
+      if (q.includes("move 20"))
+        expect(String(sent[0].systemSuffix)).toContain(
+          "Black played no move 20. The game ended after 8... Kd8."
+        );
+    }
+  });
+
+  it("a game that does not replay from the start gets no never-played line", async () => {
+    mockGetAnalysisContext.mockImplementation(() =>
+      context({ playedMoves: ["Kd7", "Kd2", "Kc6"], gameEval: undefined })
+    );
+    const sent = provider(DRAFT);
+    await ask("why was Black's move 4 bad?", { moveIndex: 3 });
+    expect(String(sent[0].systemSuffix)).not.toContain("played no move");
   });
 
   it("a move the side never played is said, not left to be invented", async () => {

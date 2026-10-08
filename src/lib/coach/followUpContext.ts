@@ -603,6 +603,7 @@ export interface SubjectMomentsBlock {
     startPly: number;
     sans: string[];
     replacing: true;
+    subject: true;
   }[];
 }
 
@@ -662,12 +663,7 @@ function readSubjectMomentsBlock(
   const text: string[] = [...head];
   const licence: string[] = [...head];
   const boards: string[] = [];
-  const licensed: {
-    startFen: string;
-    startPly: number;
-    sans: string[];
-    replacing: true;
-  }[] = [];
+  const licensed: SubjectMomentsBlock["lines"] = [];
   moments.forEach((m, k) => {
     const fenBefore = fens[m.index];
     const fenAfter = fens[m.index + 1];
@@ -706,6 +702,7 @@ function readSubjectMomentsBlock(
         startPly: m.index,
         sans: line,
         replacing: true,
+        subject: true,
       });
       text.push(
         `  Engine line instead of it: ${renderLine(m.moveNum, side === "w", line)}`

@@ -106,6 +106,16 @@ export interface LicensedLine {
    * line can borrow its moves ("8. Qxc1 exd6").
    */
   replacing?: boolean;
+  /**
+   * A replacing line from a turn about the other side's key moments
+   * (followUpContext.ts, buildSubjectMomentsBlock). Its root may also open
+   * numbered at its own ply ("Instead of 7... Qxc1, 7... Kd8 8. Be2 Qxa2"),
+   * each such root is walked on its own, and on its line a pawn push
+   * written between two moves without a number ("15. Ne4 g4 16. f3") is
+   * read as the line's next move. A what-if's lines leave it unset and are
+   * read exactly as before.
+   */
+  subject?: boolean;
 }
 
 export interface FollowUpRefereeDrop {
@@ -198,6 +208,8 @@ export const SAN_TOKEN_RE = new RegExp(
     `|\\b(?:play|played|plays|playing|move|moves|with|after|instead of|rather than|try|consider)\\s+(${PAWN_SAN})(?![A-Za-z0-9])`,
   "g"
 );
+/** The text between two moves of a line when it is nothing but unnumbered pawn pushes ("g4"). */
+const BARE_PUSHES_GAP_RE = /^\s+(?:[a-h][1-8](?:=[NBRQ])?[+#]?\s+)+$/;
 export const EVAL_RE =
   /(?<![A-Za-z0-9.])([+-]\d+(?:\.\d{1,2})?|M[+-]?\d+)(?![A-Za-z0-9.%])/g;
 /** "your queen on c1", "White's rook on a1", "the knight on f6", "Black's king at g8" */
@@ -333,6 +345,7 @@ export function refereeFollowUp(
     fen: string;
     ply: number;
     replaced: string;
+    subject: boolean;
   }> = [];
   for (const l of input.extraLines ?? []) {
     if (!l.replacing) {
@@ -350,6 +363,7 @@ export function refereeFollowUp(
         fen: g.fen(),
         ply: l.startPly + 1,
         replaced,
+        subject: l.subject === true,
       });
     } catch {
       /* not a move there: no root */
@@ -524,13 +538,15 @@ export function refereeFollowUp(
         // never costs a sentence, and the roots are the only way its line's
         // moves are licensed (the block's WHAT-IF lines are not in the pool,
         // or "Qxc1 exd6" would borrow a sibling's reply).
-        // `rootAt` is the index of the one root a reading may open (each
-        // root is tried in a walk of its own, so two lines opening with the
-        // same move are each walked from their own board); null for the
-        // reading without roots.
-        const walk = (rootAt: number | null): string | null => {
-          const useRoots = rootAt !== null;
-          const roots = rootAt === null ? [] : [whatIfRoots[rootAt]];
+        // `roots` are the roots a reading may open: null for the reading
+        // without roots, all of a what-if's at once (the first whose move
+        // the sentence names), or one key-moments root at a time, so two
+        // lines opening with the same move are each walked from their own
+        // board.
+        const walk = (
+          roots: typeof whatIfRoots | null
+        ): string | null => {
+          const useRoots = roots !== null;
           let running: { fen: string; ply: number | null } = {
             fen: activeFen,
             ply: input.activePly ?? null,
@@ -540,14 +556,30 @@ export function refereeFollowUp(
           // that line's board: no other licensed line lends it one ("Nd6+
           // exd6 Nxa8" does not borrow the game's 9. Nxa8).
           let onRoot = false;
+          // On a key-moments line, the pawn pushes written between its
+          // moves are its moves too.
+          let onSubjectRoot = false;
+          let prevEnd = 0;
           const tokens = Array.from(sentence.matchAll(SAN_TOKEN_RE));
           for (let t = 0; t < tokens.length; t++) {
             const m = tokens[t];
+            const gap = sentence.slice(prevEnd, m.index ?? 0);
+            prevEnd = (m.index ?? 0) + m[0].length;
             const san = m[3] ?? m[6] ?? m[7];
             const num = m[1] ?? m[4];
             const dots = m[2] ?? m[5];
             if (!san) continue;
             const key = stripSan(san);
+            if (onSubjectRoot && BARE_PUSHES_GAP_RE.test(gap)) {
+              for (const push of gap.trim().split(/\s+/)) {
+                const next = applySan(running.fen, push);
+                if (!next) return `san:${push}`;
+                running = {
+                  fen: next,
+                  ply: running.ply === null ? null : running.ply + 1,
+                };
+              }
+            }
             if (onRoot) {
               const ply =
                 num !== undefined
@@ -568,8 +600,9 @@ export function refereeFollowUp(
               // A root may open numbered at its own ply too ("Instead of
               // 7... Qxc1, 7... Kd8 8. Be2 Qxa2"), when nothing before it
               // but the move it replaces was named.
-              const numberedRoot = roots.find(
-                (r) => r.ply - 1 === ply && r.san === exactSan(san)
+              const numberedRoot = (roots ?? []).find(
+                (r) =>
+                  r.subject && r.ply - 1 === ply && r.san === exactSan(san)
               );
               if (
                 numberedRoot &&
@@ -581,6 +614,7 @@ export function refereeFollowUp(
                 running = { fen: numberedRoot.fen, ply: numberedRoot.ply };
                 inSequence = true;
                 onRoot = true;
+                onSubjectRoot = true;
                 continue;
               }
               const after = lineAfter.get(`${ply}:${key}`);
@@ -633,7 +667,7 @@ export function refereeFollowUp(
             // moved the board or named any move but the one it replaces
             // ("Instead of Nc7+, Nd6+ exd6 ...", never "After Nxa8, Nd6+").
             if (useRoots && !inSequence && running.fen === activeFen) {
-              const root = roots.find((r) => r.san === exactSan(san));
+              const root = (roots ?? []).find((r) => r.san === exactSan(san));
               if (
                 root &&
                 tokens.slice(0, t).every((p) => {
@@ -644,6 +678,7 @@ export function refereeFollowUp(
                 running = { fen: root.fen, ply: root.ply };
                 inSequence = true;
                 onRoot = true;
+                onSubjectRoot = root.subject;
                 continue;
               }
             }
@@ -653,8 +688,17 @@ export function refereeFollowUp(
           return null;
         };
         reason = walk(null);
-        if (reason && whatIfRoots.some((_, k) => walk(k) === null))
-          reason = null;
+        if (reason && whatIfRoots.length > 0) {
+          // A what-if's roots are read together, as they always were; a
+          // key-moments root is read on its own.
+          const subjectRoots = whatIfRoots.filter((r) => r.subject);
+          const others = whatIfRoots.filter((r) => !r.subject);
+          if (
+            (others.length > 0 && walk(others) === null) ||
+            subjectRoots.some((r) => walk([r]) === null)
+          )
+            reason = null;
+        }
       }
 
       if (!reason && (evalPool.size > 0 || tiedEvals.size > 0)) {

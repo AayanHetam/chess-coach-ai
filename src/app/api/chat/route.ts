@@ -33,8 +33,10 @@ import {
 } from "@/lib/coach/questionPerspective";
 import {
   anchorAtIndex,
+  namesAMove,
   resolveQuestionAnchor,
 } from "@/lib/coach/questionAnchor";
+import { fensAlongGame } from "@/lib/contract/chessFormat";
 import {
   isWhatIfEvalsEnabled,
   verifyClientEvals,
@@ -95,6 +97,16 @@ const log = logger.child({ module: "chat" });
 const FOLLOWUP_HISTORY_MESSAGES = 8;
 /** The viewed-board facts' heading (positionFacts.ts), re-headed under a key-moments block. */
 const CURRENT_POSITION_HEADER_RE = /^## CURRENTLY VIEWED POSITION \([^\n]*\)/;
+/** "what was Black thinking?", "... thinking here": the question ends at the verb. */
+const THINKING_AT_END_RE =
+  /\b(?:thinking|planning|trying|hoping|going\s+for|aiming\s+for|after|up\s+to)\s*(?:(?:here|now|there|with\s+(?:this|that)(?:\s+move)?)\s*)?[?.!]*\s*$/i;
+
+/** Two FENs with the same pieces and side to move. */
+function samePosition(a: string, b: string | undefined): boolean {
+  if (!b) return false;
+  const key = (f: string) => f.split(" ").slice(0, 2).join(" ");
+  return key(a) === key(b);
+}
 
 /**
  * The prior turns replayed to the model, in order: the client's history
@@ -498,11 +510,25 @@ export async function POST(request: NextRequest) {
           : undefined
       );
       // "What was Black thinking?" with no move named, while the board
-      // shows the position after a Black move: that move.
+      // shows the game's position after a Black move: that move. Not with
+      // a move named (even one never played), a scope ("in the opening",
+      // "this whole game"), or a board that is not the game's (an
+      // exploration).
+      const playedFens = perspectiveOn
+        ? fensAlongGame(context.playedMoves ?? [])
+        : [];
+      const boardIsGames =
+        typeof moveIndex === "number" &&
+        moveIndex < playedFens.length &&
+        samePosition(activeFen, playedFens[moveIndex]);
       if (
         !resolvedAnchor &&
         subject?.source === "words" &&
         /_thinking$/.test(subject.rule) &&
+        missing.length === 0 &&
+        !namesAMove(userMessage) &&
+        THINKING_AT_END_RE.test(userMessage) &&
+        boardIsGames &&
         typeof moveIndex === "number" &&
         moveIndex > 0 &&
         ((moveIndex - 1) % 2 === 0 ? "w" : "b") === subject.side
@@ -660,7 +686,12 @@ export async function POST(request: NextRequest) {
       // reference only.
       let subjectMoments: ReturnType<typeof buildSubjectMomentsBlock> = null;
       try {
-        if (otherSide && !anchor && asksAboutMistakes(userMessage)) {
+        if (
+          otherSide &&
+          !anchor &&
+          !subject!.rule.endsWith("_best") &&
+          asksAboutMistakes(userMessage)
+        ) {
           subjectMoments = buildSubjectMomentsBlock(
             context,
             otherSide,
@@ -685,7 +716,12 @@ export async function POST(request: NextRequest) {
       {
         const moves = context.playedMoves ?? [];
         const gone = missing[0];
-        if (!anchor && gone && moves.length > 0) {
+        // Only for a game that replays from the start: a game set up from
+        // a position numbers its moves from another root.
+        const replays = playedFens.every(
+          (f, i) => i === 0 || f !== playedFens[i - 1]
+        );
+        if (!anchor && gone && moves.length > 0 && replays) {
           const last = moves.length - 1;
           const lastLabel = `${Math.floor(last / 2) + 1}${last % 2 === 0 ? "." : "..."} ${moves[last]}`;
           perTurnFacts = [

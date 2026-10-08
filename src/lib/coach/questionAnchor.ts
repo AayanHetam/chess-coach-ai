@@ -66,43 +66,79 @@ const strip = (s: string) => s.replace(/[+#!?]/g, "").toLowerCase();
 
 /** The owner written right before a move: "my", "my opponent's", "Black's". */
 const OWNER_BEFORE_RE =
-  /\b((?:(?:my|the)\s+)?opponent['’]s|my|his|her|their|white['’]?s?|black['’]?s?)\s+(?:own\s+)?$/i;
-/** The owner written right after a move number: "move 20 for Black", "by White". */
-const OWNER_AFTER_RE = /^\s*(?:for|by)\s+(white|black)\b/i;
-/** "after Black's move 7": the move asked about is the reply to it. */
+  /\b((?:(?:my|the)\s+)?opponent(?:['’]s|s)|my|his|her|their|white['’]?s?|black['’]?s?)\s+(?:own\s+)?$/i;
+/** The owner written right after a move number: "move 20 for Black", "by my opponent". */
+const OWNER_AFTER_RE =
+  /^\s*(?:for|by)\s+(white|black|(?:my|the)\s+opponent|him|her|them)\b/i;
+/** A side as the subject of the move's verb: "what did Black play on move 12", "on move 12 my opponent played e4". */
+const VERB_SUBJECT_RE =
+  /\b(white|black|(?:my|the)\s+opponent|he|she|they)\s+(?:(?:did|didn['’]?t|then|really|just|actually)\s+)?(?:play(?:ed|s)?|do|did|respond(?:ed|s)?|repl(?:y|ied|ies)|move[sd]?|went|go(?:es)?|answer(?:ed|s)?|choose|chose)\b/gi;
+/** "after Black's move 7": the move asked about may be the reply to it. */
 const REPLY_BEFORE_RE =
   /\b(?:after|following|in\s+(?:reply|response|answer)\s+to)\s+$/i;
+/** The question asks for a move ("what should I have played", "best reply"), so "after X" is the reply. */
+const ASKS_FOR_MOVE_RE =
+  /\b(?:should|could|would|can|do|did)\s+(?:i|we|white|black|you|my\s+opponent|he|she|they)\s+(?:have\s+)?(?:play(?:ed)?|do(?:ne)?|respond(?:ed)?|answer(?:ed)?|repl(?:y|ied)|move[d]?)\b|\bbest\s+(?:reply|response|answer|move)\b|\bwhat\s+to\s+play\b|\bhow\s+(?:to|should\s+i|do\s+i|did\s+i)\s+(?:respond|reply|answer|react)\b|\bwas\s+\S+\s+(?:right|correct|best|good|a\s+mistake)\b/i;
+/** Words about a position or its evaluation: "for Black" beside them means in Black's favour. */
+const POSITION_WORDS_RE =
+  /\b(?:eval(?:uation)?|position|stood|stand|better|worse|winning|losing|lost|won|look(?:ed|s)?|equal|advantage|favou?r|ahead|behind)\b/i;
 /** "move 3 pawns": a count of things moved, not a move number. */
 const NOT_A_MOVE_AFTER_RE =
   /^\s+(?:pawns?|pieces?|times?|squares?|knights?|bishops?|rooks?|queens?|kings?)\b/i;
 
 /**
- * The side an owner names, and where the owner starts in `before`. A
- * colour always counts; "my", "my opponent's", "his" only when the player's
- * side is confirmed (it is otherwise the board orientation, a guess).
+ * The side an owner names, and where it starts in `before`. A colour
+ * always counts; "my", "my opponent's", "his" only when the player's side
+ * is confirmed (it is otherwise the board orientation, a guess), and
+ * `relativeUnread` says one was written but could not be read.
  */
 function ownerOf(
   before: string,
   after: string,
   playerColor: "w" | "b",
-  sideConfirmed: boolean
-): { side: "w" | "b"; start: number } | null {
+  sideConfirmed: boolean,
+  /** The whole question, to read "for Black" and a side as the verb's subject; null to read only the word before. */
+  text: string | null
+): { side: "w" | "b"; start: number } | { relativeUnread: true } | null {
   const other = playerColor === "w" ? "b" : "w";
+  const relative = (word: string) => (word === "my" ? playerColor : other);
   const b = OWNER_BEFORE_RE.exec(before);
   if (b) {
     const word = b[1].toLowerCase();
     if (word.startsWith("white")) return { side: "w", start: b.index };
     if (word.startsWith("black")) return { side: "b", start: b.index };
-    if (sideConfirmed)
-      return { side: word === "my" ? playerColor : other, start: b.index };
-    return null;
+    return sideConfirmed
+      ? { side: relative(word), start: b.index }
+      : { relativeUnread: true };
   }
+  if (text === null) return null;
   const a = OWNER_AFTER_RE.exec(after);
-  if (a)
-    return {
-      side: a[1].toLowerCase() === "white" ? "w" : "b",
-      start: before.length,
-    };
+  // "the eval after move 7 for Black": in Black's favour, not Black's move.
+  if (a && !POSITION_WORDS_RE.test(text)) {
+    const word = a[1].toLowerCase();
+    if (word === "white") return { side: "w", start: before.length };
+    if (word === "black") return { side: "b", start: before.length };
+    return sideConfirmed
+      ? { side: other, start: before.length }
+      : { relativeUnread: true };
+  }
+  // "what did Black play on move 12": one side as the verb's subject.
+  const subjects = Array.from(text.matchAll(VERB_SUBJECT_RE)).map((m) =>
+    m[1].toLowerCase()
+  );
+  if (subjects.length > 0) {
+    const sides = new Set(
+      subjects.map((w) =>
+        w === "white" ? "w" : w === "black" ? "b" : sideConfirmed ? other : null
+      )
+    );
+    if (sides.has(null)) return { relativeUnread: true };
+    if (sides.size === 1)
+      return {
+        side: Array.from(sides)[0] as "w" | "b",
+        start: before.length,
+      };
+  }
   return null;
 }
 
@@ -176,6 +212,21 @@ function build(
     matched,
     ...(asked ? { askedSan: asked } : {}),
   };
+}
+
+/**
+ * Whether the question names a move in any form the resolver reads: in
+ * notation, by number, labelled, or bare.
+ */
+export function namesAMove(question: string): boolean {
+  const text = question ?? "";
+  return [
+    NUMBERED_RE,
+    LABELLED_RE,
+    MOVE_NUMBER_RE,
+    BARE_SAN_RE,
+    CUED_PAWN_RE,
+  ].some((re) => new RegExp(re.source, re.flags.replace("g", "")).test(text));
 }
 
 /**
@@ -279,26 +330,44 @@ export function resolveQuestionAnchor(
     if (opts) {
       const before = text.slice(0, m.index ?? 0);
       const after = text.slice((m.index ?? 0) + m[0].length);
-      if (NOT_A_MOVE_AFTER_RE.test(after)) continue;
-      const owner = ownerOf(before, after, playerColor, opts.sideConfirmed);
+      const owner = ownerOf(
+        before,
+        after,
+        playerColor,
+        opts.sideConfirmed,
+        text
+      );
+      // "my opponent's move 8" with the side a guess: no move to name.
+      if (owner && "relativeUnread" in owner) continue;
+      const counted = NOT_A_MOVE_AFTER_RE.test(after);
       if (owner) {
+        if (counted) continue;
         const index = (n - 1) * 2 + (owner.side === "b" ? 1 : 0);
-        const reply = REPLY_BEFORE_RE.test(before.slice(0, owner.start));
+        // "after Black's move 7, what should I have played?" is the reply;
+        // "what was the eval after Black's move 7?" is the move itself.
+        const reply =
+          REPLY_BEFORE_RE.test(before.slice(0, owner.start)) &&
+          ASKS_FOR_MOVE_RE.test(text);
         const a = build(moves, index + (reply ? 1 : 0), "move-number");
         if (a) return a;
         if (index >= moves.length)
           opts.onMissing?.({ moveNumber: n, color: owner.side });
         continue;
       }
-      const own = (n - 1) * 2 + (opts.defaultSide === "b" ? 1 : 0);
-      const other = (n - 1) * 2 + (opts.defaultSide === "b" ? 0 : 1);
-      const a =
-        build(moves, own, "move-number") ??
-        (opts.strictDefault ? null : build(moves, other, "move-number"));
-      if (a) return a;
-      if (own >= moves.length)
-        opts.onMissing?.({ moveNumber: n, color: opts.defaultSide });
-      continue;
+      if (opts.preferDefaultSide) {
+        // A subject the words or the page named: its move N.
+        if (counted) continue;
+        const own = (n - 1) * 2 + (opts.defaultSide === "b" ? 1 : 0);
+        const other = (n - 1) * 2 + (opts.defaultSide === "b" ? 0 : 1);
+        const a =
+          build(moves, own, "move-number") ??
+          (opts.strictDefault ? null : build(moves, other, "move-number"));
+        if (a) return a;
+        if (own >= moves.length)
+          opts.onMissing?.({ moveNumber: n, color: opts.defaultSide });
+        continue;
+      }
+      // No owner and no subject: as before.
     }
     const own = (n - 1) * 2 + (playerColor === "b" ? 1 : 0);
     const other = (n - 1) * 2 + (playerColor === "b" ? 0 : 1);
@@ -331,9 +400,11 @@ export function resolveQuestionAnchor(
         text.slice(0, at),
         "",
         playerColor,
-        opts.sideConfirmed
+        opts.sideConfirmed,
+        null
       );
       const sideOf = (i: number) => (i % 2 === 0 ? "w" : "b");
+      if (owner && "relativeUnread" in owner) continue;
       if (owner) hits = hits.filter((i) => sideOf(i) === owner.side);
       else if (
         opts.preferDefaultSide &&

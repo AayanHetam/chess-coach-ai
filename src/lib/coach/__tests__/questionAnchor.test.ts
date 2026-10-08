@@ -119,10 +119,17 @@ describe("anchorAtIndex: the anchor a verified what-if names", () => {
 });
 
 describe("resolveQuestionAnchor — the follow-up's side reading (opts)", () => {
+  // As the route passes them on a turn with a subject from the words or the page.
   const as = (defaultSide: "w" | "b", more: Record<string, unknown> = {}) => ({
     defaultSide,
     sideConfirmed: true,
+    preferDefaultSide: true,
     ...more,
+  });
+  // As the route passes them with the flag on and no subject.
+  const plain = (playerSide: "w" | "b") => ({
+    defaultSide: playerSide,
+    sideConfirmed: true,
   });
 
   it("without opts, a named side beside the number is not read (as before)", () => {
@@ -147,8 +154,10 @@ describe("resolveQuestionAnchor — the follow-up's side reading (opts)", () => 
 
   it("relative owners need a confirmed side; colours do not", () => {
     const unconfirmed = { defaultSide: "w" as const, sideConfirmed: false };
-    // "my opponent's" is not read: the bare default takes over.
-    expect(resolveQuestionAnchor("my opponent's 8th move", MOVES, "w", undefined, unconfirmed)?.index).toBe(14);
+    // "my opponent's" cannot be read, and the guessed player's move is the
+    // one it excludes: no move is named.
+    expect(resolveQuestionAnchor("my opponent's 8th move", MOVES, "w", undefined, unconfirmed)).toBeNull();
+    expect(resolveQuestionAnchor("why was move 7 by my opponent bad?", MOVES, "w", undefined, unconfirmed)).toBeNull();
     expect(resolveQuestionAnchor("Black's 8th move", MOVES, "w", undefined, unconfirmed)?.index).toBe(15);
   });
 
@@ -159,10 +168,48 @@ describe("resolveQuestionAnchor — the follow-up's side reading (opts)", () => 
     expect(resolveQuestionAnchor("explain White's 8th move", MOVES, "b", undefined, as("b"))?.index).toBe(14);
   });
 
-  it("after an owner's move, the move asked about is the reply", () => {
+  it("after an owner's move, a question asking for a move is about the reply", () => {
     // After Black's 7... Qxc1 the player's reply is 8. Nc7+.
-    expect(resolveQuestionAnchor("after Black's move 7, what should I have played?", MOVES, "w", undefined, as("w"))?.index).toBe(14);
-    expect(resolveQuestionAnchor("in reply to my opponent's 7th move, was Nc7+ right?", MOVES, "w", undefined, as("w"))?.index).toBe(14);
+    expect(resolveQuestionAnchor("after Black's move 7, what should I have played?", MOVES, "w", undefined, plain("w"))?.index).toBe(14);
+    expect(resolveQuestionAnchor("in reply to my opponent's 7th move, was Nc7+ right?", MOVES, "w", undefined, plain("w"))?.index).toBe(14);
+    expect(resolveQuestionAnchor("after black's move 7, what was the best reply?", MOVES, "w", undefined, plain("w"))?.index).toBe(14);
+  });
+
+  it("after an owner's move, a question about the position is about that move", () => {
+    for (const q of [
+      "what was the eval after Black's move 7?",
+      "after black's 7th move, who was better?",
+      "how did the position look after my opponent's 7th move?",
+    ])
+      expect(resolveQuestionAnchor(q, MOVES, "w", undefined, plain("w"))?.index, q).toBe(13);
+    // "for Black" beside a position word is in Black's favour, not an owner.
+    expect(resolveQuestionAnchor("what's the eval after move 7 for Black?", MOVES, "w", undefined, plain("w"))?.index).toBe(12);
+  });
+
+  it("a side as the verb's subject owns the move number", () => {
+    for (const q of [
+      "what did black play on move 7?",
+      "what did my opponent play on move 7?",
+      "how did black respond on move 7?",
+      "on move 7 black played Qxc1, why?",
+      "why was move 7 by my opponent bad?",
+      "why was my opponents 7th move bad?",
+    ])
+      expect(resolveQuestionAnchor(q, MOVES, "w", undefined, plain("w"))?.index, q).toBe(13);
+    // Two sides as subjects: no owner, as before.
+    expect(resolveQuestionAnchor("white played and black played, what about move 7?", MOVES, "w", undefined, plain("w"))?.index).toBe(12);
+  });
+
+  it("with no owner and no subject, the reading is the one without opts", () => {
+    const short = MOVES.slice(0, 19);
+    for (const q of ["why was move 10 bad?", "why did I move 3 pawns so early?", "move 60?"]) {
+      const missing: unknown[] = [];
+      expect(
+        resolveQuestionAnchor(q, short, "w", undefined, { ...plain("w"), onMissing: (m) => missing.push(m) })?.index,
+        q
+      ).toBe(resolveQuestionAnchor(q, short, "w")?.index);
+      expect(missing, q).toEqual([]);
+    }
   });
 
   it("a count of things moved is not a move number", () => {
@@ -197,7 +244,7 @@ describe("resolveQuestionAnchor — the follow-up's side reading (opts)", () => 
     // Both sides' moves: the game has White's Nf3 twice; Black never played it.
     const castles = ["e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5", "O-O", "Nf6", "d3", "O-O"];
     expect(resolveQuestionAnchor("was O-O a mistake?", castles, "w", 10)?.index).toBe(9);
-    expect(resolveQuestionAnchor("was O-O a mistake?", castles, "w", 10, as("w"))?.index).toBe(9);
+    expect(resolveQuestionAnchor("was O-O a mistake?", castles, "w", 10, plain("w"))?.index).toBe(9);
     expect(resolveQuestionAnchor("was O-O a mistake?", castles, "w", 10, as("w", { preferDefaultSide: true }))?.index).toBe(6);
     expect(resolveQuestionAnchor("was my O-O a mistake?", castles, "b", 7, as("w"))?.index).toBe(9);
     expect(resolveQuestionAnchor("was Black's O-O a mistake?", castles, "w", 7, as("w"))?.index).toBe(9);

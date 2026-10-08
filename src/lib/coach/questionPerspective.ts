@@ -52,9 +52,9 @@ export interface TurnSubject {
 
 /** A side as the subject of a verb: "Black", "my opponent", "he". */
 const SUBJ = "(white|black|(?:my|the)\\s+opponent|opponent|he|she|they)";
-/** A side as an owner: "Black's", "Blacks", "my opponent's", "his". */
+/** A side as an owner: "Black's", "Blacks", "my opponent's", "opponents", "his". */
 const POSS =
-  "(white(?:'s|s)?|black(?:'s|s)?|(?:(?:my|the)\\s+)?opponent's|his|her|their)";
+  "(white(?:'s|s)?|black(?:'s|s)?|(?:(?:my|the)\\s+)?opponent(?:'s|s)|his|her|their)";
 const VIEW_NOUN =
   "(?:side|perspective|point\\s+of\\s+view|pov|eyes|view|viewpoint|angle|shoes)";
 /** Ranks that pick the side's bad moves. */
@@ -64,13 +64,25 @@ const RANK =
 const GOOD_RANK = "(?:best|good|only|strongest|top)";
 const MISTAKE_NOUN =
   "(?:mistakes?|blunders?|errors?|inaccurac(?:y|ies)|moments?|decisions?|choices?)";
+const THINKING_VERB =
+  "(?:thinking|planning|trying|hoping|going\\s+for|aiming\\s+for|after|up\\s+to)";
 
 const rx = (src: string) => new RegExp(src, "gi");
 
-/** The readings, each capturing the side in group 1. */
+/**
+ * The readings, each capturing the side in group 1. A kind ending "_now"
+ * asks about the board on screen and is never carried to a later turn.
+ */
 const RULES: { kind: string; re: RegExp }[] = [
-  // "from Black's side", "through my opponent's eyes", "in his shoes".
-  { kind: "view", re: rx(`\\b(?:from|through)\\s+${POSS}\\s+${VIEW_NOUN}\\b`) },
+  // "from Black's side", "from the black side", "through my opponent's
+  // eyes", "in his shoes"; never "from Black's side of the board" or "side
+  // to move" (territory, the turn).
+  {
+    kind: "view",
+    re: rx(
+      `\\b(?:from|through)\\s+(?:the\\s+)?${POSS}\\s+${VIEW_NOUN}\\b(?!\\s+(?:of\\s+the\\s+board|to\\b))`
+    ),
+  },
   { kind: "view", re: rx(`\\bin\\s+${POSS}\\s+shoes\\b`) },
   {
     kind: "view",
@@ -84,20 +96,39 @@ const RULES: { kind: string; re: RegExp }[] = [
       `\\b${POSS}\\s+side\\s+of\\s+(?:it|things|the\\s+game|the\\s+story)\\b`
     ),
   },
-  // "what was Black thinking", "what did my opponent miss", "where did he go wrong".
+  // "what was Black thinking", "what Black was thinking"; "what is he up to" is about now.
+  {
+    kind: "thinking",
+    re: rx(`\\bwhat\\s+(?:was|were)\\s+${SUBJ}\\s+${THINKING_VERB}\\b`),
+  },
   {
     kind: "thinking",
     re: rx(
-      `\\bwhat(?:\\s+(?:was|were|is|are)|'s|'re)\\s+${SUBJ}\\s+(?:thinking|planning|trying|hoping|going\\s+for|aiming\\s+for|after|up\\s+to)\\b`
+      `\\b(?:what|where|how)\\s+${SUBJ}\\s+(?:was|were)\\s+${THINKING_VERB}\\b`
     ),
   },
   {
-    kind: "decision",
+    kind: "thinking_now",
     re: rx(
-      `\\bwhat\\s+(?:did|does|do)\\s+${SUBJ}\\s+(?:want|plan|intend|miss|overlook|see|do\\s+wrong|get\\s+wrong)\\b`
+      `\\bwhat(?:\\s+(?:is|are)|'?s|'re)\\s+${SUBJ}\\s+${THINKING_VERB}\\b`
     ),
   },
-  { kind: "decision", re: rx(`\\bwhere\\s+did\\s+${SUBJ}\\s+go\\s+wrong\\b`) },
+  // "what did my opponent miss", "where did he go wrong", "why did Black lose".
+  {
+    kind: "decision",
+    re: rx(
+      `\\bwhat\\s+did\\s+${SUBJ}\\s+(?:want|plan|intend|miss|overlook|see|do\\s+wrong|get\\s+wrong)\\b`
+    ),
+  },
+  {
+    kind: "decision_now",
+    re: rx(`\\bwhat\\s+(?:does|do)\\s+${SUBJ}\\s+(?:want|plan|intend|see)\\b`),
+  },
+  {
+    kind: "decision",
+    re: rx(`\\bwhere(?:\\s+did|'d)\\s+${SUBJ}\\s+go\\s+wrong\\b`),
+  },
+  { kind: "decision", re: rx(`\\bwhere\\s+${SUBJ}\\s+went\\s+wrong\\b`) },
   {
     kind: "decision",
     re: rx(
@@ -107,26 +138,39 @@ const RULES: { kind: string; re: RegExp }[] = [
   {
     kind: "decision",
     re: rx(
-      `\\bwhy\\s+(?:did|didn't|did\\s+not|would|wouldn't)\\s+${SUBJ}\\s+(?:play|move|take|go\\s+for|choose|castle|resign|sacrifice|trade|push|give\\s+up)\\b`
+      `\\bwhy\\s+(?:did|didn't|did\\s+not|would|wouldn't)\\s+${SUBJ}\\s+(?:play|move|take|go\\s+for|choose|castle|resign|sacrifice|trade|push|give\\s+up|lose)\\b`
     ),
   },
-  // "how should Black have played", "what should my opponent play here".
+  // "how should Black have played", "what Black should have played";
+  // "what should my opponent play here" is about now.
   {
     kind: "should",
     re: rx(
-      `\\b(?:how|what)\\s+(?:should|could|would)\\s+${SUBJ}\\s+have\\s+(?:played|done|defended|continued|reacted|responded|tried)\\b`
+      `\\b(?:how|what)\\s+(?:should|could|would)\\s+${SUBJ}\\s+(?:have|of)\\s+(?:played|done|defended|continued|reacted|responded|tried)\\b`
+    ),
+  },
+  {
+    kind: "should",
+    re: rx(
+      `\\b(?:how|what)\\s+${SUBJ}\\s+(?:should|could)\\s+(?:have|of)\\s+(?:played|done)\\b`
     ),
   },
   {
     kind: "should_now",
     re: rx(`\\bwhat\\s+(?:should|could)\\s+${SUBJ}\\s+(?:play|do)\\b`),
   },
-  // "Black's worst move", "my opponent's mistakes", "his blunder".
+  // "Black's worst move", "my opponents mistakes", "his blunder", "the worst move by Black".
   {
     kind: "moments",
     re: rx(`\\b${POSS}\\s+(?:${RANK}\\s+)?${MISTAKE_NOUN}\\b`),
   },
   { kind: "moments", re: rx(`\\b${POSS}\\s+${RANK}\\s+moves?\\b`) },
+  {
+    kind: "moments",
+    re: rx(
+      `\\b(?:worst|biggest|costliest|key|critical|bad)\\s+(?:moves?|${MISTAKE_NOUN})\\s+(?:by|for|of)\\s+${SUBJ}\\b`
+    ),
+  },
   // "Black's best move", "what's my opponent's best reply".
   {
     kind: "best",
@@ -151,7 +195,13 @@ const normalise = (s: string) => s.replace(/[’‘]/g, "'");
 
 /** "I", "me", "my" (not "my opponent"): a question about the player's own play. */
 const FIRST_PERSON_RE =
-  /\b(?:i|me|mine|myself|i'm|i've|i'd|i'll)\b|\bmy\b(?!\s+opponent)/i;
+  /\b(?:i(?!\s+(?:don't\s+|do\s+not\s+)?(?:see|understand|get|follow)\b)|mine|myself|we|us|our|ours)\b|\bmy\b(?!\s+opponent)/i;
+/** "my knight", "my rooks": then "they" and "he" are the player's own pieces. */
+const MY_PIECES_RE =
+  /\bmy\s+(?:pawns?|knights?|bishops?|rooks?|queens?|kings?|pieces?)\b/i;
+/** The player's colour named as a word: a question about the player's side. */
+const namesColour = (text: string, side: Side) =>
+  (side === "w" ? /\bwhite\b/i : /\bblack\b/i).test(text);
 /** Readings about the game played that may carry over to a later question. */
 const CARRIED_KINDS = new Set([
   "view",
@@ -184,9 +234,13 @@ export function perspectiveFromWords(
   const text = normalise(message);
   const other: Side = player === "w" ? "b" : "w";
   const found: { side: Side; rule: string }[] = [];
+  const firstPerson = FIRST_PERSON_RE.test(text);
   for (const { kind, re } of RULES) {
+    // "did I punish Black's blunder?" is about the player's play.
+    if ((kind === "moments" || kind === "best") && firstPerson) continue;
     for (const m of Array.from(text.matchAll(re))) {
       const who = m[1].toLowerCase();
+      if (/^(?:he|she|they)$/.test(who) && MY_PIECES_RE.test(text)) continue;
       if (who.startsWith("white"))
         found.push({ side: "w", rule: `colour_${kind}` });
       else if (who.startsWith("black"))
@@ -247,22 +301,29 @@ export function resolveTurnSubject(input: {
       ? { side: field, source: "field", rule: "field" }
       : null;
   const text = normalise(input.message ?? "");
-  if (FIRST_PERSON_RE.test(text) || PLAYER_RE.test(text)) return null;
+  const endsCarry = (said: string) =>
+    FIRST_PERSON_RE.test(said) ||
+    PLAYER_RE.test(said) ||
+    namesColour(said, input.player);
+  // "what should we play now?", "and how did White play?", "back to my side".
+  if (endsCarry(text) || HERE_CUE_RE.test(text)) return null;
   const history = input.history ?? [];
   for (let i = history.length - 1; i >= 0; i--) {
     const said = normalise(history[i] ?? "");
-    if (PLAYER_RE.test(said)) return null;
     const earlier = perspectiveFromWords(
       said,
       input.player,
       input.sideConfirmed
     );
-    if (!earlier) continue;
-    const kind = earlier.rule.replace(/^(?:colour|opponent)_/, "");
-    if (!CARRIED_KINDS.has(kind) || HERE_CUE_RE.test(said)) continue;
-    return earlier.side !== input.player
-      ? { side: earlier.side, source: "history", rule: earlier.rule }
-      : null;
+    if (earlier) {
+      // A later turn about the player's side ended the carry.
+      if (earlier.side === input.player) return null;
+      const kind = earlier.rule.replace(/^(?:colour|opponent)_/, "");
+      if (!CARRIED_KINDS.has(kind) || HERE_CUE_RE.test(said)) continue;
+      return { side: earlier.side, source: "history", rule: earlier.rule };
+    }
+    // "back to me please, what did I do wrong?" ended it too.
+    if (endsCarry(said)) return null;
   }
   return null;
 }

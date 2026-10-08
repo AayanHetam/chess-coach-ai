@@ -227,6 +227,7 @@ describe("buildSubjectMomentsBlock", () => {
         startPly: 13,
         sans: ["Kd8", "Be2", "Qxa2", "O-O"],
         replacing: true,
+        subject: true,
       },
     ]);
     // The licence copy carries the story's words but no line's moves.

@@ -19,7 +19,17 @@ describe("perspectiveFromWords: a colour named", () => {
     ["what's Black's side of the story", "b", "colour_view"],
     ["black's perspective please", "b", "colour_view"],
     ["what was Black thinking with Ka7?", "b", "colour_thinking"],
-    ["what's black going for here", "b", "colour_thinking"],
+    ["what's black going for here", "b", "colour_thinking_now"],
+    ["whats black thinking", "b", "colour_thinking_now"],
+    ["i dont get what black was thinking with Qxb2", "b", "colour_thinking"],
+    ["from the black side, what went wrong?", "b", "colour_view"],
+    ["where’d black go wrong?", "b", "colour_decision"],
+    ["where black went wrong?", "b", "colour_decision"],
+    ["why did black lose?", "b", "colour_decision"],
+    ["how should black of played?", "b", "colour_should"],
+    ["what black should have played on move 7?", "b", "colour_should"],
+    ["what was the worst move by black?", "b", "colour_moments"],
+    ["what does black want?", "b", "colour_decision_now"],
     ["what did Black miss?", "b", "colour_decision"],
     ["what did black do wrong", "b", "colour_decision"],
     ["where did Black go wrong?", "b", "colour_decision"],
@@ -67,6 +77,9 @@ describe("perspectiveFromWords: the opponent named", () => {
     ["how should my opponent have played?", "opponent_should"],
     ["what was my opponent's biggest mistake?", "opponent_moments"],
     ["their mistakes", "opponent_moments"],
+    ["from my opponents side, what went wrong?", "opponent_view"],
+    ["my opponents biggest mistake?", "opponent_moments"],
+    ["whats my opponent thinking", "opponent_thinking_now"],
   ])("%s (confirmed)", (m, rule) => {
     expect(words(m, "w")).toEqual({ side: "b", rule });
     expect(words(m, "b")).toEqual({ side: "w", rule });
@@ -116,6 +129,11 @@ describe("perspectiveFromWords: not a perspective", () => {
     "what was the best move here?",
     "Black resigned, was that too early?",
     "why did I play Ka7?",
+    "what should I have played after my opponent's mistake?",
+    "did I take advantage of Black's mistake?",
+    "I missed my opponent's best move, why?",
+    "my rooks were doubled, what were they aiming for?",
+    "from black's side of the board my knight was strong",
     "",
   ])("%s", (m) => {
     expect(words(m)).toBeNull();
@@ -246,7 +264,69 @@ describe("resolveTurnSubject", () => {
       ).toBeNull();
   });
 
+  it("a present-tense question about the board does not carry", () => {
+    for (const earlier of [
+      "what does black want?",
+      "what is my opponent planning?",
+    ])
+      expect(
+        resolveTurnSubject({
+          ...base,
+          message: "and move 9?",
+          history: [earlier],
+        }),
+        earlier
+      ).toBeNull();
+  });
+
+  it("a carry ended by a later turn stays ended", () => {
+    for (const middle of [
+      "back to me please, what did I do wrong?",
+      "ok now my mistakes please",
+      "what's White's best move here?",
+    ])
+      expect(
+        resolveTurnSubject({
+          ...base,
+          message: "and what about the endgame?",
+          history: ["from Black's side, what went wrong?", middle],
+        }),
+        middle
+      ).toBeNull();
+  });
+
+  it("a continuation of the other side's answer keeps it", () => {
+    for (const message of [
+      "tell me more",
+      "show me the line",
+      "I don't understand, why was that so bad?",
+    ])
+      expect(
+        resolveTurnSubject({
+          ...base,
+          message,
+          history: ["from Black's side, what went wrong?"],
+        }),
+        message
+      ).toEqual({ side: "b", source: "history", rule: "colour_view" });
+  });
+
   it("a question in the first person, or naming the player's side, ends the carry", () => {
+    for (const message of [
+      "and how did White play?",
+      "what about white?",
+      "what should we play now?",
+      "where did we go wrong?",
+      "what's the best move here?",
+    ])
+      expect(
+        resolveTurnSubject({
+          ...base,
+          message,
+          history: ["from Black's side, what went wrong?"],
+        }),
+        message
+      ).toBeNull();
     const history = ["from Black's side, what went wrong?"];
     for (const message of [
       "what should I play here?",

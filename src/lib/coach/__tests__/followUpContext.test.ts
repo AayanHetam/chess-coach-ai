@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { AnalysisContext } from "@/lib/analysisContextCache";
 import { buildCompactGameContext } from "@/lib/coach/compactGameContext";
-import { resolveQuestionAnchor } from "../questionAnchor";
+import { anchorAtIndex, resolveQuestionAnchor } from "../questionAnchor";
 import {
   buildAnchorBlock,
   buildFollowUpCondensedContext,
+  whatIfLicensedLines,
   windowMoveTable,
 } from "../followUpContext";
+import { verifyClientEvals } from "../clientEvals";
 
 // Fixture 07: 8. Nc7+ forks king and rook while Black's queen on c1 hangs to 8. Qxc1.
 const MOVES = [
@@ -208,5 +210,139 @@ describe("buildFollowUpCondensedContext", () => {
     expect(buildFollowUpCondensedContext(ctx(), null)).toContain(
       "first message in this conversation"
     );
+  });
+});
+
+describe("buildAnchorBlock — a verified what-if's own search", () => {
+  const anchor = resolveQuestionAnchor("why not 8. Qxc1?", MOVES, "w")!;
+  const verdict = verifyClientEvals(
+    {
+      index: 14,
+      fen: anchor.fenBefore,
+      depth: 12,
+      moves: [
+        {
+          role: "asked",
+          uci: "d1c1",
+          cp: 251,
+          depth: 12,
+          pv: ["d1c1", "a8b8", "c1f4", "g8f6"],
+        },
+        {
+          role: "played",
+          uci: "b5c7",
+          cp: -97,
+          depth: 12,
+          pv: ["b5c7", "e8d8", "c7a8"],
+        },
+      ],
+    },
+    { playedMoves: MOVES, gameEval: gameEval() as never }
+  );
+  if (!verdict.ok) throw new Error(`fixture did not verify: ${verdict.reason}`);
+  const whatIf = verdict.value;
+  const without = buildAnchorBlock(anchor, MOVES, gameEval() as never, "w");
+  const withIt = buildAnchorBlock(
+    anchor,
+    MOVES,
+    gameEval() as never,
+    "w",
+    whatIf
+  );
+
+  it("without one the block is byte for byte what it was", () => {
+    expect(
+      buildAnchorBlock(anchor, MOVES, gameEval() as never, "w", null)
+    ).toBe(without);
+    expect(
+      buildAnchorBlock(anchor, MOVES, gameEval() as never, "w", undefined)
+    ).toBe(without);
+  });
+
+  it("tells the search's moves with their numbers, labelled as a search of their own", () => {
+    expect(withIt).toContain(
+      "WHAT-IF SEARCH of the position before 8. Nc7+, at depth 12"
+    );
+    expect(withIt).toContain(
+      "never with the evals above, which come from another search"
+    );
+    expect(withIt).toContain(
+      "  8. Qxc1 (the alternative asked about): +2.51 (White's perspective), line 8. Qxc1 Rb8 9. Qf4 Nf6"
+    );
+    expect(withIt).toContain(
+      "  8. Nc7+ (the move played): -0.97 (White's perspective), line 8. Nc7+ Kd8 9. Nxa8"
+    );
+    // The alternative's own line, told; and the review's block untouched.
+    expect(withIt).toContain("    what this line does:");
+    for (const line of without.split("\n")) expect(withIt).toContain(line);
+  });
+
+  it("never puts a figure at the end of a sentence, nor as 'the engine rates'", () => {
+    const section = withIt
+      .split("\n")
+      .filter((l) => l.includes("(White's perspective), line"));
+    expect(section).toHaveLength(2);
+    for (const l of section) {
+      expect(l).not.toMatch(/[+-]\d+\.\d\d\.(\s|$)/);
+      expect(l).not.toMatch(/rates/);
+    }
+  });
+
+  it("the game's own move asked about by name is labelled the move played, not an alternative", () => {
+    const v = verifyClientEvals(
+      {
+        index: 14,
+        fen: anchor.fenBefore,
+        depth: 12,
+        moves: [
+          {
+            role: "asked",
+            uci: "b5c7",
+            cp: -97,
+            depth: 12,
+            pv: ["b5c7", "e8d8", "c7a8"],
+          },
+        ],
+      },
+      { playedMoves: MOVES, gameEval: gameEval() as never }
+    );
+    if (!v.ok) throw new Error(v.reason);
+    const onPlayed = anchorAtIndex(MOVES, 14, "Nc7+")!;
+    expect(onPlayed.askedSan).toBeUndefined();
+    const block = buildAnchorBlock(
+      onPlayed,
+      MOVES,
+      gameEval() as never,
+      "w",
+      v.value
+    );
+    expect(block).toContain("  8. Nc7+ (the move played, asked about): -0.97");
+    expect(block).not.toContain("alternative asked about");
+  });
+
+  it("with no review eval for the move, the block points at the search's numbers instead of forbidding any", () => {
+    const block = buildAnchorBlock(anchor, MOVES, undefined, "w", whatIf);
+    expect(block).not.toContain("do not quote an evaluation");
+    expect(block).toContain("quote only the what-if search's numbers below");
+    expect(buildAnchorBlock(anchor, MOVES, undefined, "w")).toContain(
+      "do not quote an evaluation"
+    );
+  });
+
+  it("licenses the search's lines from the position, replacing the game's move", () => {
+    expect(whatIfLicensedLines(whatIf)).toEqual([
+      {
+        startFen: anchor.fenBefore,
+        startPly: 14,
+        sans: ["Qxc1", "Rb8", "Qf4", "Nf6"],
+        replacing: true,
+      },
+      {
+        startFen: anchor.fenBefore,
+        startPly: 14,
+        sans: ["Nc7+", "Kd8", "Nxa8"],
+        replacing: true,
+      },
+    ]);
   });
 });

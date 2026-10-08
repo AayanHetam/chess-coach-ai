@@ -18,13 +18,24 @@ import {
   getFollowUpSystemPromptStable,
   followUpTurnReminder,
 } from "@/lib/prompts/followUpPrompt";
-import { resolveQuestionAnchor } from "@/lib/coach/questionAnchor";
+import {
+  anchorAtIndex,
+  resolveQuestionAnchor,
+} from "@/lib/coach/questionAnchor";
+import {
+  isWhatIfEvalsEnabled,
+  verifyClientEvals,
+  type ClientEvalsOutcome,
+  type VerifiedWhatIf,
+} from "@/lib/coach/clientEvals";
 import { resolveQuestionIntent } from "@/lib/coach/questionIntent";
 import {
   buildAnchorBlock,
   anchorAlternativeFen,
   anchorLicensedLines,
   buildFollowUpCondensedContext,
+  whatIfLicensedLines,
+  whatIfLicensedEvals,
 } from "@/lib/coach/followUpContext";
 import { buildRelationalFacts } from "@/lib/relational/relationalFactsBuilder";
 import { validateAIResponse } from "@/lib/aiResponseValidator";
@@ -109,6 +120,8 @@ function refereeChatReply(
     activePly?: number;
     /** The anchor's engine line, for numbered moves cited from it. */
     lines?: readonly LicensedLine[];
+    /** A verified what-if's numbers, each licensed only beside its own move. */
+    evalsByMove?: readonly { eval: string; san: string }[];
   },
   /**
    * Spans a Mastermind validator contradicted in this very reply, when the
@@ -131,6 +144,7 @@ function refereeChatReply(
       activeFen,
       moveHistory: context.playedMoves ?? [],
       licensedEvals,
+      licensedEvalsByMove: anchorLicence?.evalsByMove,
       extraFens: anchorLicence?.fens,
       extraLicensedText: anchorLicence?.text,
       activePly: anchorLicence?.activePly,
@@ -195,6 +209,7 @@ export async function POST(request: NextRequest) {
       conversationHistory,
       fen: clientFen,
       moveIndex,
+      clientEvals: clientEvalsRaw,
     } = parsed.data;
 
     // API-key presence is validated inside callLLM(); both Anthropic and
@@ -255,20 +270,69 @@ export async function POST(request: NextRequest) {
       // anchor moves everything — facts, pipeline ply, referee boards — to the
       // move in question, and the response tells the client to put that
       // position on the board.
-      const anchor = resolveQuestionAnchor(
+      const resolvedAnchor = resolveQuestionAnchor(
         userMessage,
         context.playedMoves ?? [],
         playerColorLetter,
         moveIndex
       );
+      let anchor = resolvedAnchor;
+
+      // The client's what-if for this question (lib/coach/clientEvals.ts):
+      // its own search's numbers for the alternative, the game's move and
+      // the review's best there. Verified against the stored game, never
+      // trusted; when it holds, the turn is about the move the board shows
+      // (the anchor moves to its ply, with the alternative asked about), its
+      // lines and numbers are licensed like the review's, and the eval
+      // validator checks a claim naming one of its moves against that move.
+      let whatIf: VerifiedWhatIf | null = null;
+      let clientEvalsOutcome: ClientEvalsOutcome =
+        clientEvalsRaw === undefined
+          ? { status: "absent" }
+          : isWhatIfEvalsEnabled()
+            ? { status: "dropped", reason: "shape" }
+            : { status: "off" };
+      if (clientEvalsRaw !== undefined && isWhatIfEvalsEnabled()) {
+        const verdict = verifyClientEvals(clientEvalsRaw, {
+          playedMoves: context.playedMoves ?? [],
+          gameEval: context.gameEval as never,
+        });
+        if (!verdict.ok) {
+          clientEvalsOutcome = { status: "dropped", reason: verdict.reason };
+        } else {
+          const asked = verdict.value.moves.find((m) => m.role === "asked")!;
+          // The alternative asked about, unless it is the game's own move
+          // there ("what about 8. Nc7+?").
+          const whatIfAnchor = anchorAtIndex(
+            context.playedMoves ?? [],
+            verdict.value.index,
+            asked.san
+          );
+          if (!whatIfAnchor) {
+            clientEvalsOutcome = {
+              status: "dropped",
+              reason: "final_position",
+            };
+          } else {
+            whatIf = verdict.value;
+            anchor = whatIfAnchor;
+            clientEvalsOutcome = {
+              status: "verified",
+              index: verdict.value.index,
+              depth: verdict.value.depth,
+            };
+          }
+        }
+      }
       if (anchor) {
         activeFen = anchor.fenAfter;
         effectiveMoveIndex = anchor.ply;
       }
       // What the player is asking for (questionIntent.ts), by rule where a
-      // rule can be sure. SHADOW: logged and echoed beside the anchor so the
-      // distribution can be measured, and nothing served differently. The
-      // classifier below keeps deciding the validators' category.
+      // rule can be sure, on the anchor the turn is served on. SHADOW: logged
+      // and echoed beside the anchor so the distribution can be measured,
+      // and nothing served differently. The classifier below keeps deciding
+      // the validators' category.
       const intent = resolveQuestionIntent(userMessage, {
         anchor,
         moves: context.playedMoves ?? [],
@@ -283,14 +347,28 @@ export async function POST(request: NextRequest) {
       // the game's continuation, each narrated ply by ply.
       let perTurnFacts = "";
       let anchorBlock = "";
+      // What the referee licenses from the block: the block itself, but
+      // without a what-if's search, whose moves are licensed only along
+      // their own line (the referee's roots) and whose numbers are passed
+      // as they stand, so no other line can borrow its replies.
+      let anchorLicenceText = "";
       try {
         if (anchor) {
           anchorBlock = buildAnchorBlock(
             anchor,
             context.playedMoves ?? [],
             context.gameEval as never,
-            playerColorLetter
+            playerColorLetter,
+            whatIf
           );
+          anchorLicenceText = whatIf
+            ? buildAnchorBlock(
+                anchor,
+                context.playedMoves ?? [],
+                context.gameEval as never,
+                playerColorLetter
+              )
+            : anchorBlock;
           const relationalAfter = buildRelationalFacts(anchor.fenAfter).summary;
           perTurnFacts = [
             anchorBlock,
@@ -317,6 +395,19 @@ export async function POST(request: NextRequest) {
         askedSan: anchor?.askedSan ?? null,
         intent: intent.intent,
         intentRule: intent.rule,
+        clientEvals: clientEvalsOutcome.status,
+        ...(clientEvalsOutcome.status === "dropped"
+          ? { clientEvalsReason: clientEvalsOutcome.reason }
+          : {}),
+        // Where the question's words put the move, when the client's
+        // verified what-if put it elsewhere: kept so the two resolvers can
+        // be brought together.
+        ...(whatIf
+          ? {
+              wordsPly: resolvedAnchor?.ply ?? null,
+              wordsAskedSan: resolvedAnchor?.askedSan ?? null,
+            }
+          : {}),
       });
 
       // PR-CI-6a — follow-up grounding. When the review above was served
@@ -335,7 +426,11 @@ export async function POST(request: NextRequest) {
             context.compactContract,
             undefined,
             anchor
-              ? { moveNumber: anchor.moveNumber, color: anchor.color }
+              ? {
+                  moveNumber: anchor.moveNumber,
+                  color: anchor.color,
+                  ...(whatIf ? { whatIf: true } : {}),
+                }
               : undefined
           )
         : "";
@@ -462,6 +557,9 @@ export async function POST(request: NextRequest) {
         // today, and the synthetic tester can count it.
         intent,
         followUpPrompt: useFollowUpPrompt ? FOLLOWUP_PROMPT_VERSION : "legacy",
+        // What happened to the client's what-if numbers; the client ignores
+        // it, the synthetic tester and the logs read it.
+        clientEvals: clientEvalsOutcome,
       };
       const altFen = anchor ? anchorAlternativeFen(anchor) : null;
       const anchorLicence = anchor
@@ -471,9 +569,13 @@ export async function POST(request: NextRequest) {
               anchor.fenAfter,
               ...(altFen ? [altFen] : []),
             ],
-            text: anchorBlock,
+            text: anchorLicenceText,
             activePly: anchor.ply,
-            lines: anchorLicensedLines(anchor, context.gameEval as never),
+            lines: [
+              ...anchorLicensedLines(anchor, context.gameEval as never),
+              ...(whatIf ? whatIfLicensedLines(whatIf) : []),
+            ],
+            evalsByMove: whatIf ? whatIfLicensedEvals(whatIf) : [],
           }
         : {
             fens: [],
@@ -555,6 +657,24 @@ export async function POST(request: NextRequest) {
                     cacheSystem: true,
                   },
                   stockfishEval: prep.moveCtx.stockfishEval,
+                  positionEvals: whatIf
+                    ? whatIf.moves.map((m) => ({
+                        san: m.san,
+                        cp: m.cp,
+                        mate: m.mate,
+                        review: m.review,
+                        moveNumber: whatIf!.moveNumber,
+                        color: whatIf!.color,
+                        // A bare "Qxc1" is this move only when the game
+                        // never played that SAN at another ply.
+                        playedElsewhere: (context.playedMoves ?? []).some(
+                          (san, k) =>
+                            k !== whatIf!.index &&
+                            san.replace(/[+#]/g, "") ===
+                              m.san.replace(/[+#]/g, "")
+                        ),
+                      }))
+                    : undefined,
                   featureDelta: dataSources.featureDelta,
                   pieceRoleDiff: dataSources.pieceRoleDiff,
                   threatTree: dataSources.threatTree,

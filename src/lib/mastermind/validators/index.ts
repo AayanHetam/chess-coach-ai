@@ -2,7 +2,11 @@ import { CallLLMOptions, LLMResult } from "@/lib/llmProvider";
 import { PositionFeatureDelta } from "../featureDelta";
 import { RoleChange } from "../pieceRoles";
 import { ThreatNode } from "../threatTree";
-import { validateEvalClaim, ParserCall } from "./evalClaim";
+import {
+  validateEvalClaim,
+  ParserCall,
+  type PositionEvalRef,
+} from "./evalClaim";
 import { validateFeatureDeltaCitations } from "./featureDeltaCitation";
 import { validateScoutCitation } from "./scoutCitation";
 import { validateUserHistoryCitation } from "./userHistoryCitation";
@@ -22,7 +26,7 @@ import type { UserHistoryGame } from "../userHistoryAggregates";
 import type { QuestionCategory } from "../categorization/categoryClassifier";
 
 export { validateEvalClaim } from "./evalClaim";
-export type { EvalClaimOpts, ParserCall } from "./evalClaim";
+export type { EvalClaimOpts, ParserCall, PositionEvalRef } from "./evalClaim";
 export { validateFeatureDeltaCitations } from "./featureDeltaCitation";
 export type { FeatureCitationOpts } from "./featureDeltaCitation";
 export { validateScoutCitation, countScoutOpportunities, SCOUT_TOLERANCE } from "./scoutCitation";
@@ -124,6 +128,13 @@ export interface PipelineOpts {
   initialRequest: CallLLMOptions;
   llmResponse?: string;
   stockfishEval: { cp?: number; mate?: number };
+  /**
+   * A verified what-if's moves with their own numbers (evalClaim.ts,
+   * PositionEvalRef): a claim bound to one is checked against that move's
+   * numbers, not against the played move's eval. Absent, every check is as
+   * before.
+   */
+  positionEvals?: readonly PositionEvalRef[];
   featureDelta: PositionFeatureDelta;
   pieceRoleDiff: RoleChange[];
   threatTree?: ThreatNode[];
@@ -299,6 +310,7 @@ export async function runValidationPipeline(opts: PipelineOpts): Promise<Regener
       ? validateEvalClaim({
           llmResponse: response,
           stockfishEval: opts.stockfishEval,
+          positionEvals: opts.positionEvals,
           playerPerspective: opts.playerPerspective,
           fen: opts.fen,
           moveSan: opts.moveSan,

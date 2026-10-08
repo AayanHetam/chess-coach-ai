@@ -35,7 +35,11 @@ describe("validateEvalClaim — qualitative mismatch", () => {
       playerPerspective: "white",
       correlationId: "test-1",
       parseCall: mockParser([
-        claim({ stated_band: "winning", perspective: "black", supporting_spans: ["Black is winning"] }),
+        claim({
+          stated_band: "winning",
+          perspective: "black",
+          supporting_spans: ["Black is winning"],
+        }),
       ]),
     });
     expect(r.passed).toBe(false);
@@ -48,7 +52,9 @@ describe("validateEvalClaim — qualitative mismatch", () => {
       stockfishEval: { cp: 70 },
       playerPerspective: "white",
       correlationId: "test-2",
-      parseCall: mockParser([claim({ stated_band: "slightly_better", perspective: "white" })]),
+      parseCall: mockParser([
+        claim({ stated_band: "slightly_better", perspective: "white" }),
+      ]),
     });
     expect(r.passed).toBe(true);
   });
@@ -62,7 +68,11 @@ describe("validateEvalClaim — numeric mismatch", () => {
       playerPerspective: "white",
       correlationId: "test-3",
       parseCall: mockParser([
-        claim({ stated_band: "much_better", stated_cp: 150, perspective: "white" }),
+        claim({
+          stated_band: "much_better",
+          stated_cp: 150,
+          perspective: "white",
+        }),
       ]),
     });
     expect(r.passed).toBe(true);
@@ -79,7 +89,9 @@ describe("validateEvalClaim — numeric mismatch", () => {
       ]),
     });
     expect(r.passed).toBe(false);
-    expect(r.issues.some((i) => i.check_name === "eval_mismatch_numeric")).toBe(true);
+    expect(r.issues.some((i) => i.check_name === "eval_mismatch_numeric")).toBe(
+      true
+    );
   });
 });
 
@@ -90,7 +102,9 @@ describe("validateEvalClaim — adjacent-band tolerance (20 cp)", () => {
       stockfishEval: { cp: 55 },
       playerPerspective: "white",
       correlationId: "test-5",
-      parseCall: mockParser([claim({ stated_band: "equal", perspective: "white" })]),
+      parseCall: mockParser([
+        claim({ stated_band: "equal", perspective: "white" }),
+      ]),
     });
     expect(r.passed).toBe(true);
   });
@@ -101,7 +115,9 @@ describe("validateEvalClaim — adjacent-band tolerance (20 cp)", () => {
       stockfishEval: { cp: 55 },
       playerPerspective: "white",
       correlationId: "test-6",
-      parseCall: mockParser([claim({ stated_band: "much_better", perspective: "white" })]),
+      parseCall: mockParser([
+        claim({ stated_band: "much_better", perspective: "white" }),
+      ]),
     });
     expect(r.passed).toBe(false);
   });
@@ -115,7 +131,11 @@ describe("validateEvalClaim — mate handling", () => {
       playerPerspective: "white",
       correlationId: "test-7",
       parseCall: mockParser([
-        claim({ stated_band: "winning", perspective: "black", supporting_spans: ["forced mate"] }),
+        claim({
+          stated_band: "winning",
+          perspective: "black",
+          supporting_spans: ["forced mate"],
+        }),
       ]),
     });
     expect(r.passed).toBe(true);
@@ -155,7 +175,11 @@ describe("validateEvalClaim — non-evaluative or hedged prose", () => {
       playerPerspective: "white",
       correlationId: "test-10",
       parseCall: mockParser([
-        claim({ stated_band: "slightly_worse", perspective: "black", confidence: 0.6 }),
+        claim({
+          stated_band: "slightly_worse",
+          perspective: "black",
+          confidence: 0.6,
+        }),
       ]),
     });
     expect(r.passed).toBe(true);
@@ -168,7 +192,11 @@ describe("validateEvalClaim — non-evaluative or hedged prose", () => {
       playerPerspective: "white",
       correlationId: "test-11",
       parseCall: mockParser([
-        claim({ stated_band: "winning", perspective: "black", claim_class: "metaphorical" }),
+        claim({
+          stated_band: "winning",
+          perspective: "black",
+          claim_class: "metaphorical",
+        }),
       ]),
     });
     expect(r.passed).toBe(true);
@@ -183,7 +211,9 @@ describe("validateEvalClaim — non-evaluative or hedged prose", () => {
       parseCall: rawParser("definitely not json"),
     });
     expect(r.passed).toBe(true);
-    expect(r.telemetry.some((e) => e.fire_reason === "parser_json_invalid")).toBe(true);
+    expect(
+      r.telemetry.some((e) => e.fire_reason === "parser_json_invalid")
+    ).toBe(true);
   });
 
   it("Parser returns claims with confidence below threshold → skipped", async () => {
@@ -193,11 +223,17 @@ describe("validateEvalClaim — non-evaluative or hedged prose", () => {
       playerPerspective: "white",
       correlationId: "test-conf-low",
       parseCall: mockParser([
-        claim({ stated_band: "winning", perspective: "black", confidence: 0.3 }),
+        claim({
+          stated_band: "winning",
+          perspective: "black",
+          confidence: 0.3,
+        }),
       ]),
     });
     expect(r.passed).toBe(true);
-    expect(r.telemetry.some((e) => e.fire_reason === "parser_low_confidence")).toBe(true);
+    expect(
+      r.telemetry.some((e) => e.fire_reason === "parser_low_confidence")
+    ).toBe(true);
   });
 
   // 2026-05-30 fix-historical-claims: game-review prose routinely cites
@@ -206,7 +242,8 @@ describe("validateEvalClaim — non-evaluative or hedged prose", () => {
   // skip_historical_claim telemetry instead of silently dropping.
   it("Parser returns historical claim → skipped with skip_historical_claim telemetry", async () => {
     const r = await validateEvalClaim({
-      llmResponse: "Black was winning at move 24, but the position is roughly equal now.",
+      llmResponse:
+        "Black was winning at move 24, but the position is roughly equal now.",
       stockfishEval: { cp: 20 }, // current position: equal
       playerPerspective: "white",
       correlationId: "test-historical",
@@ -236,7 +273,7 @@ describe("validateEvalClaim — non-evaluative or hedged prose", () => {
     expect(r.passed).toBe(true);
     expect(r.issues).toEqual([]);
     expect(
-      r.telemetry.some((e) => e.fire_reason === "skip_historical_claim"),
+      r.telemetry.some((e) => e.fire_reason === "skip_historical_claim")
     ).toBe(true);
     // The current-position claim ("equal" vs +20 cp = equal) passes.
     expect(r.telemetry.some((e) => e.fire_reason === "passed")).toBe(true);
@@ -246,7 +283,8 @@ describe("validateEvalClaim — non-evaluative or hedged prose", () => {
 describe("validateEvalClaim — adversarial metaphorical prose (§11.1)", () => {
   it("'Black's pieces are dancing around the kingside' → parser classifies metaphorical, no fire", async () => {
     const r = await validateEvalClaim({
-      llmResponse: "Black's pieces are dancing around the kingside, creating chaos.",
+      llmResponse:
+        "Black's pieces are dancing around the kingside, creating chaos.",
       stockfishEval: { cp: 70 },
       playerPerspective: "white",
       correlationId: "adv-1",
@@ -395,7 +433,9 @@ describe("validateEvalClaim — no-stockfish-eval skip path", () => {
     });
     // Real comparison path: passes because LLM claim matches stockfish.
     // Telemetry contains "passed", NOT "no_stockfish_eval".
-    expect(r.telemetry.some((e) => e.fire_reason === "no_stockfish_eval")).toBe(false);
+    expect(r.telemetry.some((e) => e.fire_reason === "no_stockfish_eval")).toBe(
+      false
+    );
     expect(r.telemetry.some((e) => e.fire_reason === "passed")).toBe(true);
   });
 
@@ -409,7 +449,9 @@ describe("validateEvalClaim — no-stockfish-eval skip path", () => {
         claim({ stated_band: "winning", perspective: "white" }),
       ]),
     });
-    expect(r.telemetry.some((e) => e.fire_reason === "no_stockfish_eval")).toBe(false);
+    expect(r.telemetry.some((e) => e.fire_reason === "no_stockfish_eval")).toBe(
+      false
+    );
   });
 });
 
@@ -435,11 +477,13 @@ describe("estimateHaikuCost — cost-calc regression", () => {
   }
 
   it("returns positive cost when cache_read_input_tokens > input_tokens", () => {
-    const cost = estimateHaikuCost(llmResult({
-      inputTokens: 50,
-      outputTokens: 200,
-      cacheReadTokens: 7000,
-    }));
+    const cost = estimateHaikuCost(
+      llmResult({
+        inputTokens: 50,
+        outputTokens: 200,
+        cacheReadTokens: 7000,
+      })
+    );
     // Hand-calc: 50/1M*$1 + 7000/1M*$0.10 + 200/1M*$5
     //   = $0.00005 + $0.00070 + $0.00100 = $0.00175
     expect(cost).toBeGreaterThan(0);
@@ -447,17 +491,464 @@ describe("estimateHaikuCost — cost-calc regression", () => {
   });
 
   it("accounts for cache_creation_input_tokens at 1.25x base input", () => {
-    const cost = estimateHaikuCost(llmResult({
-      inputTokens: 50,
-      outputTokens: 200,
-      cacheReadTokens: 0,
-      cacheCreationTokens: 6000,
-    }));
+    const cost = estimateHaikuCost(
+      llmResult({
+        inputTokens: 50,
+        outputTokens: 200,
+        cacheReadTokens: 0,
+        cacheCreationTokens: 6000,
+      })
+    );
     // Hand-calc: 50/1M*$1 + 6000/1M*$1.25 + 200/1M*$5
     //   = $0.00005 + $0.00750 + $0.00100 = $0.00855
     expect(cost).toBeCloseTo(0.00855, 6);
     // Without the cache-write term, cost would be only $0.00105.
     // The 8× gap isolates the cache-write contribution.
     expect(cost).toBeGreaterThan(0.005);
+  });
+});
+
+describe("validateEvalClaim — a verified what-if's own numbers (positionEvals)", () => {
+  // Fixture 07 at move 8: the game played 8. Nc7+ (the review has the
+  // position after it at -2.11); the client's search scored 8. Qxc1 at
+  // +2.51 and 8. Nc7+ at -0.97 side by side.
+  const whatIf = [
+    { san: "Qxc1", cp: 251 },
+    { san: "Nc7+", cp: -97 },
+  ];
+  const base = {
+    llmResponse: "",
+    stockfishEval: { cp: -211 },
+    playerPerspective: "white" as const,
+    moveSan: "Nc7+",
+    correlationId: "what-if",
+  };
+
+  it("a correct number about the alternative is no longer checked against the played move's eval", async () => {
+    const parseCall = mockParser([
+      claim({
+        stated_band: "much_better",
+        stated_cp: 251,
+        supporting_spans: ["8. Qxc1 keeps White at +2.51"],
+      }),
+    ]);
+    // Today's defect: flagged against the played move's -2.11.
+    const before = await validateEvalClaim({ ...base, parseCall });
+    expect(before.passed).toBe(false);
+    expect(before.issues.map((i) => i.check_name)).toContain(
+      "eval_mismatch_numeric"
+    );
+    const after = await validateEvalClaim({
+      ...base,
+      parseCall,
+      positionEvals: whatIf,
+    });
+    expect(after.passed).toBe(true);
+    expect(after.issues).toEqual([]);
+  });
+
+  it("a wrong number about the alternative is still caught, against the alternative's own number", async () => {
+    const r = await validateEvalClaim({
+      ...base,
+      positionEvals: whatIf,
+      parseCall: mockParser([
+        claim({
+          stated_band: "losing",
+          stated_cp: -900,
+          supporting_spans: ["8. Qxc1 keeps the game at -9.00"],
+        }),
+      ]),
+    });
+    expect(r.passed).toBe(false);
+    const numeric = r.issues.find(
+      (i) => i.check_name === "eval_mismatch_numeric"
+    )!;
+    expect(numeric.expected).toEqual({ cp: 251 });
+    expect(numeric.detail).toContain("about Qxc1");
+  });
+
+  it("the played move's number from either search passes, its check sign or not", async () => {
+    for (const [cp, span] of [
+      [-211, "after 8. Nc7+ White is at -2.11"],
+      [-97, "8. Nc7 comes out at -0.97"],
+    ] as const) {
+      const r = await validateEvalClaim({
+        ...base,
+        positionEvals: whatIf,
+        parseCall: mockParser([
+          claim({
+            stated_band: cp <= -150 ? "much_worse" : "slightly_worse",
+            stated_cp: cp,
+            supporting_spans: [span],
+          }),
+        ]),
+      });
+      expect(r.passed, span).toBe(true);
+    }
+  });
+
+  it("the played move's number pinned on the alternative is caught", async () => {
+    const r = await validateEvalClaim({
+      ...base,
+      positionEvals: whatIf,
+      parseCall: mockParser([
+        claim({
+          stated_band: "much_worse",
+          stated_cp: -211,
+          supporting_spans: ["8. Qxc1 drops White to -2.11"],
+        }),
+      ]),
+    });
+    expect(r.passed).toBe(false);
+  });
+
+  it("a claim naming no what-if move is checked as before, and without positionEvals nothing changes", async () => {
+    const parseCall = mockParser([
+      claim({
+        stated_band: "much_better",
+        stated_cp: 251,
+        supporting_spans: ["White is clearly better here"],
+      }),
+    ]);
+    const withMap = await validateEvalClaim({
+      ...base,
+      parseCall,
+      positionEvals: whatIf,
+    });
+    const without = await validateEvalClaim({ ...base, parseCall });
+    expect(withMap.passed).toBe(false);
+    expect(withMap.issues).toEqual(without.issues);
+    expect(withMap.telemetry.map((t) => t.fire_reason)).toEqual(
+      without.telemetry.map((t) => t.fire_reason)
+    );
+  });
+
+  it("a Black what-if's number reads White-relative from either perspective", async () => {
+    // After 9. Nxa8 Black played 9... Qxd1+ (the review: -2.00, Black
+    // winning); 9... Qa3 scored +1.50 for White. "Black at -1.50" is that.
+    const black = {
+      ...base,
+      moveSan: "Qxd1+",
+      stockfishEval: { cp: -200 },
+      playerPerspective: "black" as const,
+      parseCall: mockParser([
+        claim({
+          stated_band: "much_worse",
+          stated_cp: -150,
+          perspective: "black",
+          supporting_spans: ["9... Qa3 leaves Black at -1.50"],
+        }),
+      ]),
+    };
+    expect((await validateEvalClaim(black)).passed).toBe(false);
+    const withRefs = (qa3: number) =>
+      validateEvalClaim({
+        ...black,
+        positionEvals: [
+          { san: "Qa3", cp: qa3 },
+          { san: "Qxd1+", cp: -190 },
+        ],
+      });
+    expect((await withRefs(150)).passed).toBe(true);
+    // The other sign is the other side's number: caught.
+    expect((await withRefs(-150)).passed).toBe(false);
+  });
+
+  it("a span naming two moves is checked as before: which move a figure belongs to is not guessed", async () => {
+    const run = (claims: ParsedEvalClaim[], positionEvals?: typeof whatIf) =>
+      validateEvalClaim({
+        ...base,
+        positionEvals,
+        parseCall: mockParser(claims),
+      });
+    const one = (
+      span: string,
+      cp: number,
+      band: ParsedEvalClaim["stated_band"]
+    ) => claim({ stated_band: band, stated_cp: cp, supporting_spans: [span] });
+    for (const claims of [
+      // The played move's number on the alternative, the other named first.
+      [
+        one(
+          "Rather than 8. Nc7+, 8. Qxc1 leaves White at -0.97",
+          -97,
+          "slightly_worse"
+        ),
+      ],
+      // A pair that swaps the two numbers, and a pair that gets them right.
+      [
+        one(
+          "Here 8. Qxc1 only reaches -0.97 while 8. Nc7+ keeps +2.51",
+          -97,
+          "slightly_worse"
+        ),
+        one(
+          "Here 8. Qxc1 only reaches -0.97 while 8. Nc7+ keeps +2.51",
+          251,
+          "much_better"
+        ),
+      ],
+      [
+        one(
+          "Here 8. Qxc1 reaches +2.51 while 8. Nc7+ only keeps -0.97",
+          251,
+          "much_better"
+        ),
+        one(
+          "Here 8. Qxc1 reaches +2.51 while 8. Nc7+ only keeps -0.97",
+          -97,
+          "slightly_worse"
+        ),
+      ],
+      // The game's move with the alternative in a parenthetical.
+      [
+        one(
+          "8. Nc7+ (rather than 8. Qxc1) drops White to -2.11",
+          -211,
+          "much_worse"
+        ),
+      ],
+    ]) {
+      const withIt = await run(claims, whatIf);
+      const without = await run(claims);
+      expect(withIt.issues, claims[0].supporting_spans[0]).toEqual(
+        without.issues
+      );
+    }
+    // The wrong ones are caught that way too.
+    expect(
+      (
+        await run(
+          [
+            one(
+              "Rather than 8. Nc7+, 8. Qxc1 leaves White at -0.97",
+              -97,
+              "slightly_worse"
+            ),
+          ],
+          whatIf
+        )
+      ).passed
+    ).toBe(false);
+  });
+
+  it("a numbered mention names a what-if move only at its own number, and a bare one not when the game played that SAN elsewhere", async () => {
+    // Fixture 07: Black's 7... Qxc1 and White's what-if 8. Qxc1 share a SAN.
+    const at8 = [
+      {
+        san: "Qxc1",
+        cp: 251,
+        moveNumber: 8,
+        color: "w" as const,
+        playedElsewhere: true,
+      },
+      { san: "Nc7+", cp: -97, moveNumber: 8, color: "w" as const },
+    ];
+    const say = (
+      span: string,
+      cp: number,
+      band: ParsedEvalClaim["stated_band"]
+    ) => [
+      claim({ stated_band: band, stated_cp: cp, supporting_spans: [span] }),
+    ];
+    for (const claims of [
+      say("after 7... Qxc1 White is at -2.11", -211, "much_worse"),
+      say("Qxc1 keeps White at +2.51", 251, "much_better"),
+    ]) {
+      const withIt = await validateEvalClaim({
+        ...base,
+        positionEvals: at8,
+        parseCall: mockParser(claims),
+      });
+      const without = await validateEvalClaim({
+        ...base,
+        parseCall: mockParser(claims),
+      });
+      expect(withIt.issues, claims[0].supporting_spans[0]).toEqual(
+        without.issues
+      );
+    }
+    // Numbered at its own number, it is the what-if's move.
+    expect(
+      (
+        await validateEvalClaim({
+          ...base,
+          positionEvals: at8,
+          parseCall: mockParser(
+            say("8. Qxc1 keeps White at +2.51", 251, "much_better")
+          ),
+        })
+      ).passed
+    ).toBe(true);
+  });
+
+  it("a piece move written with another disambiguation is not the what-if's move", async () => {
+    const claims = [
+      claim({
+        stated_band: "equal",
+        stated_cp: 30,
+        supporting_spans: ["Nfd2 keeps it level at +0.30"],
+      }),
+    ];
+    const withIt = await validateEvalClaim({
+      ...base,
+      positionEvals: [
+        { san: "Nbd2", cp: 30 },
+        { san: "Nc7+", cp: -97 },
+      ],
+      parseCall: mockParser(claims),
+    });
+    const without = await validateEvalClaim({
+      ...base,
+      parseCall: mockParser(claims),
+    });
+    expect(withIt.issues).toEqual(without.issues);
+  });
+
+  it("the figure and the band are checked against the same number", async () => {
+    // +0.40 is the review's figure for 8. Qxc1, but "much better" is not
+    // what +0.40 is: the claim does not get the band from the cold +2.51.
+    const r = await validateEvalClaim({
+      ...base,
+      positionEvals: [
+        { san: "Qxc1", cp: 251, review: { cp: 40 } },
+        { san: "Nc7+", cp: -97 },
+      ],
+      parseCall: mockParser([
+        claim({
+          stated_band: "much_better",
+          stated_cp: 40,
+          supporting_spans: ["8. Qxc1 is much better for White at +0.40"],
+        }),
+      ]),
+    });
+    expect(r.issues.map((i) => i.check_name)).toEqual([
+      "eval_mismatch_qualitative",
+    ]);
+  });
+
+  it("a move's review number is a reference beside its cold one: the review's best keeps the review's figure", async () => {
+    // The review rates 8. Qxc1 +0.40 (its eval before the move) and the
+    // position after 8. Nc7+ +0.20; the cold search has +0.95 and +0.10.
+    const quiet = {
+      ...base,
+      stockfishEval: { cp: 20 },
+      positionEvals: [
+        { san: "Qxc1", cp: 95, review: { cp: 40 } },
+        { san: "Nc7+", cp: 10, review: { cp: 20 } },
+      ],
+    };
+    const say = (cp: number, band: ParsedEvalClaim["stated_band"]) =>
+      validateEvalClaim({
+        ...quiet,
+        parseCall: mockParser([
+          claim({
+            stated_band: band,
+            stated_cp: cp,
+            supporting_spans: [
+              `The engine line 8. Qxc1 Rb8 keeps the game at ${cp >= 0 ? "+" : ""}${(cp / 100).toFixed(2)} for White`,
+            ],
+          }),
+        ]),
+      });
+    expect((await say(40, "equal")).passed).toBe(true);
+    expect((await say(95, "slightly_better")).passed).toBe(true);
+    expect((await say(300, "much_better")).passed).toBe(false);
+  });
+
+  it("O-O is never read inside O-O-O, and 0-0 is O-O", async () => {
+    const castles = {
+      ...base,
+      moveSan: "O-O-O",
+      stockfishEval: { cp: -160 },
+      positionEvals: [
+        { san: "O-O", cp: 200 },
+        { san: "O-O-O", cp: -150, review: { cp: -160 } },
+      ],
+    };
+    const say = (span: string, cp: number) =>
+      validateEvalClaim({
+        ...castles,
+        parseCall: mockParser([
+          claim({
+            stated_band: cp > 0 ? "much_better" : "much_worse",
+            stated_cp: cp,
+            supporting_spans: [span],
+          }),
+        ]),
+      });
+    expect((await say("O-O-O keeps White at +2.00", 200)).passed).toBe(false);
+    expect((await say("O-O-O left White at -1.50", -150)).passed).toBe(true);
+    expect((await say("O-O keeps White at +2.00", 200)).passed).toBe(true);
+    expect((await say("0-0 keeps White at +2.00", 200)).passed).toBe(true);
+  });
+
+  it("a pawn push is a move only when numbered or cued, never a square", async () => {
+    const knight = {
+      ...base,
+      moveSan: "Nd5",
+      stockfishEval: { cp: -200 },
+      positionEvals: [
+        { san: "d5", cp: 60 },
+        { san: "Nd5", cp: -180, review: { cp: -200 } },
+      ],
+    };
+    const say = (span: string, cp: number) =>
+      validateEvalClaim({
+        ...knight,
+        parseCall: mockParser([
+          claim({
+            stated_band: cp > 0 ? "slightly_better" : "much_worse",
+            stated_cp: cp,
+            supporting_spans: [span],
+          }),
+        ]),
+      });
+    // The square: the played move's numbers, as before.
+    expect(
+      (await say("with the knight on d5 White is -2.00", -200)).passed
+    ).toBe(true);
+    expect((await say("with the knight on d5 White is +0.60", 60)).passed).toBe(
+      false
+    );
+    // The move: its own number.
+    expect((await say("pushing d5 gives White +0.60", 60)).passed).toBe(true);
+    expect((await say("4. d5 gives White +0.60", 60)).passed).toBe(true);
+  });
+
+  it("a piece move written without its disambiguation is the one move it can be", async () => {
+    const r = await validateEvalClaim({
+      ...base,
+      positionEvals: [
+        { san: "Nbd2", cp: 30 },
+        { san: "Nc7+", cp: -97 },
+      ],
+      parseCall: mockParser([
+        claim({
+          stated_band: "equal",
+          stated_cp: 30,
+          supporting_spans: ["Nd2 keeps it level at +0.30"],
+        }),
+      ]),
+    });
+    expect(r.passed).toBe(true);
+  });
+
+  it("a band-only claim about the played move is told the review's number first", async () => {
+    const r = await validateEvalClaim({
+      ...base,
+      positionEvals: whatIf,
+      parseCall: mockParser([
+        claim({
+          stated_band: "winning",
+          stated_cp: null,
+          supporting_spans: ["8. Nc7+ is winning for White"],
+        }),
+      ]),
+    });
+    const band = r.issues.find(
+      (i) => i.check_name === "eval_mismatch_qualitative"
+    )!;
+    expect(band.expected).toEqual({ band: "much_worse", cp: -211 });
   });
 });

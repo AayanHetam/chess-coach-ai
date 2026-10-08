@@ -32,6 +32,7 @@ import { buildRelationalFacts } from "@/lib/relational/relationalFactsBuilder";
 import { convertPvToSan, uciToSan } from "@/lib/contract/chessFormat";
 import { buildLineStory, projectLineStory } from "@/lib/contract/lineStory";
 import type { QuestionAnchor } from "./questionAnchor";
+import type { VerifiedWhatIf } from "./clientEvals";
 
 /** The shape of one client-side Stockfish position, as far as this file reads it. */
 interface EvalLineLike {
@@ -169,6 +170,37 @@ export function anchorLicensedLines(
     : [];
 }
 
+/**
+ * The what-if's lines for the referee: each move the client's search scored,
+ * from the position it is played from, at the ply it starts on. Marked as
+ * replacing the game's move there: a sentence about the alternative may open
+ * its line with an unnumbered move (the referee's what-if root), and the
+ * lines stay out of its shared ply table and its pool, so no other line can
+ * borrow their moves.
+ */
+export function whatIfLicensedLines(
+  whatIf: VerifiedWhatIf
+): { startFen: string; startPly: number; sans: string[]; replacing: true }[] {
+  return whatIf.moves.map((m) => ({
+    startFen: whatIf.fenBefore,
+    startPly: whatIf.index,
+    sans: m.lineSan,
+    replacing: true as const,
+  }));
+}
+
+/**
+ * The what-if's numbers as the referee licenses them, in the anchor block's
+ * own spelling, each tied to its move: a sentence may quote +2.51 for 8.
+ * Qxc1, never for 8. Nc7+. Passed as they stand, since the block's WHAT-IF
+ * lines are not in the text the referee reads its licence from.
+ */
+export function whatIfLicensedEvals(
+  whatIf: VerifiedWhatIf
+): { eval: string; san: string }[] {
+  return whatIf.moves.map((m) => ({ eval: formatEval(m), san: m.san }));
+}
+
 /** The board after the alternative the question asked about, when it is legal. */
 export function anchorAlternativeFen(anchor: QuestionAnchor): string | null {
   if (!anchor.askedSan) return null;
@@ -184,7 +216,13 @@ export function buildAnchorBlock(
   anchor: QuestionAnchor,
   playedMoves: readonly string[],
   gameEval: GameEvalLike | undefined,
-  playerColor: "w" | "b"
+  playerColor: "w" | "b",
+  /**
+   * The client's what-if for this move, verified (clientEvals.ts): its own
+   * search's numbers and lines, told as their own regime. Absent, the block
+   * is byte for byte what it was.
+   */
+  whatIf?: VerifiedWhatIf | null
 ): string {
   const colorName = anchor.color === "w" ? "White" : "Black";
   const whose =
@@ -215,6 +253,10 @@ export function buildAnchorBlock(
   } else if (evalAfter) {
     out.push(
       `Eval after the move: ${evalAfter}. (Pawns, White's perspective.)`
+    );
+  } else if (whatIf && whatIf.index === anchor.index) {
+    out.push(
+      "The review has no evaluation for this move: quote only the what-if search's numbers below."
     );
   } else {
     out.push(
@@ -299,6 +341,41 @@ export function buildAnchorBlock(
     out.push(`  White pieces: ${pmAfter.white}`);
     out.push(`  Black pieces: ${pmAfter.black}`);
   }
+  // The what-if's own search: the alternative beside the game's move and
+  // the engine's best there, from one search at one depth on the player's
+  // device. Its numbers are compared with each other only, never with the
+  // review's evals above (another search, at another depth, on a warm
+  // table). Every figure is followed by its perspective, never by a full
+  // stop, so the referee reads it, and none is put as "the engine rates",
+  // which the eval parser takes for attribution and does not check.
+  if (whatIf && whatIf.index === anchor.index && whatIf.moves.length > 0) {
+    // Asked about by name, the game's own move is no alternative to itself.
+    const roleWord = (role: string) =>
+      role === "asked"
+        ? anchor.askedSan
+          ? "the alternative asked about"
+          : "the move played, asked about"
+        : role === "played"
+          ? "the move played"
+          : "the engine's best";
+    out.push(
+      `WHAT-IF SEARCH of the position before ${label}, at depth ${whatIf.depth}: one search on the player's device that scored these moves side by side. Its numbers compare with each other only, never with the evals above, which come from another search.`
+    );
+    for (const m of whatIf.moves) {
+      const shown = `${anchor.moveNumber}${anchor.color === "w" ? "." : "..."} ${m.san}`;
+      out.push(
+        `  ${shown} (${roleWord(m.role)}): ${formatEval(m)} (White's perspective), line ${renderLine(anchor.moveNumber, anchor.color === "w", m.lineSan)}`
+      );
+      if (m.role === "asked") {
+        const story = storyLines(whatIf.fenBefore, m.lineSan);
+        if (story.length > 0) {
+          out.push("    what this line does:");
+          for (const l of story) out.push(`      - ${l}`);
+        }
+      }
+    }
+  }
+
   // The alternative the question named gets its own board, so an answer
   // about it is not written from the board after the move that was played.
   const altFen = anchorAlternativeFen(anchor);

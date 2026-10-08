@@ -27,8 +27,11 @@ export interface QuestionAnchor {
   ply: number;
   fenBefore: string;
   fenAfter: string;
-  /** How the question named the move. */
-  matched: "numbered" | "move-number" | "bare-san";
+  /**
+   * How the question named the move; "what-if" when the client's verified
+   * what-if placed it (lib/coach/clientEvals.ts), whatever the words said.
+   */
+  matched: "numbered" | "move-number" | "bare-san" | "what-if";
   /**
    * A move the question wrote in notation at that spot that is NOT the one
    * played ("why not 8. Qxc1?"): an alternative, not a misreading.
@@ -93,6 +96,27 @@ function build(
     matched,
     ...(asked ? { askedSan: asked } : {}),
   };
+}
+
+/**
+ * The anchor at a ply the client's verified what-if names: the game's move
+ * there, with the alternative asked about unless it is that move. Both
+ * SANs are the server's own, so they are compared as written: Bxc4 is not
+ * the pawn's bxc4 (the words' reading folds case, since a player may type
+ * "nf3"). Null when the index is not a move of the game (a what-if at the
+ * final position has no played move to anchor on).
+ */
+export function anchorAtIndex(
+  moves: readonly string[],
+  index: number,
+  askedSan?: string
+): QuestionAnchor | null {
+  const anchor = build(moves, index, "what-if");
+  if (!anchor || !askedSan) return anchor;
+  const exact = (san: string) => san.replace(/[+#!?]/g, "");
+  return exact(askedSan) === exact(anchor.san)
+    ? anchor
+    : { ...anchor, askedSan };
 }
 
 /**

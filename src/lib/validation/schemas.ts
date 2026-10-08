@@ -103,6 +103,13 @@ export const chatSchema = z.object({
   // (0 = starting position). Lets the Mastermind pipeline anchor its move
   // context to the viewed ply instead of the last move played.
   moveIndex: z.number().int().min(0).max(1024).optional(),
+  // The client's what-if numbers (lib/coach/clientEvals.ts). Accepted as
+  // unknown on purpose: the route verifies it on its own (shape, bounds,
+  // the position replayed from the game, every move legal) and drops what
+  // fails with a reason, so a bad payload never turns the whole follow-up
+  // into a 400. Read only on the context-cached fast path, and only under
+  // COACH_WHATIF_EVALS; never interpolated into a prompt as sent.
+  clientEvals: z.unknown().optional(),
   conversationHistory: z
     .array(
       z.object({

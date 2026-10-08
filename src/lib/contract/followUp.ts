@@ -259,6 +259,8 @@ function renderLine(startMoveNumber: number, startsWhite: boolean, san: string[]
 export interface ContractFocus {
   moveNumber: number;
   color: "w" | "b";
+  /** The block also carries a what-if search's lines for that move (clientEvals.ts). */
+  whatIf?: boolean;
 }
 
 export function renderContractCompact(
@@ -290,10 +292,16 @@ export function renderContractCompact(
   if (focus) {
     const focusName = `move ${focus.moveNumber} (${focus.color === "w" ? "White" : "Black"})`;
     head.push(
-      `The question is about ${focusName}. Only that move's engine line is given this turn, ` +
-        "below or in the MOVE UNDER DISCUSSION block; every other finding keeps its verdict and " +
-        "evals and its line is withheld. A move from a line you cannot see is not a move you can " +
-        "name, and a move from one finding's line never belongs to another move."
+      focus.whatIf
+        ? `The question is about ${focusName}. Only that move's engine lines are given this turn, ` +
+          "the review's and the what-if search's, below or in the MOVE UNDER DISCUSSION block; every " +
+          "other finding keeps its verdict and evals and its line is withheld. A move from a line you " +
+          "cannot see is not a move you can name, and a move from one finding's line never belongs " +
+          "to another move."
+        : `The question is about ${focusName}. Only that move's engine line is given this turn, ` +
+          "below or in the MOVE UNDER DISCUSSION block; every other finding keeps its verdict and " +
+          "evals and its line is withheld. A move from a line you cannot see is not a move you can " +
+          "name, and a move from one finding's line never belongs to another move."
     );
   }
   // Rendered only when at least one story made it in (below) — a block with

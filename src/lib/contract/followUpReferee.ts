@@ -54,6 +54,11 @@ export interface FollowUpRefereeInput {
   /** Extra eval strings the turn may quote (the per-move table the chat context carries). */
   licensedEvals?: readonly string[];
   /**
+   * Numbers licensed only in a sentence that names their move: a what-if's
+   * own search, whose +2.51 for 8. Qxc1 is no number for 8. Nc7+.
+   */
+  licensedEvalsByMove?: readonly { eval: string; san: string }[];
+  /**
    * Further boards a piece-on-square claim may describe: the boards before
    * and after the move the question named (questionAnchor.ts), which is not
    * always a reviewed insight and so is not always in the contract.
@@ -93,6 +98,14 @@ export interface LicensedLine {
   /** Half-moves played before the line's first move. */
   startPly: number;
   sans: readonly string[];
+  /**
+   * The line replaces the game's move at startPly (a what-if: 8. Nd6+ exd6
+   * where the game played 8. Nc7+). Its first move may open a sentence
+   * unnumbered, though it is not legal on the board after the move the
+   * game played; the line is kept out of the shared ply table, so no other
+   * line can borrow its moves ("8. Qxc1 exd6").
+   */
+  replacing?: boolean;
 }
 
 export interface FollowUpRefereeDrop {
@@ -200,6 +213,8 @@ export const PIECE_LETTER: Record<string, string> = {
 };
 
 export const stripSan = (s: string) => s.replace(/[+#!?]/g, "").toLowerCase();
+/** SAN without its check or comment marks, case kept: Bxc4 is not bxc4. */
+const exactSan = (s: string) => s.replace(/[+#!?]/g, "");
 /** A line that opens with a move ("Qxc1 …", "e5 …"), for telling a move number from a list number. */
 const MOVE_START_RE = new RegExp(`^(?:${SAN_CORE}|${PAWN_SAN})(?![A-Za-z0-9])`);
 
@@ -308,8 +323,38 @@ export function refereeFollowUp(
       i.bestLineSan
     );
   }
-  for (const l of input.extraLines ?? [])
-    addLine(l.startFen, l.startPly, l.sans);
+  // A what-if's own line opens at its root, unnumbered, and is walked on
+  // the running board from there (the game's own moves are in the pool and
+  // never reach a root).
+  // Roots compare SAN as written (Bxc4 is not the pawn's bxc4), and the
+  // game's own move there is no root: its line is the game's.
+  const whatIfRoots: Array<{
+    san: string;
+    fen: string;
+    ply: number;
+    replaced: string;
+  }> = [];
+  for (const l of input.extraLines ?? []) {
+    if (!l.replacing) {
+      addLine(l.startFen, l.startPly, l.sans);
+      continue;
+    }
+    const first = l.sans[0];
+    const replaced = exactSan(moveHistory[l.startPly] ?? "");
+    if (!first || exactSan(first) === replaced) continue;
+    try {
+      const g = new Chess(l.startFen);
+      g.move(first);
+      whatIfRoots.push({
+        san: exactSan(first),
+        fen: g.fen(),
+        ply: l.startPly + 1,
+        replaced,
+      });
+    } catch {
+      /* not a move there: no root */
+    }
+  }
   const applySan = (fen: string, san: string): string | null => {
     try {
       const g = new Chess(fen);
@@ -328,6 +373,14 @@ export function refereeFollowUp(
   for (const d of input.licensedEvals ?? []) {
     const k = evalKey(d);
     if (k) evalPool.add(k);
+  }
+  const tiedEvals = new Map<string, Set<string>>();
+  for (const d of input.licensedEvalsByMove ?? []) {
+    const k = evalKey(d.eval);
+    if (!k) continue;
+    const moves = tiedEvals.get(k) ?? new Set<string>();
+    moves.add(exactSan(d.san));
+    tiedEvals.set(k, moves);
   }
 
   let boardHanging = false;
@@ -466,77 +519,135 @@ export function refereeFollowUp(
         // next move of the line the sentence is already walking. Once the
         // sentence has placed itself in a line, its unnumbered moves are that
         // line's next moves, never a bare pool match.
-        let running: { fen: string; ply: number | null } = {
-          fen: activeFen,
-          ply: input.activePly ?? null,
-        };
-        let inSequence = false;
-        for (const m of Array.from(sentence.matchAll(SAN_TOKEN_RE))) {
-          const san = m[3] ?? m[6] ?? m[7];
-          const num = m[1] ?? m[4];
-          const dots = m[2] ?? m[5];
-          if (!san) continue;
-          const key = stripSan(san);
-          if (num !== undefined) {
-            const ply =
-              (Number(num) - 1) * 2 + (dots && dots.length >= 3 ? 1 : 0);
-            const after = lineAfter.get(`${ply}:${key}`);
-            if (after) {
-              running = { fen: after, ply: ply + 1 };
-              inSequence = true;
+        // Read as before, then, with a what-if, once more with its roots
+        // first: a sentence either reading licenses is kept, so a what-if
+        // never costs a sentence, and the roots are the only way its line's
+        // moves are licensed (the block's WHAT-IF lines are not in the pool,
+        // or "Qxc1 exd6" would borrow a sibling's reply).
+        const walk = (useRoots: boolean): string | null => {
+          let running: { fen: string; ply: number | null } = {
+            fen: activeFen,
+            ply: input.activePly ?? null,
+          };
+          let inSequence = false;
+          // On a what-if's own line, every move must be the next move of
+          // that line's board: no other licensed line lends it one ("Nd6+
+          // exd6 Nxa8" does not borrow the game's 9. Nxa8).
+          let onRoot = false;
+          const tokens = Array.from(sentence.matchAll(SAN_TOKEN_RE));
+          for (let t = 0; t < tokens.length; t++) {
+            const m = tokens[t];
+            const san = m[3] ?? m[6] ?? m[7];
+            const num = m[1] ?? m[4];
+            const dots = m[2] ?? m[5];
+            if (!san) continue;
+            const key = stripSan(san);
+            if (onRoot) {
+              const ply =
+                num !== undefined
+                  ? (Number(num) - 1) * 2 + (dots && dots.length >= 3 ? 1 : 0)
+                  : running.ply;
+              const next =
+                ply === running.ply ? applySan(running.fen, san) : null;
+              if (!next) return `san:${san}`;
+              running = {
+                fen: next,
+                ply: running.ply === null ? null : running.ply + 1,
+              };
               continue;
             }
-            let fenAtPly: string | null = null;
-            try {
-              fenAtPly = getFenAtHalfMove(moveHistory as string[], ply);
-            } catch {
-              fenAtPly = null;
-            }
-            const alt = fenAtPly ? applySan(fenAtPly, san) : null;
-            if (alt) {
-              running = { fen: alt, ply: ply + 1 };
-              inSequence = true;
-              continue;
-            }
-            if (running.ply === ply) {
-              const next = applySan(running.fen, san);
-              if (next) {
-                running = { fen: next, ply: ply + 1 };
+            if (num !== undefined) {
+              const ply =
+                (Number(num) - 1) * 2 + (dots && dots.length >= 3 ? 1 : 0);
+              const after = lineAfter.get(`${ply}:${key}`);
+              if (after) {
+                running = { fen: after, ply: ply + 1 };
                 inSequence = true;
                 continue;
               }
+              let fenAtPly: string | null = null;
+              try {
+                fenAtPly = getFenAtHalfMove(moveHistory as string[], ply);
+              } catch {
+                fenAtPly = null;
+              }
+              const alt = fenAtPly ? applySan(fenAtPly, san) : null;
+              if (alt) {
+                running = { fen: alt, ply: ply + 1 };
+                inSequence = true;
+                continue;
+              }
+              if (running.ply === ply) {
+                const next = applySan(running.fen, san);
+                if (next) {
+                  running = { fen: next, ply: ply + 1 };
+                  inSequence = true;
+                  continue;
+                }
+              }
+              return `san:${san}`;
             }
-            reason = `san:${san}`;
-            break;
-          }
-          const next = applySan(running.fen, san);
-          if (next) {
-            running = {
-              fen: next,
-              ply: running.ply === null ? null : running.ply + 1,
-            };
-            continue;
-          }
-          if (running.ply !== null) {
-            const lineNext = lineAfter.get(`${running.ply}:${key}`);
-            if (lineNext) {
-              running = { fen: lineNext, ply: running.ply + 1 };
+            const next = applySan(running.fen, san);
+            if (next) {
+              running = {
+                fen: next,
+                ply: running.ply === null ? null : running.ply + 1,
+              };
               continue;
             }
+            if (running.ply !== null) {
+              const lineNext = lineAfter.get(`${running.ply}:${key}`);
+              if (lineNext) {
+                running = { fen: lineNext, ply: running.ply + 1 };
+                continue;
+              }
+            }
+            // A sentence about a what-if opens its line with the alternative
+            // itself ("Nd6+ exd6 loses the knight"), which is no move on the
+            // board after the game's. Read with the roots, the what-if's root
+            // starts the walk there when nothing before it in the sentence
+            // moved the board or named any move but the one it replaces
+            // ("Instead of Nc7+, Nd6+ exd6 ...", never "After Nxa8, Nd6+").
+            if (useRoots && !inSequence && running.fen === activeFen) {
+              const root = whatIfRoots.find((r) => r.san === exactSan(san));
+              if (
+                root &&
+                tokens.slice(0, t).every((p) => {
+                  const ps = p[3] ?? p[6] ?? p[7];
+                  return !ps || exactSan(ps) === root.replaced;
+                })
+              ) {
+                running = { fen: root.fen, ply: root.ply };
+                inSequence = true;
+                onRoot = true;
+                continue;
+              }
+            }
+            if (!inSequence && sanPool.has(key)) continue;
+            return `san:${san}`;
           }
-          if (!inSequence && sanPool.has(key)) continue;
-          reason = `san:${san}`;
-          break;
-        }
+          return null;
+        };
+        reason = walk(false);
+        if (reason && whatIfRoots.length > 0 && walk(true) === null)
+          reason = null;
       }
 
-      if (!reason && evalPool.size > 0) {
+      if (!reason && (evalPool.size > 0 || tiedEvals.size > 0)) {
+        const named = new Set(
+          Array.from(sentence.matchAll(SAN_TOKEN_RE))
+            .map((t) => t[3] ?? t[6] ?? t[7])
+            .filter((x): x is string => !!x)
+            .map(exactSan)
+        );
         for (const m of Array.from(sentence.matchAll(EVAL_RE))) {
           const k = evalKey(m[1]);
-          if (k && !evalPool.has(k)) {
-            reason = `eval:${m[1]}`;
-            break;
-          }
+          if (!k || evalPool.has(k)) continue;
+          const moves = tiedEvals.get(k);
+          if (moves && Array.from(moves).some((san) => named.has(san)))
+            continue;
+          reason = `eval:${m[1]}`;
+          break;
         }
       }
 

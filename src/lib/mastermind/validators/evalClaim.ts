@@ -20,9 +20,39 @@ import {
   PARSER_LOW_CONFIDENCE_THRESHOLD,
 } from "./types";
 
+/**
+ * A move's own evaluation at the position the claims are about, from a
+ * search the route verified (the client's what-if, lib/coach/clientEvals.ts),
+ * White-relative, with the review's own number for the move where it has
+ * one. A claim bound to the move is checked against these numbers instead
+ * of the played move's.
+ */
+export interface PositionEvalRef {
+  /** The move as SAN, as the server derived it. */
+  san: string;
+  cp?: number;
+  mate?: number;
+  /** The review's warm number for the move: a second reference, never a difference. */
+  review?: { cp?: number; mate?: number };
+  /** The move's number and side, so "7... Qxc1" is not this 8. Qxc1. */
+  moveNumber?: number;
+  color?: "w" | "b";
+  /** The game played this SAN at another ply too: a bare "Qxc1" could be either, so only a numbered mention names this move. */
+  playedElsewhere?: boolean;
+}
+
 export interface EvalClaimOpts {
   llmResponse: string;
   stockfishEval: { cp?: number; mate?: number };
+  /**
+   * The moves of a verified what-if with their own numbers (one search, one
+   * depth). A claim whose spans name exactly one of them is checked against
+   * that move's numbers only (claimReferences); the played move (moveSan)
+   * keeps the review's number. Claims naming none, or several, are checked
+   * against stockfishEval exactly as before. A cold what-if number is never
+   * subtracted from a warm one.
+   */
+  positionEvals?: readonly PositionEvalRef[];
   playerPerspective: "white" | "black";
   fen?: string;
   moveSan?: string;
@@ -84,6 +114,105 @@ export function estimateHaikuCost(r: LLMResult): number {
     cacheWrite * HAIKU_CACHE_WRITE_PRICE_PER_M +
     output * HAIKU_OUTPUT_PRICE_PER_M
   );
+}
+
+const stripCheck = (san: string) => san.replace(/[+#!?]/g, "");
+
+/**
+ * A move named in a claim's text, numbered or not. Castling as O-O or 0-0,
+ * never the first half of O-O-O; a bare pawn push only beside a cue, since
+ * "d5" is as often a square ("the knight on d5").
+ */
+const CLAIM_MOVE_RE =
+  /(?<![A-Za-z0-9-])(?:(\d{1,3})\s*(\.{1,3})\s*)?((?:[NBRQK][a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?|[O0]-[O0](?:-[O0])?|[a-h]x[a-h][1-8](?:=[NBRQ])?|[a-h][1-8](?:=[NBRQ])?)[+#]?)(?![A-Za-z0-9]|-[O0])/g;
+const PAWN_PUSH_RE = /^[a-h][1-8](?:=[NBRQ])?[+#]?$/;
+const PAWN_CUE_BEFORE_RE =
+  /\b(?:play|plays|played|playing|push|pushes|pushed|pushing|after|with|instead\s+of|rather\s+than|than|not|about|if|then)\s*$/i;
+/** A piece move with nothing between the piece and the square but a capture: "Nd2", "Nxd2". */
+const BARE_PIECE_RE = /^([NBRQK])x?([a-h][1-8])$/;
+const PIECE_DEST_RE = /^([NBRQK])[a-h]?[1-8]?x?([a-h][1-8])/;
+
+interface ClaimMove {
+  san: string;
+  /** White-relative cp, the review's first where it has one. */
+  cps: number[];
+  moveNumber?: number;
+  color?: "w" | "b";
+  playedElsewhere?: boolean;
+}
+
+/** The move a token names: by its SAN, or a piece move written without the disambiguation it needs when only one move fits. */
+function moveNamed(
+  token: string,
+  moves: readonly ClaimMove[]
+): ClaimMove | undefined {
+  const t = stripCheck(token).replace(/0/g, "O");
+  const exact = moves.find((m) => stripCheck(m.san) === t);
+  if (exact) return exact;
+  const k = BARE_PIECE_RE.exec(t);
+  if (!k) return undefined;
+  const loose = moves.filter((m) => {
+    const j = PIECE_DEST_RE.exec(stripCheck(m.san));
+    return !!j && j[1] === k[1] && j[2] === k[2];
+  });
+  return loose.length === 1 ? loose[0] : undefined;
+}
+
+/**
+ * The numbers a claim is checked against, White-relative cp, and the move
+ * it is about. With a what-if, a claim whose spans name exactly one of its
+ * moves (the played move included) is about that move and is checked
+ * against that move's numbers alone: the review's number for it where the
+ * review has one, then the what-if's cold one. A numbered mention names a
+ * move only at its own number and side; a bare one names nothing when the
+ * game played that SAN elsewhere too. A claim that names none, or more than
+ * one ("Rather than 8. Nc7+, 8. Qxc1 leaves White at -0.97", "8. Nc7+ (not
+ * 8. Qxc1) loses"), is checked against the review's number for the played
+ * move, as before: which move a figure belongs to is not guessed.
+ */
+function claimReferences(
+  claim: ParsedEvalClaim,
+  stockfishCp: number,
+  positionEvals: readonly PositionEvalRef[] | undefined,
+  moveSan: string | undefined
+): { cps: number[]; named: string | null } {
+  if (!positionEvals || positionEvals.length === 0)
+    return { cps: [stockfishCp], named: null };
+  const at = positionEvals.find((r) => r.moveNumber !== undefined);
+  const moves: ClaimMove[] = positionEvals.map((ref) => {
+    const played = !!moveSan && stripCheck(ref.san) === stripCheck(moveSan);
+    const review = ref.review ? [evalToCp(ref.review)] : played ? [stockfishCp] : [];
+    return {
+      san: ref.san,
+      cps: [...review, evalToCp(ref)],
+      moveNumber: ref.moveNumber,
+      color: ref.color,
+      playedElsewhere: ref.playedElsewhere,
+    };
+  });
+  if (moveSan && !moves.some((m) => stripCheck(m.san) === stripCheck(moveSan)))
+    moves.push({ san: moveSan, cps: [stockfishCp], moveNumber: at?.moveNumber, color: at?.color });
+
+  const text = claim.supporting_spans.join(" | ");
+  const named = new Set<ClaimMove>();
+  for (const m of Array.from(text.matchAll(CLAIM_MOVE_RE))) {
+    const san = m[3];
+    const index = m.index ?? 0;
+    const number = m[1] ? Number(m[1]) : null;
+    if (number === null && PAWN_PUSH_RE.test(san) && !PAWN_CUE_BEFORE_RE.test(text.slice(0, index)))
+      continue;
+    const side = m[2] && m[2].length >= 2 ? "b" : "w";
+    const candidates = moves.filter((c) =>
+      number !== null
+        ? c.moveNumber === undefined || (c.moveNumber === number && c.color === side)
+        : !c.playedElsewhere
+    );
+    const move = moveNamed(san, candidates);
+    if (move) named.add(move);
+  }
+  if (named.size !== 1) return { cps: [stockfishCp], named: null };
+  const bound = Array.from(named)[0];
+  return { cps: Array.from(new Set(bound.cps)), named: bound.san };
 }
 
 function tryParseClaims(raw: string): ParsedEvalClaim[] | null {
@@ -185,7 +314,6 @@ export async function validateEvalClaim(opts: EvalClaimOpts): Promise<ValidatorR
   }
 
   const stockfishCp = evalToCp(opts.stockfishEval);
-  const expectedBand = cpToBand(stockfishCp);
 
   const issues: ValidatorIssue[] = [];
   const telemetry: TelemetryEvent[] = [];
@@ -252,18 +380,29 @@ export async function validateEvalClaim(opts: EvalClaimOpts): Promise<ValidatorR
 
     const claim = normalizeClaimToWhitePerspective(rawClaim, opts.playerPerspective);
     let fired = false;
+    // The number this claim is about: the move it is bound to, its review
+    // number and its what-if number (claimReferences), else the played
+    // move's. Of the move's numbers, the nearest.
+    const refs = claimReferences(claim, stockfishCp, opts.positionEvals, opts.moveSan);
+    const nearest = (cp: number | null) =>
+      cp === null
+        ? refs.cps[0]
+        : refs.cps.reduce((a, b) => (Math.abs(b - cp) < Math.abs(a - cp) ? b : a));
+    const refCp = nearest(claim.stated_cp);
+    const refBand = cpToBand(refCp);
+    const named = refs.named ? ` (about ${refs.named})` : "";
 
     if (claim.stated_cp !== null) {
-      const diff = Math.abs(claim.stated_cp - stockfishCp);
+      const diff = Math.abs(claim.stated_cp - refCp);
       if (diff > numericThreshold) {
         const span = claim.supporting_spans.join(" | ");
         issues.push({
           check_name: "eval_mismatch_numeric",
           severity: "error",
           llm_span: span,
-          expected: { cp: stockfishCp },
+          expected: { cp: refCp },
           actual: { cp: claim.stated_cp },
-          detail: `LLM cited ${claim.stated_cp} cp (white perspective); Stockfish says ${stockfishCp} cp. Diff ${diff} > threshold ${numericThreshold}.`,
+          detail: `LLM cited ${claim.stated_cp} cp (white perspective)${named}; Stockfish says ${refCp} cp. Diff ${diff} > threshold ${numericThreshold}.`,
           parser_confidence: claim.confidence,
         });
         telemetry.push(
@@ -271,7 +410,7 @@ export async function validateEvalClaim(opts: EvalClaimOpts): Promise<ValidatorR
             check_name: "eval_mismatch_numeric",
             fire_reason: "numeric_diff_exceeds_threshold",
             llm_span: span,
-            expected: { cp: stockfishCp, band: expectedBand },
+            expected: { cp: refCp, band: refBand },
             actual: { cp: claim.stated_cp, band: claim.stated_band },
             context: baseContext,
           })
@@ -280,30 +419,35 @@ export async function validateEvalClaim(opts: EvalClaimOpts): Promise<ValidatorR
       }
     }
 
-    if (claim.stated_band !== expectedBand) {
-      if (!isWithinTolerance(stockfishCp, claim.stated_band, expectedBand, tolerance)) {
-        const span = claim.supporting_spans.join(" | ");
-        issues.push({
+    // The band fits the number the claim's figure was checked against, or,
+    // for a claim with no figure, any of the move's numbers.
+    const bandRefs = claim.stated_cp !== null ? [refCp] : refs.cps;
+    const bandFits = bandRefs.some((cp) => {
+      const band = cpToBand(cp);
+      return claim.stated_band === band || isWithinTolerance(cp, claim.stated_band, band, tolerance);
+    });
+    if (!bandFits) {
+      const span = claim.supporting_spans.join(" | ");
+      issues.push({
+        check_name: "eval_mismatch_qualitative",
+        severity: "error",
+        llm_span: span,
+        expected: { band: refBand, cp: refCp },
+        actual: { band: claim.stated_band },
+        detail: `LLM stated band "${claim.stated_band}" (white perspective)${named}; Stockfish at ${refCp} cp is in "${refBand}".`,
+        parser_confidence: claim.confidence,
+      });
+      telemetry.push(
+        createTelemetryEvent({
           check_name: "eval_mismatch_qualitative",
-          severity: "error",
+          fire_reason: "qualitative_band_flip",
           llm_span: span,
-          expected: { band: expectedBand, cp: stockfishCp },
-          actual: { band: claim.stated_band },
-          detail: `LLM stated band "${claim.stated_band}" (white perspective); Stockfish at ${stockfishCp} cp is in "${expectedBand}".`,
-          parser_confidence: claim.confidence,
-        });
-        telemetry.push(
-          createTelemetryEvent({
-            check_name: "eval_mismatch_qualitative",
-            fire_reason: "qualitative_band_flip",
-            llm_span: span,
-            expected: { band: expectedBand, cp: stockfishCp },
-            actual: { band: claim.stated_band, cp: claim.stated_cp },
-            context: baseContext,
-          })
-        );
-        fired = true;
-      }
+          expected: { band: refBand, cp: refCp },
+          actual: { band: claim.stated_band, cp: claim.stated_cp },
+          context: baseContext,
+        })
+      );
+      fired = true;
     }
 
     if (!fired) {
@@ -312,7 +456,7 @@ export async function validateEvalClaim(opts: EvalClaimOpts): Promise<ValidatorR
           check_name: "eval_claim",
           fire_reason: "passed",
           llm_span: claim.supporting_spans.join(" | "),
-          expected: { band: expectedBand, cp: stockfishCp },
+          expected: { band: refBand, cp: refCp },
           actual: { band: claim.stated_band, cp: claim.stated_cp },
           context: baseContext,
         })

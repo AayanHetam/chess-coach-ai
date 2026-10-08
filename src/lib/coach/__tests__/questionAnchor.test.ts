@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Chess } from "chess.js";
-import { resolveQuestionAnchor } from "../questionAnchor";
+import { anchorAtIndex, resolveQuestionAnchor } from "../questionAnchor";
 
 // Fixture 07 (the knight-fork game): White's 8. Nc7+ forks king and rook
 // while Black's queen on c1 was free for the taking with 8. Qxc1.
@@ -96,5 +96,24 @@ describe("resolveQuestionAnchor — nothing to anchor", () => {
     expect(resolveQuestionAnchor("what should I study next?", MOVES)).toBeNull();
     expect(resolveQuestionAnchor("thanks!", MOVES)).toBeNull();
     expect(resolveQuestionAnchor("Why was 8. Nc7+ bad?", [])).toBeNull();
+  });
+});
+
+describe("anchorAtIndex: the anchor a verified what-if names", () => {
+  // 1.b3 Nc6 2.e3 Ne5 3.Nc3 Nc4 4.bxc4: the pawn took on c4, and the
+  // bishop could have.
+  const GAME = "b3 Nc6 e3 Ne5 Nc3 Nc4 bxc4".split(" ");
+
+  it("compares the server's own SANs as written: Bxc4 is not bxc4", () => {
+    const a = anchorAtIndex(GAME, 6, "Bxc4")!;
+    expect(a.matched).toBe("what-if");
+    expect(a.san).toBe("bxc4");
+    expect(a.askedSan).toBe("Bxc4");
+  });
+
+  it("the game's own move is no alternative, its check sign or not; past the last move there is no anchor", () => {
+    expect(anchorAtIndex(GAME, 6, "bxc4")!.askedSan).toBeUndefined();
+    expect(anchorAtIndex(GAME, 6)!.askedSan).toBeUndefined();
+    expect(anchorAtIndex(GAME, 7, "Qg4")).toBeNull();
   });
 });

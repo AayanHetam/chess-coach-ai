@@ -24,6 +24,9 @@ const ROOTS = [
   "lib/coach/questionAnchor.ts",
   "lib/coach/questionIntent.ts",
   "lib/coach/questionShape.ts",
+  // The what-if wire type and its verifier: the client builds the payload
+  // against it, the route checks it.
+  "lib/coach/clientEvals.ts",
 ];
 const FORBIDDEN = ["lib/prompts/", "app/api/"];
 

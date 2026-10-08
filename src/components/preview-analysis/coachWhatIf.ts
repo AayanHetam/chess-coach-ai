@@ -33,6 +33,10 @@ import type {
 import type { EngineTurn } from "@/lib/engine/engineTurn";
 import { resolveQuestionAnchor } from "@/lib/coach/questionAnchor";
 import { resolveQuestionIntent } from "@/lib/coach/questionIntent";
+import {
+  CLIENT_EVALS_LINE_PLIES,
+  type ClientEvals,
+} from "@/lib/coach/clientEvals";
 import { formatEval, type CoachLine } from "./coachLines";
 
 /** Why a move is in the search: the one asked about, the one the game played there, the review's best there. */
@@ -895,6 +899,67 @@ export function whatIfLine(
     evalDisplay: formatEval(scored),
     depth: scored.depth,
   };
+}
+
+/** How long the question waits for the what-if's first deep partial before it goes up without its numbers. */
+export const WHAT_IF_EVALS_WAIT_MS = 1500;
+
+/**
+ * The numbers a what-if sends up with its question (lib/coach/clientEvals.ts,
+ * verified there against the stored game, never trusted): every move the
+ * search scored with its own number, depth and line, White-relative, the
+ * line cut to the length the server licenses. Null while the asked move has
+ * no line or the search is short of the pathway's first depth; the question
+ * then goes up without them.
+ */
+export function whatIfClientEvals(
+  ask: WhatIfAsk,
+  result: MovesEval
+): ClientEvals | null {
+  const moves: ClientEvals["moves"] = [];
+  for (const m of ask.moves) {
+    const e = result.moves.find((x) => x.uci === m.uci);
+    if (!e || e.pv[0] !== m.uci) continue;
+    const score =
+      e.mate !== undefined && e.mate !== 0
+        ? { mate: e.mate }
+        : e.cp !== undefined
+          ? { cp: e.cp }
+          : null;
+    if (!score) continue;
+    moves.push({
+      role: m.role,
+      uci: m.uci,
+      ...score,
+      depth: e.depth,
+      pv: e.pv.slice(0, CLIENT_EVALS_LINE_PLIES),
+    });
+  }
+  if (!moves.some((m) => m.role === "asked")) return null;
+  const depth = Math.min(...moves.map((m) => m.depth));
+  if (depth < WHAT_IF_FIRST_DEPTH) return null;
+  return { index: ask.index, fen: ask.fen, depth, moves };
+}
+
+/** The numbers for a question, or null when they are not there within `ms`: the question never waits longer. */
+export function whatIfEvalsWithin(
+  numbers: Promise<ClientEvals | null> | undefined,
+  ms: number
+): Promise<ClientEvals | null> {
+  if (!numbers) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const bound = setTimeout(() => resolve(null), ms);
+    numbers.then(
+      (v) => {
+        clearTimeout(bound);
+        resolve(v);
+      },
+      () => {
+        clearTimeout(bound);
+        resolve(null);
+      }
+    );
+  });
 }
 
 /** Every move of the search with its number, in the ask's order: asked, played, best. */

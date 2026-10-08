@@ -10,6 +10,8 @@
  * produce an error; it produces a confident answer about the wrong board.
  */
 
+import type { ClientEvals } from "./clientEvals";
+
 export interface ChatTurn {
   role: "user" | "assistant";
   content: string;
@@ -23,6 +25,8 @@ export interface ChatRequestBodyInput {
   fen?: string;
   /** Ply cursor for the viewed position. */
   currentPly?: number;
+  /** A what-if's own numbers for this question (clientEvals.ts), when its search had them in time. */
+  clientEvals?: ClientEvals | null;
 }
 
 export interface ChatRequestBody {
@@ -31,6 +35,7 @@ export interface ChatRequestBody {
   conversationHistory: ChatTurn[];
   fen?: string;
   moveIndex?: number;
+  clientEvals?: ClientEvals;
 }
 
 export function buildChatRequestBody(
@@ -48,5 +53,7 @@ export function buildChatRequestBody(
     // a wrong FEN is not.
     fen: input.fen,
     moveIndex: input.currentPly,
+    // Only when there are numbers: an absent field is the turn as before.
+    ...(input.clientEvals ? { clientEvals: input.clientEvals } : {}),
   };
 }

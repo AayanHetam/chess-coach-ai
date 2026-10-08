@@ -14,8 +14,7 @@ import { buildChatRequestBody } from "../chatRequestBody";
  * These tests fail on the code as written. That failure IS the bug.
  */
 
-const START =
-  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 // An arbitrary mid-game position — stands in for "user scrolled back to move 12".
 const VIEWED =
   "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4";
@@ -65,5 +64,32 @@ describe("coach follow-up request body", () => {
     const body = buildChatRequestBody(base);
     expect(body.fen).toBeUndefined();
     expect(body.moveIndex).toBeUndefined();
+  });
+});
+
+describe("coach follow-up request body: a what-if's numbers", () => {
+  const numbers = {
+    index: 14,
+    fen: VIEWED,
+    depth: 12,
+    moves: [
+      { role: "asked" as const, uci: "d1c1", cp: 251, depth: 12, pv: ["d1c1"] },
+    ],
+  };
+
+  it("carries them when the search had them in time", () => {
+    expect(
+      buildChatRequestBody({ ...base, clientEvals: numbers }).clientEvals
+    ).toBe(numbers);
+  });
+
+  it("leaves the field out when there are none, so the turn is the one it was", () => {
+    for (const clientEvals of [undefined, null]) {
+      const body = buildChatRequestBody({ ...base, clientEvals });
+      expect("clientEvals" in body).toBe(false);
+      expect(JSON.stringify(body)).toBe(
+        JSON.stringify(buildChatRequestBody(base))
+      );
+    }
   });
 });

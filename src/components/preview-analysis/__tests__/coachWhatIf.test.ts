@@ -5,6 +5,7 @@ import type {
   PositionEval,
 } from "@/types/eval";
 import { Chess } from "chess.js";
+import { verifyClientEvals } from "@/lib/coach/clientEvals";
 import { createEngineTurn } from "@/lib/engine/engineTurn";
 import { parseMovesResults } from "@/lib/engine/helpers/parseMovesResults";
 import {
@@ -16,6 +17,8 @@ import {
   whatIfJumpDecision,
   runWhatIf,
   WHAT_IF_DEPTH,
+  whatIfClientEvals,
+  whatIfEvalsWithin,
   whatIfLine,
   whatIfMoveLabel,
   whatIfScores,
@@ -1501,5 +1504,99 @@ describe("resolveWhatIf: one reading or nothing", () => {
       ["what if White plays Ne5?", onQxc1(), "8. Ne5 @14"],
       ["what about Nd6+?", onQxc1(), "8. Nd6+ @14"],
     ]);
+  });
+});
+
+describe("the numbers a what-if sends up with its question", () => {
+  // The fixture-07 what-if at move 8 and a search result for it, as
+  // parseMovesResults would hand it over: White-relative, every move's own
+  // depth and line.
+  const ask = resolveWhatIf(
+    "what about 8. Qxc1 instead?",
+    ctx({ viewedPly: 0 })
+  )!;
+  const result = (depth: number, over: Partial<MovesEval> = {}): MovesEval =>
+    ({
+      fen: ask.fen,
+      depth,
+      moves: [
+        {
+          uci: "d1c1",
+          san: "Qxc1",
+          cp: 251,
+          depth,
+          pv: [
+            "d1c1",
+            "a8b8",
+            "c1f4",
+            "g8f6",
+            "f1d3",
+            "a7a6",
+            "b5c7",
+            "e8d8",
+            "c7a8",
+          ],
+        },
+        {
+          uci: "b5c7",
+          san: "Nc7+",
+          cp: -97,
+          depth,
+          pv: ["b5c7", "e8d8", "c7a8"],
+        },
+      ],
+      missing: [],
+      source: "local",
+      ...over,
+    }) as MovesEval;
+
+  it("are what the server verifies: the asked move and the played move, each with its line cut to the licensed length", () => {
+    const numbers = whatIfClientEvals(ask, result(12))!;
+    expect(numbers).toMatchObject({ index: 14, fen: FEN_BEFORE_8, depth: 12 });
+    expect(numbers.moves.map((m) => [m.role, m.uci, m.cp])).toEqual([
+      ["asked", "d1c1", 251],
+      ["played", "b5c7", -97],
+    ]);
+    expect(numbers.moves[0].pv).toHaveLength(8);
+    // The round trip: the client's payload passes the route's own check.
+    const v = verifyClientEvals(numbers, {
+      playedMoves: SANS,
+      gameEval: { positions: sweep("d1c1") },
+    });
+    expect(v.ok).toBe(true);
+    if (v.ok)
+      expect(v.value.moves.map((m) => [m.role, m.san])).toEqual([
+        ["asked", "Qxc1"],
+        ["played", "Nc7+"],
+      ]);
+  });
+
+  it("are not sent short of the first depth, or without the asked move's line", () => {
+    expect(whatIfClientEvals(ask, result(8))).toBeNull();
+    const noAsked = result(12);
+    noAsked.moves = noAsked.moves.filter((m) => m.uci !== "d1c1");
+    expect(whatIfClientEvals(ask, noAsked)).toBeNull();
+  });
+
+  it("keep a mate as a mate, and take the shallowest move's depth for the payload's", () => {
+    const r = result(14);
+    r.moves[0] = { ...r.moves[0], cp: undefined, mate: 4, depth: 15 };
+    const numbers = whatIfClientEvals(ask, r)!;
+    expect(numbers.moves[0]).toMatchObject({ mate: 4 });
+    expect("cp" in numbers.moves[0]).toBe(false);
+    expect(numbers.depth).toBe(14);
+  });
+
+  it("are waited for at most the bound: late numbers, a failed search and no search are all none", async () => {
+    const soon = new Promise<null | ReturnType<typeof whatIfClientEvals>>((r) =>
+      setTimeout(() => r(whatIfClientEvals(ask, result(12))), 5)
+    );
+    expect(await whatIfEvalsWithin(soon as never, 200)).not.toBeNull();
+    const late = new Promise((r) => setTimeout(() => r("late"), 200));
+    expect(await whatIfEvalsWithin(late as never, 10)).toBeNull();
+    expect(
+      await whatIfEvalsWithin(Promise.reject(new Error("x")), 50)
+    ).toBeNull();
+    expect(await whatIfEvalsWithin(undefined, 50)).toBeNull();
   });
 });

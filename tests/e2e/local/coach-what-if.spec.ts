@@ -52,7 +52,13 @@ const FOLLOWUP =
  * engine is seen to answer first. At 0 the words come at once, and which
  * lands first is a race unless the engine is held (holdableEngine).
  */
-async function stubCoach(page: Page, { chatDelayMs = 1500 } = {}) {
+async function stubCoach(
+  page: Page,
+  {
+    chatDelayMs = 1500,
+    chatBodies,
+  }: { chatDelayMs?: number; chatBodies?: unknown[] } = {}
+) {
   await stubSignedIn(page);
   await stubMaiaHealthy(page);
   await page.route("**/api/mistake-puzzles", (r) =>
@@ -69,6 +75,7 @@ async function stubCoach(page: Page, { chatDelayMs = 1500 } = {}) {
     });
   });
   await page.route("**/api/chat", async (route) => {
+    chatBodies?.push(route.request().postDataJSON());
     if (chatDelayMs > 0) await new Promise((r) => setTimeout(r, chatDelayMs));
     await route.fulfill({
       status: 200,
@@ -101,16 +108,31 @@ async function holdableEngine(page: Page) {
   await page.addInitScript(() => {
     const Native = window.Worker;
     const queue: Array<() => void> = [];
-    const state = { on: false };
-    (window as unknown as { __engineHold: unknown }).__engineHold = {
-      hold: () => {
-        state.on = true;
-      },
-      release: () => {
-        state.on = false;
-        for (const deliver of queue.splice(0)) deliver();
-      },
+    const state: { on: boolean; until: string | null } = {
+      on: false,
+      until: null,
     };
+    const release = () => {
+      state.on = false;
+      state.until = null;
+      for (const deliver of queue.splice(0)) deliver();
+    };
+    (window as unknown as { __engineHold: unknown }).__engineHold = {
+      // Hold until release(), or until the page sets the mark `until`:
+      // released from the page itself, a task later, so the harness adds
+      // no round trip to what it measures.
+      hold: (until?: string) => {
+        state.on = true;
+        state.until = until ?? null;
+      },
+      release,
+    };
+    const mark = performance.mark.bind(performance);
+    performance.mark = ((name: string, options?: PerformanceMarkOptions) => {
+      const entry = mark(name, options);
+      if (state.on && state.until === name) setTimeout(release, 0);
+      return entry;
+    }) as typeof performance.mark;
     class HeldWorker extends Native {
       constructor(url: string | URL, options?: WorkerOptions) {
         super(url, options);
@@ -324,7 +346,8 @@ test.describe("the client what-if", () => {
     page,
   }, testInfo) => {
     test.setTimeout(240_000);
-    await stubCoach(page);
+    const chatBodies: unknown[] = [];
+    await stubCoach(page, { chatBodies });
     await page.goto(`/analysis?pgn=${encodeURIComponent(PGN)}`);
 
     // The composer unlocks once Stockfish has swept the game.
@@ -448,6 +471,35 @@ test.describe("the client what-if", () => {
     await expect(page.getByText("simply takes the queen")).toBeVisible({
       timeout: 30_000,
     });
+    // The question went up with the search's numbers: the asked move and
+    // the move played, from the position before 8. Nc7+, at the stable
+    // depth (the route verifies them; lib/coach/clientEvals.ts).
+    const asked = chatBodies[chatBodies.length - 1] as {
+      userMessage: string;
+      clientEvals?: {
+        index: number;
+        fen: string;
+        depth: number;
+        moves: Array<{ role: string; uci: string; cp?: number; mate?: number }>;
+      };
+    };
+    expect(asked.userMessage).toBe("what about 8. Qxc1 instead?");
+    expect(asked.clientEvals).toBeDefined();
+    expect(asked.clientEvals!.index).toBe(14);
+    expect(asked.clientEvals!.fen).toBe(
+      "r1b1kbnr/pp1ppppp/2n5/1N6/4P3/5N2/P1P2PPP/2qQKB1R w Kkq - 0 8"
+    );
+    expect(asked.clientEvals!.depth).toBeGreaterThanOrEqual(10);
+    expect(asked.clientEvals!.moves.map((m) => [m.role, m.uci])).toEqual(
+      expect.arrayContaining([
+        ["asked", "d1c1"],
+        ["played", "b5c7"],
+      ])
+    );
+    for (const m of asked.clientEvals!.moves)
+      expect(m.cp !== undefined || m.mate !== undefined, m.uci).toBe(true);
+    const sent = await marksAfter(page, "coach-what-if:sent", t0);
+    expect(sent).toHaveLength(1);
     await expect(page.getByTestId("exploration-path")).toContainText("Qxc1");
     await expect(page.getByTestId("coach-jump-banner")).toHaveCount(0);
     expectSameRect(rest, await boardRect(page), "the coach's words");
@@ -591,25 +643,18 @@ test.describe("the client what-if", () => {
       searchesBefore,
       { polling: "raf", timeout: 10_000 }
     );
+    // Held until the what-if stops the live search: the page releases the
+    // engine itself the moment it marks that.
     await page.evaluate(() =>
       (
-        window as unknown as { __engineHold: { hold: () => void } }
-      ).__engineHold.hold()
+        window as unknown as {
+          __engineHold: { hold: (until?: string) => void };
+        }
+      ).__engineHold.hold("coach-what-if:preempted")
     );
     const t0 = await startClock(page);
     const sentAt = Date.now();
     await composer.press("Enter");
-    // The what-if stopped the live search; the engine answers again.
-    await page.waitForFunction(
-      () => performance.getEntriesByName("coach-what-if:preempted").length > 0,
-      null,
-      { polling: "raf", timeout: 5_000 }
-    );
-    await page.evaluate(() =>
-      (
-        window as unknown as { __engineHold: { release: () => void } }
-      ).__engineHold.release()
-    );
 
     const whatIf = page.getByTestId("what-if").last();
     const line = whatIf.getByTestId("what-if-line");

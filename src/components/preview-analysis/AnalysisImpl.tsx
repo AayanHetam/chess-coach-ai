@@ -1,6 +1,6 @@
 "use client";
 
-import { Chess, type Move } from "chess.js";
+import { Chess, DEFAULT_POSITION, type Move } from "chess.js";
 import {
   ANALYSIS_HANDOFF_PARAM,
   consumeStagedGame,
@@ -44,6 +44,9 @@ import {
   initialWhatIfState,
   resolveWhatIf,
   runWhatIf,
+  WHAT_IF_EVALS_WAIT_MS,
+  whatIfClientEvals,
+  whatIfEvalsWithin,
   whatIfLine,
   whatIfStateFrom,
   whatIfUnavailable,
@@ -51,6 +54,7 @@ import {
   type WhatIfState,
   type WhatIfStore,
 } from "@/components/preview-analysis/coachWhatIf";
+import type { ClientEvals } from "@/lib/coach/clientEvals";
 import { createEngineTurn, type EngineTurn } from "@/lib/engine/engineTurn";
 import {
   EngineSearchAbortedError,
@@ -539,7 +543,8 @@ const AI_DISABLED = isAiDisabledPublic();
  * to the line's paint and to the board's move can be read in devtools and
  * by the e2e that holds the two-second budget; ":preempted" when it stopped
  * a live search still running (which then marks "coach-live-eval:aborted"),
- * ":jump-held" / ":jump-skipped" when the coach's jump for
+ * ":sent" when its question goes up, with or without the search's
+ * numbers, ":jump-held" / ":jump-skipped" when the coach's jump for
  * its own reply waited for the line or was dropped for it. Local to the
  * browser; nothing is sent anywhere.
  */
@@ -551,7 +556,8 @@ export function markWhatIf(
     | "board"
     | "preempted"
     | "jump-held"
-    | "jump-skipped",
+    | "jump-skipped"
+    | "sent",
   detail?: Record<string, unknown>
 ): void {
   if (typeof performance === "undefined" || !performance.mark) return;
@@ -648,6 +654,8 @@ async function streamCoachReply(params: {
    * the board can show the position the answer is about.
    */
   onAnchor?: (anchor: CoachReplyAnchor) => void;
+  /** A what-if's own numbers for this question, for the fast path (clientEvals.ts). */
+  clientEvals?: ClientEvals | null;
   signal?: AbortSignal;
 }): Promise<string> {
   const {
@@ -672,6 +680,7 @@ async function streamCoachReply(params: {
     onCorrected,
     onTruncated,
     onAnchor,
+    clientEvals,
     signal,
   } = params;
 
@@ -699,6 +708,7 @@ async function streamCoachReply(params: {
           conversationHistory,
           fen,
           currentPly,
+          clientEvals,
         })
       ),
       signal,
@@ -9025,13 +9035,25 @@ export default function AnalysisPage() {
     ]
   );
 
+  // Per what-if, the numbers its question goes up with (whatIfClientEvals):
+  // the first deep partial's, or null when the search ends without one.
+  const whatIfEvalsRef = useRef(new Map<number, Promise<ClientEvals | null>>());
   const launchWhatIf = useCallback(
     (id: number, ask: WhatIfAsk, plyAtSend: number) => {
+      let settleEvals: (numbers: ClientEvals | null) => void = () => {};
+      whatIfEvalsRef.current.set(
+        id,
+        new Promise((resolve) => {
+          settleEvals = resolve;
+        })
+      );
       if (!engine) {
+        settleEvals(null);
         patchWhatIf(id, (st) => whatIfUnavailable(st, "no-engine"));
         return;
       }
       if (gameAnalysisRunning) {
+        settleEvals(null);
         patchWhatIf(id, (st) => whatIfUnavailable(st, "busy"));
         return;
       }
@@ -9078,6 +9100,9 @@ export default function AnalysisPage() {
         onResult: (result, final) => {
           markWhatIf("partial", { depth: result.depth, final });
           patchWhatIf(id, (st) => whatIfStateFrom(st, result, final));
+          // The first numbers deep enough go up with the question.
+          const numbers = whatIfClientEvals(ask, result);
+          if (numbers) settleEvals(numbers);
           if (drawn) return;
           const line = whatIfLine(ask, result);
           if (!line) return;
@@ -9113,6 +9138,7 @@ export default function AnalysisPage() {
         },
         isStale,
       }).then((result) => {
+        settleEvals(null);
         if (whatIfAbortRef.current === abort) whatIfAbortRef.current = null;
         if (isStale()) return;
         if (result === null)
@@ -9872,9 +9898,31 @@ export default function AnalysisPage() {
         markWhatIf("asked", { id: whatIfId });
         launchWhatIf(whatIfId, whatIfAsk, currentPly);
       }
+      // A what-if's question goes up with its search's numbers when they
+      // come within the wait (the first deep partial, about a second on a
+      // slow phone), else without them. Not for a game that starts from a
+      // set-up position (the server replays from the standard start) or a
+      // what-if past the last move (no game move to anchor on).
+      const whatIfNumbers =
+        whatIfAsk &&
+        (!rootFen || rootFen === DEFAULT_POSITION) &&
+        whatIfAsk.index < gameSans.length
+          ? whatIfEvalsRef.current.get(whatIfId)
+          : undefined;
       await runCoachReply({
-        stream: (reply) =>
-          streamCoachReply({
+        stream: async (reply) => {
+          const asked = performance.now();
+          const clientEvals = await whatIfEvalsWithin(
+            whatIfNumbers,
+            WHAT_IF_EVALS_WAIT_MS
+          );
+          if (whatIfAsk)
+            markWhatIf("sent", {
+              id: whatIfId,
+              withNumbers: clientEvals !== null,
+              waitedMs: Math.round(performance.now() - asked),
+            });
+          return streamCoachReply({
             prevMessages: prevForApi,
             userText: text,
             fen: displayFen,
@@ -9886,7 +9934,9 @@ export default function AnalysisPage() {
             contextIdRef: coachContextIdRef,
             ...coachExtras,
             ...reply,
-          }),
+            clientEvals,
+          });
+        },
         fromPly: currentPly,
         site: "send",
         // A question that asked a what-if: its reply's jump defers to the line.
@@ -9940,6 +9990,8 @@ export default function AnalysisPage() {
       launchWhatIf,
       whatIfStore,
       whatIfReplySink,
+      rootFen,
+      gameSans,
     ]
   );
 

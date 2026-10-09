@@ -51,6 +51,14 @@ export interface GameStoryInput {
   black: string | null | undefined;
   /** The PGN Result header, when there is one. */
   result: string | null | undefined;
+  /**
+   * How the game ended on the board, for a game whose Result header is
+   * missing or "*": the mating side's win, or a draw (stalemate,
+   * repetition, insufficient material, the fifty-move rule). The engine
+   * does not score a finished position, so without this a stalemate was
+   * told as a win for the side ahead before it.
+   */
+  finalResult?: GameResult | null;
   /** The side the reader played, when known. */
   playerColor: Side | null;
   /** The depth the sweep asked for, so a shallower retry is not read as a swing. */
@@ -226,7 +234,7 @@ function resultWords(result: GameResult | null, input: GameStoryInput): string {
  * side-neutral one when it is not. The names stay first in every shape.
  */
 export function buildGameStory(input: GameStoryInput): GameStory {
-  const result = parseResult(input.result);
+  const result = parseResult(input.result) ?? input.finalResult ?? null;
   const moves = scoredMoves(input);
   const last = moves.length > 0 ? moves[moves.length - 1] : null;
   const winner = winnerOf(input, result, last);

@@ -227,6 +227,50 @@ describe("without a result, a draw, or before the sweep", () => {
     );
   });
 
+  it("with no header, a game that ends drawn on the board is drawn, however far ahead a side was", () => {
+    // White far ahead, then stalemate: the engine leaves the final
+    // position unscored (depth 0), so the verdict before it would name
+    // White the winner.
+    const story = buildGameStory({
+      positions: positions([
+        0,
+        0,
+        0,
+        0,
+        400,
+        420,
+        900,
+        950,
+        { depth: 0, cp: 0 },
+      ]),
+      sans: SANS,
+      white: "W",
+      black: "B",
+      result: "*",
+      finalResult: "1/2-1/2",
+      playerColor: "b",
+    });
+    expect(story.result).toBe("1/2-1/2");
+    expect(story.winner).toBeNull();
+    expect(story.decisive).toBeNull();
+    expect(story.terminal).toBe("1/2-1/2");
+    expect(story.line).toMatch(/^W vs B, drawn\./);
+  });
+
+  it("the header wins over the board: a resignation is the result", () => {
+    const story = buildGameStory({
+      positions: positions([0, 0, 0, 0, -300, -310, -320, -330, -340]),
+      sans: SANS,
+      white: "W",
+      black: "B",
+      result: "0-1",
+      finalResult: null,
+      playerColor: null,
+    });
+    expect(story.result).toBe("0-1");
+    expect(story.winner).toBe("b");
+  });
+
   it("a draw has no winner and no decisive move; the biggest swing is named", () => {
     // Black gives White +250 at ply 2 and White gives it straight back at ply 3.
     const story = buildGameStory({

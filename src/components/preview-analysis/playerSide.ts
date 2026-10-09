@@ -8,9 +8,14 @@
 //   3. otherwise → null, and CoachPanel shows the inline two-button ask
 //      before the first analysis request.
 
+import { playerName } from "@/lib/coach/gameStory";
+
 export type PlayerSideColor = "white" | "black";
 
-export type PlayerSideSource = "username_match" | "stored_choice" | "user_choice";
+export type PlayerSideSource =
+  | "username_match"
+  | "stored_choice"
+  | "user_choice";
 
 export interface PlayerSide {
   color: PlayerSideColor;
@@ -31,10 +36,19 @@ export function gameSideKey(
 ): string | null {
   const white = headers.White?.trim();
   const black = headers.Black?.trim();
-  if ((!white && !black) || plyCount === 0) return null;
-  return [white ?? "?", black ?? "?", headers.Date?.trim() ?? "?", plyCount].join(
-    "|"
-  );
+  // chess.js fills an absent name with "?": two games without names are
+  // not the same game, so neither keeps a side.
+  if (
+    (!playerName(headers.White) && !playerName(headers.Black)) ||
+    plyCount === 0
+  )
+    return null;
+  return [
+    white ?? "?",
+    black ?? "?",
+    headers.Date?.trim() ?? "?",
+    plyCount,
+  ].join("|");
 }
 
 /** Case-insensitive exact match of any known username against the PGN

@@ -1,3 +1,4 @@
+import { Chess } from "chess.js";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   gameSideKey,
@@ -54,6 +55,20 @@ describe("gameSideKey", () => {
   it("returns null when there is nothing to key on (bare FEN load)", () => {
     expect(gameSideKey({}, 0)).toBeNull();
     expect(gameSideKey({ White: "a", Black: "b" }, 0)).toBeNull();
+  });
+
+  it("returns null for a game without names, as chess.js fills them in", () => {
+    const a = new Chess();
+    a.loadPgn("1. e4 e5 2. Nf3 Nc6 *");
+    const b = new Chess();
+    b.loadPgn("1. d4 d5 2. c4 e6 *");
+    expect(a.header().White).toBe("?");
+    expect(gameSideKey(a.header(), 4)).toBeNull();
+    expect(gameSideKey(b.header(), 4)).toBeNull();
+    // One name is still an identity, keyed as before.
+    expect(gameSideKey({ ...a.header(), White: "Aayan" }, 4)).toBe(
+      "Aayan|?|????.??.??|4"
+    );
   });
 });
 

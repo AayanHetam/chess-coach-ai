@@ -8182,6 +8182,15 @@ export default function AnalysisPage() {
       white: headers.White,
       black: headers.Black,
       result: headers.Result,
+      // The board's own end, for a game with no Result header: a stalemate
+      // or a repetition is a draw, however far ahead a side was before it.
+      finalResult: loadedGame.isCheckmate()
+        ? loadedGame.turn() === "w"
+          ? "0-1"
+          : "1-0"
+        : loadedGame.isDraw()
+          ? "1/2-1/2"
+          : null,
       playerColor: playerSide
         ? playerSide.color === "white"
           ? "w"

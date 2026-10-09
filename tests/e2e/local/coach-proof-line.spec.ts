@@ -34,7 +34,7 @@ const REVIEW = [
   "[WHY]",
   "Idea: You saw the knight fork on c7 hitting the king and the rook on a8.",
   "Problem: The queen on c1 was hanging with no defenders, and 8. Qxc1 simply takes it.",
-  "Solution: 8. Qxc1 takes the queen immediately, and after Rb8 9. Qf4 you are a full queen ahead.",
+  "Solution: 8. Qxc1 takes the queen immediately, and after Rb8 9. Qf4 material is level again.",
   "Outcome: The fork was real, but the free queen was bigger.",
   "The takeaway: collect the most valuable free piece before you start a combination.",
   "[CONTINUATION:8:w]",

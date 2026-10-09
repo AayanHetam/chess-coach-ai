@@ -40,7 +40,7 @@ const REVIEW = [
   "Idea: You saw the knight fork on c7 hitting the king and the rook on a8.",
   "Problem: The queen on c1 was hanging with no defenders.",
   "Solution: 8. Qxc1 takes the queen immediately.",
-  "Outcome: A full queen ahead instead of a lost knight.",
+  "Outcome: Material is level again instead of a knight lost.",
   "The takeaway: collect the most valuable free piece before you start a combination.",
   "[/WHY]",
   "[CONCEPT:backRankMate:Back Rank Mate]",

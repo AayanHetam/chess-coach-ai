@@ -218,6 +218,13 @@ import {
   type Side as StandingSide,
 } from "./standingSide";
 import {
+  isFollowUpMomentsEnabledPublic,
+  momentIsText,
+  momentView,
+  readServedMoment,
+} from "./followUpMoment";
+import { ABSENCE_CLAUSE, type MomentProse } from "@/lib/coach/moment";
+import {
   coachAskedLast,
   markServedPageTurn,
   planPageTurn,
@@ -576,6 +583,8 @@ const PAGE_ACTIONS = isPageActionsEnabledPublic();
 const PERSPECTIVE = isPerspectiveEnabledPublic();
 /** Build-time flag: a fresh load opens at the move the game turned on (arrivalJump.ts). */
 const ARRIVAL_JUMP = isArrivalJumpEnabledPublic();
+/** Build-time flag: a follow-up answered in fields is drawn from them (followUpMoment.ts). */
+const FOLLOWUP_MOMENTS = isFollowUpMomentsEnabledPublic();
 
 /**
  * User Timing marks for a what-if ("coach-what-if:asked", ":partial",
@@ -729,6 +738,8 @@ async function streamCoachReply(params: {
   perspectiveRef?: { current: "w" | "b" | null };
   /** The coach's reading of the turn's side, raw (the route's `perspective` echo). */
   onPerspective?: (echo: unknown) => void;
+  /** The answer's fields, when the route sent them and they are its text (followUpMoment.ts). */
+  onMoment?: (moment: MomentProse) => void;
   signal?: AbortSignal;
 }): Promise<string> {
   const {
@@ -760,6 +771,7 @@ async function streamCoachReply(params: {
     onActions,
     perspectiveRef,
     onPerspective,
+    onMoment,
     signal,
   } = params;
   // A context minted by this request is built for the side it carries.
@@ -846,6 +858,13 @@ async function streamCoachReply(params: {
       if (PAGE_ACTIONS) {
         const actions = readPageActions(data.gameAnalysis?.actions).slice(0, 1);
         if (actions.length > 0) onActions?.(actions);
+      }
+      // A follow-up answered in fields: the fields, before the text they
+      // project to, so the transcript draws them in the render the answer
+      // lands in. Fields that are not this text are never drawn.
+      if (FOLLOWUP_MOMENTS) {
+        const moment = readServedMoment(data.gameAnalysis?.moment, text);
+        if (moment) onMoment?.(moment);
       }
       // Emit as a single chunk so the UI animates the same way
       onDelta(text);
@@ -1272,6 +1291,13 @@ interface CoachMessage {
    * game.
    */
   pageTurn?: boolean;
+  /**
+   * A follow-up answered in fields (pathway 3.3, followUpMoment.ts): the
+   * transcript draws them while they are the content's projection. The
+   * content stays the text, which is all the history, the saved transcript
+   * and a share carry. Not persisted; a restored transcript has none.
+   */
+  moment?: MomentProse;
 }
 
 // The cold-start chat. `synthetic: true` keeps it out of conversationHistory
@@ -5174,6 +5200,7 @@ function CoachPanel({
             data-page-actions={PAGE_ACTIONS ? "on" : "off"}
             data-coach-perspective={PERSPECTIVE ? "on" : "off"}
             data-arrival-jump={ARRIVAL_JUMP ? "on" : "off"}
+            data-followup-moments={FOLLOWUP_MOMENTS ? "on" : "off"}
             fullWidth
             multiline
             maxRows={4}
@@ -6937,6 +6964,88 @@ function CoachBubble({
     );
   };
 
+  // A follow-up answered in fields (pathway 3.3, followUpMoment.ts): the
+  // idea and what happens as two lines, the proof through the same line
+  // renderer the tokens use, the lesson and the question as the same
+  // notes. Where the page has no line to draw for the proof, the app says
+  // so in one clause in the line's place instead of leaving nothing. The
+  // app's clauses are the coach's words in a quieter colour.
+  const renderMoment = (moment: MomentProse): React.ReactNode => {
+    const view = momentView(moment);
+    const quiet = { color: "rgba(255,255,255,0.62)" };
+    let proof: React.ReactNode = null;
+    if (view.proof) {
+      const ref = view.proof;
+      const line =
+        ref.kind === "played"
+          ? playedLineAt(
+              gameSans,
+              ref.moveNumber,
+              ref.color,
+              rootFen,
+              6,
+              enginePositions
+            )
+          : engineLineAt(
+              enginePositions,
+              gameSans,
+              ref.moveNumber,
+              ref.color,
+              rootFen
+            );
+      proof = line ? (
+        <ProofLine
+          line={line}
+          playerColor={playerColor ?? null}
+          onShowPly={onShowLinePly}
+        />
+      ) : (
+        <Box
+          component="p"
+          data-testid="coach-moment-proof-absent"
+          sx={{ m: 0, mb: 0.75, ...quiet }}
+        >
+          {ABSENCE_CLAUSE.proof}
+        </Box>
+      );
+    }
+    return (
+      <Box data-testid="coach-moment">
+        {view.lines.map((l) => (
+          <Box
+            key={l.field}
+            component="p"
+            data-testid={`coach-moment-${l.field}`}
+            data-absent={l.absent ? "true" : undefined}
+            sx={{ m: 0, mb: 0.75, ...(l.absent ? quiet : {}) }}
+          >
+            {renderInline(l.text)}
+          </Box>
+        ))}
+        {proof}
+        {view.more && renderProseWithNotes(view.more)}
+        {view.lesson && (
+          <CoachNote
+            label="Lesson"
+            renderInline={renderInline}
+            data-testid="coach-note-lesson"
+          >
+            {view.lesson}
+          </CoachNote>
+        )}
+        {view.question && (
+          <CoachNote
+            label="Your turn"
+            renderInline={renderInline}
+            data-testid="coach-note-your-turn"
+          >
+            {view.question}
+          </CoachNote>
+        )}
+      </Box>
+    );
+  };
+
   // The message's own rendering, kept across the renders that do not
   // touch it. Nothing on the page is memoized, so every state change (a
   // keystroke in the composer, an eval landing, a what-if's partial)
@@ -6952,6 +7061,8 @@ function CoachBubble({
     // one passage per insight + suffix prose. When absent we fall
     // back to the original raw-text inline rendering.
     if (isUser) return renderInline(msg.content);
+    if (FOLLOWUP_MOMENTS && msg.moment && momentIsText(msg.moment, msg.content))
+      return renderMoment(msg.moment);
     const practiceStripped = extractPracticeTags(msg.content).stripped;
     const { prefix, insights, suffix } = parseInsights(practiceStripped);
     if (insights.length === 0) {
@@ -6993,6 +7104,7 @@ function CoachBubble({
   }, [
     isUser,
     msg.content,
+    msg.moment,
     introTold,
     allMoves,
     rootFen,

@@ -36,6 +36,7 @@ const {
   mockGetAnalysisContext,
   mockClassifyQuestion,
   mockFetchDataSources,
+  mockReferee,
 } = vi.hoisted(() => ({
   mockLog: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   mockSession: vi.fn(),
@@ -43,6 +44,8 @@ const {
   mockGetAnalysisContext: vi.fn(),
   mockClassifyQuestion: vi.fn(),
   mockFetchDataSources: vi.fn(),
+  // The referee, real unless a test says otherwise (`real` is the module's).
+  mockReferee: vi.fn(),
 }));
 vi.mock("@/lib/logging", () => ({
   logger: { child: vi.fn(() => mockLog) },
@@ -70,6 +73,14 @@ vi.mock("@/lib/mastermind/categorization/categoryClassifier", async (orig) => ({
   ...(await orig<object>()),
   classifyQuestion: mockClassifyQuestion,
 }));
+vi.mock("@/lib/contract/followUpReferee", async (orig) => {
+  const real = await orig<typeof import("@/lib/contract/followUpReferee")>();
+  return {
+    ...real,
+    refereeFollowUp: (input: Parameters<typeof real.refereeFollowUp>[0]) =>
+      mockReferee(input, real.refereeFollowUp),
+  };
+});
 vi.mock("@/lib/mastermind/wireValidators", async (orig) => ({
   ...(await orig<object>()),
   fetchDataSources: mockFetchDataSources,
@@ -208,6 +219,7 @@ beforeEach(() => {
     userHistory: undefined,
   });
   mockGetAnalysisContext.mockImplementation(() => context());
+  mockReferee.mockImplementation((input, real) => real(input));
 });
 
 afterEach(() => {
@@ -244,9 +256,14 @@ describe.each([
     expect(b.temperature).toBe(a.temperature);
     expect(b.maxTokens).toBe(a.maxTokens);
 
-    expect(Object.keys(fJson.gameAnalysis).sort()).toEqual(
-      Object.keys(v1Json.gameAnalysis).sort()
-    );
+    // The one key a fielded answer adds: its fields (pathway 3.3).
+    expect(
+      Object.keys(fJson.gameAnalysis)
+        .filter((k) => k !== "moment")
+        .sort()
+    ).toEqual(Object.keys(v1Json.gameAnalysis).sort());
+    expect(fJson.gameAnalysis.moment).toBeDefined();
+    expect(v1Json.gameAnalysis.moment).toBeUndefined();
     if (v1Json.gameAnalysis.pipeline)
       expect(Object.keys(fJson.gameAnalysis.pipeline).sort()).toEqual(
         Object.keys(v1Json.gameAnalysis.pipeline).sort()
@@ -266,6 +283,33 @@ describe.each([
     expect(json.gameAnalysis.analysis).not.toMatch(/may be inaccurate/i);
     expect(logged("followup_referee_dropped")).toEqual([]);
     expect(json.gameAnalysis.anchor).toMatchObject({ ply: 15, san: "Nc7+" });
+    // Its fields ride beside the text, and the text is their projection.
+    expect(json.gameAnalysis.moment).toEqual(proseFromEnvelope(clean));
+    expect(momentToText(json.gameAnalysis.moment)).toBe(
+      json.gameAnalysis.analysis
+    );
+  });
+
+  it("a sentence the second net drops leaves the text with no fields beside it", async () => {
+    fielded();
+    provider();
+    // The pre-pass passes no flagged spans; the second net always does.
+    mockReferee.mockImplementation((input, real) => {
+      const out = real(input);
+      if (!("flaggedSpans" in input)) return out;
+      const sentence = "The queen on c1 was already hanging";
+      return {
+        ...out,
+        text: out.text.replace(
+          /The queen on c1 was already hanging[^.]*\.\s*/,
+          ""
+        ),
+        dropped: [{ sentence, reason: "test" }],
+      };
+    });
+    const json = await (await ask(Q)).json();
+    expect(json.gameAnalysis.analysis).not.toContain("already hanging");
+    expect(json.gameAnalysis.moment).toBeUndefined();
   });
 
   it("regenerates a field once, and reports it as a retry, never as the template", async () => {
@@ -318,6 +362,7 @@ describe.each([
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.gameAnalysis.analysis).toContain("8. Qxc1");
+    expect(json.gameAnalysis.moment).toBeUndefined();
     expect(logged("followup_fielded")[0]).toMatchObject({
       served: "v1_fallback",
       parse: "failed",
@@ -335,6 +380,7 @@ describe.each([
     expect(f.coachCalls[0].system).toBe(v1.coachCalls[0].system);
     expect(f.coachCalls[0].messages).toEqual(v1.coachCalls[0].messages);
     expect(fJson.gameAnalysis.analysis).toBe(v1Json.gameAnalysis.analysis);
+    expect(fJson.gameAnalysis.moment).toBeUndefined();
     expect(fJson.gameAnalysis.followUpPrompt).toBe("1.3");
     expect(logged("followup_fielded")).toEqual([
       expect.objectContaining({ eligible: false, reason: "no_anchor" }),

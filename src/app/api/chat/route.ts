@@ -34,7 +34,11 @@ import {
   runFieldedTurn,
   type FieldedTurnResult,
 } from "@/lib/coach/fieldedTurn";
-import { MOMENT_OUTPUT_SCHEMA } from "@/lib/coach/moment";
+import {
+  MOMENT_OUTPUT_SCHEMA,
+  sameProjection,
+  type MomentProse,
+} from "@/lib/coach/moment";
 import {
   confirmedSideOf,
   softenPerspectiveLine,
@@ -182,6 +186,20 @@ function validateOnBoards(
     issues: remaining,
     score: Math.max(0, 1 - warnings * 0.05),
   };
+}
+
+/**
+ * A fielded answer's fields, sent beside its text (pathway 3.3) so a page
+ * can draw them: only when the text served is still their projection, so
+ * a sentence the referee dropped after the turn, a template or a draft is
+ * never drawn from fields it no longer matches.
+ */
+function servedMoment(
+  out: FieldedTurnResult | undefined,
+  analysis: string
+): MomentProse | null {
+  if (out?.served !== "fielded" || !out.prose) return null;
+  return sameProjection(analysis, out.text) ? out.prose : null;
 }
 
 function keptHistoryTurns(
@@ -1351,11 +1369,13 @@ export async function POST(request: NextRequest) {
             classifierCostUsd: prep.classifierCostUsd,
             ...timing,
           });
+          const moment = servedMoment(fieldedOut, analysis);
           return NextResponse.json({
             gameAnalysis: {
               analysis,
               position: activeFen,
               ...anchorFields,
+              ...(moment ? { moment } : {}),
               validationScore: validation.score,
               cached: false,
               fastPath: true,
@@ -1475,11 +1495,13 @@ export async function POST(request: NextRequest) {
         ...timing,
       });
 
+      const moment = servedMoment(fieldedOut, analysis);
       return NextResponse.json({
         gameAnalysis: {
           analysis,
           position: activeFen,
           ...anchorFields,
+          ...(moment ? { moment } : {}),
           validationScore: validation.score,
           cached: false,
           fastPath: true,

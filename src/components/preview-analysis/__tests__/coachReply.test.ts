@@ -267,6 +267,7 @@ describe("runCoachReply: errors", () => {
     content: coachReplyBanner(site, err),
     synthetic: true,
     incomplete: undefined,
+    moment: undefined,
     mascot: coachErrorMood(err instanceof CoachAuthError ? "auth" : "api"),
   });
 
@@ -343,6 +344,8 @@ describe("runCoachReply: errors", () => {
         coachErrorMood(kind === "auth" ? "auth" : "api")
       );
       expect("incomplete" in patch).toBe(true);
+      // The fields of an answer the banner replaced are cleared with it.
+      expect("moment" in patch).toBe(true);
     });
   }
 
@@ -483,5 +486,51 @@ describe("runCoachReply: the coach's reading of the turn's side", () => {
       site: "send",
       sink,
     });
+  });
+});
+
+describe("runCoachReply: an answer's fields", () => {
+  const MOMENT = {
+    idea: "You went for the fork.",
+    happens: "The queen on c1 was free.",
+    proof: { kind: "engine" as const, moveNumber: 8, color: "w" as const },
+    lesson: null,
+    question: null,
+    more: null,
+    omitted: [],
+  };
+
+  it("ride on the placeholder beside the answer's text", async () => {
+    const { calls, sink } = recorder();
+    await runCoachReply({
+      stream: async (h: CoachReplyHandlers) => {
+        h.onMoment?.(MOMENT);
+        h.onDelta("You went for the fork. The queen on c1 was free.");
+        return RETURNED;
+      },
+      fromPly: 0,
+      site: "send",
+      sink,
+    });
+    expect(calls).toContainEqual(["patch", { moment: MOMENT }]);
+    expect(calls).toContainEqual([
+      "patch",
+      { content: "You went for the fork. The queen on c1 was free." },
+    ]);
+  });
+
+  it("are ignored after a served page turn", async () => {
+    const { calls, sink } = recorder();
+    await runCoachReply({
+      stream: async (h: CoachReplyHandlers) => {
+        h.onPageTurn?.(null);
+        h.onMoment?.(MOMENT);
+        return RETURNED;
+      },
+      fromPly: 0,
+      site: "send",
+      sink,
+    });
+    expect(calls.some(([k]) => k === "patch")).toBe(false);
   });
 });

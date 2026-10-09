@@ -25,6 +25,7 @@
 import type { MastiMood } from "@/components/masti/manifest";
 import { coachErrorMood, type CoachErrorKind } from "@/components/masti/mood";
 import type { PageAction, PageTurn } from "@/lib/coach/pageActions";
+import type { MomentProse } from "@/lib/coach/moment";
 
 /** The coach endpoint answered 401: the session is gone or was never there. */
 export class CoachAuthError extends Error {}
@@ -67,6 +68,11 @@ export interface CoachReplyHandlers {
   onActions?: (actions: PageAction[]) => void;
   /** The coach's reading of the turn's side (the route's `perspective` echo), raw. */
   onPerspective?: (echo: unknown) => void;
+  /**
+   * The answer's fields (followUpMoment.ts), read and matched to the text
+   * the transport is about to deliver: the transcript draws them.
+   */
+  onMoment?: (moment: MomentProse) => void;
 }
 
 /** A patch for the coach's placeholder: the last message, when it is the coach's. */
@@ -75,6 +81,8 @@ export interface CoachReplyPatch {
   incomplete?: boolean;
   synthetic?: boolean;
   mascot?: MastiMood;
+  /** The answer's fields; the content stays the text either way. */
+  moment?: MomentProse;
 }
 
 /** Where the coach moved the board, and the way back. */
@@ -242,6 +250,10 @@ export async function runCoachReply(run: CoachReplyRun): Promise<void> {
         if (served) return;
         sink.notePerspective?.(echo);
       },
+      onMoment: (moment) => {
+        if (served) return;
+        sink.patchLastCoach({ moment });
+      },
     });
     if (!served) onDone?.(accumulated);
   } catch (err) {
@@ -254,6 +266,8 @@ export async function runCoachReply(run: CoachReplyRun): Promise<void> {
       content: coachReplyBanner(site, err),
       synthetic: true,
       incomplete: undefined,
+      // The banner is not the answer the fields were.
+      moment: undefined,
       // A sign-in wall is a nervous face; an outage is a dizzy one, and so
       // is a network failure (the face never had a third state).
       mascot: coachErrorMood(kind === "auth" ? "auth" : "api"),

@@ -269,12 +269,67 @@ const withStop = (s: string) =>
   endsWithStop(s.trim()) ? s.trim() : `${s.trim()}.`;
 const withoutStop = (s: string) => s.trim().replace(/[.!?]+$/, "");
 
-export function renderLesson(lesson: MomentLesson): string {
+/** A lesson's words after its label: "<pattern>. <check>". */
+export function lessonText(lesson: MomentLesson): string {
   const pattern = withoutStop(lesson.pattern);
   const check = withStop(lesson.check);
-  if (!pattern) return `Lesson: ${check}`;
-  if (!lesson.check.trim()) return `Lesson: ${withStop(pattern)}`;
-  return `Lesson: ${pattern}. ${check}`;
+  if (!pattern) return check;
+  if (!lesson.check.trim()) return withStop(pattern);
+  return `${pattern}. ${check}`;
+}
+
+export function renderLesson(lesson: MomentLesson): string {
+  return `Lesson: ${lessonText(lesson)}`;
+}
+
+/** A question's words after its label, ending in one question mark. */
+export function questionText(question: string): string {
+  return withStop(question).replace(/\.$/, "?").replace(/\?\?$/, "?");
+}
+
+/**
+ * The opening of a served moment as lines: the idea, what happens, and in
+ * the place of a removed one its absence clause (a removed proof's clause
+ * last). Joined with a space they are the projection's first paragraph.
+ */
+export function momentOpening(
+  prose: MomentProse
+): { field: "idea" | "happens" | "proof"; text: string; absent: boolean }[] {
+  const omitted = new Set<MomentProseField>(prose.omitted);
+  const out: {
+    field: "idea" | "happens" | "proof";
+    text: string;
+    absent: boolean;
+  }[] = [];
+  if (prose.idea && prose.idea.trim())
+    out.push({
+      field: "idea",
+      text: withStop(sentenceCase(prose.idea)),
+      absent: false,
+    });
+  else if (omitted.has("idea"))
+    out.push({ field: "idea", text: ABSENCE_CLAUSE.idea, absent: true });
+  if (prose.happens && prose.happens.trim())
+    out.push({
+      field: "happens",
+      text: withStop(sentenceCase(prose.happens)),
+      absent: false,
+    });
+  else if (omitted.has("happens"))
+    out.push({ field: "happens", text: ABSENCE_CLAUSE.happens, absent: true });
+  if (!prose.proof && omitted.has("proof"))
+    out.push({ field: "proof", text: ABSENCE_CLAUSE.proof, absent: true });
+  return out;
+}
+
+/**
+ * The served text is this moment's projection: equal once runs of
+ * whitespace are one space, which is all the referee's rebuild of a reply
+ * it kept whole can change.
+ */
+export function sameProjection(a: string, b: string): boolean {
+  const norm = (s: string) => s.replace(/\s+/g, " ").trim();
+  return norm(a) === norm(b);
 }
 
 /**
@@ -295,15 +350,7 @@ export function renderLesson(lesson: MomentLesson): string {
  * does not know.
  */
 export function momentToText(prose: MomentProse): string {
-  const omitted = new Set<MomentProseField>(prose.omitted);
-  const opening: string[] = [];
-  if (prose.idea && prose.idea.trim())
-    opening.push(withStop(sentenceCase(prose.idea)));
-  else if (omitted.has("idea")) opening.push(ABSENCE_CLAUSE.idea);
-  if (prose.happens && prose.happens.trim())
-    opening.push(withStop(sentenceCase(prose.happens)));
-  else if (omitted.has("happens")) opening.push(ABSENCE_CLAUSE.happens);
-  if (!prose.proof && omitted.has("proof")) opening.push(ABSENCE_CLAUSE.proof);
+  const opening = momentOpening(prose).map((l) => l.text);
 
   const paragraphs: string[] = [];
   if (opening.length > 0) paragraphs.push(opening.join(" "));
@@ -315,9 +362,7 @@ export function momentToText(prose: MomentProse): string {
   )
     paragraphs.push(renderLesson(prose.lesson));
   if (prose.question && prose.question.trim())
-    paragraphs.push(
-      `Your turn: ${withStop(prose.question).replace(/\.$/, "?").replace(/\?\?$/, "?")}`
-    );
+    paragraphs.push(`Your turn: ${questionText(prose.question)}`);
   return paragraphs.join("\n\n");
 }
 

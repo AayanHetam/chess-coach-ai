@@ -478,6 +478,107 @@ test.describe("the board's rectangle", () => {
     await expect(state).toHaveCount(0);
     expectSameRect(rest, await boardRect(page), "stepping after a switch");
   });
+
+  test("does not move for a follow-up drawn from its fields, or its line played", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await stubEverything(page);
+    // The answer's fields beside its text (pathway 3.3): two lines, the
+    // engine's line (nothing to draw it from, so the app's clause in its
+    // place), the game's own line, the lesson and the question.
+    const idea =
+      "You went for the check because the fork looked like it won material.";
+    const happens =
+      "The queen on c1 was already hanging, so the knight is the piece that is lost.";
+    const moment = {
+      idea,
+      happens,
+      proof: { kind: "played", moveNumber: 8, color: "w" },
+      lesson: {
+        pattern: "take what is hanging first",
+        check:
+          "Before any fork, list every capture your opponent has in reply.",
+      },
+      question: "Black has just played 7... Qxc1: which piece can take it",
+      more: null,
+      omitted: [],
+    };
+    const text = [
+      `${idea} ${happens}`,
+      "[PLAYED:8:w]",
+      "Lesson: take what is hanging first. Before any fork, list every capture your opponent has in reply.",
+      "Your turn: Black has just played 7... Qxc1: which piece can take it?",
+    ].join("\n\n");
+    await page.route("**/api/chat", (route) =>
+      route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          gameAnalysis: {
+            analysis: text,
+            moment,
+            position: "",
+            anchor: { ply: 15, moveNumber: 8, color: "w", san: "Nc7+" },
+            followUpPrompt: "fielded-1",
+            validationScore: 1,
+            cached: false,
+            fastPath: true,
+          },
+        }),
+      })
+    );
+    await page.goto(`/analysis?pgn=${encodeURIComponent(PGN)}`);
+    const composer = page.getByPlaceholder(
+      "Ask anything — answering without engine analysis."
+    );
+    await expect(composer).toBeVisible({ timeout: 60_000 });
+    const built =
+      (await page
+        .locator("[data-followup-moments]")
+        .first()
+        .getAttribute("data-followup-moments")) === "on";
+    test.skip(!built && !process.env.CI, "built without follow-up moments");
+    expect(built, "the CI legs build with follow-up moments on").toBe(true);
+
+    await composer.fill("analyse this game");
+    await composer.press("Enter");
+    await expect(page.getByText("simply takes the queen on c1")).toBeVisible({
+      timeout: 30_000,
+    });
+    const rest = await boardRect(page);
+    const strip = page.getByTestId("move-analysis");
+    const stripBox = (await strip.boundingBox())!;
+
+    await composer.fill("Why was 8. Nc7+ a mistake?");
+    await composer.press("Enter");
+    const drawn = page.getByTestId("coach-moment");
+    await expect(drawn).toBeVisible({ timeout: 30_000 });
+    await expect(drawn.getByTestId("proof-line")).toHaveCount(1);
+    await expect(drawn.getByTestId("coach-note-lesson")).toBeVisible();
+    await expect(page.getByTestId("coach-jump-banner")).toBeVisible();
+    expectSameRect(
+      rest,
+      await boardRect(page),
+      "a follow-up drawn from its fields"
+    );
+    expect(
+      Math.abs((await strip.boundingBox())!.height - stripBox.height)
+    ).toBeLessThanOrEqual(2);
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
+
+    // Its line played on the board: the game's own moves, so the cursor
+    // walks the mainline and the strip's first row is the move label again.
+    await drawn.getByTestId("proof-line-play").click();
+    await expect(page.getByTestId("coach-jump-banner")).toHaveCount(0, {
+      timeout: 10_000,
+    });
+    await expect(page.getByTestId("move-analysis-label")).toBeVisible();
+    expectSameRect(rest, await boardRect(page), "the answer's line played");
+    expect(
+      Math.abs((await strip.boundingBox())!.height - stripBox.height)
+    ).toBeLessThanOrEqual(2);
+  });
 });
 
 /**

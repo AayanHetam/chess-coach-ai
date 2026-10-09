@@ -15,6 +15,7 @@ import {
   buildLineStory,
   type LineStory,
   type PlyStory,
+  type StoryFact,
 } from "@/lib/contract/lineStory";
 
 export interface LineCaption {
@@ -26,6 +27,13 @@ export interface LineCaption {
   /** Every fact, for a tooltip. */
   full: string;
   mover: "w" | "b";
+  /**
+   * The ply's story facts, so the caption, the ledger and the board's marks
+   * come from one story call (boardAnnotations.ts). Always set by
+   * captionLine. Absent only on a line whose facts are not worked out yet
+   * (ProofLine's bare captions).
+   */
+  facts?: readonly StoryFact[];
 }
 
 export interface LineCaptions {
@@ -99,7 +107,14 @@ export function captionLine(
   }
   const plies: LineCaption[] = story.plies.map((p) => {
     const { short, full } = plyCaption(p);
-    return { san: p.san, label: p.label, caption: short, full, mover: p.mover };
+    return {
+      san: p.san,
+      label: p.label,
+      caption: short,
+      full,
+      mover: p.mover,
+      facts: p.facts,
+    };
   });
   return {
     plies,

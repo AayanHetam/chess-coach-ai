@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Chess } from "chess.js";
+import { buildLineStory } from "@/lib/contract/lineStory";
 import { captionLine } from "../lineCaptions";
 
 // Fixture 07 after 7... Qxc1: White to move, Black's queen hangs on c1.
@@ -54,6 +55,15 @@ describe("captionLine", () => {
     expect(out.endsInMate).toBe(true);
     expect(out.ledger).toBe("you deliver mate");
     expect(captionLine(new Chess().fen(), ["e4", "e5", "Bc4", "Nc6", "Qh5", "Nf6", "Qxf7#"], "b").ledger).toBe("White mates");
+  });
+
+  it("passes each ply's story facts through, so one story call serves the caption and the board's marks", () => {
+    const sans = ["Nc7+", "Kd8", "Nxa8", "Qxd1+", "Kxd1"];
+    const out = captionLine(BEFORE_8, sans, "w");
+    const story = buildLineStory(BEFORE_8, sans, { maxPlies: 8 });
+    expect(out.plies[0].facts).toEqual(story.plies[0].facts);
+    expect(out.plies.map((p) => p.facts)).toEqual(story.plies.map((p) => p.facts));
+    expect(out.plies[0].facts?.some((f) => f.kind === "motif" && f.motif.motif === "fork")).toBe(true);
   });
 
   it("never throws on a line that does not replay", () => {

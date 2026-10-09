@@ -492,6 +492,7 @@ async function runLive(args: Args): Promise<void> {
   } = await import("@/lib/prompts/verbalizerPrompt");
   const { isOneMasti } = await import("@/lib/prompts/mastiVoice");
   const { isLadderNoteEnabled } = await import("@/lib/contract/ladderNote");
+  const { isTurn1LeanTable } = await import("@/lib/contract/turn1Speed");
 
   const fixtures = loadFixtures(args.only);
   console.log(
@@ -942,6 +943,9 @@ async function runLive(args: Args): Promise<void> {
     armingTable: CI4_GATE_ARMING_TABLE,
     // A run with the ladder's note on is not comparable to one without it.
     ladderNote: isLadderNoteEnabled(),
+    // Pathway 4.8b: whether the move table went out lean
+    // (COACH_TURN1_LEAN_TABLE), which the flip's latency arm compares.
+    turn1: { leanTable: isTurn1LeanTable() },
     gateThresholds: {
       personaPooled: GATE_PERSONA_POOLED,
       personaPerRun: GATE_PERSONA_PER_RUN,

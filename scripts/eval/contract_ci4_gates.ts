@@ -37,6 +37,9 @@
  * payload's `turn1` records the arm and which sources were configured, so a
  * run on a machine with no Lc0 or Maia is not read as one with them.
  *
+ * LEAN MOVE TABLE (pathway 4.8b): set COACH_TURN1_LEAN_TABLE=1 for the lean
+ * arm. `turn1.leanTable` records which way the run went.
+ *
  * Run from the repo root:
  *   npx tsx scripts/eval/contract_ci4_gates.ts --dry-run
  *   npx tsx scripts/eval/contract_ci4_gates.ts [--samples 3] [--only 01,07,09]
@@ -387,6 +390,7 @@ async function runLive(args: Args): Promise<void> {
   const { isLadderNoteEnabled } = await import("@/lib/contract/ladderNote");
   const { __isLc0Configured } = await import("@/lib/grounding/lc0");
   const { __isMaiaConfigured } = await import("@/lib/grounding/maia");
+  const { isTurn1LeanTable } = await import("@/lib/contract/turn1Speed");
 
   const fixtures = loadFixtures(args.only, args.fixturesReal);
   console.log(
@@ -720,11 +724,13 @@ async function runLive(args: Args): Promise<void> {
     // A run with the ladder's note on is not comparable to one without it.
     ladderNote: isLadderNoteEnabled(),
     // Pathway 4.8a: whether the prompt saw the grounding, and which sources
-    // this machine could reach at all.
+    // this machine could reach at all. 4.8b: whether the move table went out
+    // lean (COACH_TURN1_LEAN_TABLE).
     turn1: {
       grounding: args.withholdGrounding ? "withheld" : "full",
       lc0Configured: __isLc0Configured(),
       maiaConfigured: __isMaiaConfigured(),
+      leanTable: isTurn1LeanTable(),
     },
     gateThresholds: {
       personaPooled: GATE_PERSONA_POOLED,

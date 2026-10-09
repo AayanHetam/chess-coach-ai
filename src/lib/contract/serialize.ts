@@ -21,6 +21,7 @@
  */
 import { buildPgnFromMoves, formatPvAsMoveList } from "./chessFormat";
 import { projectLineStory, type LineStory } from "./lineStory";
+import { isTurn1LeanTable } from "./turn1Speed";
 import type { PositionFeatureDelta } from "@/lib/mastermind/featureDelta";
 import type { ThreatNode } from "@/lib/mastermind/threatTree";
 import type {
@@ -411,6 +412,15 @@ function sortKeysDeep(value: unknown): unknown {
  *
  * The last two are conventions, so the charter states both explicitly: an
  * absent branch means "no change", never "unknown".
+ *
+ * Rule 6 applies only with `COACH_TURN1_LEAN_TABLE` on (pathway 4.8b). A
+ * move-table row on a ply with no insight keeps its better move but sheds
+ * that move's engine line, so it ships as `bestWas: { san, line: null }`.
+ * That is a shape the builder already writes when the engine gave no line.
+ * The whole key is never dropped: a missing `bestWas` would read like
+ * `bestWas: null`, which says the move played was the engine's own choice.
+ * A ply with an insight keeps its row as it was. Measured at 3.4% of the
+ * projected contract over the ten real fixtures.
  */
 
 /**
@@ -482,15 +492,26 @@ function projectNode(value: unknown): unknown {
   return out;
 }
 
-/** Drop each row's fenBefore when the previous row's fenAfter already states it. */
-function projectMoveTable(rows: readonly MoveTableEntry[]): unknown[] {
+/**
+ * Drop each row's fenBefore when the previous row's fenAfter already states
+ * it. With `cardedPlies` (the lean table, rule 6) a row whose ply has no
+ * insight also sheds its better move's engine line and keeps the move.
+ */
+function projectMoveTable(
+  rows: readonly MoveTableEntry[],
+  cardedPlies: ReadonlySet<number> | null,
+): unknown[] {
   return rows.map((row, i) => {
     const prev = i > 0 ? rows[i - 1] : undefined;
+    let out: Partial<MoveTableEntry> = row;
     if (prev && row.fenBefore !== null && row.fenBefore === prev.fenAfter) {
       const { fenBefore: _fenBefore, ...rest } = row;
-      return rest;
+      out = rest;
     }
-    return row;
+    if (cardedPlies && !cardedPlies.has(row.ply) && row.bestWas?.line) {
+      out = { ...out, bestWas: { san: row.bestWas.san, line: null } };
+    }
+    return out;
   });
 }
 
@@ -516,7 +537,10 @@ export function serializeForVerbalizer(contract: CoachContract): string {
     if (!gameStory || gameStory.plies.length === 0) return ins;
     return { ...ins, gameStory: { story: projectLineStory(gameStory) } };
   });
-  const moveTable = projectMoveTable(rest.moveTable);
+  const moveTable = projectMoveTable(
+    rest.moveTable,
+    isTurn1LeanTable() ? new Set(rest.insights.map((i) => i.ply)) : null,
+  );
   return JSON.stringify(
     sortKeysDeep(projectNode({ ...rest, insights, moveTable })),
   );

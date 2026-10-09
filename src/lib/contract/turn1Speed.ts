@@ -25,3 +25,15 @@ export function isTurn1EarlyStream(): boolean {
  * it before the flip (the p90 of each source that answers, capped at 3000).
  */
 export const TURN1_GROUNDING_WAIT_MS = 1500;
+
+/**
+ * `COACH_TURN1_LEAN_TABLE=1|true|yes|on` (server, read per call, off until
+ * its flip, pathway 4.8b). With it on, the verbalizer's projection of the
+ * move table keeps a row's better move but drops its engine line on a ply
+ * with no insight (`projectMoveTable` in serialize.ts). The contract object
+ * and every licence pool are unchanged.
+ */
+export function isTurn1LeanTable(): boolean {
+  const v = (process.env.COACH_TURN1_LEAN_TABLE ?? "").trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes" || v === "on";
+}

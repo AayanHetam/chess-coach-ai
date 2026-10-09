@@ -4,6 +4,9 @@ import {
   FOLLOWUP_PROMPT_VERSION,
   FOLLOWUP_WORD_BUDGET,
   getFollowUpPromptMode,
+  isFollowUpLean,
+  FOLLOWUP_BUDGET,
+  FOLLOWUP_LEAN_BUDGET,
   getFollowUpSystemPromptStable,
   followUpSubjectClause,
   followUpTurnReminder,
@@ -144,6 +147,54 @@ describe("getFollowUpPromptMode", () => {
   });
 });
 
+describe("the lean budget (COACH_FOLLOWUP_LEAN, pathway 3.2)", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("is off by default and on for 1, on and true", () => {
+    vi.stubEnv("COACH_FOLLOWUP_LEAN", "");
+    expect(isFollowUpLean()).toBe(false);
+    for (const v of ["1", " ON ", "true"]) {
+      vi.stubEnv("COACH_FOLLOWUP_LEAN", v);
+      expect(isFollowUpLean(), v).toBe(true);
+    }
+    vi.stubEnv("COACH_FOLLOWUP_LEAN", "0");
+    expect(isFollowUpLean()).toBe(false);
+  });
+
+  it("states its own numbers in the prompt and under the question, and the default is unchanged", () => {
+    const lean = getFollowUpSystemPromptStable(
+      "friendly",
+      FOLLOWUP_LEAN_BUDGET
+    );
+    expect(lean).toContain("BUDGET: at most 60 words in the whole answer");
+    expect(lean).toContain("; 100 when the player asks to be walked through");
+    expect(lean).toContain("Two or three sentences, at most 30 words.");
+    expect(lean).toContain("One or two sentences, at most 25 words.");
+    expect(getFollowUpSystemPromptStable("friendly", FOLLOWUP_BUDGET)).toBe(
+      getFollowUpSystemPromptStable("friendly")
+    );
+    expect(
+      followUpTurnReminder(
+        "Why was 8. Nc7+ a mistake?",
+        null,
+        FOLLOWUP_LEAN_BUDGET
+      )
+    ).toContain("At most 60 words");
+    expect(
+      followUpTurnReminder(
+        "Walk me through 8. Nc7+",
+        null,
+        FOLLOWUP_LEAN_BUDGET
+      )
+    ).toContain("At most 100 words");
+    // The opening and the lesson fit inside the whole.
+    expect(
+      FOLLOWUP_LEAN_BUDGET.openingWords + FOLLOWUP_LEAN_BUDGET.lessonWords
+    ).toBeLessThanOrEqual(FOLLOWUP_LEAN_BUDGET.words);
+    expect(FOLLOWUP_LEAN_BUDGET.maxTokens).toBe(350);
+  });
+});
+
 describe("followUpTurnReminder", () => {
   it("repeats the budget under an ordinary question", () => {
     const r = followUpTurnReminder("Why was 8. Nc7+ a mistake?");
@@ -182,17 +233,21 @@ describe("isWalkthroughQuestion", () => {
   });
 
   it("and nothing else", () => {
-    for (const q of ["Why was 8. Nc7+ a mistake?", "what should I study?", "thanks!"])
+    for (const q of [
+      "Why was 8. Nc7+ a mistake?",
+      "what should I study?",
+      "thanks!",
+    ])
       expect(isWalkthroughQuestion(q), q).toBe(false);
   });
 });
 
 describe("the subject of a turn (PR 2.5)", () => {
-  const subject = (
-    side: "w" | "b",
-    player: "w" | "b",
-    confirmed: boolean
-  ) => ({ side, player, confirmed });
+  const subject = (side: "w" | "b", player: "w" | "b", confirmed: boolean) => ({
+    side,
+    player,
+    confirmed,
+  });
 
   it("the clause, in each variant, is reviewed as a snapshot", () => {
     expect({

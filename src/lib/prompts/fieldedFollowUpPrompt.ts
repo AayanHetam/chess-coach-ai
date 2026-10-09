@@ -13,11 +13,12 @@
  * phrases never written, the coaching rules and the calibration are the v1
  * prompt's paragraphs, taken from it, so the two cannot drift.
  */
-import { MOMENT_BUDGET } from "@/lib/coach/moment";
 import { coachVoiceFor } from "./mastiVoice";
 import {
+  FOLLOWUP_BUDGET,
   getFollowUpSystemPromptStable,
   subjectReminder,
+  type FollowUpBudget,
   type FollowUpSubject,
 } from "./followUpPrompt";
 
@@ -44,10 +45,11 @@ function v1Paragraph(v1: string, heading: string): string {
 
 /** The stable half of the fielded system prompt for one attitude. */
 export function getFieldedFollowUpSystemPromptStable(
-  personalityId: string
+  personalityId: string,
+  budget: Readonly<FollowUpBudget> = FOLLOWUP_BUDGET
 ): string {
   const voice = coachVoiceFor(personalityId);
-  const v1 = getFollowUpSystemPromptStable(personalityId);
+  const v1 = getFollowUpSystemPromptStable(personalityId, budget);
   const purpose = v1Paragraph(v1, "WHAT AN ANSWER IS FOR");
   const neverWrite = v1Paragraph(v1, "NEVER WRITE:");
   const coach = v1Paragraph(v1, "COACH THE PLAYER");
@@ -64,9 +66,9 @@ ${purpose}
 THE FIELDS OF EVERY ANSWER (no exceptions)
 You answer by filling one JSON object. The app turns it into the message: it draws the line, shows the evaluation on the board and adds the labels.
 - idea: one sentence. What the move under discussion was for: the plan or the instinct behind it, credited in a clause.
-- happens: one or two sentences. What actually happens: what the opponent gets to do and why it works, or why the better move works. Causes, never the number. "The fork wins a rook, but 8. Qxc1 wins a queen outright, and the fork hands Black a check that wins yours back" teaches; "it drops the eval to -2.11" does not. idea and happens together are at most ${MOMENT_BUDGET.openingWords} words. A question that is not about the move itself (an opening's name, what to study next, how good it was) is answered in idea and happens; when the player asks how good a move was, say why in words and give the line as proof: the board shows the number.
+- happens: one or two sentences. What actually happens: what the opponent gets to do and why it works, or why the better move works. Causes, never the number. "The fork wins a rook, but 8. Qxc1 wins a queen outright, and the fork hands Black a check that wins yours back" teaches; "it drops the eval to -2.11" does not. idea and happens together are at most ${budget.openingWords} words. A question that is not about the move itself (an opening's name, what to study next, how good it was) is answered in idea and happens; when the player asks how good a move was, say why in words and give the line as proof: the board shows the number.
 - proof: the line that shows it, as a reference, never as moves. {"kind":"engine","moveNumber":8,"color":"w"} is the engine's best line from the position before White's 8th move, the line instead of it; {"kind":"played","moveNumber":8,"color":"w"} is what the game did from there. Use the move number and colour given under the player's question. null when no line shows the point.
-- lesson: {"pattern","check"} or null. pattern names the class of position ("the in-between move"); check is the one habit, with its trigger, the player can run before a move like this in the next game. "Before any check or fork, list every capture your opponent has in reply, and take what is already hanging first" teaches; "be careful with forcing moves" does not. No square, no move and no number in either: a lesson is for any game. At most ${MOMENT_BUDGET.lessonWords} words together. Give one when the question is about a mistake, a missed chance or a plan; null for a factual question.
+- lesson: {"pattern","check"} or null. pattern names the class of position ("the in-between move"); check is the one habit, with its trigger, the player can run before a move like this in the next game. "Before any check or fork, list every capture your opponent has in reply, and take what is already hanging first" teaches; "be careful with forcing moves" does not. No square, no move and no number in either: a lesson is for any game. At most ${budget.lessonWords} words together. Give one when the question is about a mistake, a missed chance or a plan; null for a factual question.
 - question: one sentence or null. Only with a lesson, only a chess question the player can answer from the board on screen, and only when the facts below let you check the answer ("Black has just checked on d1: which recapture keeps your rook safe?"). Never a check-in ("does that make sense?").
 
 WHAT THE PROSE MAY NAME
@@ -107,7 +109,8 @@ function list(xs: readonly string[]): string {
  */
 export function fieldedTurnReminder(
   m: FieldedMomentLabel,
-  subject?: FollowUpSubject | null
+  subject?: FollowUpSubject | null,
+  budget: Readonly<FollowUpBudget> = FOLLOWUP_BUDGET
 ): string {
   const opts =
     m.hasEngineLine && m.hasPlayedLine
@@ -121,5 +124,5 @@ export function fieldedTurnReminder(
     ? `, and the player asks about ${m.askedLabel} instead`
     : "";
   const about = subject ? ` ${subjectReminder(subject)}` : "";
-  return `[The move under discussion is ${m.label} (moveNumber ${m.moveNumber}, color "${m.color}")${asked}. idea: one sentence; happens: one or two; together at most ${MOMENT_BUDGET.openingWords} words. Name no move but ${list(m.ownLabels)}, and write no number. proof: ${opts}. lesson: the pattern and the check, with no square, move or number, if there is one to teach.${about}]`;
+  return `[The move under discussion is ${m.label} (moveNumber ${m.moveNumber}, color "${m.color}")${asked}. idea: one sentence; happens: one or two; together at most ${budget.openingWords} words. Name no move but ${list(m.ownLabels)}, and write no number. proof: ${opts}. lesson: the pattern and the check, with no square, move or number, if there is one to teach.${about}]`;
 }

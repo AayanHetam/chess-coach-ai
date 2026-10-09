@@ -35,6 +35,7 @@ import {
   parseMomentEnvelope,
   parseProofToken,
   proseFromEnvelope,
+  type MomentBudget,
   type MomentEnvelope,
   type MomentProse,
   type MomentProseField,
@@ -215,9 +216,10 @@ function renderField(env: MomentEnvelope, field: MomentProseField): string {
 function judge(
   env: MomentEnvelope,
   fx: FieldedMomentFacts,
-  referee: (text: string) => FollowUpRefereeResult
+  referee: (text: string) => FollowUpRefereeResult,
+  budget?: Partial<MomentBudget>
 ): Judgement {
-  const failures = checkMoment(env, fx.facts);
+  const failures = checkMoment(env, fx.facts, { budget });
   const failed = new Set<MomentProseField>();
   for (const f of failures)
     if (MOMENT_CHECK_ARMING[f.check] === "act") failed.add(f.field);
@@ -394,6 +396,8 @@ export async function runFieldedTurn(i: {
   signal?: AbortSignal;
   regenBudgetMs?: number;
   checkProse?: (text: string, signal?: AbortSignal) => Promise<ValidatorResult>;
+  /** The word budget the counted budget check reads (the lean one under COACH_FOLLOWUP_LEAN). */
+  budget?: Partial<MomentBudget>;
 }): Promise<FieldedTurnResult> {
   const { fx, referee, signal } = i;
   const budget = i.regenBudgetMs ?? FIELDED_REGEN_BUDGET_MS;
@@ -462,7 +466,7 @@ export async function runFieldedTurn(i: {
         .catch(() => null)
     : Promise.resolve(null);
 
-  const j1 = judge(env1, fx, referee);
+  const j1 = judge(env1, fx, referee, i.budget);
   const t1 = tally(j1);
   counter.first = t1.checks;
   counter.firstReferee = t1.referee;
@@ -502,7 +506,7 @@ export async function runFieldedTurn(i: {
 
     const cand: MomentEnvelope = { ...env1 };
     if (env2) for (const f of targets) Object.assign(cand, pick(env2, f));
-    const j2 = env2 ? judge(cand, fx, referee) : null;
+    const j2 = env2 ? judge(cand, fx, referee, i.budget) : null;
     if (j2) {
       const t2 = tally(j2);
       counter.second = t2.checks;

@@ -44,6 +44,46 @@ export const FOLLOWUP_LESSON_WORD_BUDGET = 35;
 /** Output cap in tokens: several times the budget, so only a runaway answer is ever cut. */
 export const FOLLOWUP_MAX_TOKENS = 600;
 
+/** The numbers an answer is held to: the prompt states them, the cap backs them. */
+export interface FollowUpBudget {
+  words: number;
+  walkthroughWords: number;
+  openingWords: number;
+  lessonWords: number;
+  maxTokens: number;
+}
+
+export const FOLLOWUP_BUDGET: Readonly<FollowUpBudget> = {
+  words: FOLLOWUP_WORD_BUDGET,
+  walkthroughWords: FOLLOWUP_WALKTHROUGH_WORD_BUDGET,
+  openingWords: FOLLOWUP_OPENING_WORD_BUDGET,
+  lessonWords: FOLLOWUP_LESSON_WORD_BUDGET,
+  maxTokens: FOLLOWUP_MAX_TOKENS,
+};
+
+/**
+ * The follow-up at the bar (pathway 3.2, `COACH_FOLLOWUP_LEAN=1`): sixty
+ * words, an opening and a lesson that fit inside them, and a cap of about
+ * 350 tokens.
+ */
+export const FOLLOWUP_LEAN_BUDGET: Readonly<FollowUpBudget> = {
+  words: 60,
+  walkthroughWords: 100,
+  openingWords: 30,
+  lessonWords: 25,
+  maxTokens: 350,
+};
+
+/**
+ * `COACH_FOLLOWUP_LEAN=1` (server, read per call, off until its flip): the
+ * lean budget, the review no longer replayed when a contract carries its
+ * facts, and no validator retry on the chat path.
+ */
+export function isFollowUpLean(): boolean {
+  const v = (process.env.COACH_FOLLOWUP_LEAN ?? "").trim().toLowerCase();
+  return v === "1" || v === "on" || v === "true";
+}
+
 export type FollowUpPromptMode = "v1" | "legacy" | "fielded";
 
 /**
@@ -60,7 +100,10 @@ export function getFollowUpPromptMode(): FollowUpPromptMode {
  * The stable half of the follow-up system prompt for one attitude. Joined
  * with the stored per-user USER CONTEXT block by the route.
  */
-export function getFollowUpSystemPromptStable(personalityId: string): string {
+export function getFollowUpSystemPromptStable(
+  personalityId: string,
+  budget: Readonly<FollowUpBudget> = FOLLOWUP_BUDGET
+): string {
   // The attitude the id names, or the one Masti voice under COACH_ONE_MASTI
   // (mastiVoice.ts). Flag off, this text is byte-identical to before.
   const voice = coachVoiceFor(personalityId);
@@ -75,15 +118,15 @@ WHAT AN ANSWER IS FOR
 The player is here to get better, not to be told they were wrong. An answer about a move teaches four things: what the move was for, what actually happens and why, the name of the pattern, and the check to run before the next move like it. The app draws the line itself, so spend your words on the why and the transfer, never on spelling out moves.
 
 THE SHAPE OF EVERY ANSWER (no exceptions)
-1. THE IDEA, THEN WHAT HAPPENS. Open with what the move was for — the plan or the instinct behind it, credited in a clause — then what actually happens: what the opponent gets to do and why it works, or why the better move works. Causes, never the number. "The fork wins a rook, but 8. Qxc1 wins a queen outright, and the fork hands Black a check that wins yours back" teaches; "it drops the eval to -2.11" does not. Two or three sentences, at most ${FOLLOWUP_OPENING_WORD_BUDGET} words. A question that is not about a move (an opening's name, what to study next) is answered directly in the same space.
+1. THE IDEA, THEN WHAT HAPPENS. Open with what the move was for — the plan or the instinct behind it, credited in a clause — then what actually happens: what the opponent gets to do and why it works, or why the better move works. Causes, never the number. "The fork wins a rook, but 8. Qxc1 wins a queen outright, and the fork hands Black a check that wins yours back" teaches; "it drops the eval to -2.11" does not. Two or three sentences, at most ${budget.openingWords} words. A question that is not about a move (an opening's name, what to study next) is answered directly in the same space.
 2. PROOF. Show the line instead of describing it. Put one of these tokens on a line of its own and the app draws the moves, what each move does, and the evaluation:
    [CONTINUATION:<moveNumber>:<color>] — the engine's best line from the position before that move. [CONTINUATION:8:w] is the line instead of White's 8th move.
    [PLAYED:<moveNumber>:<color>] — what the game actually did from that position. [PLAYED:8:w] shows White's 8th move and what followed.
    At most two tokens per answer, each on its own line, nothing else on that line. The app draws every move of the line, so never write the line's moves in prose: no "after Kxc7, then Bd3", no "the line continues with". A sentence holds at most one move, always with its number ("8. Qxc1", "8... Kd8"), and only a move that the facts give for THIS move. A move from another key moment's line is not a move here.
-3. LESSON. A paragraph that starts with "Lesson:". Name the pattern, then give the one check the player can run before a move like this in the next game — a habit with a trigger, not a maxim. "Before any check or fork, list every capture your opponent has in reply, and take what is already hanging first" teaches; "be careful with forcing moves" does not. One or two sentences, at most ${FOLLOWUP_LESSON_WORD_BUDGET} words. Required when the question is about a mistake, a missed chance or a plan; skip it for a factual question.
+3. LESSON. A paragraph that starts with "Lesson:". Name the pattern, then give the one check the player can run before a move like this in the next game — a habit with a trigger, not a maxim. "Before any check or fork, list every capture your opponent has in reply, and take what is already hanging first" teaches; "be careful with forcing moves" does not. One or two sentences, at most ${budget.lessonWords} words. Required when the question is about a mistake, a missed chance or a plan; skip it for a factual question.
 4. YOUR TURN (optional). One question back, one sentence, only after a lesson, only a chess question the player can answer from the board on screen, and only when the facts below let you check their answer ("Black has just checked on d1: which recapture keeps your rook safe?"). Start it with "Your turn:". Never a check-in ("does that make sense?"), never a question about a position the facts do not cover.
 
-BUDGET: at most ${FOLLOWUP_WORD_BUDGET} words in the whole answer, a hard limit, the Lesson and Your turn included; ${FOLLOWUP_WALKTHROUGH_WORD_BUDGET} when the player asks to be walked through something. Tokens and move notation do not count. The shape is the count: two or three sentences, the token on its own line, a one- or two-sentence Lesson, one question at most. A fourth sentence before the token, a second paragraph before the Lesson, a sentence after the question: each one is over the limit. Over it, cut from part 1, never from the Lesson. Nothing after the lesson or the question: no summary, no offer of more. Depth is the player's to ask for. The same limit is repeated under the player's question each turn.
+BUDGET: at most ${budget.words} words in the whole answer, a hard limit, the Lesson and Your turn included; ${budget.walkthroughWords} when the player asks to be walked through something. Tokens and move notation do not count. The shape is the count: two or three sentences, the token on its own line, a one- or two-sentence Lesson, one question at most. A fourth sentence before the token, a second paragraph before the Lesson, a sentence after the question: each one is over the limit. Over it, cut from part 1, never from the Lesson. Nothing after the lesson or the question: no summary, no offer of more. Depth is the player's to ask for. The same limit is repeated under the player's question each turn.
 
 NEVER WRITE: "Great question", "You're absolutely right", "Let me break down", "Let's dive in", "Does that clarify", "Does that make sense", "The pattern to remember:", "Key lesson:", "In summary", a markdown heading, a bullet list, an emoji. Bold at most once, for the one move or idea that matters.
 
@@ -134,11 +177,12 @@ export function followUpTurnReminder(
    * answers replayed above it may be about the other side. Absent, the
    * reminder is byte for byte what it was.
    */
-  subject?: FollowUpSubject | null
+  subject?: FollowUpSubject | null,
+  budget: Readonly<FollowUpBudget> = FOLLOWUP_BUDGET
 ): string {
   const words = isWalkthroughQuestion(question)
-    ? FOLLOWUP_WALKTHROUGH_WORD_BUDGET
-    : FOLLOWUP_WORD_BUDGET;
+    ? budget.walkthroughWords
+    : budget.words;
   const about = subject ? ` ${subjectReminder(subject)}` : "";
   return `[At most ${words} words. Two or three sentences, then the token line if a line proves it, then the Lesson if there is one to teach. Only moves the facts give for the move asked about.${about}]`;
 }

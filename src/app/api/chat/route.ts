@@ -13,8 +13,10 @@ import {
 } from "@/lib/contract/followUpReferee";
 import { FOLLOWUP_REDUCED_GROUNDING_NOTE } from "@/lib/prompts/followupGrounding";
 import {
-  FOLLOWUP_MAX_TOKENS,
+  FOLLOWUP_BUDGET,
+  FOLLOWUP_LEAN_BUDGET,
   FOLLOWUP_PROMPT_VERSION,
+  isFollowUpLean,
   getFollowUpPromptMode,
   getFollowUpSystemPromptStable,
   followUpSubjectClause,
@@ -481,6 +483,11 @@ export async function POST(request: NextRequest) {
       // field (fieldedFacts.ts), byte for byte.
       const useFollowUpPrompt = followUpMode !== "legacy";
       const fieldedMode = followUpMode === "fielded";
+      // COACH_FOLLOWUP_LEAN (pathway 3.2): the follow-up at the bar. Sixty
+      // words and a 350-token cap, the review no longer replayed when a
+      // contract carries its facts, and no validator retry on this path.
+      const lean = useFollowUpPrompt && isFollowUpLean();
+      const budget = lean ? FOLLOWUP_LEAN_BUDGET : FOLLOWUP_BUDGET;
 
       // The side this turn looks at the game from (questionPerspective.ts):
       // the question's words, else the page's standing choice. The player
@@ -864,9 +871,9 @@ export async function POST(request: NextRequest) {
         });
       const personality = context.personalityId ?? "friendly";
       const cachedSystemPrompt = fielded
-        ? getFieldedFollowUpSystemPromptStable(personality)
+        ? getFieldedFollowUpSystemPromptStable(personality, budget)
         : useFollowUpPrompt
-          ? getFollowUpSystemPromptStable(personality)
+          ? getFollowUpSystemPromptStable(personality, budget)
           : (context.systemPromptStable ?? context.systemPrompt);
       // Half-moves of the position under discussion, for the windowed table.
       const centerPly = anchor
@@ -905,16 +912,20 @@ export async function POST(request: NextRequest) {
       // Output cap. The follow-up prompt budgets FOLLOWUP_WORD_BUDGET words;
       // the cap is several times that so only a runaway answer is ever cut
       // mid-sentence.
-      const outputCap = useFollowUpPrompt ? FOLLOWUP_MAX_TOKENS : 3000;
+      const outputCap = useFollowUpPrompt ? budget.maxTokens : 3000;
 
       const nonSystemMessages: LLMMessage[] = [];
 
       // The initial deep analysis as the first assistant message — gives the
       // LLM full continuity without re-sending the raw game data.
-      nonSystemMessages.push({
-        role: "assistant",
-        content: context.initialAnalysis,
-      });
+      // Lean, with a contract the review's facts ride in the suffix, so the
+      // review itself is not replayed (and the de-dupe below keeps the
+      // client's copy out of the history too).
+      if (!(lean && context.compactContract))
+        nonSystemMessages.push({
+          role: "assistant",
+          content: context.initialAnalysis,
+        });
 
       // Prior conversation turns (excluding the initial analysis which is
       // already injected above); see keptHistoryTurns.
@@ -925,12 +936,12 @@ export async function POST(request: NextRequest) {
       // transcript the client keeps, the anchor and the referee all see the
       // question as typed.
       const v1Question = useFollowUpPrompt
-        ? `${userMessage}\n\n${followUpTurnReminder(userMessage, promptSubject)}`
+        ? `${userMessage}\n\n${followUpTurnReminder(userMessage, promptSubject, budget)}`
         : userMessage;
       nonSystemMessages.push({
         role: "user",
         content: fielded
-          ? `${userMessage}\n\n${fieldedTurnReminder(fielded, promptSubject)}`
+          ? `${userMessage}\n\n${fieldedTurnReminder(fielded, promptSubject, budget)}`
           : v1Question,
       });
 
@@ -1028,7 +1039,7 @@ export async function POST(request: NextRequest) {
       const v1Request: CallLLMOptions | null = fielded
         ? {
             tier: "fast",
-            system: getFollowUpSystemPromptStable(personality),
+            system: getFollowUpSystemPromptStable(personality, budget),
             systemSuffix: uncachedSuffix,
             messages: [
               ...nonSystemMessages.slice(0, -1),
@@ -1138,6 +1149,7 @@ export async function POST(request: NextRequest) {
                         dataSources,
                         correlationId: requestId,
                       }),
+                      budget: lean ? budget : undefined,
                     }).then((out) => {
                       fieldedBox.out = out;
                       return fieldedAsRegenerateResult(out, {
@@ -1186,8 +1198,8 @@ export async function POST(request: NextRequest) {
                       category: prep.category,
                       // §10.4 + §3.4: chat retry budget is tighter than
                       // enhanced-analysis (1 retry max) to keep follow-up
-                      // latency in chat tolerance.
-                      maxRetries: 1,
+                      // latency in chat tolerance; none at the bar (lean).
+                      maxRetries: lean ? 0 : 1,
                       dataSources: {
                         scout: dataSources.scout,
                         userHistory: dataSources.userHistory,
@@ -1332,6 +1344,7 @@ export async function POST(request: NextRequest) {
           log.info("chat_fastpath_timing", {
             requestId,
             branch: "pipeline",
+            ...(lean ? { lean: true } : {}),
             category: prep.category,
             finalOutcome: pipelineResult.finalOutcome,
             timedOut: pipelineResult.timedOut,
@@ -1390,6 +1403,7 @@ export async function POST(request: NextRequest) {
             fx: fielded,
             referee: fieldedReferee,
             callLLM,
+            budget: lean ? budget : undefined,
           });
           llmResult = fieldedOut.calls[fieldedOut.calls.length - 1];
         } else {
@@ -1454,6 +1468,7 @@ export async function POST(request: NextRequest) {
       log.info("chat_fastpath_timing", {
         requestId,
         branch: "flag-off",
+        ...(lean ? { lean: true } : {}),
         provider: fieldedOut
           ? fieldedOut.calls[0].provider
           : llmResult.provider,

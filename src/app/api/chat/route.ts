@@ -1443,7 +1443,14 @@ export async function POST(request: NextRequest) {
             isFallbackUsed &&
             !pipelineResult.timedOut &&
             !draft &&
-            !servesTemplate(turnRoute, prep.moveCtx.stockfishEval);
+            !servesTemplate(turnRoute, {
+              ...prep.moveCtx.stockfishEval,
+              // The line the move context read its eval from (the last
+              // move of the history prep was given, else the position).
+              depth:
+                context.gameEval?.positions?.[effectiveMoveHistory?.length ?? 0]
+                  ?.lines?.[0]?.depth,
+            });
           const servedFallback: "template" | "referee_line" | null =
             turnRoute && isFallbackUsed && !draft && !pipelineResult.timedOut
               ? noTemplate

@@ -881,6 +881,21 @@ describe("COACH_INTENT_ROUTER, validators on: the validators' category", () => {
       expect(t.ga.analysis).toBe(TEMPLATE);
       expect(t.ga.pipeline.servedFallback).toBe("template");
     });
+
+    it("a search that never ran (the engine's depth-0 sentinel) is no eval: the referee's line", async () => {
+      const sentinel = {
+        ...REAL_EVAL,
+        positions: (REAL_EVAL.positions as unknown[]).map(() => ({
+          lines: [{ pv: [], cp: 0, depth: 0, multiPv: 1 }],
+        })),
+      };
+      mockGetAnalysisContext.mockImplementation(() => context(false, sentinel));
+      flagOn();
+      const t = await turn(Q);
+      expect(t.ga.analysis).toBe(FOLLOWUP_REFEREE_FALLBACK);
+      expect(t.ga.analysis).not.toMatch(/balanced/);
+      expect(t.ga.pipeline.servedFallback).toBe("referee_line");
+    });
   });
 
   it("a timeout serves the route's own line on every row", async () => {

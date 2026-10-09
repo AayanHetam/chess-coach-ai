@@ -193,6 +193,86 @@ describe("a concept beside a word about the board is set aside", () => {
   });
 });
 
+describe("a reading that changes the turn's shape is taken only where it is certain", () => {
+  it.each([
+    "How should I defend this?",
+    "How do I defend the position?",
+    "Can I defend against the fork?",
+    "Can I continue attacking on the kingside?",
+    "I want to play more actively, any tips?",
+    "Could I play Bxf7?",
+    "Can I play Bb5 here?",
+    "What should I practice for this kind of endgame?",
+  ])("%s is no mode entry: the router reads it", (q) => {
+    const r = live(q, { anchor: "none" });
+    expect(r).toMatchObject({
+      intent: "unknown",
+      rule: "none",
+      source: "none",
+    });
+  });
+
+  it("anchored, a move asked about in a mode's words is the what-if it is", () => {
+    expect(live("Could I play 8. Qxc1 instead?")).toMatchObject({
+      intent: "what_if",
+      source: "rule",
+    });
+  });
+
+  it.each([
+    ["Let me try from here", "try_it"],
+    ["Test me", "quiz"],
+    ["Let me defend from before the blunder", "defend_it"],
+    ["give me a puzzle", "quiz"],
+  ])("%s is still the mode, by rule", (q, intent) => {
+    expect(live(q, { anchor: "none" })).toMatchObject({
+      intent,
+      source: "rule",
+    });
+  });
+
+  it.each([
+    "what's the pin?",
+    "what's the fork?",
+    "What does the rook attack?",
+    "What does the knight attack?",
+    "what's the pawn structure?",
+    "What's the right pawn break?",
+    "What is the fork on c7?",
+    "What's the sacrifice?",
+  ])("%s is about the board: no definition by rule", (q) => {
+    const r = live(q, { anchor: "none" });
+    expect(r.intent).not.toBe("concept");
+    expect(r.source).toBe("none");
+  });
+
+  it.each([
+    "What is a minority attack?",
+    "what does zugzwang mean",
+    "What is a fork?",
+  ])("%s is still a definition", (q) => {
+    expect(live(q, { anchor: "none" })).toMatchObject({
+      intent: "concept",
+      source: "rule",
+    });
+  });
+
+  it("a plan asked about the game played is not the position's plan", () => {
+    expect(live("What was the plan behind 8. Nc7+?")).toMatchObject({
+      intent: "verdict",
+      rule: "verdict:anchor",
+    });
+    for (const q of [
+      "What was the plan in this game?",
+      "What was my plan in the middlegame?",
+    ])
+      expect(live(q, { anchor: "none" }).source, q).toBe("none");
+    expect(
+      live("What's my plan in this position?", { anchor: "none" })
+    ).toMatchObject({ intent: "plan", source: "rule" });
+  });
+});
+
 describe("every question the page writes is read by an exact rule", () => {
   const cases: Array<[string, string, string]> = [
     ["Analyze my game", "ui:analyze_game", "verdict"],
@@ -314,6 +394,37 @@ describe("the router's reading, as the table may use it", () => {
     expect(intentFromModel("concept", "What is an outpost?")).toEqual({
       intent: "concept",
     });
+  });
+
+  it("a mode is never the model's reading of a question about a move or the board", () => {
+    expect(
+      intentFromModel("defend_it", "How should I defend this?").intent
+    ).toBe("unknown");
+    expect(intentFromModel("try_it", "Can I play Bb5 here?").intent).toBe(
+      "unknown"
+    );
+    expect(intentFromModel("quiz", "Can you test me on forks?").intent).toBe(
+      "quiz"
+    );
+  });
+
+  it("the model's concept beside a piece of this board or a square is set aside", () => {
+    expect(
+      intentFromModel("concept", "What does the rook attack?").intent
+    ).toBe("unknown");
+    expect(intentFromModel("concept", "is the pin on e7 real").intent).toBe(
+      "unknown"
+    );
+    expect(
+      intentFromModel("concept", "What is the Philidor defence about?").intent
+    ).toBe("concept");
+  });
+
+  it("the model's plan for the game played is a verdict on it", () => {
+    expect(
+      intentFromModel("plan", "What was the plan in this game?").intent
+    ).toBe("verdict");
+    expect(intentFromModel("plan", "Is my king safe?").intent).toBe("plan");
   });
 
   it("every other intent passes through", () => {

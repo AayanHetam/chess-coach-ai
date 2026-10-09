@@ -35,7 +35,7 @@ const MOVE = `(?:\\d{1,3}\\s*\\.{1,3}\\s*)?${SAN_CORE}`;
 
 /** Words an opening's name carries. Title Case, as the PGN header and the detector write them. */
 const OPENING_WORD =
-  "(?:Opening|Defen[cs]e|Gambit|Countergambit|Game|Attack|System|Variation|Indian|Sicilian|French|Caro|Slav|Lopez|English|Dutch|Gr[uü]nfeld|Benoni|Pirc|Alekhine|Scandinavian|London|Catalan|R[ée]ti|Italian|Spanish|Scotch|Vienna|Petrov|Philidor|Najdorf|Dragon)";
+  "(?:Opening|Defen[cs]e|Gambit|Countergambit|Game|Attack|System|Variation|Indian|Sicilian|French|Caro|Slav|Lopez|English|Dutch|Gr[uü]nfeld|Benoni|Pirc|Alekhine|Scandinavian|London|Catalan|R[ée]ti|Italian|Spanish|Scotch|Vienna|Petrov|Philidor|Najdorf|Dragon|Special)";
 
 /** A move in notation anywhere in a string, numbered or not. */
 const NOTATION_RE = new RegExp(
@@ -102,8 +102,9 @@ export const UI_RULES: readonly {
   {
     rule: "ui:opening",
     intent: "opening",
+    // The detector's longest name is 99 characters.
     re: new RegExp(
-      `^[Tt]ell me about the (?=[^\\n]*\\b${OPENING_WORD}\\b)[A-Z][^\\n]{1,80}$`
+      `^[Tt]ell me about the (?=[^\\n]*\\b${OPENING_WORD}\\b)[A-Z][^\\n]{1,160}$`
     ),
   },
   {
@@ -115,6 +116,40 @@ export const UI_RULES: readonly {
     ),
   },
 ];
+
+/** A question about the position or the game, not an order to start a mode. */
+const ASKS_RE =
+  /^\s*(?:how|what|why|which|where|when|who|should|shall|is|are|was|were|do|does|did|would|will)\b/i;
+
+/**
+ * A mode asked for and nothing else, the whole message, the way
+ * parsePageTurn reads an order: "Let me try from here", "Test me", "Let me
+ * defend from before the blunder". "How should I defend this?", "Can I
+ * play Bb5 here?" and "What should I practice for this endgame?" are
+ * questions for the coach.
+ */
+const MODE_ONLY_RE: Partial<Record<QuestionIntent, RegExp>> = {
+  try_it:
+    /^\s*(?:(?:ok(?:ay)?|so|now|please)[,\s]+)?(?:(?:let\s+me|can\s+i|could\s+i|i\s+want\s+to|i'?d\s+like\s+to)\s+(?:try|play|take\s+over|continue|spar)(?:\s+(?:it|this|on|out|from\s+here|from\s+this\s+position|the\s+position|against\s+(?:you|the\s+engine)))*|(?:let'?s\s+)?play\s+(?:it\s+)?out(?:\s+(?:from\s+here|against\s+(?:you|the\s+engine)))?|(?:let'?s\s+)?play\s+against\s+(?:me|you|the\s+engine)|spar(?:\s+with\s+me)?)(?:\s+please)?\s*[.!?]?\s*$/i,
+  defend_it:
+    /^\s*(?:(?:let\s+me|can\s+i|could\s+i|i\s+want\s+to)\s+(?:try\s+to\s+)?)?defend(?:\s+(?:it|this|the\s+position))?(?:\s+from\s+(?:here|before\s+the\s+(?:blunder|mistake)|the\s+move\s+before))?(?:\s+please)?\s*[.!?]?\s*$/i,
+  quiz: /^\s*(?:(?:can\s+you|could\s+you|please)\s+)?(?:(?:test|quiz|drill|puzzle)\s+me(?:\s+on\s+(?:this|it|this\s+game))?|give\s+me\s+(?:a\s+|some\s+)?(?:puzzle|puzzles|practice|exercise|exercises|drills?)(?:\s+on\s+(?:this|it))?|i\s+keep\s+missing\s+these)(?:\s+please)?\s*[.!?]?\s*$/i,
+};
+
+/**
+ * A concept question tied to the board: a word about this game, "the"
+ * before the idea ("what's the pin?"), a piece ("what does the rook
+ * attack?") or a square. The rules hand it to the router.
+ */
+const CONCEPT_ON_BOARD_RE =
+  /\bthe\s+(?!term\b|concept\b|idea\s+of\b)|\b(?:king|queen|rook|bishop|knight|pawn)s?\b|\b[a-h][1-8]\b/i;
+/** The model's concept beside a piece of this board or a square is no definition either. */
+const MODEL_CONCEPT_ON_BOARD_RE =
+  /\bthe\s+(?:king|queen|rook|bishop|knight|pawn)s?\b|\b[a-h][1-8]\b/i;
+
+/** A plan asked about the game played, not the position on the board. */
+const PLAYED_PLAN_RE =
+  /\b(?:was|were|did)\b|\b(?:this|the|my|that)\s+(?:game|middlegame|opening|endgame)\b/i;
 
 export interface LiveIntent extends IntentResolution {
   /** "rule" when a rule decided, "none" when the router is to be asked. */
@@ -137,10 +172,15 @@ function uiText(question: string): string {
 function uiRule(text: string): (typeof UI_RULES)[number] | null {
   for (const r of UI_RULES) {
     if (!r.re.test(text)) continue;
-    // An opening's name with a move in it is not the pill's question.
+    // A family with a move in its name is not an opening's ("the Bc4
+    // sacrifice"), and no opening's name numbers a move ("the Sicilian
+    // Defense, 6.Bg5"); a variation may carry an unnumbered one ("Ruy
+    // Lopez: Marshall Attack, Re3 Variation").
+    const name = text.replace(/^tell me about the /i, "");
     if (
       r.rule === "ui:opening" &&
-      NOTATION_RE.test(text.replace(/^tell me about the /i, ""))
+      (NOTATION_RE.test(name.split(/[:,]/)[0]) ||
+        /\d\s*\.{1,3}\s*\S/.test(name))
     )
       continue;
     return r;
@@ -176,13 +216,29 @@ export function resolveLiveIntent(
   if (ui) return { intent: ui.intent, rule: ui.rule, source: "rule" };
 
   const r = resolveQuestionIntent(raw, ctx, { live: true });
-  if (r.intent === "concept" && BOARD_CUE_RE.test(raw))
+  // A reading that would change the turn's shape or its validators is
+  // taken only where it is certain. Anchored, the question is about its
+  // move (or the alternative it names); else the router reads it.
+  const handOff = (): LiveIntent =>
+    ctx.anchor
+      ? ctx.anchor.askedSan
+        ? { intent: "what_if", rule: "what_if:asked_san", source: "rule" }
+        : { intent: "verdict", rule: "verdict:anchor", source: "rule" }
+      : { intent: "unknown", rule: "none", source: "none" };
+  if (
+    r.intent === "concept" &&
+    (BOARD_CUE_RE.test(raw) || CONCEPT_ON_BOARD_RE.test(raw))
+  )
     return {
       intent: "unknown",
       rule: "none",
       source: "none",
       veto: "concept_on_board",
     };
+  const modeOnly = MODE_ONLY_RE[r.intent];
+  if (modeOnly && (!modeOnly.test(raw) || NOTATION_RE.test(raw)))
+    return handOff();
+  if (r.intent === "plan" && PLAYED_PLAN_RE.test(raw)) return handOff();
   return { ...r, source: r.rule === "none" ? "none" : "rule" };
 }
 
@@ -196,11 +252,24 @@ export function intentFromModel(
   question: string
 ): {
   intent: QuestionIntent;
-  overridden?: "action" | "preference" | "concept_on_board";
+  overridden?: "action" | "preference" | "concept_on_board" | "mode_on_board";
 } {
+  const q = question ?? "";
   if (intent === "action" || intent === "preference")
     return { intent: "unknown", overridden: intent };
-  if (intent === "concept" && BOARD_CUE_RE.test(question ?? ""))
+  if (
+    intent === "concept" &&
+    (BOARD_CUE_RE.test(q) || MODEL_CONCEPT_ON_BOARD_RE.test(q))
+  )
     return { intent: "unknown", overridden: "concept_on_board" };
+  // A mode is never the model's reading of a question about a move or the
+  // board ("How should I defend this?", "Can I play Bb5 here?").
+  if (
+    (intent === "try_it" || intent === "defend_it" || intent === "quiz") &&
+    (ASKS_RE.test(q) || NOTATION_RE.test(q))
+  )
+    return { intent: "unknown", overridden: "mode_on_board" };
+  // A plan asked about the game played is a verdict on it.
+  if (intent === "plan" && PLAYED_PLAN_RE.test(q)) return { intent: "verdict" };
   return { intent };
 }

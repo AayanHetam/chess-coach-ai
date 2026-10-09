@@ -150,6 +150,43 @@ describe("the suggestion pills", () => {
   });
 });
 
+describe("the opening pill, over every name the detector can write", () => {
+  // Some names carry a move in a variation ("Ruy Lopez: Marshall Attack,
+  // Re3 Variation") and the longest is 99 characters: every one is read
+  // by rule, so the pill never costs a routing call.
+  it("is routed by rule for each of them", () => {
+    const names = new Set<string>();
+    const walk = (x: unknown): void => {
+      if (Array.isArray(x)) x.forEach(walk);
+      else if (x && typeof x === "object")
+        for (const [k, v] of Object.entries(x)) {
+          if (k === "name" && typeof v === "string") names.add(v);
+          else walk(v);
+        }
+    };
+    walk(
+      JSON.parse(
+        fs.readFileSync(
+          path.join(process.cwd(), "src/data/openings.json"),
+          "utf8"
+        )
+      )
+    );
+    expect(names.size).toBeGreaterThan(3000);
+    const missed: string[] = [];
+    for (const name of Array.from(names)) {
+      const q = `Tell me about the ${name}`;
+      const live = resolveLiveIntent(q, {
+        anchor: null,
+        moves: MOVES,
+        playerColor: "w",
+      });
+      if (live.rule !== "ui:opening") missed.push(name);
+    }
+    expect(missed).toEqual([]);
+  });
+});
+
 describe("the Masters rows", () => {
   const row = (
     partial: Partial<MasterCandidate> & { san: string }

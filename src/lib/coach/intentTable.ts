@@ -242,11 +242,15 @@ export function finishTurnRoute(i: {
  */
 export function servesTemplate(
   r: TurnRoute,
-  ev: { cp?: number | null; mate?: number | null }
+  /** The move context's eval and the depth of the line it came from. */
+  ev: { cp?: number | null; mate?: number | null; depth?: number | null }
 ): boolean {
   return (
     r.grammar === "one_move" &&
-    (typeof ev.cp === "number" || typeof ev.mate === "number")
+    (typeof ev.cp === "number" || typeof ev.mate === "number") &&
+    // A search that never ran (the engine's timeout sentinel, depth 0) is
+    // no eval, whatever number it carries.
+    !(typeof ev.depth === "number" && ev.depth <= 0)
   );
 }
 

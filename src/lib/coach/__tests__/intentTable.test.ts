@@ -286,6 +286,9 @@ describe("servesTemplate", () => {
   });
 
   it("never without an eval, so nothing says balanced", () => {
+    // The engine's timeout sentinel: a number, but no search behind it.
+    expect(servesTemplate(oneMove, { cp: 0, depth: 0 })).toBe(false);
+    expect(servesTemplate(oneMove, { cp: -211, depth: 16 })).toBe(true);
     expect(servesTemplate(oneMove, {})).toBe(false);
     expect(servesTemplate(oneMove, { cp: null })).toBe(false);
     expect(servesTemplate(oneMove, { cp: null, mate: null })).toBe(false);

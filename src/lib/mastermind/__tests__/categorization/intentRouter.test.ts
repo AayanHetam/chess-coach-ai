@@ -115,6 +115,14 @@ describe("the call", () => {
       "Question:\n\nis my king safe?"
     );
   });
+
+  it("cuts by code point, so an emoji at the cut is never half a pair", () => {
+    const turn = buildIntentRouterUserTurn(
+      "a".repeat(499) + "\u{1F914} why did I lose?"
+    );
+    expect(turn.isWellFormed()).toBe(true);
+    expect(turn.endsWith("\u{1F914}")).toBe(true);
+  });
 });
 
 describe("the schema", () => {

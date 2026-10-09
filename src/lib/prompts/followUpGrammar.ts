@@ -51,7 +51,7 @@ const NOW: Record<AckCapability, string> = {
     "moving the pieces on the board to try an idea, then asking about any move",
   defend_it:
     "stepping back to the move before the mistake, trying a defence on the board, then asking about it",
-  quiz: "typing /puzzle-generation in the composer, which finds practice puzzles with the pattern of the position on the board, or /puzzle-generation with a pattern's name, such as /puzzle-generation fork",
+  quiz: "typing /puzzle-generation with a pattern's name in the composer, such as /puzzle-generation fork, which finds practice puzzles with that pattern",
 };
 
 function modeClause(c: AckCapability): string {

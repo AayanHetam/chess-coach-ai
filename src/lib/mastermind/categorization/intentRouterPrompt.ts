@@ -40,5 +40,9 @@ When two names fit, give the closer one with a confidence from 0.5 to 0.7. When 
 
 /** The question alone, trimmed and cut at 500 characters. Nothing else the client sends. */
 export function buildIntentRouterUserTurn(question: string): string {
-  return `Question:\n\n${(question ?? "").trim().slice(0, 500)}`;
+  // Cut by code point, so an emoji at the cut is never half a pair.
+  const text = Array.from((question ?? "").trim())
+    .slice(0, 500)
+    .join("");
+  return `Question:\n\n${text}`;
 }

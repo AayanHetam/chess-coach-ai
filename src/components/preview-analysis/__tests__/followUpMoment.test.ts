@@ -9,6 +9,7 @@ import {
   isFollowUpMomentsEnabledPublic,
   momentIsText,
   momentView,
+  readMomentProse,
   readServedMoment,
 } from "../followUpMoment";
 
@@ -87,6 +88,16 @@ describe("readServedMoment", () => {
     const rest: Record<string, unknown> = { ...FULL };
     delete rest.more;
     expect(readServedMoment(rest, text)).toEqual(FULL);
+  });
+
+  it("checks the shapes in readMomentProse, which reads no text", () => {
+    // A turn-1 moment (cardMoment.ts) carries the wire's other fields too:
+    // only the prose is read, and the text it is beside is not asked for.
+    const wire = { ...FULL, fen: "8/8/8/8/8/8/8/8 w - - 0 1", ply: 14 };
+    expect(readMomentProse(JSON.parse(JSON.stringify(wire)))).toEqual(FULL);
+    expect(readMomentProse({ ...FULL, happens: 3 })).toBeNull();
+    expect(readMomentProse({ ...FULL, omitted: ["board"] })).toBeNull();
+    expect(readMomentProse(null)).toBeNull();
   });
 
   it("never draws a moment whose projection is empty", () => {

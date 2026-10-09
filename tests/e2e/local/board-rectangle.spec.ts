@@ -1,5 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { horizontalOverflow, stubMaiaHealthy, stubSignedIn } from "../helpers";
+// Import-free by design (types only): the key a turn-1 moment carries.
+import { cardKey } from "../../../src/lib/coach/turnMoment";
 
 /**
  * The board never moves on a tap.
@@ -578,6 +580,96 @@ test.describe("the board's rectangle", () => {
     expect(
       Math.abs((await strip.boundingBox())!.height - stripBox.height)
     ).toBeLessThanOrEqual(2);
+  });
+
+  // A review's key moments sent as fields (pathway 4.2, behind
+  // NEXT_PUBLIC_COACH_TURN1_MOMENTS: CI builds with it on, a local build
+  // without it skips). The card is drawn from its moment, the ladder's note
+  // under its two lines, and its solution opened: the board's box and the
+  // strip's height do not move for either.
+  test("does not move for a review drawn from its moments, or its solution opened", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await stubEverything(page);
+    const lede = "You spotted a fork, but the free queen was the bigger prize.";
+    const note = "I left out a tactic I couldn't check.";
+    const noted = REVIEW.replace(`${lede}\n`, `${lede}\n${note}\n`);
+    const close = "[/INSIGHT]";
+    const card = noted.slice(
+      noted.indexOf("[INSIGHT:"),
+      noted.indexOf(close) + close.length
+    );
+    // The fields the page reads: the card it names and its prose.
+    const moment = {
+      idea: "You saw the knight fork on c7 hitting the king and the rook on a8.",
+      happens: "The queen on c1 was hanging with no defenders.",
+      proof: { kind: "engine", moveNumber: 8, color: "w" },
+      lesson: {
+        pattern: "",
+        check:
+          "collect the most valuable free piece before you start a combination.",
+      },
+      question: null,
+      more: "Solution: 8. Qxc1 takes the queen immediately.\nOutcome: Material is level again instead of a knight lost.",
+      omitted: [],
+      card: {
+        factIdPrefix: "M2",
+        moveNumber: 8,
+        color: "w",
+        playedSan: "Nc7+",
+        key: cardKey(card),
+      },
+    };
+    await page.route("**/api/enhanced-analysis", (route) =>
+      route.fulfill({
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+        body:
+          `data: ${JSON.stringify({ type: "moment", moment })}\n\n` +
+          `data: ${JSON.stringify({ type: "text", delta: noted })}\n\n` +
+          `data: ${JSON.stringify({ type: "done", metadata: { contextId: "e2e-rect-moments" } })}\n\n`,
+      })
+    );
+    await page.goto(`/analysis?pgn=${encodeURIComponent(PGN)}`);
+    const composer = page.getByPlaceholder(
+      "Ask anything — answering without engine analysis."
+    );
+    await expect(composer).toBeVisible({ timeout: 60_000 });
+    const built =
+      (await page
+        .locator("[data-turn1-moments]")
+        .first()
+        .getAttribute("data-turn1-moments")) === "on";
+    test.skip(!built && !process.env.CI, "built without turn-1 moments");
+    expect(built, "the CI legs build with turn-1 moments on").toBe(true);
+    const rest = await boardRect(page);
+    const strip = page.getByTestId("move-analysis");
+    const stripBox = (await strip.boundingBox())!;
+
+    await composer.fill("analyse this game");
+    await composer.press("Enter");
+    const drawn = page.locator('[data-moment="on"]');
+    await expect(drawn).toBeVisible({ timeout: 30_000 });
+    await expect(drawn.getByTestId("insight-moment-happens")).toBeVisible();
+    await expect(drawn.getByTestId("insight-moment-note")).toHaveText(note);
+    expectSameRect(
+      rest,
+      await boardRect(page),
+      "a review drawn from its moments"
+    );
+    expect(
+      Math.abs((await strip.boundingBox())!.height - stripBox.height)
+    ).toBeLessThanOrEqual(2);
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
+
+    await drawn.getByText("Solution and outcome", { exact: true }).click();
+    await expect(drawn.getByTestId("insight-rest")).toBeVisible();
+    expectSameRect(rest, await boardRect(page), "its solution opened");
+    expect(
+      Math.abs((await strip.boundingBox())!.height - stripBox.height)
+    ).toBeLessThanOrEqual(2);
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
   });
 });
 

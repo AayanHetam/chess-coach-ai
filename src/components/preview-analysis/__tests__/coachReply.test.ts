@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { coachErrorMood } from "@/components/masti/mood";
+import type { CardMoment } from "../cardMoment";
 import {
   COACH_REPLY_BANNERS,
   CoachApiError,
@@ -268,6 +269,7 @@ describe("runCoachReply: errors", () => {
     synthetic: true,
     incomplete: undefined,
     moment: undefined,
+    turnMoments: undefined,
     mascot: coachErrorMood(err instanceof CoachAuthError ? "auth" : "api"),
   });
 
@@ -299,6 +301,8 @@ describe("runCoachReply: errors", () => {
     // and undefined, so the spread on the page removes the fragment mark.
     const patch = calls[4][1] as Record<string, unknown>;
     expect("incomplete" in patch).toBe(true);
+    // The review's key moments go with the text they were drawn beside.
+    expect("turnMoments" in patch).toBe(true);
     expect(patch.mascot).toBe(coachErrorMood("auth"));
   });
 
@@ -525,6 +529,69 @@ describe("runCoachReply: an answer's fields", () => {
       stream: async (h: CoachReplyHandlers) => {
         h.onPageTurn?.(null);
         h.onMoment?.(MOMENT);
+        return RETURNED;
+      },
+      fromPly: 0,
+      site: "send",
+      sink,
+    });
+    expect(calls.some(([k]) => k === "patch")).toBe(false);
+  });
+});
+
+describe("runCoachReply: a review's key moments", () => {
+  const moment = (moveNumber: number, key: string): CardMoment => ({
+    card: {
+      factIdPrefix: `M${moveNumber}`,
+      moveNumber,
+      color: "w",
+      playedSan: "Nc7+",
+      key,
+    },
+    prose: {
+      idea: "You saw the fork.",
+      happens: "The queen on c1 was free.",
+      proof: null,
+      lesson: null,
+      question: null,
+      more: null,
+      omitted: [],
+    },
+  });
+  const A = moment(8, "0000000a");
+  const B = moment(12, "0000000b");
+
+  it("ride one patch each, in the order they came, the text between them untouched", async () => {
+    const { calls, sink } = recorder();
+    await runCoachReply({
+      stream: async (h: CoachReplyHandlers) => {
+        h.onTurnMoment?.(A);
+        h.onDelta("[INSIGHT:8...]");
+        h.onTurnMoment?.(B);
+        h.onDelta("[INSIGHT:12...]");
+        return RETURNED;
+      },
+      fromPly: 0,
+      site: "send",
+      sink,
+    });
+    const patches = calls
+      .filter(([k]) => k === "patch")
+      .map(([, p]) => p as Record<string, unknown>);
+    expect(patches).toEqual([
+      { turnMoments: [A] },
+      { content: "[INSIGHT:8...]" },
+      { turnMoments: [A, B] },
+      { content: "[INSIGHT:8...][INSIGHT:12...]" },
+    ]);
+  });
+
+  it("are ignored after a served page turn", async () => {
+    const { calls, sink } = recorder();
+    await runCoachReply({
+      stream: async (h: CoachReplyHandlers) => {
+        h.onPageTurn?.(null);
+        h.onTurnMoment?.(A);
         return RETURNED;
       },
       fromPly: 0,

@@ -93,6 +93,17 @@ export function readServedMoment(
   raw: unknown,
   text: string
 ): MomentProse | null {
+  const prose = readMomentProse(raw);
+  if (!prose || !momentIsText(prose, text)) return null;
+  return prose;
+}
+
+/**
+ * A moment's prose fields from the wire, each checked for its shape, or
+ * null when any is wrong. Whether they belong to the text beside them is
+ * the caller's check.
+ */
+export function readMomentProse(raw: unknown): MomentProse | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const o = raw as Record<string, unknown>;
   const idea = optString(o.idea);
@@ -117,7 +128,7 @@ export function readServedMoment(
     if (!omitted.includes(f as MomentProseField))
       omitted.push(f as MomentProseField);
   }
-  const prose: MomentProse = {
+  return {
     idea,
     happens,
     proof,
@@ -126,8 +137,6 @@ export function readServedMoment(
     more,
     omitted,
   };
-  if (!momentIsText(prose, text)) return null;
-  return prose;
 }
 
 /** The moment is the answer the message shows. */

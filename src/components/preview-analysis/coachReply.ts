@@ -26,6 +26,7 @@ import type { MastiMood } from "@/components/masti/manifest";
 import { coachErrorMood, type CoachErrorKind } from "@/components/masti/mood";
 import type { PageAction, PageTurn } from "@/lib/coach/pageActions";
 import type { MomentProse } from "@/lib/coach/moment";
+import type { CardMoment } from "./cardMoment";
 
 /** The coach endpoint answered 401: the session is gone or was never there. */
 export class CoachAuthError extends Error {}
@@ -73,6 +74,12 @@ export interface CoachReplyHandlers {
    * the transport is about to deliver: the transcript draws them.
    */
   onMoment?: (moment: MomentProse) => void;
+  /**
+   * A review's key moment as fields (cardMoment.ts), the card it names and
+   * its prose, sent before the card's text: the transcript draws the card
+   * from it while the card's text is the one it was lifted from.
+   */
+  onTurnMoment?: (moment: CardMoment) => void;
 }
 
 /** A patch for the coach's placeholder: the last message, when it is the coach's. */
@@ -83,6 +90,8 @@ export interface CoachReplyPatch {
   mascot?: MastiMood;
   /** The answer's fields; the content stays the text either way. */
   moment?: MomentProse;
+  /** The review's key moments so far, in the order they came. */
+  turnMoments?: CardMoment[];
 }
 
 /** Where the coach moved the board, and the way back. */
@@ -207,6 +216,8 @@ export async function runCoachReply(run: CoachReplyRun): Promise<void> {
   // An order the server answered itself: its text is not an answer, and
   // nothing the coach would do after an answer follows.
   let served = false;
+  // The review's key moments, one patch each as they come.
+  let turnMoments: CardMoment[] = [];
   try {
     await stream({
       onDelta: (chunk) => {
@@ -254,6 +265,11 @@ export async function runCoachReply(run: CoachReplyRun): Promise<void> {
         if (served) return;
         sink.patchLastCoach({ moment });
       },
+      onTurnMoment: (moment) => {
+        if (served) return;
+        turnMoments = [...turnMoments, moment];
+        sink.patchLastCoach({ turnMoments });
+      },
     });
     if (!served) onDone?.(accumulated);
   } catch (err) {
@@ -268,6 +284,7 @@ export async function runCoachReply(run: CoachReplyRun): Promise<void> {
       incomplete: undefined,
       // The banner is not the answer the fields were.
       moment: undefined,
+      turnMoments: undefined,
       // A sign-in wall is a nervous face; an outage is a dizzy one, and so
       // is a network failure (the face never had a third state).
       mascot: coachErrorMood(kind === "auth" ? "auth" : "api"),

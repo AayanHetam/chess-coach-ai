@@ -229,6 +229,13 @@ import {
 } from "./followUpMoment";
 import { ABSENCE_CLAUSE, type MomentProse } from "@/lib/coach/moment";
 import {
+  insightMoments,
+  isTurnMomentsEnabledPublic,
+  ladderNoteIn,
+  readTurnMoment,
+  type CardMoment,
+} from "./cardMoment";
+import {
   coachAskedLast,
   markServedPageTurn,
   planPageTurn,
@@ -591,6 +598,8 @@ const ARRIVAL_JUMP = isArrivalJumpEnabledPublic();
 const FOLLOWUP_MOMENTS = isFollowUpMomentsEnabledPublic();
 /** Build-time flag: two moves compared under the question (coachWhatIf.ts, resolveCompare). */
 const COMPARE = isCompareEnabledPublic();
+/** Build-time flag: a review's key moments drawn from their fields (cardMoment.ts). */
+const TURN1_MOMENTS = isTurnMomentsEnabledPublic();
 
 /**
  * User Timing marks for a what-if ("coach-what-if:asked", ":partial",
@@ -746,6 +755,8 @@ async function streamCoachReply(params: {
   onPerspective?: (echo: unknown) => void;
   /** The answer's fields, when the route sent them and they are its text (followUpMoment.ts). */
   onMoment?: (moment: MomentProse) => void;
+  /** A review's key moment as fields, before its card's text (cardMoment.ts). */
+  onTurnMoment?: (moment: CardMoment) => void;
   signal?: AbortSignal;
 }): Promise<string> {
   const {
@@ -778,6 +789,7 @@ async function streamCoachReply(params: {
     perspectiveRef,
     onPerspective,
     onMoment,
+    onTurnMoment,
     signal,
   } = params;
   // A context minted by this request is built for the side it carries.
@@ -1025,6 +1037,12 @@ async function streamCoachReply(params: {
           // — the reader only understood text/done/metadata/error.
           contextIdRef.current = parsed.contextId;
           mintedContext();
+        } else if (TURN1_MOMENTS && parsed.type === "moment") {
+          // A review's key moment as fields, sent before its card's text.
+          // Only the card it names and its prose are read: nothing
+          // computed on it reaches the board.
+          const moment = readTurnMoment(parsed.moment);
+          if (moment) onTurnMoment?.(moment);
         } else if (parsed.type === "done" || parsed.type === "metadata") {
           // Final event carries contextId + validation + puzzle recs
           sawDoneEvent = true;
@@ -1304,6 +1322,14 @@ interface CoachMessage {
    * and a share carry. Not persisted; a restored transcript has none.
    */
   moment?: MomentProse;
+  /**
+   * The review's key moments as fields (pathway 4.2, cardMoment.ts): a
+   * card whose text is the one a moment was lifted from is drawn from it.
+   * The content stays the text. Not persisted (the save keeps the role,
+   * the content and the ply), so a restored transcript has none and its
+   * cards are the prose cards.
+   */
+  turnMoments?: CardMoment[];
 }
 
 // The cold-start chat. `synthetic: true` keeps it out of conversationHistory
@@ -5218,6 +5244,7 @@ function CoachPanel({
             data-arrival-jump={ARRIVAL_JUMP ? "on" : "off"}
             data-followup-moments={FOLLOWUP_MOMENTS ? "on" : "off"}
             data-coach-compare={COMPARE ? "on" : "off"}
+            data-turn1-moments={TURN1_MOMENTS ? "on" : "off"}
             fullWidth
             multiline
             maxRows={4}
@@ -6107,6 +6134,13 @@ function CoachNote({
   );
 }
 
+/** A line the app writes in a key moment: the body's size, a quieter colour. */
+const QUIET_LINE_SX = {
+  fontSize: "0.92rem",
+  lineHeight: 1.6,
+  color: "rgba(255,255,255,0.62)",
+} as const;
+
 // ─── DarkInsightCard ─────────────────────────────────────────────────────
 // A key moment of the review, as a passage of the coach's message rather
 // than a card: the move and its verdict, the lede, the Idea and the
@@ -6119,8 +6153,17 @@ function CoachNote({
 // roles / Concept) and a gradient CTA. The threats and roles sections the
 // verbalizer still emits are no longer rendered: they are side facts the
 // reader can ask for, and the coach answers from the same data.
+//
+// A card the review also sent as a moment (pathway 4.2, cardMoment.ts) is
+// drawn from the moment's prose: the idea and what happens as two plain
+// lines in the lead's place, with no Idea or Problem label and no lede,
+// the rest behind the same link and the lesson in the same note. The line
+// the ladder wrote about what it left out sits in the lede, so the card
+// draws it under the two lines, in the quieter colour of the app's own
+// clauses. The header, the lines and the links are the prose card's.
 function DarkInsightCard({
   insight,
+  moment,
   renderInline,
   onMoveClick,
   onPracticeConcept,
@@ -6133,6 +6176,8 @@ function DarkInsightCard({
   onShowLinePly,
 }: {
   insight: InsightData;
+  /** The prose of the moment this card was sent as, when its text is the moment's. */
+  moment?: MomentProse | null;
   renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
   onMoveClick?: (moveNumber: number, isBlack: boolean) => void;
   /** Fires when the user clicks "Practice …" — invokes the parent's
@@ -6151,6 +6196,14 @@ function DarkInsightCard({
   onShowLinePly?: (line: CoachLine, k: number, replay?: () => boolean) => void;
 }) {
   const why = useMemo(() => splitInsightWhy(insight.why), [insight.why]);
+  // Drawn from the moment's fields when the review sent them for this text.
+  const view = useMemo(() => (moment ? momentView(moment) : null), [moment]);
+  const rest = view ? (view.more ?? "") : why.rest;
+  const lesson = view ? view.lesson : why.lesson;
+  const note = useMemo(
+    () => (view ? ladderNoteIn(insight.headline) : null),
+    [view, insight.headline]
+  );
   const [showPlayed, setShowPlayed] = useState(false);
   // The solution and the outcome wait behind a tap (2026-10-07). The
   // 2026-09-25 decision was that a key moment hides nothing; on a phone
@@ -6233,7 +6286,7 @@ function DarkInsightCard({
     !!insight.conceptKey && !!insight.conceptName && !!onPracticeConcept;
 
   return (
-    <Box sx={{ minWidth: 0 }}>
+    <Box sx={{ minWidth: 0 }} data-moment={view ? "on" : undefined}>
       {/* Header: move ref + verdict + eval delta */}
       <Stack
         direction="row"
@@ -6287,8 +6340,8 @@ function DarkInsightCard({
         )}
       </Stack>
 
-      {/* Non-spoiler lede */}
-      {insight.headline && (
+      {/* Non-spoiler lede (a card drawn from its moment has none) */}
+      {!view && insight.headline && (
         <Typography
           sx={{
             mt: 0.75,
@@ -6301,18 +6354,55 @@ function DarkInsightCard({
         </Typography>
       )}
 
-      {/* The intent and the reason: "you wanted X, but Y". */}
-      {why.lead && (
-        <Box sx={{ mt: 0.75 }} data-testid="insight-lead">
-          <InsightBodyText
-            text={why.lead}
-            renderInline={renderInline}
-            enginePositions={enginePositions}
-            loadedGame={loadedGame}
-            onJumpToPly={onJumpToPly}
-          />
-        </Box>
-      )}
+      {/* The intent and the reason: "you wanted X, but Y". From a
+          moment, its two lines, then the ladder's note when there is one. */}
+      {view
+        ? (view.lines.length > 0 || note) && (
+            <Box sx={{ mt: 0.75 }} data-testid="insight-lead">
+              {view.lines.map((l, i) => (
+                <Box
+                  key={l.field}
+                  data-testid={`insight-moment-${l.field}`}
+                  data-absent={l.absent ? "true" : undefined}
+                  sx={{ mt: i === 0 ? 0 : 0.6 }}
+                >
+                  {l.absent ? (
+                    <Box sx={QUIET_LINE_SX}>{l.text}</Box>
+                  ) : (
+                    <InsightBodyText
+                      text={l.text}
+                      renderInline={renderInline}
+                      enginePositions={enginePositions}
+                      loadedGame={loadedGame}
+                      onJumpToPly={onJumpToPly}
+                    />
+                  )}
+                </Box>
+              ))}
+              {note && (
+                <Box
+                  data-testid="insight-moment-note"
+                  sx={{
+                    ...QUIET_LINE_SX,
+                    mt: view.lines.length > 0 ? 0.6 : 0,
+                  }}
+                >
+                  {note}
+                </Box>
+              )}
+            </Box>
+          )
+        : why.lead && (
+            <Box sx={{ mt: 0.75 }} data-testid="insight-lead">
+              <InsightBodyText
+                text={why.lead}
+                renderInline={renderInline}
+                enginePositions={enginePositions}
+                loadedGame={loadedGame}
+                onJumpToPly={onJumpToPly}
+              />
+            </Box>
+          )}
 
       {/* The proof: the engine's line from this position, drawn rather than
           described, playable on the board. */}
@@ -6336,10 +6426,10 @@ function DarkInsightCard({
 
       {/* The solution and the outcome, in the coach's words, under the line
           they describe, once asked for. */}
-      {why.rest && showRest && (
+      {rest && showRest && (
         <Box sx={{ mt: 0.75 }} data-testid="insight-rest">
           <InsightBodyText
-            text={why.rest}
+            text={rest}
             renderInline={renderInline}
             enginePositions={enginePositions}
             loadedGame={loadedGame}
@@ -6349,17 +6439,17 @@ function DarkInsightCard({
       )}
 
       {/* The lesson: the pattern to carry into the next game. */}
-      {why.lesson && (
+      {lesson && (
         <CoachNote
           label="Lesson"
           renderInline={renderInline}
           data-testid="insight-lesson"
         >
-          {why.lesson}
+          {lesson}
         </CoachNote>
       )}
 
-      {(why.rest || playedLine || canPractice) && (
+      {(rest || playedLine || canPractice) && (
         <Box
           sx={{
             mt: 1,
@@ -6369,7 +6459,7 @@ function DarkInsightCard({
             alignItems: "center",
           }}
         >
-          {why.rest && (
+          {rest && (
             <TextLink onClick={() => setShowRest((v) => !v)}>
               {showRest ? "Hide the solution" : "Solution and outcome"}
             </TextLink>
@@ -6401,6 +6491,7 @@ function DarkInsightCard({
 // of the game is the passages themselves.
 function DarkInsightStack({
   insights,
+  moments,
   renderInline,
   onMoveClick,
   onPracticeConcept,
@@ -6413,6 +6504,8 @@ function DarkInsightStack({
   onShowLinePly,
 }: {
   insights: InsightData[];
+  /** Per insight, the prose of the moment it is drawn from, or null (cardMoment.ts). */
+  moments?: ReadonlyArray<MomentProse | null>;
   renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
   onMoveClick?: (moveNumber: number, isBlack: boolean) => void;
   onPracticeConcept?: (theme: string, displayName: string) => void;
@@ -6454,6 +6547,7 @@ function DarkInsightStack({
         >
           <DarkInsightCard
             insight={insight}
+            moment={moments?.[i] ?? null}
             renderInline={renderInline}
             onMoveClick={onMoveClick}
             onPracticeConcept={onPracticeConcept}
@@ -7087,6 +7181,12 @@ function CoachBubble({
     if (insights.length === 0) {
       return renderProseWithLines(practiceStripped);
     }
+    // A review's key moments sent as fields (cardMoment.ts): each card
+    // whose text is the one its moment was lifted from is drawn from it.
+    const cardMoments =
+      TURN1_MOMENTS && msg.turnMoments?.length
+        ? insightMoments(msg.turnMoments, msg.content, insights)
+        : undefined;
     // The review's one-line intro ("Let's walk through the key
     // moments.") repeats a scene the arrival greeting already set
     // from the engine data; with the story told, the cards speak.
@@ -7095,6 +7195,7 @@ function CoachBubble({
         {prefix.trim() && !introTold && renderMarkdownProse(prefix)}
         <DarkInsightStack
           insights={insights}
+          moments={cardMoments}
           renderInline={renderInline}
           onMoveClick={(moveNum, isBlack) => {
             if (!allMoves) return;
@@ -7124,6 +7225,7 @@ function CoachBubble({
     isUser,
     msg.content,
     msg.moment,
+    msg.turnMoments,
     introTold,
     allMoves,
     rootFen,

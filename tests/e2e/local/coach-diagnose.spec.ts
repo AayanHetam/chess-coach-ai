@@ -11,6 +11,11 @@ import { stubMaiaHealthy, stubSignedIn } from "../helpers";
  * goes to the coach as an ordinary follow-up. A key moment of the player's
  * offers the same question ("Why did I play this?").
  *
+ * A graded answer offers a drill set of its cause (pathway 4.7, behind
+ * NEXT_PUBLIC_COACH_DIAGNOSE_DRILLS): the game's own puzzles of it, topped
+ * up from the static feed, opened on /puzzles, where every graded puzzle of
+ * the set reviews the cause's card.
+ *
  * Behind NEXT_PUBLIC_COACH_DIAGNOSE: the CI legs build with it on. A local
  * build without it skips (the composer says which it is), CI never does.
  * The engine runs here, so the spec skips, like the arrival's, on a machine
@@ -57,6 +62,41 @@ const REVIEW = [
 const THREATS: Record<string, string> = {
   "7... Qxc1": "Qxc1",
   "5... Qxb2": "Bxb2",
+};
+
+/** Three rows of the shipped CSV the cause "answering threats" draws on, as /api/puzzle-feed returns them. */
+const FEED = {
+  puzzles: [
+    {
+      id: "00CMj",
+      fen: "7R/8/8/6p1/2p1p1k1/2PbK2p/P7/8 w - - 4 71",
+      solution: ["e3f2", "e4e3", "f2e3", "g4g3"],
+      rating: 1534,
+      themes: ["crushing", "defensiveMove", "endgame", "master", "short"],
+    },
+    {
+      id: "00Cqg",
+      fen: "2rr2k1/pp4bp/4qpp1/3Pp3/8/4Q2P/4B1P1/2RR3K b - - 0 26",
+      solution: ["c8c1", "d5e6", "d8d1", "e2d1", "c1d1", "h1h2"],
+      rating: 1619,
+      themes: [
+        "advantage",
+        "defensiveMove",
+        "hangingPiece",
+        "long",
+        "middlegame",
+      ],
+    },
+    {
+      id: "00Erm",
+      fen: "3r4/6k1/1p1pr1p1/p1p2p2/PnP1p1P1/1P6/3R1PBP/4R1K1 b - - 0 29",
+      solution: ["b4d3", "d2d3", "e4d3", "e1e6", "d3d2", "g2f3"],
+      rating: 1402,
+      themes: ["crushing", "defensiveMove", "endgame", "long"],
+    },
+  ],
+  totalAvailable: 3,
+  source: "static-csv",
 };
 
 interface Requests {
@@ -122,6 +162,26 @@ async function sweepLands(page: Page) {
     .catch(() => false);
   test.skip(!ready, "Stockfish never finished on this machine");
 }
+
+/** Was this build made with the drill set on? CI must be. */
+async function drillsOn(page: Page): Promise<boolean> {
+  const on =
+    (await page
+      .locator("[data-coach-diagnose-drills]")
+      .first()
+      .getAttribute("data-coach-diagnose-drills")) === "on";
+  expect(on || !process.env.CI, "the CI legs build with the drill set on").toBe(
+    true
+  );
+  return on;
+}
+
+/** A value /puzzles or /analysis keeps in localStorage. */
+const stored = (page: Page, key: string) =>
+  page.evaluate(
+    (k) => JSON.parse(window.localStorage.getItem(k) ?? "null"),
+    key
+  );
 
 async function open(page: Page) {
   await page.goto(`/analysis?pgn=${encodeURIComponent(PGN)}`);
@@ -212,9 +272,17 @@ test.describe("the diagnosing question", () => {
     await expect(page.locator('[data-diagnose="ask"]')).toHaveCount(0);
   });
 
-  test("as Black: a typed answer is graded on the page", async ({ page }) => {
-    test.setTimeout(240_000);
+  test("as Black: a typed answer is graded on the page, and its drill set opens on /puzzles", async ({
+    page,
+  }) => {
+    test.setTimeout(300_000);
     const seen = await stubCoach(page);
+    const feed: Record<string, unknown>[] = [];
+    await page.route("**/api/puzzle-feed", async (route) => {
+      if (route.request().method() === "POST")
+        feed.push(route.request().postDataJSON());
+      await route.fulfill({ json: FEED });
+    });
     await open(page);
     await page.getByTestId("player-side-ask").getByText("Black").click();
     await sweepLands(page);
@@ -249,5 +317,50 @@ test.describe("the diagnosing question", () => {
     await page.waitForTimeout(500);
     expect(seen.chat).toHaveLength(0);
     expect(seen.deep).toHaveLength(0);
+
+    // The drill set (pathway 4.7). A local build without it ends here.
+    if (!(await drillsOn(page))) return;
+    // An exact answer is a threat seen and played into: "answering threats",
+    // the game's own puzzles of it first, the feed's after.
+    const link = page.getByTestId("diagnose-drill-link");
+    await expect(link).toHaveText(
+      /^Drill it: (?:3 from this game|[12] from this game, [12] like it|3 puzzles like it)$/
+    );
+    const fromGame = /^Drill it: 3 puzzles like it$/.test(
+      (await link.textContent()) ?? ""
+    )
+      ? 0
+      : Number(
+          /(\d) from this game/.exec((await link.textContent()) ?? "")![1]
+        );
+    await link.click();
+    await page.waitForURL(/\/puzzles$/, { timeout: 30_000 });
+    const banner = page.getByText(/^Practising answering threats/);
+    await expect(banner).toBeVisible({ timeout: 30_000 });
+    await expect(banner).toContainText("· 1 of 3");
+    await expect(banner).toContainText(
+      fromGame === 0
+        ? "Practising answering threats: puzzles like the one in your game"
+        : fromGame === 3
+          ? "Practising answering threats: 3 from your game"
+          : `Practising answering threats: ${fromGame} from your game, ${3 - fromGame} like it`
+    );
+    // The feed was asked for the cause's themes, as many as the game lacked.
+    const topUp = feed.find(
+      (b) => JSON.stringify(b.themes) === JSON.stringify(["defensiveMove"])
+    );
+    if (fromGame < 3) expect(topUp?.limit).toBe(3 - fromGame);
+    else expect(topUp).toBeUndefined();
+    // /puzzles took the cause with the queue, and every graded puzzle of
+    // the set reviews its card: seeing the answer is a miss.
+    await expect.poll(() => stored(page, "chessMastiDrillCause")).toBeNull();
+    expect(await stored(page, "chessMastiCauseSrs")).toBeNull();
+    await page.getByRole("button", { name: /show solution/i }).click();
+    await expect
+      .poll(() => stored(page, "chessMastiCauseSrs"), { timeout: 15_000 })
+      .toMatchObject({ "cause:calculation": { attempts: 1, interval: 1 } });
+    // The theme cards /plan reads are not touched by it.
+    const themes = (await stored(page, "chessMastiPuzzleThemeSrs")) ?? {};
+    expect(Object.keys(themes).some((k) => k.startsWith("cause:"))).toBe(false);
   });
 });

@@ -112,7 +112,17 @@ import {
   arrivalTarget,
   isArrivalJumpEnabledPublic,
 } from "@/lib/coach/arrivalJump";
-import { isDiagnoseEnabledPublic } from "@/lib/diagnose/flags";
+import {
+  isDiagnoseDrillsEnabledPublic,
+  isDiagnoseEnabledPublic,
+} from "@/lib/diagnose/flags";
+import {
+  DRILL_SET_EMPTY,
+  gameDrillsFor,
+  practiceLabel,
+  type GameDrill,
+} from "@/lib/diagnose/drillSet";
+import { drillCauseAtom } from "@/lib/diagnose/causeSrs";
 import {
   diagnoseMomentAt,
   findDiagnoseMoment,
@@ -143,7 +153,17 @@ import {
   wasAsked,
   type DiagnoseAsk,
 } from "./diagnoseAsk";
-import { DiagnoseControls, type DiagnoseAction } from "./DiagnoseControls";
+import {
+  DiagnoseControls,
+  DiagnoseDrillLink,
+  type DiagnoseAction,
+} from "./DiagnoseControls";
+import {
+  drillOffer,
+  fetchCauseTopUp,
+  topUpCount,
+  type DrillOffer,
+} from "./diagnoseDrills";
 import { decisiveLabel, decisiveMark, type DecisiveMove } from "./evalArc";
 import {
   DEFAULT_ARROW_TOGGLES,
@@ -633,6 +653,8 @@ const TURN1_MOMENTS = isTurnMomentsEnabledPublic();
 const BOARD_ANNOTATIONS = isBoardAnnotationsEnabledPublic();
 /** Build-time flag: the diagnosing question at the player's costliest move (diagnoseAsk.ts). */
 const DIAGNOSE = isDiagnoseEnabledPublic();
+/** Build-time flag: the drill set from this game under a graded answer (diagnoseDrills.ts). */
+const DIAGNOSE_DRILLS = DIAGNOSE && isDiagnoseDrillsEnabledPublic();
 
 /**
  * User Timing marks for a what-if ("coach-what-if:asked", ":partial",
@@ -1379,6 +1401,8 @@ interface CoachMessage {
     id: number;
     role: "ask" | "answer" | "reply";
     cause?: DiagnoseCause;
+    /** A graded reply's drill set from this game (diagnoseDrills.ts). */
+    drill?: DrillOffer;
   };
 }
 
@@ -4925,6 +4949,7 @@ function CoachPanel({
   placeholderOverride,
   canDiagnoseAt,
   onDiagnoseAt,
+  onDiagnoseDrill,
 }: {
   /** Put a ply of a proof line on the main board. */
   onShowLinePly?: ShowLinePly;
@@ -4942,6 +4967,8 @@ function CoachPanel({
   /** A key moment of the player's at this ply can be asked about. */
   canDiagnoseAt?: (ply: number) => boolean;
   onDiagnoseAt?: (ply: number) => void;
+  /** The drill set under a graded answer, opened on /puzzles (diagnoseDrills.ts). */
+  onDiagnoseDrill?: (offer: DrillOffer, id: number) => void;
   /**
    * True once auth has resolved to "nobody is signed in". The coach routes
    * are session-gated, so every send from an anonymous visitor came back 401:
@@ -5160,6 +5187,22 @@ function CoachPanel({
                         mode={diagnose.mode}
                         canType={!!canType}
                         onAction={onDiagnoseAction}
+                      />
+                    </Box>
+                  )}
+                {/* A graded answer's drill set from this game. */}
+                {msg.diagnose?.role === "reply" &&
+                  msg.diagnose.drill &&
+                  onDiagnoseDrill && (
+                    <Box sx={{ pl: "38px", mt: 0.75 }}>
+                      <DiagnoseDrillLink
+                        label={msg.diagnose.drill.label}
+                        onClick={() =>
+                          onDiagnoseDrill(
+                            msg.diagnose!.drill!,
+                            msg.diagnose!.id
+                          )
+                        }
                       />
                     </Box>
                   )}
@@ -5445,6 +5488,7 @@ function CoachPanel({
             data-turn1-moments={TURN1_MOMENTS ? "on" : "off"}
             data-board-annotations={BOARD_ANNOTATIONS ? "on" : "off"}
             data-coach-diagnose={DIAGNOSE ? "on" : "off"}
+            data-coach-diagnose-drills={DIAGNOSE_DRILLS ? "on" : "off"}
             fullWidth
             multiline
             maxRows={4}
@@ -9536,6 +9580,39 @@ export default function AnalysisPage() {
     [askedPlies, diagnoseEntryAt, canSend]
   );
 
+  // The player's mistakes in this game as puzzles (drillSet.ts), worked out
+  // once per sweep and side, the first time a graded reply offers a set.
+  const gameDrillsRef = useRef<{
+    input: GameStoryInput | null;
+    player: "w" | "b" | null;
+    drills: GameDrill[];
+  }>({ input: null, player: null, drills: [] });
+  // Read by the grade (settleDiagnose) as of this render.
+  const drillOfferRef = useRef<
+    (m: DiagnoseMoment, cause: DiagnoseCause) => DrillOffer | null
+  >(() => null);
+  drillOfferRef.current = (m, cause) => {
+    if (!DIAGNOSE_DRILLS || !gameStoryInput?.positions) return null;
+    const cache = gameDrillsRef.current;
+    if (cache.input !== gameStoryInput || cache.player !== m.color) {
+      gameDrillsRef.current = {
+        input: gameStoryInput,
+        player: m.color,
+        drills: gameDrillsFor({
+          positions: gameStoryInput.positions,
+          sans: gameStoryInput.sans,
+          player: m.color,
+          declaredDepth: gameStoryInput.declaredDepth ?? null,
+          gameKey: [
+            askedKey(headers, allMoves.length) ?? "",
+            ...gameStoryInput.sans,
+          ].join(" "),
+        }),
+      };
+    }
+    return drillOffer(gameDrillsRef.current.drills, cause, m.ply);
+  };
+
   const drillActive = drillState !== null && drillState.status !== "complete";
   // Bumped to force the board to re-sync to React-state FEN. Chessground
   // commits a drag visually before the move event fires, so a rejected
@@ -10894,6 +10971,8 @@ export default function AnalysisPage() {
   const settleDiagnose = useCallback(
     (ask: DiagnoseAsk, r: DiagnoseResult | "skip", echo?: string) => {
       const m = ask.moment;
+      // A graded answer offers a drill set of its cause (not a skip).
+      const drill = r === "skip" ? null : drillOfferRef.current(m, r.cause);
       setMessages((prev) => [
         ...prev,
         {
@@ -10913,6 +10992,7 @@ export default function AnalysisPage() {
             id: ask.id,
             role: "reply",
             ...(r === "skip" ? {} : { cause: r.cause }),
+            ...(drill ? { drill } : {}),
           },
         },
       ]);
@@ -12232,6 +12312,51 @@ export default function AnalysisPage() {
     [router, setPracticeQueue, setPracticeLabel]
   );
 
+  // ─── The drill set under a graded answer (diagnoseDrills.ts) ──────────
+  // The game's own puzzles of the cause, topped up from the static feed,
+  // opened on /puzzles through the practice queue with the cause beside
+  // it, so /puzzles reviews the cause's card on every graded puzzle.
+  const setDrillCause = useSetAtom(drillCauseAtom);
+  const causeDrillBusyRef = useRef(false);
+  const launchCauseDrill = useCallback(
+    async (offer: DrillOffer, id: number) => {
+      if (causeDrillBusyRef.current) return;
+      causeDrillBusyRef.current = true;
+      try {
+        const topUp = await fetchCauseTopUp(
+          offer.cause,
+          resolveUserRating(profile) ?? 1500,
+          topUpCount(offer),
+          offer.puzzles.map((p) => p.id)
+        );
+        const set = [...offer.puzzles, ...topUp];
+        if (set.length === 0) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "coach",
+              content: DRILL_SET_EMPTY,
+              synthetic: true,
+              ply: offer.excludePly,
+              mascot: "nervous",
+              diagnose: { id, role: "reply" },
+            },
+          ]);
+          return;
+        }
+        setPracticeQueue(set);
+        setPracticeLabel(
+          practiceLabel(offer.cause, offer.puzzles.length, topUp.length)
+        );
+        setDrillCause({ cause: offer.cause, ids: set.map((p) => p.id) });
+        router.push("/puzzles");
+      } finally {
+        causeDrillBusyRef.current = false;
+      }
+    },
+    [profile, router, setPracticeQueue, setPracticeLabel, setDrillCause]
+  );
+
   const handleRunCommand = useCallback(
     (id: string, arg: string) => {
       if (id === "puzzle-generation") void runPuzzleGeneration(arg);
@@ -12925,6 +13050,9 @@ export default function AnalysisPage() {
                               canDiagnoseAt,
                               onDiagnoseAt: handleDiagnoseAt,
                             }
+                          : {})}
+                        {...(DIAGNOSE_DRILLS
+                          ? { onDiagnoseDrill: launchCauseDrill }
                           : {})}
                       />
                     </Box>

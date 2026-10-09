@@ -110,6 +110,16 @@ import {
   isResumeFresh,
   type PuzzleResumeState,
 } from "@/lib/curriculum/resume";
+import {
+  isDiagnoseDrillsEnabledPublic,
+  isDiagnoseEnabledPublic,
+} from "@/lib/diagnose/flags";
+import {
+  causeSrsAtom,
+  drillCauseAtom,
+  reviewCause,
+} from "@/lib/diagnose/causeSrs";
+import type { DiagnoseCause } from "@/lib/diagnose/gradeAnswer";
 
 const PuzzleBoardSurface = dynamic(
   () =>
@@ -118,6 +128,11 @@ const PuzzleBoardSurface = dynamic(
     ),
   { ssr: false }
 );
+
+/** Build-time flag: a drill set from /analysis reviews its cause's card
+ *  on every graded puzzle of the set (lib/diagnose/causeSrs.ts). */
+const DIAGNOSE_DRILLS =
+  isDiagnoseEnabledPublic() && isDiagnoseDrillsEnabledPublic();
 
 /** Per-color fill for coach-triggered square overlays (was in PuzzleBoard.tsx).
  *  Translucent so the piece glyph still reads on top. Painted on the shared
@@ -516,6 +531,14 @@ export default function PreviewPuzzlesPage() {
     puzzlePracticeLabelAtom
   );
   const [practiceLabel, setPracticeLabel] = useState<string | null>(null);
+  // The cause a drill set from /analysis trains, taken with the queue and
+  // dropped with it: each graded puzzle of the set reviews its card.
+  const [drillCauseAtomVal, setDrillCauseAtom] = useAtom(drillCauseAtom);
+  const [, setCauseSrs] = useAtom(causeSrsAtom);
+  const drillCauseRef = useRef<{
+    cause: DiagnoseCause;
+    ids: string[];
+  } | null>(null);
 
   const [activeTheme, setActiveTheme] = useState<string | null>(null);
   const [activeBand, setActiveBand] = useState<string>("all");
@@ -583,6 +606,7 @@ export default function PreviewPuzzlesPage() {
       // A manual filter pick exits "resume"/"practice" mode — fresh stream.
       setResumeOverride(null);
       setPracticeList(null);
+      drillCauseRef.current = null;
       setActiveTheme(id);
       applyFilters(id, activeBand);
     },
@@ -593,6 +617,7 @@ export default function PreviewPuzzlesPage() {
     (bandId: string) => {
       setResumeOverride(null);
       setPracticeList(null);
+      drillCauseRef.current = null;
       setActiveBand(bandId);
       applyFilters(activeTheme, bandId);
     },
@@ -612,6 +637,15 @@ export default function PreviewPuzzlesPage() {
       setPracticeLabel(practiceLabelAtomVal);
       setPracticeQueueAtom(null);
       setPracticeLabelAtom(null);
+      if (DIAGNOSE_DRILLS) {
+        // Only the cause that came with this queue.
+        drillCauseRef.current =
+          drillCauseAtomVal &&
+          practiceQueueAtomVal.some((p) => drillCauseAtomVal.ids.includes(p.id))
+            ? drillCauseAtomVal
+            : null;
+        if (drillCauseAtomVal) setDrillCauseAtom(null);
+      }
     }
   }, [
     practiceQueueAtomVal,
@@ -619,6 +653,8 @@ export default function PreviewPuzzlesPage() {
     practiceList,
     setPracticeQueueAtom,
     setPracticeLabelAtom,
+    drillCauseAtomVal,
+    setDrillCauseAtom,
   ]);
 
   // Puzzle precedence: re-practice queue > resumed puzzle > feed. The resume
@@ -877,6 +913,13 @@ export default function PreviewPuzzlesPage() {
           timestamp: Date.now(),
         })
       );
+      // A puzzle of a drill set from /analysis reviews its cause's card.
+      const drillCause = drillCauseRef.current;
+      if (DIAGNOSE_DRILLS && drillCause?.ids.includes(puzzle.id)) {
+        setCauseSrs((cards) =>
+          reviewCause(cards, drillCause.cause, solved, Date.now())
+        );
+      }
       // A graded puzzle here is real training and must count toward the daily
       // streak. Before the program-first restructure, bumpStreak fired ONLY in
       // SessionRunner — so solving fifty puzzles on this page advanced nothing
@@ -895,7 +938,7 @@ export default function PreviewPuzzlesPage() {
         },
       ]);
     },
-    [puzzle, setStats, recordTrainingDay]
+    [puzzle, setStats, recordTrainingDay, setCauseSrs]
   );
 
   // Grade the rating on solve (first-try only counts as solved, mirroring
@@ -1474,6 +1517,7 @@ export default function PreviewPuzzlesPage() {
         setPracticeIdx((i) => i + 1);
       } else {
         setPracticeList(null);
+        drillCauseRef.current = null;
         setPracticeIdx(0);
       }
     } else if (resumeOverride) {
@@ -1582,6 +1626,7 @@ export default function PreviewPuzzlesPage() {
         themes: Array.isArray(hit.themes) ? hit.themes : [],
       });
       setPracticeList(null);
+      drillCauseRef.current = null;
     } catch {
       setSimilarNote(
         "Couldn't reach the puzzle graph. Served a same-difficulty puzzle instead."
@@ -1601,6 +1646,7 @@ export default function PreviewPuzzlesPage() {
       feed.jumpTo(id);
       setResumeOverride(null);
       setPracticeList(null);
+      drillCauseRef.current = null;
     },
     [feed, bumpActivity]
   );
@@ -2002,6 +2048,7 @@ export default function PreviewPuzzlesPage() {
               <Button
                 onClick={() => {
                   setPracticeList(null);
+                  drillCauseRef.current = null;
                   setPracticeIdx(0);
                 }}
                 size="small"

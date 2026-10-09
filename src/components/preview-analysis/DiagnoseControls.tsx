@@ -15,10 +15,12 @@ export type DiagnoseAction = "board" | "type" | "no-idea" | "skip" | "plan";
 function Link({
   onClick,
   pressed,
+  testId,
   children,
 }: {
   onClick: () => void;
   pressed?: boolean;
+  testId?: string;
   children: ReactNode;
 }) {
   return (
@@ -27,6 +29,7 @@ function Link({
       type="button"
       onClick={onClick}
       aria-pressed={pressed}
+      data-testid={testId}
       sx={{
         font: "inherit",
         fontSize: "0.78rem",
@@ -88,5 +91,23 @@ export function DiagnoseControls({
       )}
       <Link onClick={() => onAction("skip")}>Skip</Link>
     </Box>
+  );
+}
+
+/**
+ * The drill set under a graded answer (pathway 4.7, diagnoseDrills.ts): one
+ * text link, the same as the ways to answer.
+ */
+export function DiagnoseDrillLink({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <Link onClick={onClick} testId="diagnose-drill-link">
+      {label}
+    </Link>
   );
 }

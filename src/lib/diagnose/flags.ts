@@ -20,3 +20,19 @@ export function isDiagnoseEnabledPublic(): boolean {
   if (v === "0" || v === "off" || v === "false") return false;
   return DIAGNOSE_DEFAULT;
 }
+
+/**
+ * The drill set under a graded answer (pathway 4.7): off until its own
+ * flip, and only ever on with the question's flag.
+ */
+export const DIAGNOSE_DRILLS_DEFAULT = false;
+
+/** Read once at module level, like the question's flag. */
+export function isDiagnoseDrillsEnabledPublic(): boolean {
+  const v = (process.env.NEXT_PUBLIC_COACH_DIAGNOSE_DRILLS ?? "")
+    .trim()
+    .toLowerCase();
+  if (v === "1" || v === "on" || v === "true") return true;
+  if (v === "0" || v === "off" || v === "false") return false;
+  return DIAGNOSE_DRILLS_DEFAULT;
+}

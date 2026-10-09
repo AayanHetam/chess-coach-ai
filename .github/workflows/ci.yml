@@ -153,6 +153,8 @@ jobs:
       NEXT_PUBLIC_COACH_BOARD_ANNOTATIONS: "1"
       # The question at the player's costliest move (diagnoseAsk.ts).
       NEXT_PUBLIC_COACH_DIAGNOSE: "1"
+      # A graded answer's drill set from this game (diagnoseDrills.ts).
+      NEXT_PUBLIC_COACH_DIAGNOSE_DRILLS: "1"
     steps:
       - uses: actions/checkout@v4
         with:

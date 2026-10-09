@@ -1165,7 +1165,10 @@ test.describe("Masti's marks on the board", () => {
  * player's costliest move. Answered on the board, it is a one-puzzle drill
  * whose status is the strip's first row, and its grade is a coach message:
  * none of it moves the board. The engine runs here, so the spec skips, like
- * the arrival's, on a machine where the sweep never finishes.
+ * the arrival's, on a machine where the sweep never finishes. A graded
+ * answer's drill set (pathway 4.7, NEXT_PUBLIC_COACH_DIAGNOSE_DRILLS) is a
+ * text link under the reply, and a set the puzzle store cannot fill is one
+ * more coach line: neither moves the board.
  */
 test.describe("the diagnosing question", () => {
   async function diagnoseOn(page: Page) {
@@ -1176,6 +1179,20 @@ test.describe("the diagnosing question", () => {
         .getAttribute("data-coach-diagnose")) === "on";
     test.skip(!on && !process.env.CI, "built without the diagnosing question");
     expect(on, "the CI legs build with the diagnosing question on").toBe(true);
+  }
+
+  /** Was this build made with the drill set on? CI must be. */
+  async function drillsOn(page: Page): Promise<boolean> {
+    const on =
+      (await page
+        .locator("[data-coach-diagnose-drills]")
+        .first()
+        .getAttribute("data-coach-diagnose-drills")) === "on";
+    expect(
+      on || !process.env.CI,
+      "the CI legs build with the drill set on"
+    ).toBe(true);
+    return on;
   }
 
   /** Black's costliest move in this game, and White's threat after it, by the squares. */
@@ -1251,7 +1268,54 @@ test.describe("the diagnosing question", () => {
     );
     await expect(state).toHaveCount(0, { timeout: 5_000 });
     await expect(controls).toHaveCount(0);
+    // The drill set's link is under the reply with it.
+    if (await drillsOn(page))
+      await expect(page.getByTestId("diagnose-drill-link")).toBeVisible();
     expectSameRect(rest, await boardRect(page), "the grade");
+    expect(
+      Math.abs((await strip.boundingBox())!.height - stripHeight)
+    ).toBeLessThanOrEqual(2);
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
+  });
+
+  test("does not move for a drill set the puzzle store cannot fill", async ({
+    page,
+  }) => {
+    test.setTimeout(240_000);
+    await stubEverything(page, { blockEngine: false });
+    await page.route("**/api/puzzle-feed", (r) =>
+      r.fulfill({ status: 503, json: { error: "puzzle-feed unavailable" } })
+    );
+    await page.goto(`/analysis?pgn=${encodeURIComponent(PGN)}`);
+    await expect(page.locator(".cg-wrap").first()).toBeVisible({
+      timeout: 60_000,
+    });
+    await diagnoseOn(page);
+    test.skip(!(await drillsOn(page)), "built without the drill set");
+    const rest = await boardRect(page);
+    const strip = page.getByTestId("move-analysis");
+    const stripHeight = (await strip.boundingBox())!.height;
+
+    await page.getByTestId("player-side-ask").getByText("Black").click();
+    await sweepLands(page);
+    const controls = page.getByTestId("diagnose-ask");
+    await expect(controls).toBeVisible({ timeout: 30_000 });
+    // "No idea" is a guess, and no move of the game is graded one: the set
+    // is the feed's alone.
+    await controls.getByText("No idea").click();
+    const link = page.getByTestId("diagnose-drill-link");
+    await expect(link).toHaveText("Drill it: 3 puzzles like it");
+    expectSameRect(rest, await boardRect(page), "the drill link");
+
+    const url = page.url();
+    await link.click();
+    await expect(
+      page.getByText(
+        "The puzzle store didn't answer just now. Try again in a moment."
+      )
+    ).toBeVisible({ timeout: 10_000 });
+    expect(page.url()).toBe(url);
+    expectSameRect(rest, await boardRect(page), "the empty set");
     expect(
       Math.abs((await strip.boundingBox())!.height - stripHeight)
     ).toBeLessThanOrEqual(2);

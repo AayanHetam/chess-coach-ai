@@ -47,7 +47,18 @@ describe("gradeAnswer at fixture 07, after 6. Na3 (Black to move, the rook on a1
   };
 
   it("reads the truth however it is written: exact, a calculation slip", () => {
-    for (const text of ["Qxa1", "6... Qxa1", "6...Qxa1", "b2a1", "Qxa1!"]) {
+    for (const text of [
+      "Qxa1",
+      "6... Qxa1",
+      "6...Qxa1",
+      "b2a1",
+      "Qxa1!",
+      // Black's dots alone, and the ellipsis a phone types for them.
+      "...Qxa1",
+      "\u2026Qxa1",
+      "6\u2026Qxa1",
+      "6\u2026 Qxa1",
+    ]) {
       const r = grade(text)!;
       expect(r.grade, text).toBe("exact");
       expect(r.cause).toBe("calculation");

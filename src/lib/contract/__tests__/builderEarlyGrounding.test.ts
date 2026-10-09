@@ -368,6 +368,29 @@ describe("the breaker, with the flag only", () => {
     expect(fetchedLog()!.circuitOpen).toEqual({ chessdb: 0, lc0: 0, maia: 0 });
   });
 
+  it("a client cache hit is no answer: a hung source still opens the breaker", async () => {
+    let clock = 1_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => clock);
+    let cachedFen: string | null = null;
+    mockQueryChessdb.mockImplementation(async (fen: string) => {
+      cachedFen ??= fen;
+      if (fen === cachedFen) return { ...chessdbOk(fen), source: "cache" };
+      clock += CHESSDB_TIMEOUT_MS;
+      return null;
+    });
+    const args = argsFor(TEN);
+    for (let i = 0; i < BREAKER_THRESHOLD; i++) {
+      const p = beginCoachContract(args, { breaker: true });
+      expect(p.launched.chessdb).toBeGreaterThan(1);
+      const g = await p.within(Infinity);
+      // The cached position still grounds its insight.
+      expect(Array.from(g.chessdb.values()).filter(Boolean)).toHaveLength(1);
+    }
+    expect(beginCoachContract(args, { breaker: true }).launched.chessdb).toBe(
+      0
+    );
+  });
+
   it("buildCoachContract still fetches while the breaker is open", async () => {
     timingOutChessdb();
     for (let i = 0; i < BREAKER_THRESHOLD; i++) {
@@ -424,6 +447,29 @@ describe("contract_grounding_fetched", () => {
       maia: 0,
     });
     expect(on.circuitOpen).toEqual({ chessdb: 0, lc0: 0, maia: 0 });
+  });
+
+  it("carries slowestOkMs, the slowest fetch that answered, apart from a timeout", async () => {
+    let clock = 1_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => clock);
+    mockQueryChessdb.mockImplementation(async () => {
+      clock += 6000;
+      return null;
+    });
+    await beginCoachContract(SMALL, { breaker: false }).within(Infinity);
+    const timedOut = fetchedLog()!;
+    expect(timedOut.slowestMs).toEqual({ chessdb: 6000, lc0: 0, maia: 0 });
+    expect(timedOut.slowestOkMs).toEqual({ chessdb: 0, lc0: 0, maia: 0 });
+
+    mockLog.info.mockClear();
+    mockQueryChessdb.mockImplementation(async (fen: string) => {
+      clock += 300;
+      return chessdbOk(fen);
+    });
+    await beginCoachContract(SMALL, { breaker: false }).within(Infinity);
+    const answered = fetchedLog()!;
+    expect(answered.slowestMs).toEqual({ chessdb: 300, lc0: 0, maia: 0 });
+    expect(answered.slowestOkMs).toEqual({ chessdb: 300, lc0: 0, maia: 0 });
   });
 
   it("is logged before buildCoachContract computes the half", async () => {

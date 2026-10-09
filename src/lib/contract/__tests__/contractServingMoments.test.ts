@@ -183,6 +183,25 @@ describe("contract serving with moments", () => {
     expect(second.frames).toEqual([{ kind: "text", text: r1.analysisContent }]);
   });
 
+  it("a moment send that throws costs the moment, never the card's text", async () => {
+    const off = await serve(false).pending;
+    clearCache();
+    const frames: Frame[] = [];
+    let sends = 0;
+    const result = await serve(true, {
+      emitText: (text) => frames.push({ kind: "text", text }),
+      emitMoment: () => {
+        sends += 1;
+        throw new Error("controller closed");
+      },
+    }).pending;
+    expect(sends).toBe(2);
+    expect(result.analysisContent).toBe(off.analysisContent);
+    expect(texts(frames).join("")).toBe(off.analysisContent);
+    expect(result.cacheable).toBe(true);
+    expect(getCachedResponse(KEY)).toBe(off.analysisContent);
+  });
+
   it("a truncated review caches nothing and sends moments for its completed cards only", async () => {
     async function* stalls(opts: {
       signal?: AbortSignal;

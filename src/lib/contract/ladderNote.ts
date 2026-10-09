@@ -178,6 +178,19 @@ export function renderLadderNote(
 }
 
 /**
+ * Whether a dropped sentence holds a finding's span the way the referee
+ * found it. A tactical keyword counts only at a word start, as the referee
+ * reads it ("exchanging" holds no "hanging", "keeping" no "pin"): the drop
+ * still cuts such a sentence by substring, but it held no tactic to name.
+ */
+function holdsFinding(text: string, f: ServingFinding): boolean {
+  if (!f.span) return false;
+  if (f.check !== "tactical_keyword") return text.includes(f.span);
+  const word = f.span.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
+  return new RegExp(`\\b${word}`, "i").test(text);
+}
+
+/**
  * The note for a sentence_drop card, or null when no sentence a reader
  * would have seen was dropped. Each sentence's kind is the first, in
  * priority order, among the armed findings whose span it held.
@@ -190,7 +203,7 @@ export function ladderNoteFor(
   for (const d of dropped) {
     if (d.section !== null && SILENT_SECTIONS.has(d.section)) continue;
     const held = errors
-      .filter((f) => f.span && d.text.includes(f.span))
+      .filter((f) => holdsFinding(d.text, f))
       .map(ladderNoteKind);
     if (held.length === 0) continue;
     kinds.push(held.sort(byPriority)[0]);

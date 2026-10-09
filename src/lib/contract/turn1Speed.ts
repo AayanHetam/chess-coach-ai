@@ -21,8 +21,9 @@ export function isTurn1EarlyStream(): boolean {
 
 /**
  * How long the prompt waits for the grounding fetches, counted from their
- * launch. A placeholder until a day of production `slowestMs` readings sets
- * it before the flip (the p90 of each source that answers, capped at 3000).
+ * launch. A placeholder until a day of production `slowestOkMs` readings
+ * sets it before the flip (the p90 of each source that answers, capped at
+ * 3000).
  */
 export const TURN1_GROUNDING_WAIT_MS = 1500;
 

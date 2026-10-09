@@ -105,7 +105,7 @@ export async function queryLc0(fen: string, nodes = DEFAULT_NODES): Promise<Lc0R
 
   const cacheKey = `${fen}::${nodes}`;
   const cached = resultCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) return cached.result;
+  if (cached && cached.expiresAt > Date.now()) return { ...cached.result, source: "cache" };
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);

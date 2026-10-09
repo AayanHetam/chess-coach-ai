@@ -494,8 +494,10 @@ function projectNode(value: unknown): unknown {
 
 /**
  * Drop each row's fenBefore when the previous row's fenAfter already states
- * it. With `cardedPlies` (the lean table, rule 6) a row whose ply has no
- * insight also sheds its better move's engine line and keeps the move.
+ * it. With `cardedPlies` (the lean table, rule 6) a row whose ply is neither
+ * an insight's nor the reply to one also sheds its better move's engine line
+ * and keeps the move. The reply's row is kept because a blunder the opponent
+ * did not punish has its refutation there and nowhere else.
  */
 function projectMoveTable(
   rows: readonly MoveTableEntry[],
@@ -539,7 +541,7 @@ export function serializeForVerbalizer(contract: CoachContract): string {
   });
   const moveTable = projectMoveTable(
     rest.moveTable,
-    isTurn1LeanTable() ? new Set(rest.insights.map((i) => i.ply)) : null,
+    isTurn1LeanTable() ? new Set(rest.insights.flatMap((i) => [i.ply, i.ply + 1])) : null,
   );
   return JSON.stringify(
     sortKeysDeep(projectNode({ ...rest, insights, moveTable })),

@@ -71,10 +71,15 @@ interface WireRow {
   bestWas: { san: string; line: unknown } | null;
 }
 
+/** Each insight's ply and the reply's, whose row holds the move's refutation. */
+function cardedPlies(contract: CoachContract): Set<number> {
+  return new Set(contract.insights.flatMap((i) => [i.ply, i.ply + 1]));
+}
+
 /** The flag-off wire with rule 6 applied by hand. */
 function expectedLean(contract: CoachContract): string {
   const wire = JSON.parse(flagOff(contract)) as { moveTable: WireRow[] };
-  const carded = new Set(contract.insights.map((i) => i.ply));
+  const carded = cardedPlies(contract);
   for (const row of wire.moveTable) {
     if (!carded.has(row.ply) && row.bestWas && row.bestWas.line) {
       row.bestWas.line = null;
@@ -131,12 +136,13 @@ describe("the lean move table", () => {
     let rowsCut = 0;
     for (const [name, contract] of Array.from(contracts)) {
       expect(flagOn(contract), name).toBe(expectedLean(contract));
-      const carded = new Set(contract.insights.map((i) => i.ply));
+      const carded = cardedPlies(contract);
       rowsCut += contract.moveTable.filter(
         (r) => !carded.has(r.ply) && r.bestWas?.line
       ).length;
     }
-    // Measured at 136 rows over the ten fixtures when the rule landed.
+    // Measured at 136 rows over the ten fixtures when the rule landed, 124
+    // once the reply rows were kept.
     expect(rowsCut).toBeGreaterThan(100);
   });
 
@@ -144,7 +150,7 @@ describe("the lean move table", () => {
     for (const [name, contract] of Array.from(contracts)) {
       const off = JSON.parse(flagOff(contract)) as { moveTable: WireRow[] };
       const on = JSON.parse(flagOn(contract)) as { moveTable: WireRow[] };
-      const carded = new Set(contract.insights.map((i) => i.ply));
+      const carded = cardedPlies(contract);
       expect(on.moveTable.length, name).toBe(off.moveTable.length);
       on.moveTable.forEach((row, i) => {
         const before = off.moveTable[i];
@@ -209,6 +215,32 @@ describe("the lean move table", () => {
     }
   });
 
+  it("keeps the reply row's line, the refutation of a blunder the opponent did not punish", () => {
+    let kept = 0;
+    for (const [name, contract] of Array.from(contracts)) {
+      const on = JSON.parse(flagOn(contract)) as { moveTable: WireRow[] };
+      for (const insight of contract.insights) {
+        const reply = contract.moveTable.find((r) => r.ply === insight.ply + 1);
+        if (!reply?.bestWas?.line) continue;
+        const row = on.moveTable.find((r) => r.ply === reply.ply)!;
+        expect(row.bestWas?.line, `${name} ${reply.ply}`).not.toBeNull();
+        kept += 1;
+      }
+    }
+    // Fixture 05's 20. Rg3 among them: 20... Be5 let it go, and only that
+    // row's line holds 20... Bxg3+.
+    const rg3 = contracts
+      .get("05_long_game_six_mistakes.json")!
+      .moveTable.find((r) => r.san === "Rg3");
+    expect(rg3).toBeDefined();
+    const fiveOn = JSON.parse(
+      flagOn(contracts.get("05_long_game_six_mistakes.json")!)
+    ) as { moveTable: Array<WireRow & { bestWas: { line: unknown } | null }> };
+    const after = fiveOn.moveTable.find((r) => r.ply === rg3!.ply + 1)!;
+    expect(JSON.stringify(after.bestWas?.line)).toContain("Bxg3+");
+    expect(kept).toBeGreaterThan(0);
+  });
+
   it("shrinks the projected contract by at least 3% over the ten fixtures", () => {
     let off = 0;
     let on = 0;
@@ -216,7 +248,8 @@ describe("the lean move table", () => {
       off += flagOff(contract).length;
       on += flagOn(contract).length;
     }
-    // Measured at 3.4% (10,004 of 292,006 characters) when the rule landed.
+    // Measured at 3.4% (10,004 of 292,006 characters) when the rule landed,
+    // 3.1% (9,108) once the reply rows were kept.
     expect(on).toBeLessThan(off * 0.97);
   });
 

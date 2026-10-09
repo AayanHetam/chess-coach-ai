@@ -368,6 +368,55 @@ describe("ladderNoteFor", () => {
     );
     expect(note?.kinds).toEqual(["pieces"]);
   });
+
+  it("reads a tactical keyword at a word start, as the referee does", () => {
+    const hanging = [
+      finding("tactical_keyword", "tactical_keyword_unbacked", "hanging"),
+    ];
+    // The drop cuts these by substring, but none holds the claim.
+    for (const text of [
+      "Idea: You wanted to keep exchanging pieces.",
+      "Solution: keeping the knight on d4 held it.",
+    ]) {
+      expect(
+        ladderNoteFor([{ text, section: "WHY" }], hanging),
+        text
+      ).toBeNull();
+    }
+    const pin = [
+      finding("tactical_keyword", "tactical_keyword_unbacked", "pin"),
+    ];
+    expect(
+      ladderNoteFor(
+        [
+          {
+            text: "Solution: keeping the knight on d4 held it.",
+            section: "WHY",
+          },
+        ],
+        pin
+      )
+    ).toBeNull();
+    // A capitalised claim still counts.
+    expect(
+      ladderNoteFor(
+        [{ text: "Pinned, the knight could not move.", section: null }],
+        [finding("tactical_keyword", "tactical_keyword_unbacked", "pin")]
+      )?.kinds
+    ).toEqual(["tactic"]);
+    // A sentence that held an evaluation too is named for the evaluation.
+    expect(
+      ladderNoteFor(
+        [
+          {
+            text: "You were exchanging pieces and it crashed to -9.50.",
+            section: null,
+          },
+        ],
+        [...hanging, ...errors]
+      )?.kinds
+    ).toEqual(["evaluation"]);
+  });
 });
 
 describe("insertLadderNote", () => {
@@ -612,6 +661,26 @@ describe("runInsightLadder with the note", () => {
       note: undefined,
       finalText: off.finalText,
     }).toEqual(comparable(off));
+  });
+
+  it("on, a [THREATS] tactic whose keyword sits inside a word of the Idea line has no note", async () => {
+    const body = [
+      CLEAN_BODY,
+      "[WHY]",
+      "Idea: You wanted to keep exchanging pieces so the position stays calm.",
+      "Problem: The knight had a stronger jump, and the bishop move let it slip.",
+      "Find the knight's best square before you develop the bishop.",
+      "[/WHY]",
+      "[THREATS]",
+      "- The pawn on g7 is hanging.",
+      "[/THREATS]",
+    ].join("\n");
+    const { off, on } = await both(body);
+    expect(on.stage).toBe("sentence_drop");
+    // The drop itself is the flag-off drop, Idea line included.
+    expect(off.finalText).not.toContain("exchanging");
+    expect("note" in on).toBe(false);
+    expect(on.finalText).toBe(off.finalText);
   });
 
   it("on, a drop inside [THREATS] alone has no note and the same text", async () => {

@@ -334,6 +334,69 @@ describe("replyAt, synthetic positions", () => {
     expect(truthCause(t)).toBe("hanging");
   });
 
+  it("matches a mate only by a mate: bxc5 is no equal of Re1#", () => {
+    // Both read as the capped win percentage, so the percentage alone called them equal.
+    const fen = "4r1k1/5ppp/1p6/2Q5/8/8/5PPP/6K1 b - - 0 21";
+    const t = replyAt(
+      fen,
+      {
+        lines: [
+          { pv: ["e8e1"], mate: -1, depth: 20, multiPv: 1 },
+          { pv: ["b6c5"], cp: -1500, depth: 20, multiPv: 2 },
+        ],
+      },
+      "w",
+      41
+    )!;
+    expect(t.isMate).toBe(true);
+    expect(t.engineReplies).toEqual(["b6c5"]);
+    expect(t.equalReplies).toEqual([]);
+    const both = replyAt(
+      fen,
+      {
+        lines: [
+          { pv: ["e8e1"], mate: -1, depth: 20, multiPv: 1 },
+          { pv: ["b6c5"], mate: -6, depth: 20, multiPv: 2 },
+        ],
+      },
+      "w",
+      41
+    )!;
+    expect(both.equalReplies).toEqual(["b6c5"]);
+  });
+
+  it("past the cap, asks the raw scores to agree within a pawn", () => {
+    const fen = "6k1/5ppp/1p1p4/2Q5/8/8/5PPP/6K1 b - - 0 21";
+    const search = (cp: number): PositionEval => ({
+      lines: [
+        { pv: ["b6c5"], cp: -1800, depth: 20, multiPv: 1 },
+        { pv: ["d6c5"], cp, depth: 20, multiPv: 2 },
+      ],
+    });
+    expect(replyAt(fen, search(-1000), "w", 41)!.equalReplies).toEqual([]);
+    expect(replyAt(fen, search(-1750), "w", 41)!.equalReplies).toEqual([
+      "d6c5",
+    ]);
+  });
+
+  it("never counts a quiet move as an equal reply, however close its score", () => {
+    const fen = "r3k3/ppp2ppp/2n5/1B1q4/4P2r/2N2N2/PPP2PPP/3QK2R w K - 0 1";
+    const t = replyAt(
+      fen,
+      {
+        lines: [
+          { pv: ["c3d5"], cp: 450, depth: 18, multiPv: 1 },
+          { pv: ["a2a3"], cp: 445, depth: 18, multiPv: 2 },
+        ],
+      },
+      "b",
+      30
+    )!;
+    expect(isConcrete(fen, "a2a3")).toBe(false);
+    expect(t.engineReplies).toEqual(["a2a3"]);
+    expect(t.equalReplies).toEqual([]);
+  });
+
   it("reads an unscored line as no score, never as an even one", () => {
     const fen = "r3k3/ppp2ppp/2n5/1B1q4/4P2r/2N2N2/PPP2PPP/3QK2R w K - 0 1";
     const t = replyAt(

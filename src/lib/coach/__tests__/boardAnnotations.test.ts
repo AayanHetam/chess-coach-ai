@@ -109,6 +109,37 @@ describe("buildBoardAnnotation", () => {
     expect(a.arrows).toEqual([]);
   });
 
+  it("rings a pawn that can be taken en passant, for either side", () => {
+    for (const [fen, played, square] of [
+      ["4k3/8/8/8/3p4/8/4P3/4K3 w - - 0 1", "e4", "e4"],
+      ["4k3/3p4/8/4P3/8/8/8/4K3 b - - 0 1", "d5", "d5"],
+    ] as const) {
+      const input = strip(fen, played, null);
+      expect(
+        input.facts?.some((f) => f.kind === "en_prise"),
+        played
+      ).toBe(true);
+      const a = buildBoardAnnotation(input)!;
+      expect(a.squares, played).toEqual([{ square, tag: "threat" }]);
+    }
+  });
+
+  it("draws no move arrows for two promotions on the same squares", () => {
+    const white = buildBoardAnnotation(
+      strip("8/4P2k/8/8/8/8/8/6K1 w - - 0 1", "e8=N", "e8=Q")
+    );
+    expect(white?.arrows ?? []).toEqual([]);
+    const black = buildBoardAnnotation(
+      strip("6k1/8/8/8/8/8/4p2K/8 b - - 0 1", "e1=R", "e1=Q")
+    );
+    expect(black?.arrows ?? []).toEqual([]);
+    // A promotion elsewhere is a different move and keeps both arrows.
+    const elsewhere = buildBoardAnnotation(
+      strip("3r3k/4P3/8/8/8/8/8/6K1 w - - 0 1", "e8=Q", "exd8=Q")
+    )!;
+    expect(elsewhere.arrows.map((x) => x.tag)).toEqual(["played", "engine"]);
+  });
+
   it("rings the pinned queen as a target (Black's 7... Qxc1)", () => {
     const a = buildBoardAnnotation(strip(fenAfter(13), "Qxc1", null))!;
     expect(a.squares).toEqual([{ square: "d1", tag: "target" }]);

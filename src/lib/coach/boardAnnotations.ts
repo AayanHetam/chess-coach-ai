@@ -159,11 +159,20 @@ function build(input: AnnotationInput): BoardAnnotation | null {
   const mover = played.move.color;
   const enemy = other(mover);
 
-  // 1. The move played and the engine's choice, only when they differ.
+  // 1. The move played and the engine's choice, only when they differ. Two
+  // promotions on the same squares differ only in the piece, which an arrow
+  // cannot show: the words say it, and no arrow is drawn.
   const moveArrows: AnnotationArrow[] = [];
   if (input.moveArrows && input.engine) {
     const engine = playMove(input.fenBefore, input.engine);
-    if (engine && !sameMove(engine.move, played.move)) {
+    if (
+      engine &&
+      !sameMove(engine.move, played.move) &&
+      !(
+        engine.move.from === played.move.from &&
+        engine.move.to === played.move.to
+      )
+    ) {
       moveArrows.push(
         { orig: played.move.from, dest: played.move.to, tag: "played" },
         { orig: engine.move.from, dest: engine.move.to, tag: "engine" }
@@ -187,6 +196,12 @@ function build(input: AnnotationInput): BoardAnnotation | null {
     };
     const attacks = (by: Color, from: Square | undefined, sq: Square) =>
       factsConfirmAttack(rel, by, from, sq);
+    // The side to move can take the pawn on `sq` en passant, which the
+    // attack map never shows.
+    const enPassantOf = (sq: Square) =>
+      after
+        .moves({ verbose: true })
+        .some((m) => m.flags.includes("e") && `${m.to[0]}${m.from[1]}` === sq);
     const isKing = (sq: Square) => after.get(sq)?.type === "k";
     const target = (sq: Square) => {
       if (!isKing(sq)) targets.push(sq);
@@ -275,7 +290,7 @@ function build(input: AnnotationInput): BoardAnnotation | null {
         case "still_en_prise":
           if (
             holds(f.square, mover, f.piece) &&
-            attacks(enemy, undefined, f.square)
+            (attacks(enemy, undefined, f.square) || enPassantOf(f.square))
           )
             threat(f.square);
           break;

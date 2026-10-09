@@ -283,7 +283,15 @@ describe("the copy, on fixture 07 for both sides", () => {
 describe("readTypedAnswer", () => {
   const fen = BLACK_MOMENT.fenAfter;
   it("reads a whole-message move, 'no idea' and 'skip'", () => {
-    for (const text of ["Qxc1", "8. Qxc1", "d1c1", "Qxc1!", " Qc1 "])
+    for (const text of [
+      "Qxc1",
+      "8. Qxc1",
+      "8\u2026 Qxc1",
+      "...Qxc1",
+      "d1c1",
+      "Qxc1!",
+      " Qc1 ",
+    ])
       expect(readTypedAnswer(text, fen), text).toEqual({
         kind: "move",
         uci: "d1c1",
@@ -298,6 +306,7 @@ describe("readTypedAnswer", () => {
       "no idea",
       "No idea.",
       "I don't know",
+      "I don\u2019t know",
       "i dont know",
       "IDK",
       "dunno",

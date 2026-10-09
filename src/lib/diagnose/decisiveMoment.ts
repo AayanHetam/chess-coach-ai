@@ -43,6 +43,12 @@ import { buildRelationalFacts } from "@/lib/relational/relationalFactsBuilder";
 export const DIAGNOSE_MIN_SWING = TURNING_POINT_SWING;
 /** Another reply of the same search, at the same depth, this close is as good as the best. */
 export const EQUAL_REPLY_WIN = 5;
+/**
+ * At or past this score the win percentage no longer tells two replies
+ * apart, so the raw scores must be within EQUAL_REPLY_CP_PAST_CAP as well.
+ */
+export const WIN_CAP_CP = 1000;
+export const EQUAL_REPLY_CP_PAST_CAP = 100;
 /** The truth's line is cut to this many plies. */
 const LINE_PLIES = 8;
 /** The threat tree's piece values (threatTree.ts), for a capture's worth. */
@@ -87,7 +93,10 @@ export interface ThreatTruth {
   forkTargets: Square[];
   /** The reply takes one of the player's loose pieces. */
   capturesHanging: boolean;
-  /** UCI: other lines at lines[0]'s depth within EQUAL_REPLY_WIN. */
+  /**
+   * UCI: other lines at lines[0]'s depth within EQUAL_REPLY_WIN, as good by
+   * the score where the win percentage stops telling, and concrete.
+   */
   equalReplies: string[];
   /** UCI: the first moves of lines[1..] at lines[0]'s depth. */
   engineReplies: string[];
@@ -295,6 +304,24 @@ export function replyAt(
       return w === null ? null : replier === "w" ? w : 100 - w;
     };
     const bestWin = moverWin(best);
+    const replierMates = (line: LineEval) =>
+      typeof line.mate === "number" &&
+      (replier === "w" ? line.mate > 0 : line.mate < 0);
+    const pastCap = (line: LineEval) =>
+      typeof line.mate === "number" ||
+      (typeof line.cp === "number" && Math.abs(line.cp) >= WIN_CAP_CP);
+    // As good as the best by the score too, where the win percentage stops
+    // telling: a mate is matched only by a mate, a decided score only by a
+    // score within EQUAL_REPLY_CP_PAST_CAP.
+    const asGood = (line: LineEval) => {
+      if (replierMates(best)) return replierMates(line);
+      if (!pastCap(best) && !pastCap(line)) return true;
+      return (
+        typeof best.cp === "number" &&
+        typeof line.cp === "number" &&
+        Math.abs(best.cp - line.cp) <= EQUAL_REPLY_CP_PAST_CAP
+      );
+    };
     const equalReplies: string[] = [];
     const engineReplies: string[] = [];
     for (const line of position.lines.slice(1)) {
@@ -305,10 +332,13 @@ export function replyAt(
       if (altUci === uci || engineReplies.includes(altUci)) continue;
       engineReplies.push(altUci);
       const altWin = moverWin(line);
+      // An equal reply is another threat, as the truth is (threatAt).
       if (
         bestWin !== null &&
         altWin !== null &&
-        bestWin - altWin <= EQUAL_REPLY_WIN
+        bestWin - altWin <= EQUAL_REPLY_WIN &&
+        asGood(line) &&
+        isConcrete(fenAfter, altUci)
       )
         equalReplies.push(altUci);
     }

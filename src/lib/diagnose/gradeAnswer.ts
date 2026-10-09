@@ -47,7 +47,8 @@ export interface DiagnoseResult {
 
 /**
  * A typed answer, read as one move on `fen`, as UCI, or null. The whole
- * message is the move: a leading move number ("8.", "6...") and trailing
+ * message is the move: a leading move number ("8.", "6...", "6…", the
+ * ellipsis a phone types), Black's dots alone ("...Qxa1") and trailing
  * marks ("!", "?", ".") are allowed, and "0-0" is O-O. Anything with a
  * second word is not an answer. Piece case matters, as everywhere in the
  * app: "qxc1" is no move.
@@ -55,7 +56,7 @@ export interface DiagnoseResult {
 export function parseAnswerMove(fen: string, text: string): string | null {
   let token = text
     .trim()
-    .replace(/^\d+\s*\.{1,3}\s*/, "")
+    .replace(/^(?:\d+\s*)?(?:\.{1,3}|\u2026)\s*/, "")
     .replace(/[!?.]+$/, "")
     .trim();
   if (!token || /\s/.test(token)) return null;

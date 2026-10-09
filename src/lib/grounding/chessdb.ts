@@ -92,7 +92,7 @@ async function chessdbFetch<T>(params: Record<string, string>): Promise<T | null
  */
 export async function queryChessdb(fen: string): Promise<ChessdbResult | null> {
   const cached = resultCache.get(fen);
-  if (cached && cached.expiresAt > Date.now()) return cached.result;
+  if (cached && cached.expiresAt > Date.now()) return { ...cached.result, source: "cache" };
 
   const raw = await chessdbFetch<RawQueryScore>({ action: "queryscore", board: fen, json: "1" });
   if (!raw) return null;

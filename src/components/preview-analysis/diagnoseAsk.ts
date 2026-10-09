@@ -129,8 +129,9 @@ export type TypedAnswer =
   | { kind: "no-idea" }
   | { kind: "skip" };
 
+// The apostrophe straight or curly: a phone types the curly one.
 const NO_IDEA_RE =
-  /^(?:no idea|i don'?t know|idk|dunno|not sure|no clue)[.!]*$/i;
+  /^(?:no idea|i don['\u2019]?t know|idk|dunno|not sure|no clue)[.!]*$/i;
 const SKIP_RE = /^skip(?: it)?[.!]*$/i;
 
 /**

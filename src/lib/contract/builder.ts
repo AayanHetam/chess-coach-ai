@@ -338,14 +338,35 @@ interface SourceFanOut<T> {
   readonly settled: Map<string, T | null>;
   readonly outcomes: FanOutOutcome[];
   readonly pending: Promise<void>[];
+  /** The slowest fetch to settle, an answer or not. */
   slowestMs: number;
+  /** The slowest fetch that answered, what the prompt's wait is set from. */
+  slowestOkMs: number;
 }
 
 function newFanOut<T>(key: GroundingSource, timeoutMs: number, open: boolean): SourceFanOut<T> {
-  return { key, timeoutMs, open, wanted: new Set(), settled: new Map(), outcomes: [], pending: [], slowestMs: 0 };
+  return {
+    key,
+    timeoutMs,
+    open,
+    wanted: new Set(),
+    settled: new Map(),
+    outcomes: [],
+    pending: [],
+    slowestMs: 0,
+    slowestOkMs: 0,
+  };
 }
 
-/** Launch one deduped fetch. A rejection settles as null, as `.catch(() => null)` always did. */
+/** A value the source client served from its own cache, which says nothing about the source. */
+const fromClientCache = (value: unknown): boolean =>
+  typeof value === "object" && value !== null && (value as { source?: unknown }).source === "cache";
+
+/**
+ * Launch one deduped fetch. A rejection settles as null, as `.catch(() => null)`
+ * always did. A client cache hit is no outcome for the breaker: it would
+ * count as the source answering while the source itself hangs.
+ */
 function launchFetch<T>(src: SourceFanOut<T>, mapKey: string, fetchFn: () => Promise<T | null>): void {
   if (src.wanted.has(mapKey)) return;
   src.wanted.add(mapKey);
@@ -354,8 +375,9 @@ function launchFetch<T>(src: SourceFanOut<T>, mapKey: string, fetchFn: () => Pro
   const settle = (value: T | null, threw: boolean) => {
     const elapsedMs = Date.now() - start;
     src.settled.set(mapKey, value);
-    src.outcomes.push({ value, elapsedMs, threw });
+    if (!fromClientCache(value)) src.outcomes.push({ value, elapsedMs, threw });
     if (elapsedMs > src.slowestMs) src.slowestMs = elapsedMs;
+    if (value != null && elapsedMs > src.slowestOkMs) src.slowestOkMs = elapsedMs;
   };
   src.pending.push(
     fetchFn().then(
@@ -617,8 +639,9 @@ export function beginCoachContract(args: BuildCoachContractArgs, opts: BeginCoac
   //
   // A null here is not necessarily a failure: it is also how "no data for this
   // FEN" and "source not configured" arrive. The point is that a *change* in
-  // the ok/null ratio becomes visible at all. `slowestMs` is what the prompt's
-  // wait (TURN1_GROUNDING_WAIT_MS) is set from. `requested` counts every
+  // the ok/null ratio becomes visible at all. `slowestOkMs` (the slowest fetch
+  // that answered) is what the prompt's wait (TURN1_GROUNDING_WAIT_MS) is set
+  // from: `slowestMs` counts timeouts too, so a hung source reads as its abort. `requested` counts every
   // position the build wanted, so a source the breaker skipped shows as asked
   // and unanswered, with `circuitOpen` saying why.
   const allSettled: Promise<void> = Promise.all(fanOuts.map((src) => sourceSettled<unknown>(src))).then(() => {
@@ -637,6 +660,11 @@ export function beginCoachContract(args: BuildCoachContractArgs, opts: BeginCoac
         chessdb: chessdbFanOut.slowestMs,
         lc0: lc0FanOut.slowestMs,
         maia: maiaFanOut.slowestMs,
+      },
+      slowestOkMs: {
+        chessdb: chessdbFanOut.slowestOkMs,
+        lc0: lc0FanOut.slowestOkMs,
+        maia: maiaFanOut.slowestOkMs,
       },
       ...(opts.breaker
         ? {

@@ -353,7 +353,18 @@ export function createEnforcedContractStream(
             }
             if (moment) {
               moments.push(moment);
-              opts.emitMoment(moment);
+              // A send that throws (the reader left, the stream is closed)
+              // costs the moment, never the card: its text is recorded next.
+              try {
+                opts.emitMoment(moment);
+              } catch (err) {
+                log.warn("contract_enforce_moment_send_failed", {
+                  contractId: contract.contractId,
+                  correlationId: opts.correlationId,
+                  factIdPrefix: result.factIdPrefix,
+                  err: err instanceof Error ? err.message : String(err),
+                });
+              }
             }
           }
           emitTracked(result.finalText);

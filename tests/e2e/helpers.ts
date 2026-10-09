@@ -167,3 +167,37 @@ export async function stubMaiaHealthy(page: Page): Promise<void> {
     })
   );
 }
+
+/**
+ * Click the centre of a square on the /analysis board (chessground), read
+ * through the board's orientation. The board is selectable while a drill is
+ * on it, so a click on a piece and then on a square plays the move.
+ */
+export async function clickBoardSquare(
+  page: Page,
+  square: string
+): Promise<void> {
+  const wrap = page.locator(".cg-wrap").first();
+  const board = wrap.locator("cg-board");
+  await board.scrollIntoViewIfNeeded();
+  // A smooth scroll may still be running: read the box until it settles.
+  let box = await board.boundingBox();
+  for (let i = 0; i < 20; i++) {
+    await page.waitForTimeout(50);
+    const next = await board.boundingBox();
+    if (box && next && next.x === box.x && next.y === box.y) break;
+    box = next;
+  }
+  if (!box) throw new Error("the board is not on the page");
+  const black = /orientation-black/.test(
+    (await wrap.getAttribute("class")) ?? ""
+  );
+  const file = square.charCodeAt(0) - "a".charCodeAt(0);
+  const rank = Number(square[1]) - 1;
+  const col = black ? 7 - file : file;
+  const row = black ? rank : 7 - rank;
+  await page.mouse.click(
+    box.x + ((col + 0.5) * box.width) / 8,
+    box.y + ((row + 0.5) * box.height) / 8
+  );
+}

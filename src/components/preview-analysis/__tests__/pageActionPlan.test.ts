@@ -457,6 +457,36 @@ describe("a drill owns the board", () => {
   });
 });
 
+describe("an answer on the board (the diagnosing question)", () => {
+  // The page hands its answer drill in as complete: it posts no outcome of
+  // its own, so leaving it is acknowledged here.
+  const drill = { complete: true, savedPly: 14, answering: true };
+  it("'back' leaves it and is acknowledged", () => {
+    expect(planPageTurn(act({ kind: "back" }), state({ drill }))).toEqual({
+      effects: [{ type: "exit_drill" }],
+      ack: "Back to 7... Qxc1.",
+      mood: "wave",
+    });
+  });
+
+  it("any other order but a flip is refused with the answering copy", () => {
+    expect(
+      planPageTurn(act({ kind: "flip_board" }), state({ drill }))?.effects
+    ).toEqual([{ type: "orientation", to: "black" }]);
+    for (const a of [
+      go(8),
+      act({ kind: "go_to_start" }),
+      act({ kind: "step", delta: 1 }),
+      act({ kind: "replay_line" }),
+    ])
+      expect(planPageTurn(a, state({ drill }))).toEqual({
+        effects: [],
+        ack: "You're answering on the board. Say “back” to leave it first.",
+        mood: "nervous",
+      });
+  });
+});
+
 describe("flip", () => {
   it("toggles, or sets the side asked for, and names the side at the bottom", () => {
     expect(planPageTurn(act({ kind: "flip_board" }), state())).toEqual({

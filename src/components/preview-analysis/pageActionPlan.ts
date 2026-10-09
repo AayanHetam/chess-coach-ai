@@ -51,7 +51,12 @@ export interface PageTurnState {
   /** A game with moves, not a puzzle: where the side ask and its chip show. */
   sideEligible: boolean;
   orientation: "white" | "black";
-  drill: { complete: boolean; savedPly: number } | null;
+  /**
+   * A drill on the board. `answering`: it is the diagnosing question's
+   * answer (diagnoseAsk.ts), which says nothing when it is left, so leaving
+   * it is acknowledged like a finished drill (`complete`).
+   */
+  drill: { complete: boolean; savedPly: number; answering?: boolean } | null;
   exploring: { anchorPly: number; path: readonly string[] } | null;
   jump: { fromPly: number; toPly: number } | null;
   /** Where the last typed "go to" came from and went, while the board is still there. */
@@ -218,7 +223,11 @@ function planAction(a: PageAction, s: PageTurnState): PagePlan {
         ],
         leftAck
       );
-    return refuse("You're in a drill. Say “back” to leave it first.");
+    return refuse(
+      s.drill.answering
+        ? "You're answering on the board. Say “back” to leave it first."
+        : "You're in a drill. Say “back” to leave it first."
+    );
   }
 
   if (s.exploring) {

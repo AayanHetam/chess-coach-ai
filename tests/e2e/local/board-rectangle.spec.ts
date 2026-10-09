@@ -1,5 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
-import { horizontalOverflow, stubMaiaHealthy, stubSignedIn } from "../helpers";
+import {
+  clickBoardSquare,
+  horizontalOverflow,
+  stubMaiaHealthy,
+  stubSignedIn,
+} from "../helpers";
 // Import-free by design (types only): the key a turn-1 moment carries.
 import { cardKey } from "../../../src/lib/coach/turnMoment";
 
@@ -1150,5 +1155,106 @@ test.describe("Masti's marks on the board", () => {
     await page.reload();
     await expect(composer).toBeVisible({ timeout: 60_000 });
     expect(await duration()).toBe("0s");
+  });
+});
+
+/**
+ * The diagnosing question (pathway 4.6, behind NEXT_PUBLIC_COACH_DIAGNOSE,
+ * which the CI legs build with): once the sweep has landed and the side is
+ * known, the coach asks what the opponent was threatening after the
+ * player's costliest move. Answered on the board, it is a one-puzzle drill
+ * whose status is the strip's first row, and its grade is a coach message:
+ * none of it moves the board. The engine runs here, so the spec skips, like
+ * the arrival's, on a machine where the sweep never finishes.
+ */
+test.describe("the diagnosing question", () => {
+  async function diagnoseOn(page: Page) {
+    const on =
+      (await page
+        .locator("[data-coach-diagnose]")
+        .first()
+        .getAttribute("data-coach-diagnose")) === "on";
+    test.skip(!on && !process.env.CI, "built without the diagnosing question");
+    expect(on, "the CI legs build with the diagnosing question on").toBe(true);
+  }
+
+  /** Black's costliest move in this game, and White's threat after it, by the squares. */
+  const THREATS: Record<string, [string, string]> = {
+    "7... Qxc1": ["d1", "c1"],
+    "5... Qxb2": ["c1", "b2"],
+  };
+
+  test("does not move for the answer on the board, its Back or its grade", async ({
+    page,
+  }) => {
+    test.setTimeout(240_000);
+    await stubEverything(page, { blockEngine: false });
+    await page.goto(`/analysis?pgn=${encodeURIComponent(PGN)}`);
+    await expect(page.locator(".cg-wrap").first()).toBeVisible({
+      timeout: 60_000,
+    });
+    await diagnoseOn(page);
+    const rest = await boardRect(page);
+    const strip = page.getByTestId("move-analysis");
+    const stripHeight = (await strip.boundingBox())!.height;
+
+    await page.getByTestId("player-side-ask").getByText("Black").click();
+    await sweepLands(page);
+    const controls = page.getByTestId("diagnose-ask");
+    await expect(controls).toBeVisible({ timeout: 30_000 });
+    await expect(controls).toHaveAttribute("data-variant", "threat");
+    const ask = page.locator('[data-diagnose="ask"]');
+    await expect(ask).toHaveCount(1);
+    const m =
+      /After (\d+\.+ \S+), what was White threatening\? Show me White's move\./.exec(
+        (await ask.textContent()) ?? ""
+      );
+    expect(m, "the question names the move").not.toBeNull();
+    const label = m![1];
+    expect(Object.keys(THREATS)).toContain(label);
+    const [from, to] = THREATS[label];
+    expectSameRect(rest, await boardRect(page), "the question");
+
+    // On the board: the drill's row says whose move it is, at its height.
+    await controls.getByText("Answer on the board").click();
+    const state = page.getByTestId("diagnose-strip-state");
+    await expect(state).toBeVisible();
+    await expect(state).toContainText("Your answer");
+    await expect(page.getByTestId("diagnose-strip-text")).toHaveText(
+      `White to move after ${label}`
+    );
+    await expect(controls).toHaveAttribute("data-mode", "board");
+    expectSameRect(rest, await boardRect(page), "the answer on the board");
+    expect(
+      Math.abs((await strip.boundingBox())!.height - stripHeight)
+    ).toBeLessThanOrEqual(2);
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
+
+    // Its Back: the board goes back and the question is open again.
+    await page.getByRole("button", { name: /Leave the answer/ }).click();
+    await expect(state).toHaveCount(0);
+    await expect(controls).toBeVisible();
+    await expect(controls).toHaveAttribute("data-mode", "open");
+    expectSameRect(rest, await boardRect(page), "the answer's Back");
+
+    // The threat, played on the board: graded, and the drill closes.
+    await controls.getByText("Answer on the board").click();
+    await expect(state).toBeVisible();
+    await clickBoardSquare(page, from);
+    await clickBoardSquare(page, to);
+    const reply = page.locator('[data-diagnose="reply"]');
+    await expect(reply).toContainText("You saw it", { timeout: 10_000 });
+    await expect(reply.getByTestId("coach-note-lesson")).toBeVisible();
+    await expect(reply.getByTestId("proof-line")).toBeVisible();
+    await expect(page.locator('[data-diagnose="answer"]')).toContainText(
+      /\d+\. \S+/
+    );
+    await expect(state).toHaveCount(0, { timeout: 5_000 });
+    await expect(controls).toHaveCount(0);
+    expectSameRect(rest, await boardRect(page), "the grade");
+    expect(
+      Math.abs((await strip.boundingBox())!.height - stripHeight)
+    ).toBeLessThanOrEqual(2);
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
   });
 });

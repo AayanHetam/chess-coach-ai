@@ -87,6 +87,7 @@ import {
 import type { LineCaption } from "@/lib/coach/lineCaptions";
 import {
   engineLineAt,
+  halfMoveIndex,
   playedLineAt,
   splitProseByLineTokens,
   type CoachLine,
@@ -102,11 +103,47 @@ import {
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 import { ChessgroundBoardPlaceholder } from "@/components/ui/ChessgroundBoardPlaceholder";
 import { renderMoveLinkedText } from "./moveLinker";
-import { buildGameStory, playerName } from "@/lib/coach/gameStory";
+import {
+  buildGameStory,
+  playerName,
+  type GameStoryInput,
+} from "@/lib/coach/gameStory";
 import {
   arrivalTarget,
   isArrivalJumpEnabledPublic,
 } from "@/lib/coach/arrivalJump";
+import { isDiagnoseEnabledPublic } from "@/lib/diagnose/flags";
+import {
+  diagnoseMomentAt,
+  findDiagnoseMoment,
+  moveUci,
+  threatAt,
+  type DiagnoseMoment,
+  type ThreatTruth,
+} from "@/lib/diagnose/decisiveMoment";
+import {
+  gradeAnswer,
+  type DiagnoseCause,
+  type DiagnoseResult,
+} from "@/lib/diagnose/gradeAnswer";
+import {
+  answerEcho,
+  askedKey,
+  diagnoseAskText,
+  diagnoseDue,
+  diagnoseStripWords,
+  diagnoseVariant,
+  gradedReplyText,
+  markAsked,
+  planPrefill,
+  readTypedAnswer,
+  replyMood,
+  skipReplyText,
+  typePlaceholder,
+  wasAsked,
+  type DiagnoseAsk,
+} from "./diagnoseAsk";
+import { DiagnoseControls, type DiagnoseAction } from "./DiagnoseControls";
 import { decisiveLabel, decisiveMark, type DecisiveMove } from "./evalArc";
 import {
   DEFAULT_ARROW_TOGGLES,
@@ -594,6 +631,8 @@ const COMPARE = isCompareEnabledPublic();
 const TURN1_MOMENTS = isTurnMomentsEnabledPublic();
 /** Build-time flag: Masti's marks on the board and the eval bar's swing (boardShapes.ts). */
 const BOARD_ANNOTATIONS = isBoardAnnotationsEnabledPublic();
+/** Build-time flag: the diagnosing question at the player's costliest move (diagnoseAsk.ts). */
+const DIAGNOSE = isDiagnoseEnabledPublic();
 
 /**
  * User Timing marks for a what-if ("coach-what-if:asked", ":partial",
@@ -1249,6 +1288,12 @@ interface DrillState {
   solvedCount: number;
   savedPly: number;
   savedOrientation: "white" | "black";
+  /**
+   * The diagnosing question's answer on the board (diagnoseAsk.ts): any
+   * legal move is the answer and is graded, and leaving it posts no drill
+   * outcome.
+   */
+  diagnose?: { id: number; moment: DiagnoseMoment; answered: string | null };
 }
 
 interface CoachMessage {
@@ -1324,6 +1369,17 @@ interface CoachMessage {
    * cards are the prose cards.
    */
   turnMoments?: CardMoment[];
+  /**
+   * A turn of the diagnosing question (diagnoseAsk.ts): the coach's ask,
+   * the player's answer, or the coach's graded reply. All three are the
+   * app's words and synthetic: never sent to the model, not shareable or
+   * flaggable, and not saved with the transcript or in a shared one.
+   */
+  diagnose?: {
+    id: number;
+    role: "ask" | "answer" | "reply";
+    cause?: DiagnoseCause;
+  };
 }
 
 // The cold-start chat. `synthetic: true` keeps it out of conversationHistory
@@ -3536,6 +3592,70 @@ function DrillStripState({
 }
 
 /**
+ * The diagnosing question's answer is on the board (diagnoseAsk.ts): the
+ * drill's row, at its height, saying whose move it is and, once played,
+ * the move given. Its Back is the drill's.
+ */
+function DiagnoseStripState({
+  state,
+  moment,
+  onExit,
+}: {
+  state: DrillState;
+  moment: DiagnoseMoment;
+  onExit: () => void;
+}) {
+  const words = diagnoseStripWords(moment, state.diagnose?.answered ?? null);
+  const saved = plyToMoveDisplay(state.savedPly);
+  return (
+    <>
+      <Box
+        component="span"
+        data-testid="diagnose-strip-state"
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 0.5,
+          flexShrink: 0,
+          color: "#FB923C",
+          fontSize: "0.64rem",
+          fontWeight: 800,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          whiteSpace: "nowrap",
+        }}
+      >
+        <Lightbulb size={12} />
+        <span>{words.eyebrow}</span>
+      </Box>
+      <Typography
+        data-testid="diagnose-strip-text"
+        sx={{
+          flex: 1,
+          minWidth: 44,
+          fontSize: "0.82rem",
+          fontWeight: 600,
+          color: "rgba(255,255,255,0.88)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {words.text}
+      </Typography>
+      <BackButton
+        onClick={onExit}
+        tooltip="Leave the answer and put the board back where you were"
+      >
+        {saved.color === null
+          ? "Back to start"
+          : `Back to move ${saved.moveNum}`}
+      </BackButton>
+    </>
+  );
+}
+
+/**
  * The coach moved the board. A follow-up that names a move ("why was
  * 8. Nc7+ a mistake?") is answered about that move, and the board goes
  * there so the answer and the position are read together; this says so and
@@ -4798,11 +4918,30 @@ function CoachPanel({
   onSignIn,
   onShowLinePly,
   whatIfStore,
+  diagnose,
+  onDiagnoseAction,
+  canType,
+  composerFocusSeq,
+  placeholderOverride,
+  canDiagnoseAt,
+  onDiagnoseAt,
 }: {
   /** Put a ply of a proof line on the main board. */
   onShowLinePly?: ShowLinePly;
   /** The page's what-if states, read by the line under each question that asked one. */
   whatIfStore: WhatIfStore;
+  /** The diagnosing question still open, whose ways to answer show under it (diagnoseAsk.ts). */
+  diagnose?: DiagnoseAsk | null;
+  onDiagnoseAction?: (a: DiagnoseAction) => void;
+  /** The composer can take an answer: signed in, the coach not paused. */
+  canType?: boolean;
+  /** Bumped to put the cursor in the composer. */
+  composerFocusSeq?: number;
+  /** The composer's placeholder while it is the answer box. */
+  placeholderOverride?: string;
+  /** A key moment of the player's at this ply can be asked about. */
+  canDiagnoseAt?: (ply: number) => boolean;
+  onDiagnoseAt?: (ply: number) => void;
   /**
    * True once auth has resolved to "nobody is signed in". The coach routes
    * are session-gated, so every send from an anonymous visitor came back 401:
@@ -4869,6 +5008,21 @@ function CoachPanel({
   onLaunchPuzzleSet?: (set: PuzzleSet) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  // The composer's own input, so "Type it" and "Tell Masti" can put the
+  // cursor there.
+  const composerRef = useRef<HTMLTextAreaElement | HTMLInputElement>(null);
+  useEffect(() => {
+    if (!composerFocusSeq) return;
+    const el = composerRef.current;
+    if (!el) return;
+    el.focus();
+    const end = el.value.length;
+    try {
+      el.setSelectionRange(end, end);
+    } catch {
+      /* not a text input */
+    }
+  }, [composerFocusSeq]);
 
   // Slash-command menu state. `dismissed` is reset whenever the text changes
   // so Escape hides the menu for the current keystroke without disabling the
@@ -4990,8 +5144,25 @@ function CoachPanel({
                   loadedGame={loadedGame}
                   onShowLinePly={onShowLinePly}
                   playerColor={playerColor}
+                  canDiagnoseAt={canDiagnoseAt}
+                  onDiagnoseAt={onDiagnoseAt}
                 />
                 {i === 0 && greetingFirst && sideBlock}
+                {/* The ways to answer the diagnosing question, under it,
+                    while it is the one open. */}
+                {msg.diagnose?.role === "ask" &&
+                  diagnose?.id === msg.diagnose.id &&
+                  diagnose.mode !== "closed" &&
+                  onDiagnoseAction && (
+                    <Box sx={{ pl: "38px", mt: 0.75 }}>
+                      <DiagnoseControls
+                        variant={diagnose.variant}
+                        mode={diagnose.mode}
+                        canType={!!canType}
+                        onAction={onDiagnoseAction}
+                      />
+                    </Box>
+                  )}
               </Box>
               {/* The board's answer to a what-if, under the question, at its
                 full height from the moment the question is sent. */}
@@ -5201,6 +5372,7 @@ function CoachPanel({
           alignItems="flex-end"
         >
           <TextField
+            inputRef={composerRef}
             value={input}
             onChange={(e) => onChangeInput(e.target.value)}
             onKeyDown={(e) => {
@@ -5252,7 +5424,8 @@ function CoachPanel({
               }
             }}
             placeholder={
-              AI_DISABLED
+              placeholderOverride ??
+              (AI_DISABLED
                 ? "AI coaching is paused — see the note above."
                 : signedOut
                   ? "Sign in to ask the coach — free account, no card."
@@ -5260,7 +5433,7 @@ function CoachPanel({
                     ? "Analyzing your game… coach unlocks when Stockfish finishes."
                     : engineDataUnavailable
                       ? "Ask anything — answering without engine analysis."
-                      : "Ask anything about this position..."
+                      : "Ask anything about this position...")
             }
             disabled={AI_DISABLED || analysisActive}
             // Read by the e2e: was this build made with page actions on?
@@ -5271,6 +5444,7 @@ function CoachPanel({
             data-coach-compare={COMPARE ? "on" : "off"}
             data-turn1-moments={TURN1_MOMENTS ? "on" : "off"}
             data-board-annotations={BOARD_ANNOTATIONS ? "on" : "off"}
+            data-coach-diagnose={DIAGNOSE ? "on" : "off"}
             fullWidth
             multiline
             maxRows={4}
@@ -6160,6 +6334,14 @@ function CoachNote({
   );
 }
 
+/** The verdicts on a move of the player's that the diagnosing question can be asked about. */
+const DIAGNOSE_CLASSES: ReadonlySet<string> = new Set([
+  "blunder",
+  "mistake",
+  "inaccuracy",
+  "miss",
+]);
+
 /** A line the app writes in a key moment: the body's size, a quieter colour. */
 const QUIET_LINE_SX = {
   fontSize: "0.92rem",
@@ -6200,10 +6382,15 @@ function DarkInsightCard({
   rootFen,
   playerColor,
   onShowLinePly,
+  canDiagnoseAt,
+  onDiagnoseAt,
 }: {
   insight: InsightData;
   /** The prose of the moment this card was sent as, when its text is the moment's. */
   moment?: MomentProse | null;
+  /** The diagnosing question can be asked at this ply (diagnoseAsk.ts). */
+  canDiagnoseAt?: (ply: number) => boolean;
+  onDiagnoseAt?: (ply: number) => void;
   renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
   onMoveClick?: (moveNumber: number, isBlack: boolean) => void;
   /** Fires when the user clicks "Practice …" — invokes the parent's
@@ -6310,6 +6497,16 @@ function DarkInsightCard({
 
   const canPractice =
     !!insight.conceptKey && !!insight.conceptName && !!onPracticeConcept;
+  // A slip of the player's own that has not been asked about can be: the
+  // diagnosing question at this move (diagnoseAsk.ts).
+  const diagnosePly = halfMoveIndex(insight.moveNumber, cardColor) + 1;
+  const canDiagnose =
+    !!onDiagnoseAt &&
+    !!canDiagnoseAt &&
+    !!playerColor &&
+    insight.color === playerColor &&
+    DIAGNOSE_CLASSES.has(cls) &&
+    canDiagnoseAt(diagnosePly);
 
   return (
     <Box sx={{ minWidth: 0 }} data-moment={view ? "on" : undefined}>
@@ -6475,7 +6672,7 @@ function DarkInsightCard({
         </CoachNote>
       )}
 
-      {(rest || playedLine || canPractice) && (
+      {(rest || playedLine || canPractice || canDiagnose) && (
         <Box
           sx={{
             mt: 1,
@@ -6505,6 +6702,11 @@ function DarkInsightCard({
               Practice {insight.conceptName!.toLowerCase()}
             </TextLink>
           )}
+          {canDiagnose && (
+            <TextLink onClick={() => onDiagnoseAt!(diagnosePly)}>
+              Why did I play this?
+            </TextLink>
+          )}
         </Box>
       )}
     </Box>
@@ -6528,10 +6730,14 @@ function DarkInsightStack({
   rootFen,
   playerColor,
   onShowLinePly,
+  canDiagnoseAt,
+  onDiagnoseAt,
 }: {
   insights: InsightData[];
   /** Per insight, the prose of the moment it is drawn from, or null (cardMoment.ts). */
   moments?: ReadonlyArray<MomentProse | null>;
+  canDiagnoseAt?: (ply: number) => boolean;
+  onDiagnoseAt?: (ply: number) => void;
   renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
   onMoveClick?: (moveNumber: number, isBlack: boolean) => void;
   onPracticeConcept?: (theme: string, displayName: string) => void;
@@ -6584,6 +6790,8 @@ function DarkInsightStack({
             rootFen={rootFen}
             playerColor={playerColor}
             onShowLinePly={onShowLinePly}
+            canDiagnoseAt={canDiagnoseAt}
+            onDiagnoseAt={onDiagnoseAt}
           />
         </Box>
       ))}
@@ -6725,8 +6933,13 @@ function CoachBubble({
   loadedGame,
   onShowLinePly,
   playerColor,
+  canDiagnoseAt,
+  onDiagnoseAt,
 }: {
   msg: CoachMessage;
+  /** The diagnosing question can be asked at a key moment's ply (diagnoseAsk.ts). */
+  canDiagnoseAt?: (ply: number) => boolean;
+  onDiagnoseAt?: (ply: number) => void;
   onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
   /** Full move history — used to resolve "24.Rxd4" → ply 47. */
   allMoves?: Move[];
@@ -7242,6 +7455,8 @@ function CoachBubble({
           rootFen={rootFen}
           playerColor={playerColor ?? null}
           onShowLinePly={onShowLinePly}
+          canDiagnoseAt={canDiagnoseAt}
+          onDiagnoseAt={onDiagnoseAt}
         />
         {suffix.trim() && renderProseWithLines(suffix)}
       </>
@@ -7263,12 +7478,16 @@ function CoachBubble({
     gameSans,
     playerColor,
     onShowLinePly,
+    canDiagnoseAt,
+    onDiagnoseAt,
   ]);
 
-  // An order's acknowledgement is not an insight to share.
+  // An order's acknowledgement is not an insight to share, and neither is
+  // a turn of the diagnosing question.
   const shareable =
     !isUser &&
     !msg.pageTurn &&
+    !msg.diagnose &&
     msg.content.trim().length > 0 &&
     Boolean(onShare);
 
@@ -7277,7 +7496,10 @@ function CoachBubble({
   // message is a soft bubble on the right. The insight passages and puzzle
   // cards below stay block siblings under the row.
   return (
-    <Box sx={{ position: "relative", minWidth: 0 }}>
+    <Box
+      sx={{ position: "relative", minWidth: 0 }}
+      data-diagnose={msg.diagnose?.role}
+    >
       <Box
         sx={{
           display: "flex",
@@ -7458,6 +7680,7 @@ function CoachBubble({
           every assistant message with the required context. */}
       {!isUser &&
         !msg.pageTurn &&
+        !msg.diagnose &&
         msg.content.trim().length > 0 &&
         allMessages &&
         messageIndex !== undefined && (
@@ -8492,10 +8715,12 @@ export default function AnalysisPage() {
   // move it turned on. Null before this game's sweep lands, in a puzzle and
   // for a game set up from a position, whose sides the story would get
   // wrong (it counts from White's first move).
-  const gameStory = useMemo(() => {
+  // The story's input is kept on its own: the diagnosing question reads
+  // the same scored moves (diagnoseAsk.ts).
+  const gameStoryInput = useMemo<GameStoryInput | null>(() => {
     if (!classifiedPositions || isPuzzleMode || !standardRoot) return null;
     const headers = loadedGame.header();
-    return buildGameStory({
+    return {
       positions: classifiedPositions,
       sans: gameSans,
       white: headers.White,
@@ -8516,7 +8741,7 @@ export default function AnalysisPage() {
           : "b"
         : null,
       declaredDepth: gameEvalFull?.settings.depth ?? null,
-    });
+    };
   }, [
     classifiedPositions,
     isPuzzleMode,
@@ -8526,6 +8751,10 @@ export default function AnalysisPage() {
     playerSide,
     gameEvalFull,
   ]);
+  const gameStory = useMemo(
+    () => (gameStoryInput ? buildGameStory(gameStoryInput) : null),
+    [gameStoryInput]
+  );
 
   // The mistake under the cursor, when the current ply is a Mistake /
   // Blunder / Miss. It feeds the suggestion chips ("Why was Nc7+ a
@@ -9092,6 +9321,9 @@ export default function AnalysisPage() {
   // saved snapshot; the message log is never mutated, so chat history
   // survives the round-trip automatically.
   const [drillState, setDrillState] = useState<DrillState | null>(null);
+  // The drill as of this render, for callbacks that must not change with it.
+  const drillStateRef = useRef(drillState);
+  drillStateRef.current = drillState;
 
   // The strip's acknowledgement of a switch goes when the board moves, and
   // for good when anything else takes the strip: it never comes back stale
@@ -9170,6 +9402,139 @@ export default function AnalysisPage() {
     )
       setArrivalJump(null);
   }, [arrivalJump, drillState, takeoverPreview, coachJump, standingAck]);
+
+  // ───── The diagnosing question (diagnoseAsk.ts) ─────
+  // Once per game per browser, after the sweep has landed and the side is
+  // known, the coach goes back to the player's costliest move and asks
+  // what the opponent was threatening there (or, where the reply was
+  // quiet, what the plan was). Every turn of it is synthetic.
+  const [diagnose, setDiagnose] = useState<DiagnoseAsk | null>(null);
+  const diagnoseRef = useRef(diagnose);
+  diagnoseRef.current = diagnose;
+  const diagnoseSeqRef = useRef(0);
+  // The plies asked about this load: their key moments offer no second ask.
+  const [askedPlies, setAskedPlies] = useState<ReadonlySet<number>>(
+    () => new Set()
+  );
+  // The game the once-per-game question was decided for, asked or not.
+  const diagnoseForRef = useRef<Chess | null>(null);
+  // Bumped to put the cursor in the composer ("Type it", "Tell Masti").
+  const [composerFocusSeq, setComposerFocusSeq] = useState(0);
+  // A typed answer or a plan reaches the coach only for a signed-in reader.
+  const canSend = !AI_DISABLED && !authLoading && !!user;
+  // A new game starts with none of it, and an answer on the board goes.
+  useEffect(() => {
+    if (!DIAGNOSE) return;
+    setDiagnose(null);
+    setAskedPlies(new Set());
+    diagnoseForRef.current = null;
+    setDrillState((d) => (d?.diagnose ? null : d));
+  }, [loadedGame]);
+
+  /** Asks the question at `moment`, or says it cannot be asked (no threat, no way to send a plan). */
+  const openDiagnose = useCallback(
+    (moment: DiagnoseMoment, truth: ThreatTruth | null): boolean => {
+      const variant = diagnoseVariant(truth, canSend);
+      if (!variant) return false;
+      const id = ++diagnoseSeqRef.current;
+      setDiagnose({ id, moment, truth, variant, mode: "open" });
+      setAskedPlies((prev) => new Set(prev).add(moment.ply));
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "coach",
+          content: diagnoseAskText(moment, variant),
+          synthetic: true,
+          ply: moment.ply,
+          mascot: "idea",
+          diagnose: { id, role: "ask" },
+        },
+      ]);
+      return true;
+    },
+    [canSend]
+  );
+
+  useEffect(() => {
+    if (!DIAGNOSE || authLoading || !gameStoryInput || !gameStory) return;
+    const key = askedKey(headers, allMoves.length);
+    const due = diagnoseDue({
+      enabled: DIAGNOSE,
+      storyReady: true,
+      sweepLanded,
+      sideKnown: gameStoryInput.playerColor !== null,
+      streaming: isThinking,
+      drilling: drillState !== null,
+      askedThisLoad: diagnoseForRef.current === loadedGame,
+      askedBefore: wasAsked(key),
+    });
+    if (!due) return;
+    diagnoseForRef.current = loadedGame;
+    const moment = findDiagnoseMoment(gameStoryInput, gameStory);
+    if (!moment || !gameStoryInput.positions) return;
+    if (openDiagnose(moment, threatAt(moment, gameStoryInput.positions)))
+      markAsked(key);
+    // Decided once every condition holds. The rest is read then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    gameStoryInput,
+    gameStory,
+    sweepLanded,
+    isThinking,
+    drillState,
+    loadedGame,
+    canSend,
+    authLoading,
+  ]);
+
+  // Answering on the board ends with the answer's drill however it ends
+  // (its Back, another drill, a new game): the question is open again.
+  useEffect(() => {
+    if (diagnose?.mode === "board" && drillState?.diagnose?.id !== diagnose.id)
+      setDiagnose((d) =>
+        d && d.mode === "board" ? { ...d, mode: "open" } : d
+      );
+  }, [diagnose, drillState]);
+
+  // The player's scored move at a ply, and its threat, once per sweep.
+  const diagnoseAtRef = useRef<{
+    input: GameStoryInput | null;
+    at: Map<
+      number,
+      { moment: DiagnoseMoment; truth: ThreatTruth | null } | null
+    >;
+  }>({ input: null, at: new Map() });
+  const diagnoseEntryAt = useCallback(
+    (ply: number) => {
+      if (!gameStoryInput?.positions) return null;
+      const cache = diagnoseAtRef.current;
+      if (cache.input !== gameStoryInput) {
+        cache.input = gameStoryInput;
+        cache.at = new Map();
+      }
+      if (!cache.at.has(ply)) {
+        const moment = diagnoseMomentAt(gameStoryInput, ply);
+        cache.at.set(
+          ply,
+          moment
+            ? { moment, truth: threatAt(moment, gameStoryInput.positions) }
+            : null
+        );
+      }
+      return cache.at.get(ply) ?? null;
+    },
+    [gameStoryInput]
+  );
+  // A key moment of the player's offers the question when it was not
+  // asked this load and there is something to ask.
+  const canDiagnoseAt = useCallback(
+    (ply: number) => {
+      if (!DIAGNOSE || askedPlies.has(ply)) return false;
+      const entry = diagnoseEntryAt(ply);
+      return entry !== null && diagnoseVariant(entry.truth, canSend) !== null;
+    },
+    [askedPlies, diagnoseEntryAt, canSend]
+  );
 
   const drillActive = drillState !== null && drillState.status !== "complete";
   // Bumped to force the board to re-sync to React-state FEN. Chessground
@@ -9487,6 +9852,7 @@ export default function AnalysisPage() {
   // already left, "Most common" for a position no longer shown. Same defect
   // the Lines tab had with enginePositions[currentPly], same fix: key
   // everything off displayFen.
+  const answeringOnBoard = !!drillState?.diagnose;
   const baseShapes = useMemo(() => {
     const exploring = displayFen !== currentFen;
     // Engine best: straight off the Stockfish pass for THIS ply, or the
@@ -9497,7 +9863,7 @@ export default function AnalysisPage() {
     const best = pos?.bestMove ?? pos?.lines?.[0]?.pv?.[0] ?? null;
     // Game played: the move that was actually played at currentPly+1.
     const next = allMoves[currentPly];
-    return computeBaseShapes({
+    const shapes = computeBaseShapes({
       takeoverMode,
       takeoverPreview,
       takeoverCandidates,
@@ -9512,7 +9878,11 @@ export default function AnalysisPage() {
       // FEN and Elo, as SAN (sanToShape resolves it against the FEN).
       maiaSan: maiaCache[`${displayFen}|${arrowToggles.maiaElo}`] ?? null,
     });
+    // Answering the diagnosing question on the board, the toggles would
+    // draw the answer ("Engine best" is the threat).
+    return answeringOnBoard ? { preview: shapes.preview, toggles: [] } : shapes;
   }, [
+    answeringOnBoard,
     takeoverMode,
     takeoverPreview,
     takeoverCandidates,
@@ -10383,35 +10753,6 @@ export default function AnalysisPage() {
   const WRONG_FLASH_MS = 1200;
   const SOLVED_ADVANCE_MS = 700;
 
-  const handlePromoteToBoard = useCallback(
-    (puzzles: DrillPuzzle[], startIndex: number) => {
-      const puzzle = puzzles[startIndex];
-      if (!puzzle) return;
-      if (takeoverMode) {
-        setRightTab("coach");
-        setTakeoverPreview(null);
-        setTakeoverCandidates([]);
-      }
-      const orient: "white" | "black" =
-        new Chess(puzzle.fen).turn() === "w" ? "white" : "black";
-      setBoardOrientation(orient);
-      setDrillState({
-        puzzles,
-        currentIndex: startIndex,
-        currentMoveIndex: 0,
-        currentFen: puzzle.fen,
-        status: "solving",
-        wrongAttempts: 0,
-        lastMove: null,
-        solvedCount: 0,
-        savedPly: currentPly,
-        savedOrientation: boardOrientation,
-      });
-      bumpBoardSync();
-    },
-    [boardOrientation, currentPly, takeoverMode, bumpBoardSync]
-  );
-
   // The drill's outcome, as one short coach message at the ply the board
   // goes back to. UI-authored (synthetic), so it is never replayed to the
   // model as something it said; it is what the drill banner used to say
@@ -10450,16 +10791,279 @@ export default function AnalysisPage() {
     []
   );
 
-  const exitDrill = useCallback(() => {
-    setDrillState((prev) => {
-      if (!prev) return prev;
-      setCurrentPly(prev.savedPly);
-      setBoardOrientation(prev.savedOrientation);
-      if (prev.status !== "complete") appendDrillOutcome(prev, "exit");
-      return null;
-    });
-    bumpBoardSync();
-  }, [bumpBoardSync, appendDrillOutcome]);
+  const handlePromoteToBoard = useCallback(
+    (
+      puzzles: DrillPuzzle[],
+      startIndex: number,
+      /**
+       * The diagnosing question's answer (diagnoseAsk.ts): the board keeps
+       * the reader's side at the bottom, shows the player's move as the
+       * last move, and takes any legal move as the answer.
+       */
+      opts?: {
+        diagnose: { id: number; moment: DiagnoseMoment };
+        lastMove: { from: string; to: string } | null;
+      }
+    ) => {
+      const puzzle = puzzles[startIndex];
+      if (!puzzle) return;
+      if (takeoverMode) {
+        setRightTab("coach");
+        setTakeoverPreview(null);
+        setTakeoverCandidates([]);
+      }
+      if (opts) {
+        // A drill already on the board keeps the place it came from, and
+        // an unfinished one says it was left.
+        const drillOn = drillStateRef.current;
+        if (drillOn && !drillOn.diagnose && drillOn.status !== "complete")
+          appendDrillOutcome(drillOn, "exit");
+        setDrillState({
+          puzzles,
+          currentIndex: startIndex,
+          currentMoveIndex: 0,
+          currentFen: puzzle.fen,
+          status: "solving",
+          wrongAttempts: 0,
+          lastMove: opts.lastMove,
+          solvedCount: 0,
+          savedPly: drillOn?.savedPly ?? currentPly,
+          savedOrientation: drillOn?.savedOrientation ?? boardOrientation,
+          diagnose: { ...opts.diagnose, answered: null },
+        });
+        bumpBoardSync();
+        return;
+      }
+      const orient: "white" | "black" =
+        new Chess(puzzle.fen).turn() === "w" ? "white" : "black";
+      setBoardOrientation(orient);
+      setDrillState({
+        puzzles,
+        currentIndex: startIndex,
+        currentMoveIndex: 0,
+        currentFen: puzzle.fen,
+        status: "solving",
+        wrongAttempts: 0,
+        lastMove: null,
+        solvedCount: 0,
+        savedPly: currentPly,
+        savedOrientation: boardOrientation,
+      });
+      bumpBoardSync();
+    },
+    [
+      boardOrientation,
+      currentPly,
+      takeoverMode,
+      bumpBoardSync,
+      appendDrillOutcome,
+    ]
+  );
+
+  // Leaves the drill on the board, or with `onlyDiagnoseId`, only the
+  // answer to that question. An answer posts no drill outcome: its reply,
+  // or the question still open under it, is what the transcript says.
+  const leaveDrill = useCallback(
+    (onlyDiagnoseId?: number) => {
+      setDrillState((prev) => {
+        if (!prev) return prev;
+        if (
+          onlyDiagnoseId !== undefined &&
+          prev.diagnose?.id !== onlyDiagnoseId
+        )
+          return prev;
+        setCurrentPly(prev.savedPly);
+        setBoardOrientation(prev.savedOrientation);
+        if (prev.diagnose) {
+          const id = prev.diagnose.id;
+          // Left before answering: the question is open again.
+          setDiagnose((d) =>
+            d && d.id === id && d.mode === "board" ? { ...d, mode: "open" } : d
+          );
+        } else if (prev.status !== "complete") appendDrillOutcome(prev, "exit");
+        return null;
+      });
+      bumpBoardSync();
+    },
+    [bumpBoardSync, appendDrillOutcome]
+  );
+  const exitDrill = useCallback(() => leaveDrill(), [leaveDrill]);
+
+  // ───── Answering the diagnosing question (diagnoseAsk.ts) ─────
+  /** The answer and the coach's graded reply, both the app's words, and the question closed. */
+  const settleDiagnose = useCallback(
+    (ask: DiagnoseAsk, r: DiagnoseResult | "skip", echo?: string) => {
+      const m = ask.moment;
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "user",
+          content: echo ?? answerEcho(r),
+          synthetic: true,
+          ply: m.ply,
+          diagnose: { id: ask.id, role: "answer" },
+        },
+        {
+          role: "coach",
+          content: r === "skip" ? skipReplyText(m) : gradedReplyText(m, r),
+          synthetic: true,
+          ply: m.ply,
+          mascot: replyMood(r),
+          diagnose: {
+            id: ask.id,
+            role: "reply",
+            ...(r === "skip" ? {} : { cause: r.cause }),
+          },
+        },
+      ]);
+      setDiagnose((d) => (d && d.id === ask.id ? { ...d, mode: "closed" } : d));
+    },
+    []
+  );
+
+  /** The position after the player's move on the board, as a one-puzzle drill whose answer is any legal move. */
+  const startDiagnoseDrill = useCallback(
+    (ask: DiagnoseAsk) => {
+      if (!ask.truth) return;
+      const m = ask.moment;
+      let lastMove: { from: string; to: string } | null = null;
+      try {
+        const played = new Chess(m.fenBefore).move(m.san);
+        lastMove = { from: played.from, to: played.to };
+      } catch {
+        /* the drill shows no last move */
+      }
+      handlePromoteToBoard(
+        [
+          {
+            id: `diagnose-${ask.id}`,
+            title: "",
+            hint: "",
+            fen: m.fenAfter,
+            solution: [ask.truth.uci],
+            rating: 0,
+            themes: [],
+          },
+        ],
+        0,
+        { diagnose: { id: ask.id, moment: m }, lastMove }
+      );
+      revealBoard();
+      setDiagnose((d) => (d && d.id === ask.id ? { ...d, mode: "board" } : d));
+    },
+    [handlePromoteToBoard, revealBoard]
+  );
+
+  /** A move played on the board while answering: any legal move, graded. */
+  const handleDiagnoseMove = useCallback(
+    (orig: string, dest: string) => {
+      const st = drillState;
+      const ask = diagnoseRef.current;
+      if (!st?.diagnose) return;
+      // Answered already: the piece chessground moved goes back.
+      if (
+        st.status !== "solving" ||
+        !ask ||
+        ask.id !== st.diagnose.id ||
+        !ask.truth
+      ) {
+        bumpBoardSync();
+        return;
+      }
+      const game = new Chess(st.currentFen);
+      let played: Move | null = null;
+      try {
+        played = game.move({ from: orig, to: dest, promotion: "q" });
+      } catch {
+        played = null;
+      }
+      const r = played
+        ? gradeAnswer(ask.moment.fenAfter, ask.moment.ply, ask.truth, {
+            kind: "move",
+            uci: moveUci(played),
+          })
+        : null;
+      if (!played || !r) {
+        bumpBoardSync();
+        return;
+      }
+      const id = ask.id;
+      setDrillState((prev) =>
+        prev?.diagnose?.id === id
+          ? {
+              ...prev,
+              currentFen: game.fen(),
+              status: "solved",
+              lastMove: { from: orig, to: dest },
+              diagnose: { ...prev.diagnose, answered: r.answer?.label ?? null },
+            }
+          : prev
+      );
+      settleDiagnose(ask, r);
+      setTimeout(() => leaveDrill(id), SOLVED_ADVANCE_MS);
+    },
+    [drillState, bumpBoardSync, settleDiagnose, leaveDrill]
+  );
+
+  /** The ways to answer, from the links under the question. */
+  const handleDiagnoseAction = useCallback(
+    (a: DiagnoseAction) => {
+      const ask = diagnoseRef.current;
+      if (!ask || ask.mode === "closed") return;
+      const onBoard = drillStateRef.current?.diagnose?.id === ask.id;
+      const setMode = (mode: DiagnoseAsk["mode"]) =>
+        setDiagnose((d) => (d && d.id === ask.id ? { ...d, mode } : d));
+      switch (a) {
+        case "board":
+          if (onBoard) revealBoard();
+          else startDiagnoseDrill(ask);
+          return;
+        case "type":
+          if (onBoard) leaveDrill(ask.id);
+          setMode("type");
+          setComposerFocusSeq((n) => n + 1);
+          return;
+        case "plan":
+          setInput(planPrefill(ask.moment));
+          setMode("plan-type");
+          setComposerFocusSeq((n) => n + 1);
+          return;
+        case "no-idea": {
+          if (!ask.truth) return;
+          const r = gradeAnswer(
+            ask.moment.fenAfter,
+            ask.moment.ply,
+            ask.truth,
+            {
+              kind: "no-idea",
+            }
+          );
+          if (!r) return;
+          if (onBoard) leaveDrill(ask.id);
+          settleDiagnose(ask, r);
+          return;
+        }
+        case "skip":
+          if (onBoard) leaveDrill(ask.id);
+          settleDiagnose(ask, "skip");
+          return;
+      }
+    },
+    [revealBoard, startDiagnoseDrill, leaveDrill, settleDiagnose]
+  );
+
+  /** "Why did I play this?" on a key moment: the same question, at that move. */
+  const handleDiagnoseAt = useCallback(
+    (ply: number) => {
+      const entry = diagnoseEntryAt(ply);
+      if (!entry) return;
+      const open = diagnoseRef.current;
+      if (open && drillStateRef.current?.diagnose?.id === open.id)
+        leaveDrill(open.id);
+      openDiagnose(entry.moment, entry.truth);
+    },
+    [diagnoseEntryAt, leaveDrill, openDiagnose]
+  );
 
   // ───── Orders the page carries out itself (pageActions.ts) ─────
   // "Flip the board", "go to move 20", "play the line again", "back": read
@@ -10579,8 +11183,11 @@ export default function AnalysisPage() {
       orientation: boardOrientation,
       drill: drillState
         ? {
-            complete: drillState.status === "complete",
+            // An answer posts no outcome of its own, so leaving it is
+            // acknowledged like a finished drill.
+            complete: drillState.status === "complete" || !!drillState.diagnose,
             savedPly: drillState.savedPly,
+            ...(drillState.diagnose ? { answering: true } : {}),
           }
         : null,
       exploring: takeoverPreview
@@ -10814,6 +11421,8 @@ export default function AnalysisPage() {
   // commits the drag before this fires, so we must explicitly re-sync).
   const handleDrillMove = useCallback(
     (orig: string, dest: string) => {
+      // The diagnosing question's answer: any legal move, graded.
+      if (drillState?.diagnose) return handleDiagnoseMove(orig, dest);
       if (!drillState || drillState.status !== "solving") return;
       const puzzle = drillState.puzzles[drillState.currentIndex];
       if (!puzzle) return;
@@ -10929,7 +11538,7 @@ export default function AnalysisPage() {
         });
       }, OPP_REPLY_DELAY_MS);
     },
-    [drillState, advanceDrill, bumpBoardSync]
+    [drillState, advanceDrill, bumpBoardSync, handleDiagnoseMove]
   );
 
   // ─── G4: Firestore game persistence (user is hoisted to the top of
@@ -11122,8 +11731,10 @@ export default function AnalysisPage() {
             m.role === "coach" && m.content === EMPTY_STATE_MESSAGES[0]?.content
           ) &&
           // An order and its acknowledgement belong to the board as it was
-          // then, not to a reopened game.
-          !m.pageTurn
+          // then, not to a reopened game. The diagnosing question is asked
+          // once per game, and its turns are the app's words.
+          !m.pageTurn &&
+          !m.diagnose
       )
       .map((m) => ({
         role: m.role,
@@ -11287,6 +11898,39 @@ export default function AnalysisPage() {
       // landing the user in the route's no-eval branch where the LLM
       // produces a conversational reply with no grounded mistake insights.
       if (analysisActive) return;
+      // The composer as the diagnosing question's answer box: a whole
+      // message that is a move, "no idea" or "skip" is the answer, graded
+      // here and never sent. Anything else goes to the coach as before and
+      // ends the typing. A plan goes to the coach as it is.
+      const asked = DIAGNOSE ? diagnoseRef.current : null;
+      if (asked?.mode === "type") {
+        const typed = readTypedAnswer(text, asked.moment.fenAfter);
+        const graded =
+          !typed || !asked.truth
+            ? null
+            : typed.kind === "skip"
+              ? ("skip" as const)
+              : gradeAnswer(
+                  asked.moment.fenAfter,
+                  asked.moment.ply,
+                  asked.truth,
+                  typed
+                );
+        if (graded) {
+          settleDiagnose(asked, graded, text);
+          setInput("");
+          return;
+        }
+        setDiagnose((d) =>
+          d && d.id === asked.id && d.mode === "type"
+            ? { ...d, mode: "open" }
+            : d
+        );
+      } else if (asked?.mode === "plan-type") {
+        setDiagnose((d) =>
+          d && d.id === asked.id ? { ...d, mode: "closed" } : d
+        );
+      }
       // An order the page can carry out itself ("flip the board", "go to
       // move 20") is done here, before any fetch, anchor or what-if, and
       // acknowledged in one line. "Why was move 20 bad?" is not one.
@@ -11427,6 +12071,7 @@ export default function AnalysisPage() {
       gameSans,
       coachExtras,
       gameEvalFull,
+      settleDiagnose,
     ]
   );
 
@@ -11821,7 +12466,10 @@ export default function AnalysisPage() {
               // An order and its acknowledgement are the board as it was
               // then, not the conversation (as for the saved transcript).
               .filter(
-                (m) => (m.role === "user" || m.role === "coach") && !m.pageTurn
+                (m) =>
+                  (m.role === "user" || m.role === "coach") &&
+                  !m.pageTurn &&
+                  !m.diagnose
               )
               .map((m) => ({
                 role:
@@ -12112,12 +12760,20 @@ export default function AnalysisPage() {
                   }
                   state={
                     drillState ? (
-                      <DrillStripState
-                        state={drillState}
-                        onExit={exitDrill}
-                        onRestart={restartDrill}
-                        onSkip={() => advanceDrill("skipped")}
-                      />
+                      drillState.diagnose ? (
+                        <DiagnoseStripState
+                          state={drillState}
+                          moment={drillState.diagnose.moment}
+                          onExit={exitDrill}
+                        />
+                      ) : (
+                        <DrillStripState
+                          state={drillState}
+                          onExit={exitDrill}
+                          onRestart={restartDrill}
+                          onSkip={() => advanceDrill("skipped")}
+                        />
+                      )
                     ) : takeoverPreview ? (
                       <ExploringState
                         preview={takeoverPreview}
@@ -12256,6 +12912,20 @@ export default function AnalysisPage() {
                           recordSolved(puzzle.id, secs, puzzle.solution)
                         }
                         onPracticeConcept={handlePracticeConcept}
+                        {...(DIAGNOSE
+                          ? {
+                              diagnose,
+                              onDiagnoseAction: handleDiagnoseAction,
+                              canType: canSend,
+                              composerFocusSeq,
+                              placeholderOverride:
+                                diagnose?.mode === "type"
+                                  ? typePlaceholder(diagnose.moment)
+                                  : undefined,
+                              canDiagnoseAt,
+                              onDiagnoseAt: handleDiagnoseAt,
+                            }
+                          : {})}
                       />
                     </Box>
                   )}

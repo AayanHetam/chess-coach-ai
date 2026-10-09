@@ -151,6 +151,8 @@ jobs:
       NEXT_PUBLIC_COACH_TURN1_MOMENTS: "1"
       # Masti's marks on the board and the eval bar's swing (boardShapes.ts).
       NEXT_PUBLIC_COACH_BOARD_ANNOTATIONS: "1"
+      # The question at the player's costliest move (diagnoseAsk.ts).
+      NEXT_PUBLIC_COACH_DIAGNOSE: "1"
     steps:
       - uses: actions/checkout@v4
         with:

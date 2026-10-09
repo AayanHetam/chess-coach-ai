@@ -35,6 +35,10 @@ const ROOTS = [
   // page for its own defaults, and the page's standing side.
   "lib/coach/questionPerspective.ts",
   "components/preview-analysis/standingSide.ts",
+  // The live router's rules and its per-intent table: pure, so a page
+  // that reads a question the route's way can carry them.
+  "lib/coach/intentRules.ts",
+  "lib/coach/intentTable.ts",
 ];
 const FORBIDDEN = ["lib/prompts/", "app/api/"];
 

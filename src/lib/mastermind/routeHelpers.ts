@@ -17,6 +17,7 @@ import { logger } from "@/lib/logging";
 import {
   classifyQuestion,
   DEFAULT_LOW_CONFIDENCE_CATEGORY,
+  type CategorizedQuestion,
   type QuestionCategory,
 } from "@/lib/mastermind/categorization/categoryClassifier";
 import { fetchDataSources, type FetchedDataSources } from "@/lib/mastermind/wireValidators";
@@ -89,7 +90,15 @@ export interface MastermindPrepResult {
   prepMs: number;
   /** The classifier's Haiku call, in dollars. 0 when no call was made. */
   classifierCostUsd: number;
+  /** "routed" when the chat route's intent table gave the category and the classifier was not called. */
+  categorySource?: "routed";
 }
+
+/** A category decided before prep, in the classifier's own shape. */
+export type RoutedCategory = Pick<
+  CategorizedQuestion,
+  "category" | "confidence" | "rationale"
+>;
 
 // ─────────────────────────────────────────────────────────────────────
 // Constants
@@ -235,6 +244,11 @@ export interface PrepareMastermindOpts {
   userName: string;
   opponentUsername?: string;
   opponentPlatform?: "lichess" | "chess.com";
+  /**
+   * pathway 3.4: the chat route's intent table decided, the classifier is
+   * not called. Only /api/chat passes it.
+   */
+  routedCategory?: RoutedCategory;
 }
 
 /**
@@ -277,7 +291,9 @@ export async function prepareMastermindContext(
   // to review, this is deterministically a game_review — skip the classifier (also
   // saves a Haiku call) so it gets the 50s game_review budget instead of 20s.
   const forcedCategory = resolveTurn1Category(opts.userMessage, opts.moveHistory);
-  const classifierResult = forcedCategory
+  const classifierResult: CategorizedQuestion = opts.routedCategory
+    ? { ...opts.routedCategory }
+    : forcedCategory
     ? {
         category: forcedCategory,
         confidence: 1,
@@ -366,6 +382,7 @@ export async function prepareMastermindContext(
     moveCtx,
     prepMs: Date.now() - t0,
     classifierCostUsd: classifierResult.costUsd ?? 0,
+    ...(opts.routedCategory ? { categorySource: "routed" as const } : {}),
   };
 }
 

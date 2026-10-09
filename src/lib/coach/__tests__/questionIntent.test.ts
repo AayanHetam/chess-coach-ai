@@ -310,3 +310,89 @@ describe("the rest is unknown, for the classifier", () => {
     expect(QUESTION_INTENTS).toContain("unknown");
   });
 });
+
+describe("the live reading (pathway PR 3.4)", () => {
+  function live(question: string) {
+    const ctx: IntentContext = {
+      anchor: resolveQuestionAnchor(question, MOVES, "w"),
+      moves: MOVES,
+      playerColor: "w",
+    };
+    return resolveQuestionIntent(question, ctx, { live: true });
+  }
+
+  it("keeps the slash command and no other action", () => {
+    expect(live("/puzzle-generation")).toEqual(route("/puzzle-generation"));
+    for (const q of [
+      "Flip the board",
+      "Go to move 8",
+      "go to the start",
+      "jump to the end",
+      "next move",
+      "next move?",
+      "last move",
+      "play it",
+      "show me the line",
+      "back to the game",
+      "go to move 8 and tell me why it was bad",
+      "Go to move 8, why was it bad?",
+    ])
+      expect(live(q).intent, q).not.toBe("action");
+  });
+
+  it("reads no preference", () => {
+    for (const q of [
+      "Always coach me as Black",
+      "back to my side please",
+      "keep it short",
+      "be more detailed",
+      "I'd like longer answers",
+    ])
+      expect(live(q).intent, q).not.toBe("preference");
+  });
+
+  it("without it, the same strings read as they always did", () => {
+    expect(route("next move?")).toMatchObject({
+      intent: "action",
+      rule: "action:step",
+    });
+    expect(route("play it")).toMatchObject({ rule: "action:replay" });
+    expect(route("go to move 8 and tell me why it was bad")).toMatchObject({
+      rule: "action:go_to_move",
+    });
+    expect(route("keep it short")).toMatchObject({
+      rule: "preference:length",
+    });
+    expect(route("Always coach me as Black")).toMatchObject({
+      rule: "preference:side",
+    });
+  });
+
+  it("an order with a question after it is read on as a question", () => {
+    expect(live("go to move 8 and tell me why it was bad")).toEqual({
+      intent: "verdict",
+      rule: "verdict:anchor_only",
+    });
+    expect(live("Go to move 8, why was it bad?")).toEqual({
+      intent: "verdict",
+      rule: "verdict:anchor",
+    });
+  });
+
+  it("every rule after the first two steps reads the same", () => {
+    for (const q of [
+      "thanks!",
+      "Look at it from Black's side",
+      "Let me try from here",
+      "Walk me through the endgame",
+      "Nf3 or Nc3 here?",
+      "why not 8. Qxc1?",
+      "What opening was this?",
+      "What is a minority attack?",
+      "Why was 8. Nc7+ a mistake?",
+      "what was my biggest mistake?",
+      "",
+    ])
+      expect(live(q), q).toEqual(route(q));
+  });
+});

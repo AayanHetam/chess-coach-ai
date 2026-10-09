@@ -7,6 +7,7 @@ import {
 import { buildFenPositionFacts } from "@/lib/mastermind/positionFacts";
 import { renderContractCompact } from "@/lib/contract/followUp";
 import {
+  FOLLOWUP_REFEREE_FALLBACK,
   refereeFollowUp,
   type FollowUpRefereeInput,
   type LicensedLine,
@@ -69,6 +70,22 @@ import {
   parsePageTurn,
   readPageTurnKinds,
 } from "@/lib/coach/pageActions";
+import {
+  INTENT_ROUTER_VERSION,
+  finishTurnRoute,
+  isIntentRouterEnabled,
+  routingEcho,
+  servesTemplate,
+  type TurnRoute,
+} from "@/lib/coach/intentTable";
+import { resolveLiveIntent } from "@/lib/coach/intentRules";
+import { routeIntentByModel } from "@/lib/mastermind/categorization/intentRouter";
+import {
+  FOLLOWUP_GRAMMAR_VERSION,
+  NO_BOARD_FACTS_HEADER,
+  followUpGrammarClause,
+  followUpGrammarReminder,
+} from "@/lib/prompts/followUpGrammar";
 import {
   buildAnchorBlock,
   anchorAlternativeFen,
@@ -517,6 +534,9 @@ export async function POST(request: NextRequest) {
       // Lean, with a contract the review's facts ride in the suffix, so the
       // review itself is not replayed, and neither is the turn it answered.
       const reviewReplayed = !(lean && context.compactContract);
+      // COACH_INTENT_ROUTER (pathway 3.4): the turn's grammar, fact pack and
+      // validator category come from one row of the intent table.
+      const routerOn = useFollowUpPrompt && isIntentRouterEnabled();
 
       // The side this turn looks at the game from (questionPerspective.ts):
       // the question's words, else the page's standing choice. The player
@@ -701,6 +721,30 @@ export async function POST(request: NextRequest) {
         moves: context.playedMoves ?? [],
         playerColor: playerColorLetter,
       });
+      // Under COACH_INTENT_ROUTER the turn is served on its row: the live
+      // rules first (intentRules.ts), and only when none reads an
+      // unanchored question, one router call (intentRouter.ts). It runs
+      // here, on both validator wings, because the grammar decides the
+      // facts, the suffix and the reminder below. A router that fails is
+      // the default row, the v1 turn.
+      let turnRoute: TurnRoute | null = null;
+      if (routerOn) {
+        const live = resolveLiveIntent(userMessage, {
+          anchor,
+          moves: context.playedMoves ?? [],
+          playerColor: playerColorLetter,
+        });
+        const model =
+          live.source === "none" && !anchor && userMessage.trim()
+            ? await routeIntentByModel({ question: userMessage })
+            : null;
+        turnRoute = finishTurnRoute({
+          live,
+          model,
+          question: userMessage,
+          anchored: !!anchor,
+        });
+      }
 
       // Per-turn oracle facts for the position under discussion. The system
       // prompt forbids any attack/capture/pin/fork claim not present in a
@@ -786,6 +830,13 @@ export async function POST(request: NextRequest) {
       } catch {
         // oracle failure — proceed without per-turn facts (legacy behavior)
       }
+      // A turn about an idea, not this position: the board on screen is
+      // kept for reference only.
+      if (turnRoute?.factPack === "reference" && !subjectMoments)
+        perTurnFacts = perTurnFacts.replace(
+          CURRENT_POSITION_HEADER_RE,
+          NO_BOARD_FACTS_HEADER
+        );
       // A move the words name that the side never played ("Black's move
       // 44" in a game White ended on move 44): said, so it is not invented.
       {
@@ -841,6 +892,30 @@ export async function POST(request: NextRequest) {
           : {}),
         ...(missing.length > 0 ? { missingMove: missing[0] } : {}),
       });
+      // What decided the turn's row, with no content: the shadow reading
+      // beside it, and the source each row is waiting for, counted.
+      if (turnRoute)
+        log.info("followup_router", {
+          requestId: extractRequestId(request.headers),
+          version: INTENT_ROUTER_VERSION,
+          grammarVersion: FOLLOWUP_GRAMMAR_VERSION,
+          source: turnRoute.source,
+          rule: turnRoute.rule,
+          intent: turnRoute.intent,
+          grammar: turnRoute.grammar,
+          category: turnRoute.category,
+          factPack: subjectMoments ? "subject" : turnRoute.factPack,
+          pendingSource: turnRoute.row.pendingSource ?? null,
+          veto: turnRoute.veto ?? null,
+          shadowIntent: intent.intent,
+          shadowRule: intent.rule,
+          routerOutcome: turnRoute.model?.outcome ?? null,
+          routerIntent: turnRoute.model?.intent ?? null,
+          routerConfidence: turnRoute.model?.confidence ?? null,
+          routerMs: turnRoute.model?.ms ?? 0,
+          routerCostUsd: turnRoute.model?.costUsd ?? 0,
+          routerProvider: turnRoute.model?.provider ?? null,
+        });
 
       // PR-CI-6a — follow-up grounding. When the review above was served
       // through the enforced contract path, the SAME facts that survived the
@@ -939,9 +1014,12 @@ export async function POST(request: NextRequest) {
           : (context.systemPromptSuffix ?? "");
       const subjectClause =
         otherSide && promptSubject ? followUpSubjectClause(promptSubject) : "";
+      // The turn's grammar (followUpGrammar.ts), after USER CONTEXT and the
+      // subject clause and before the game's facts. Empty for one move.
+      const grammarClause = turnRoute ? followUpGrammarClause(turnRoute) : "";
       const uncachedSuffix =
         useFollowUpPrompt || context.systemPromptStable
-          ? `${perUserTail}${subjectClause ? `\n\n${subjectClause}` : ""}\n\n${condensedContext}`.trim()
+          ? `${perUserTail}${subjectClause ? `\n\n${subjectClause}` : ""}${grammarClause ? `\n\n${grammarClause}` : ""}\n\n${condensedContext}`.trim()
           : condensedContext;
       // Output cap. The follow-up prompt budgets FOLLOWUP_WORD_BUDGET words;
       // the cap is several times that so only a runaway answer is ever cut
@@ -979,7 +1057,16 @@ export async function POST(request: NextRequest) {
       // transcript the client keeps, the anchor and the referee all see the
       // question as typed.
       const v1Question = useFollowUpPrompt
-        ? `${userMessage}\n\n${followUpTurnReminder(userMessage, promptSubject, budget)}`
+        ? `${userMessage}\n\n${
+            turnRoute
+              ? followUpGrammarReminder(
+                  turnRoute,
+                  userMessage,
+                  promptSubject,
+                  budget
+                )
+              : followUpTurnReminder(userMessage, promptSubject, budget)
+          }`
         : userMessage;
       nonSystemMessages.push({
         role: "user",
@@ -1028,6 +1115,12 @@ export async function POST(request: NextRequest) {
                 ...(yielded ? { yielded } : {}),
               },
             }
+          : {}),
+        // The intent table's row for the turn, under COACH_INTENT_ROUTER
+        // alone: what decided it, with no content. `intent` above stays
+        // the shadow reading.
+        ...(turnRoute
+          ? { routing: routingEcho(turnRoute, !!subjectMoments) }
           : {}),
       };
       const altFen = anchor ? anchorAlternativeFen(anchor) : null;
@@ -1168,6 +1261,18 @@ export async function POST(request: NextRequest) {
           // typically set on chat requests.
           opponentUsername: undefined,
           opponentPlatform: undefined,
+          // Under COACH_INTENT_ROUTER the row's category, always, a failed
+          // router's default row included, so the classifier never runs on
+          // this path.
+          ...(turnRoute
+            ? {
+                routedCategory: {
+                  category: turnRoute.category,
+                  confidence: turnRoute.confidence,
+                  rationale: `${turnRoute.source}:${turnRoute.rule}`,
+                },
+              }
+            : {}),
         });
 
         if (prep.dataSources) {
@@ -1328,15 +1433,47 @@ export async function POST(request: NextRequest) {
               issues: pipelineResult.cumulativeIssues.map((i) => i.check_name),
             });
           }
+          // Under COACH_INTENT_ROUTER the template is served only on a turn
+          // about one move whose move context has an eval: a turn about an
+          // idea, an acknowledgement and a turn with no eval get the
+          // referee's own line, so nothing says "The position is balanced"
+          // without an eval.
+          const noTemplate =
+            !!turnRoute &&
+            isFallbackUsed &&
+            !pipelineResult.timedOut &&
+            !draft &&
+            !servesTemplate(turnRoute, prep.moveCtx.stockfishEval);
+          const servedFallback: "template" | "referee_line" | null =
+            turnRoute && isFallbackUsed && !draft && !pipelineResult.timedOut
+              ? noTemplate
+                ? "referee_line"
+                : "template"
+              : null;
           const rawContent =
             draft ||
-            pipelineResult.finalResponse ||
+            (noTemplate
+              ? FOLLOWUP_REFEREE_FALLBACK
+              : pipelineResult.finalResponse) ||
             "I couldn't generate a response.";
           const validation = validateOnBoards(
             rawContent,
             activeFen,
             subjectMoments?.fens ?? []
           );
+          // The router's share of the turn, under COACH_INTENT_ROUTER.
+          const routerFields = turnRoute
+            ? {
+                routerMs: turnRoute.model?.ms ?? 0,
+                routerCostUsd: turnRoute.model?.costUsd ?? 0,
+              }
+            : {};
+          const routedFields = {
+            ...(servedFallback ? { servedFallback } : {}),
+            ...(prep.categorySource
+              ? { categorySource: prep.categorySource }
+              : {}),
+          };
 
           forwardPipelineTelemetryForRoute({
             pipelineResult,
@@ -1388,6 +1525,7 @@ export async function POST(request: NextRequest) {
             llmMs: pipelineMs,
             refereeMs: Date.now() - refereeStartedAt,
             retryCount: pipelineResult.retryCount,
+            ...routerFields,
           };
           logFielded("pipeline", fieldedOut, pipelineResult.timedOut);
           // The relational parser over the two prose lines, after the
@@ -1415,6 +1553,7 @@ export async function POST(request: NextRequest) {
             finalOutcome: pipelineResult.finalOutcome,
             timedOut: pipelineResult.timedOut,
             classifierCostUsd: prep.classifierCostUsd,
+            ...routedFields,
             ...timing,
           });
           const moment = servedMoment(fieldedOut, analysis);
@@ -1447,6 +1586,8 @@ export async function POST(request: NextRequest) {
                 classifierConfidence: prep.classifierConfidence,
                 prepMs: prep.prepMs,
                 timedOut: pipelineResult.timedOut,
+                ...routerFields,
+                ...routedFields,
                 // Stage C telemetry expose (Follow-up B, 2026-05-23): preview
                 // env only. Mirrors the /api/enhanced-analysis extension from
                 // Follow-up A. Production responses do not include the
@@ -1536,6 +1677,13 @@ export async function POST(request: NextRequest) {
           : llmResult.elapsedMs,
         refereeMs: Date.now() - refereeStartedAt,
         retryCount: fieldedOut?.retryCount ?? 0,
+        // The router's share of the turn, under COACH_INTENT_ROUTER.
+        ...(turnRoute
+          ? {
+              routerMs: turnRoute.model?.ms ?? 0,
+              routerCostUsd: turnRoute.model?.costUsd ?? 0,
+            }
+          : {}),
       };
       logFielded("flag-off", fieldedOut);
       log.info("chat_fastpath_timing", {

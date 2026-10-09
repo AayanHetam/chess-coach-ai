@@ -1,0 +1,758 @@
+{
+  "_comment": "Pathway 3.4: sixty follow-up questions over fixture 07 (07_knight_fork.json, the player White). A null rule leaves the row to the router, and accept lists the labels the keyed probe scores as correct. For a router row the expected intent, grammar and category are the table's for the first accepted label.",
+  "fixture": "07_knight_fork",
+  "playerColor": "w",
+  "rows": [
+    {
+      "id": 1,
+      "q": "Analyze my game",
+      "origin": "ui:pill",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "ui:analyze_game",
+        "intent": "verdict",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 2,
+      "q": "Why was 8. Nc7+ a blunder?",
+      "origin": "ui:strip",
+      "moveIndex": 15,
+      "expect": {
+        "rule": "ui:why_was",
+        "intent": "verdict",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 3,
+      "q": "Why was 7... Qxc1 a mistake?",
+      "origin": "ui:strip",
+      "moveIndex": 14,
+      "expect": {
+        "rule": "ui:why_was",
+        "intent": "verdict",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 4,
+      "q": "Why was 3... cxd4 a inaccuracy?",
+      "origin": "ui:strip",
+      "moveIndex": 6,
+      "expect": {
+        "rule": "ui:why_was",
+        "intent": "verdict",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 5,
+      "q": "What did I miss with 8. Nc7+?",
+      "origin": "ui:strip",
+      "moveIndex": 15,
+      "expect": {
+        "rule": "ui:missed",
+        "intent": "verdict",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 6,
+      "q": "What did my opponent miss with 9... Qxd1+?",
+      "origin": "ui:strip",
+      "moveIndex": 18,
+      "expect": {
+        "rule": "ui:missed",
+        "intent": "verdict",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 7,
+      "q": "Why was 5. Nf3 so strong?",
+      "origin": "ui:strip",
+      "moveIndex": 9,
+      "expect": {
+        "rule": "ui:why_strong",
+        "intent": "verdict",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 8,
+      "q": "What was the idea behind 1. e4?",
+      "origin": "ui:strip",
+      "moveIndex": 1,
+      "expect": {
+        "rule": "ui:idea_behind",
+        "intent": "verdict",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 9,
+      "q": "Walk me through 8.Nc7+. What's the idea behind White's move, what were the alternatives, and what does it change about the position?",
+      "origin": "ui:takeover",
+      "moveIndex": 15,
+      "expect": {
+        "rule": "walkthrough",
+        "intent": "walkthrough",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 10,
+      "q": "Why was Nc7+ a blunder?",
+      "origin": "ui:pill",
+      "moveIndex": 15,
+      "expect": {
+        "rule": "ui:why_was",
+        "intent": "verdict",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 11,
+      "q": "Walk me through the blunder at 7...Qxc1",
+      "origin": "ui:pill",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "walkthrough",
+        "intent": "walkthrough",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 12,
+      "q": "What is each of my pieces doing right now?",
+      "origin": "ui:pill",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "ui:pieces_now",
+        "intent": "plan",
+        "grammar": "one_move",
+        "category": "position_analysis"
+      }
+    },
+    {
+      "id": 13,
+      "q": "Why was 8.Nc7+ brilliant?",
+      "origin": "ui:pill",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "ui:why_strong",
+        "intent": "verdict",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 14,
+      "q": "Tell me about the Sicilian Defense",
+      "origin": "ui:pill",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "ui:opening",
+        "intent": "opening",
+        "grammar": "one_move",
+        "category": "concept_explanation"
+      }
+    },
+    {
+      "id": 15,
+      "q": "Which inaccuracies hurt me the most?",
+      "origin": "ui:pill",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "ui:inaccuracies",
+        "intent": "verdict",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 16,
+      "q": "What's the most important moment in this game?",
+      "origin": "ui:pill",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "ui:key_moment",
+        "intent": "verdict",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 17,
+      "q": "Show me one improvement to study",
+      "origin": "ui:pill",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "ui:improvement",
+        "intent": "progress",
+        "grammar": "one_move",
+        "category": "improvement_strategy"
+      }
+    },
+    {
+      "id": 18,
+      "q": "What's my biggest weakness here?",
+      "origin": "ui:pill",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "progress",
+        "intent": "progress",
+        "grammar": "one_move",
+        "category": "improvement_strategy"
+      }
+    },
+    {
+      "id": 19,
+      "q": "What was the key endgame idea?",
+      "origin": "ui:pill",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "endgame",
+        "intent": "endgame",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 20,
+      "q": "Tell me about d6 from this position — 68K master games went this way (White won 50%, drew 25%, Black won 25%). What is the idea, and what does Black need to know before playing it?",
+      "origin": "ui:masters",
+      "moveIndex": 3,
+      "expect": {
+        "rule": "ui:masters",
+        "intent": "what_if",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 21,
+      "q": "why was move 8 bad?",
+      "origin": "typed",
+      "fp": "order",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "verdict:anchor",
+        "intent": "verdict",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 22,
+      "q": "go to move 8 and tell me why it was bad",
+      "origin": "typed",
+      "fp": "order",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "verdict:anchor_only",
+        "intent": "verdict",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 23,
+      "q": "Go to move 8, why was it bad?",
+      "origin": "typed",
+      "fp": "order",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "verdict:anchor",
+        "intent": "verdict",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 24,
+      "q": "next move?",
+      "origin": "typed",
+      "fp": "order",
+      "moveIndex": 20,
+      "expect": {
+        "rule": null,
+        "intent": "plan",
+        "accept": ["plan", "action"],
+        "grammar": "one_move",
+        "category": "position_analysis"
+      }
+    },
+    {
+      "id": 25,
+      "q": "would you play it?",
+      "origin": "typed",
+      "fp": "order",
+      "moveIndex": 20,
+      "expect": {
+        "rule": null,
+        "intent": "what_if",
+        "accept": ["what_if", "verdict"],
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 26,
+      "q": "last move was a mistake, right?",
+      "origin": "typed",
+      "fp": "order",
+      "moveIndex": 20,
+      "expect": {
+        "rule": null,
+        "intent": "verdict",
+        "accept": ["verdict"],
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 27,
+      "q": "keep it short",
+      "origin": "typed",
+      "fp": "order",
+      "moveIndex": 20,
+      "expect": {
+        "rule": null,
+        "intent": "unknown",
+        "accept": ["preference", "unknown"],
+        "grammar": "one_move",
+        "category": "meta_motivational"
+      }
+    },
+    {
+      "id": 28,
+      "q": "show me move 3: Nf3 again, why was it fine?",
+      "origin": "typed",
+      "fp": "order",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "verdict:anchor",
+        "intent": "verdict",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 29,
+      "q": "what is a good move?",
+      "origin": "typed",
+      "fp": "scope",
+      "moveIndex": 20,
+      "expect": {
+        "rule": null,
+        "intent": "plan",
+        "accept": ["plan"],
+        "grammar": "one_move",
+        "category": "position_analysis"
+      }
+    },
+    {
+      "id": 30,
+      "q": "what's a pin in this position?",
+      "origin": "typed",
+      "fp": "scope",
+      "moveIndex": 20,
+      "expect": {
+        "rule": null,
+        "intent": "plan",
+        "accept": ["plan"],
+        "grammar": "one_move",
+        "category": "position_analysis"
+      }
+    },
+    {
+      "id": 31,
+      "q": "What is the best attack here?",
+      "origin": "typed",
+      "fp": "scope",
+      "moveIndex": 20,
+      "expect": {
+        "rule": null,
+        "intent": "plan",
+        "accept": ["plan"],
+        "grammar": "one_move",
+        "category": "position_analysis"
+      }
+    },
+    {
+      "id": 32,
+      "q": "what does the pin mean here?",
+      "origin": "typed",
+      "fp": "scope",
+      "moveIndex": 20,
+      "expect": {
+        "rule": null,
+        "intent": "plan",
+        "accept": ["plan"],
+        "grammar": "one_move",
+        "category": "position_analysis"
+      }
+    },
+    {
+      "id": 33,
+      "q": "why was 8. Nc7+ a fork that failed?",
+      "origin": "typed",
+      "fp": "scope",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "verdict:anchor",
+        "intent": "verdict",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 34,
+      "q": "Why is the knight an outpost here?",
+      "origin": "typed",
+      "fp": "scope",
+      "moveIndex": 20,
+      "expect": {
+        "rule": null,
+        "intent": "plan",
+        "accept": ["plan"],
+        "grammar": "one_move",
+        "category": "position_analysis"
+      }
+    },
+    {
+      "id": 35,
+      "q": "why not 8. Qxc1?",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "what_if:asked_san",
+        "intent": "what_if",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 36,
+      "q": "what about Qxc1 instead of Nc7+?",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "what_if:phrase",
+        "intent": "what_if",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 37,
+      "q": "Nf3 or Nc3 here?",
+      "origin": "typed",
+      "moveIndex": 4,
+      "expect": {
+        "rule": "compare:or",
+        "intent": "compare",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 38,
+      "q": "What's my plan in this position?",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "plan",
+        "intent": "plan",
+        "grammar": "one_move",
+        "category": "position_analysis"
+      }
+    },
+    {
+      "id": 39,
+      "q": "What was my opponent thinking?",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "perspective:opponent",
+        "intent": "perspective",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 40,
+      "q": "from Black's side, what went wrong?",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "perspective:side",
+        "intent": "perspective",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 41,
+      "q": "What opening was this?",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "opening",
+        "intent": "opening",
+        "grammar": "one_move",
+        "category": "concept_explanation"
+      }
+    },
+    {
+      "id": 42,
+      "q": "How do I win this rook endgame?",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "endgame",
+        "intent": "endgame",
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 43,
+      "q": "What is a minority attack?",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "concept",
+        "intent": "concept",
+        "grammar": "no_board",
+        "category": "concept_explanation"
+      }
+    },
+    {
+      "id": 44,
+      "q": "what does zugzwang mean",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "concept",
+        "intent": "concept",
+        "grammar": "no_board",
+        "category": "concept_explanation"
+      }
+    },
+    {
+      "id": 45,
+      "q": "Let me try from here",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "try_it",
+        "intent": "try_it",
+        "grammar": "acknowledgement",
+        "category": "meta_motivational"
+      }
+    },
+    {
+      "id": 46,
+      "q": "Test me",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "quiz",
+        "intent": "quiz",
+        "grammar": "acknowledgement",
+        "category": "meta_motivational"
+      }
+    },
+    {
+      "id": 47,
+      "q": "Let me defend from before the blunder",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "defend_it",
+        "intent": "defend_it",
+        "grammar": "acknowledgement",
+        "category": "meta_motivational"
+      }
+    },
+    {
+      "id": 48,
+      "q": "Show me how a master handled this structure",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "master_game",
+        "intent": "master_game",
+        "grammar": "one_move",
+        "category": "concept_explanation"
+      }
+    },
+    {
+      "id": 49,
+      "q": "Am I improving? What should I work on?",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "progress",
+        "intent": "progress",
+        "grammar": "one_move",
+        "category": "improvement_strategy"
+      }
+    },
+    {
+      "id": 50,
+      "q": "thanks!",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "greeting",
+        "intent": "greeting",
+        "grammar": "acknowledgement",
+        "category": "meta_motivational"
+      }
+    },
+    {
+      "id": 51,
+      "q": "coach me as Black",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "page:side",
+        "intent": "preference",
+        "grammar": "one_move",
+        "category": "meta_motivational"
+      }
+    },
+    {
+      "id": 52,
+      "q": "flip the board",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": "page:flip_board",
+        "intent": "action",
+        "grammar": "one_move",
+        "category": "meta_motivational"
+      }
+    },
+    {
+      "id": 53,
+      "q": "what went wrong?",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": null,
+        "intent": "verdict",
+        "accept": ["verdict"],
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 54,
+      "q": "was black ever winning?",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": null,
+        "intent": "verdict",
+        "accept": ["verdict"],
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 55,
+      "q": "what was my biggest mistake?",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": null,
+        "intent": "verdict",
+        "accept": ["verdict"],
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 56,
+      "q": "how did I lose this?",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": null,
+        "intent": "verdict",
+        "accept": ["verdict"],
+        "grammar": "one_move",
+        "category": "game_review"
+      }
+    },
+    {
+      "id": 57,
+      "q": "is my king safe?",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": null,
+        "intent": "plan",
+        "accept": ["plan"],
+        "grammar": "one_move",
+        "category": "position_analysis"
+      }
+    },
+    {
+      "id": 58,
+      "q": "who is better here?",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": null,
+        "intent": "plan",
+        "accept": ["plan"],
+        "grammar": "one_move",
+        "category": "position_analysis"
+      }
+    },
+    {
+      "id": 59,
+      "q": "what's the threat here?",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": null,
+        "intent": "plan",
+        "accept": ["plan"],
+        "grammar": "one_move",
+        "category": "position_analysis"
+      }
+    },
+    {
+      "id": 60,
+      "q": "why are doubled pawns bad?",
+      "origin": "typed",
+      "moveIndex": 20,
+      "expect": {
+        "rule": null,
+        "intent": "unknown",
+        "accept": ["concept"],
+        "grammar": "one_move",
+        "category": "meta_motivational"
+      }
+    }
+  ]
+}

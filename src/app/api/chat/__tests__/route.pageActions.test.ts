@@ -324,3 +324,75 @@ describe.each([
     });
   });
 });
+
+// Pathway 3.4: with the router live, the page's reading is still the only
+// way to an order. A question with an order's words in it reaches the
+// coach once, and the router is asked only when no rule reads the words.
+describe.each([
+  ["validators on", true],
+  ["validators off", false],
+])("COACH_INTENT_ROUTER=1 (%s)", (_name, on) => {
+  beforeEach(() => {
+    wing(on);
+    vi.stubEnv("COACH_INTENT_ROUTER", "1");
+  });
+
+  const routerCalls = () =>
+    mockCallLLM.mock.calls.filter(
+      (c) =>
+        (c[0] as { outputSchema?: { name?: string } })?.outputSchema?.name ===
+        "coach_intent"
+    ).length;
+  const coachCalls = () => modelCalls() - routerCalls();
+
+  it("'why was move 20 bad?' reaches the coach, anchored on move 20, with no order and no router call", async () => {
+    const json = await (await ask("why was move 20 bad?", withKinds)).json();
+    expect(coachCalls()).toBe(1);
+    expect(routerCalls()).toBe(0);
+    expect(mockClassifyQuestion).not.toHaveBeenCalled();
+    expect(json.gameAnalysis.served).toBeUndefined();
+    expect(json.gameAnalysis.actions).toBeUndefined();
+    expect(json.gameAnalysis.anchor).toMatchObject({ ply: 39, moveNumber: 20 });
+    expect(json.gameAnalysis.routing).toMatchObject({
+      source: "rule",
+      intent: "verdict",
+    });
+  });
+
+  it("an order with a question after it is a question, read by rule", async () => {
+    const json = await (
+      await ask("go to move 20 and tell me why it was bad", withKinds)
+    ).json();
+    expect(coachCalls()).toBe(1);
+    expect(routerCalls()).toBe(0);
+    expect(json.gameAnalysis.served).toBeUndefined();
+    expect(json.gameAnalysis.actions).toBeUndefined();
+    expect(json.gameAnalysis.anchor).toMatchObject({ ply: 39 });
+    expect(json.gameAnalysis.routing).toMatchObject({
+      rule: "verdict:anchor_only",
+    });
+  });
+
+  it("'next move?' is a question for the router, never a step", async () => {
+    const json = await (await ask("next move?", withKinds)).json();
+    expect(coachCalls()).toBe(1);
+    expect(routerCalls()).toBe(1);
+    expect(mockClassifyQuestion).not.toHaveBeenCalled();
+    expect(json.gameAnalysis.served).toBeUndefined();
+    expect(json.gameAnalysis.actions).toBeUndefined();
+    expect(json.gameAnalysis.preference).toBeUndefined();
+    // The shadow still reads a step, and nothing acts on it.
+    expect(json.gameAnalysis.intent).toMatchObject({ intent: "action" });
+    expect(json.gameAnalysis.routing).toMatchObject({
+      source: "default",
+      intent: "unknown",
+    });
+  });
+
+  it("an order the page can carry out is still served with no call at all", async () => {
+    const json = await (await ask("go to move 20", withKinds)).json();
+    expect(json.gameAnalysis.served).toBe("page");
+    expect(modelCalls()).toBe(0);
+    expect(json.gameAnalysis.routing).toBeUndefined();
+  });
+});

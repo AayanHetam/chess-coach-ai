@@ -101,7 +101,8 @@ export interface IntentContext {
   playerColor: "w" | "b";
 }
 
-const SAN_CORE =
+/** A move in notation, unnumbered and unbounded. Shared with the live rules (intentRules.ts). */
+export const SAN_CORE =
   "(?:[NBRQK][a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O(?:-O)?[+#]?|[a-h]x[a-h][1-8](?:=[NBRQ])?[+#]?|[a-h][1-8](?:=[NBRQ])?[+#]?)";
 /** A move in notation, optionally numbered: "8. Nc7+", "Nf3", "exd5", "e4". */
 const SAN_RE = new RegExp(
@@ -286,39 +287,47 @@ function resolveAction(
 /**
  * The intent of one follow-up, by rule where a rule can be sure, else
  * `unknown` with rule "none". Never throws; an empty message is unknown.
+ *
+ * `live` is the reading the router acts on (intentRules.ts): an order or a
+ * preference comes only through parsePageTurn there, so the looser action
+ * rules here keep only the slash command and the preference rules are
+ * skipped. Without it the reading is the shadow's, unchanged.
  */
 export function resolveQuestionIntent(
   question: string,
-  ctx: IntentContext
+  ctx: IntentContext,
+  opts?: { live?: boolean }
 ): IntentResolution {
   const text = (question ?? "").trim();
   if (!text) return { intent: "unknown", rule: "none" };
 
   // 1. Actions and slash commands first, and only when the verb opens the message.
   const action = resolveAction(text, ctx);
-  if (action) return action;
+  if (action && (!opts?.live || action.action?.kind === "slash")) return action;
 
   // 2. A greeting or thanks: the whole message, nothing asked.
   if (GREETING_RE.test(text)) return { intent: "greeting", rule: "greeting" };
 
   // 3. Preferences: a standing instruction, not a question about this game.
-  const prefSide = PREF_SIDE_RE.exec(text);
-  if (prefSide)
-    return {
-      intent: "preference",
-      rule: "preference:side",
-      side: sideWord(prefSide[1] ?? prefSide[2]),
-    };
-  if (PREF_BACK_RE.test(text))
-    return { intent: "preference", rule: "preference:back", side: "player" };
-  const prefLength = PREF_LENGTH_RE.exec(text);
-  if (prefLength) {
-    const word = (prefLength[1] ?? prefLength[2] ?? "").toLowerCase();
-    return {
-      intent: "preference",
-      rule: "preference:length",
-      length: /short|brief/.test(word) ? "short" : "long",
-    };
+  if (!opts?.live) {
+    const prefSide = PREF_SIDE_RE.exec(text);
+    if (prefSide)
+      return {
+        intent: "preference",
+        rule: "preference:side",
+        side: sideWord(prefSide[1] ?? prefSide[2]),
+      };
+    if (PREF_BACK_RE.test(text))
+      return { intent: "preference", rule: "preference:back", side: "player" };
+    const prefLength = PREF_LENGTH_RE.exec(text);
+    if (prefLength) {
+      const word = (prefLength[1] ?? prefLength[2] ?? "").toLowerCase();
+      return {
+        intent: "preference",
+        rule: "preference:length",
+        length: /short|brief/.test(word) ? "short" : "long",
+      };
+    }
   }
 
   // 4. The other side's view of this game.

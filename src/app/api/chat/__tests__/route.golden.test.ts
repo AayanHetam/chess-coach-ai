@@ -293,7 +293,11 @@ const DRAFT =
 
 let calls: Record<string, unknown>[] = [];
 let draft = DRAFT;
-async function serve(turn: Turn) {
+async function serve(
+  turn: Turn,
+  /** Takes out what a newer field adds to the response before it is hashed. */
+  strip?: (json: { gameAnalysis?: Record<string, unknown> }) => void
+) {
   calls = [];
   draft = turn.draft ?? DRAFT;
   const res = await POST(
@@ -308,6 +312,7 @@ async function serve(turn: Turn) {
     })
   );
   const json = await res.json();
+  strip?.(json);
   return sha({
     status: res.status,
     calls: calls.map((c) => ({
@@ -455,6 +460,46 @@ describe("byte for byte as at 5d592e7", () => {
         }
       }
       expect(declined, mode.name).toBeGreaterThanOrEqual(3);
+    }
+  }, 120_000);
+
+  // Pathway 3.4: under COACH_INTENT_ROUTER the legacy prompt reads no
+  // routing at all, and on the validators-off wing every turn is one move
+  // and the v1 turn, byte for byte, once the `routing` echo it adds is
+  // taken out. The mocked router answers what the parsers answer, which is
+  // no intent, so a turn no rule reads is the default row. The
+  // validators-on wing changes its category on purpose, so its identity is
+  // proved against the same run's flag-off calls (route.router.test.ts).
+  it("with the router on, the legacy prompt is the golden and the validators-off wing is the golden less routing", async () => {
+    const golden = JSON.parse(fs.readFileSync(GOLDEN, "utf8"));
+    vi.stubEnv("COACH_INTENT_ROUTER", "1");
+    vi.stubEnv("COACH_PERSPECTIVE", "");
+    const grammars: string[] = [];
+    const strip = (json: { gameAnalysis?: Record<string, unknown> }) => {
+      const routing = json.gameAnalysis?.routing as
+        | { grammar?: string }
+        | undefined;
+      if (routing) grammars.push(String(routing.grammar));
+      delete json.gameAnalysis?.routing;
+    };
+    for (const mode of MODES.filter((m) => m.name !== "validators-on")) {
+      vi.stubEnv("MASTERMIND_VALIDATORS_ENABLED", mode.validators);
+      vi.stubEnv("COACH_FOLLOWUP_PROMPT", mode.prompt);
+      __resetMastermindEnvCacheForTests();
+      for (const turn of TURNS) {
+        if (mode.prompt === "legacy") {
+          expect(await serve(turn), `${mode.name}:${turn.name}`).toBe(
+            golden.route[`${mode.name}:${turn.name}`]
+          );
+          continue;
+        }
+        if (turn.sided) continue;
+        grammars.length = 0;
+        expect(await serve(turn, strip), `${mode.name}:${turn.name}`).toBe(
+          golden.route[`${mode.name}:${turn.name}`]
+        );
+        expect(grammars, `${mode.name}:${turn.name}`).toEqual(["one_move"]);
+      }
     }
   }, 120_000);
 

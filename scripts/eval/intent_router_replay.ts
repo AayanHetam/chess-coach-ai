@@ -8,7 +8,12 @@
  * tester's live category sweep is the measurement the pathway names; this
  * is the offline half that costs nothing and runs anywhere.
  *
- * Usage: npx tsx scripts/eval/intent_router_replay.ts [--questions q.txt] [--show-unknown]
+ * With --live (pathway 3.4) the same questions also go through the live
+ * rules (lib/coach/intentRules.ts, the ones COACH_INTENT_ROUTER acts on),
+ * and their distribution is printed beside the shadow's, with the share
+ * left to the router.
+ *
+ * Usage: npx tsx scripts/eval/intent_router_replay.ts [--questions q.txt] [--show-unknown] [--live]
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -16,6 +21,7 @@ import { Chess } from "chess.js";
 
 const argv = process.argv.slice(2);
 const SHOW_UNKNOWN = argv.includes("--show-unknown");
+const LIVE = argv.includes("--live");
 const EXTRA = (() => {
   const i = argv.indexOf("--questions");
   return i >= 0 ? argv[i + 1] : null;
@@ -211,6 +217,50 @@ function loadSamples(): Sample[] {
   if (SHOW_UNKNOWN) {
     console.log("\nleft for the classifier:");
     for (const s of unknown)
+      console.log(`  [${s.source}] ${s.question.slice(0, 120)}`);
+  }
+  if (!LIVE) return;
+
+  // The live rules on the same questions, beside the shadow's reading.
+  const { resolveLiveIntent } = await import("@/lib/coach/intentRules");
+  const liveByIntent: Record<string, number> = {};
+  const liveByRule: Record<string, number> = {};
+  const toRouter: Sample[] = [];
+  let liveRuled = 0;
+  let vetoed = 0;
+  for (const s of samples) {
+    const anchor = resolveQuestionAnchor(s.question, s.moves, s.playerColor);
+    const r = resolveLiveIntent(s.question, {
+      anchor,
+      moves: s.moves,
+      playerColor: s.playerColor,
+    });
+    liveByIntent[r.intent] = (liveByIntent[r.intent] ?? 0) + 1;
+    liveByRule[r.rule] = (liveByRule[r.rule] ?? 0) + 1;
+    if (r.veto) vetoed += 1;
+    if (r.source === "rule") liveRuled += 1;
+    else toRouter.push(s);
+  }
+  console.log(
+    `\nlive rules: a rule decided ${liveRuled} (${pct(liveRuled)}); the router is asked ${toRouter.length} (${pct(toRouter.length)}), ${vetoed} of them a concept set aside beside a board word\n`
+  );
+  console.log("intent          shadow  live");
+  for (const intent of QUESTION_INTENTS) {
+    const a = byIntent[intent] ?? 0;
+    const b = liveByIntent[intent] ?? 0;
+    if (a > 0 || b > 0)
+      console.log(
+        `  ${intent.padEnd(14)} ${String(a).padStart(4)}  ${String(b).padStart(4)}`
+      );
+  }
+  console.log("\nlive rules:");
+  for (const [rule, n] of Object.entries(liveByRule).sort(
+    (a, b) => b[1] - a[1]
+  ))
+    console.log(`  ${rule.padEnd(24)} ${n}`);
+  if (SHOW_UNKNOWN) {
+    console.log("\nleft for the router:");
+    for (const s of toRouter)
       console.log(`  [${s.source}] ${s.question.slice(0, 120)}`);
   }
 })();

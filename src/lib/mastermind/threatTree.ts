@@ -23,12 +23,7 @@ const PIECE_VALUE_CP: Record<string, number> = { p: 100, n: 320, b: 330, r: 500,
 const MAX_DEFENSES_PER_LEVEL = 3;
 const MATERIAL_THREAT_THRESHOLD_CP = 200;
 
-/**
- * Find threats: opponent moves from the current position that win material
- * (≥ MATERIAL_THREAT_THRESHOLD_CP) or check/checkmate. Limited to the top
- * MAX_DEFENSES_PER_LEVEL by material gain so the tree doesn't explode.
- */
-function findOpponentThreats(fen: string): Array<{
+export interface ForcingMove {
   uci: string;
   san: string;
   captured: string | null;
@@ -36,22 +31,27 @@ function findOpponentThreats(fen: string): Array<{
   isCheck: boolean;
   isMate: boolean;
   materialGainCp: number;
-}> {
-  const game = new Chess(fen);
-  const sideToMove = game.turn();
+}
 
-  const swapFen = swapSideToMove(fen);
-  if (!swapFen) return [];
-  const opponent = new Chess(swapFen);
-  if (opponent.turn() === sideToMove) return [];
+/**
+ * The side to move's mates, checks and captures worth at least
+ * MATERIAL_THREAT_THRESHOLD_CP, ranked as the tree ranks them (mates, then
+ * checks, then material), at most `limit`. The tree reads the side NOT to
+ * move (findOpponentThreats swaps the turn): this reads the side to move,
+ * for a caller asking what the reply to a move can do.
+ */
+export function forcingMoves(fen: string, limit: number = MAX_DEFENSES_PER_LEVEL): ForcingMove[] {
+  return rankForcing(new Chess(fen), limit);
+}
 
-  const moves = opponent.moves({ verbose: true });
+function rankForcing(position: Chess, limit: number): ForcingMove[] {
+  const moves = position.moves({ verbose: true });
   const scored = moves.map((m) => {
     const capturedValue = m.captured ? (PIECE_VALUE_CP[m.captured] ?? 0) : 0;
-    const result = opponent.move(m);
-    const isCheck = opponent.inCheck();
-    const isMate = opponent.isCheckmate();
-    opponent.undo();
+    const result = position.move(m);
+    const isCheck = position.inCheck();
+    const isMate = position.isCheckmate();
+    position.undo();
     return {
       uci: `${m.from}${m.to}${m.promotion ?? ""}`,
       san: result?.san ?? `${m.from}${m.to}`,
@@ -70,7 +70,24 @@ function findOpponentThreats(fen: string): Array<{
       if (a.isCheck !== b.isCheck) return a.isCheck ? -1 : 1;
       return b.materialGainCp - a.materialGainCp;
     })
-    .slice(0, MAX_DEFENSES_PER_LEVEL);
+    .slice(0, limit);
+}
+
+/**
+ * Find threats: opponent moves from the current position that win material
+ * (≥ MATERIAL_THREAT_THRESHOLD_CP) or check/checkmate. Limited to the top
+ * MAX_DEFENSES_PER_LEVEL by material gain so the tree doesn't explode.
+ */
+function findOpponentThreats(fen: string): ForcingMove[] {
+  const game = new Chess(fen);
+  const sideToMove = game.turn();
+
+  const swapFen = swapSideToMove(fen);
+  if (!swapFen) return [];
+  const opponent = new Chess(swapFen);
+  if (opponent.turn() === sideToMove) return [];
+
+  return rankForcing(opponent, MAX_DEFENSES_PER_LEVEL);
 }
 
 function swapSideToMove(fen: string): string | null {
@@ -122,7 +139,7 @@ export function buildThreatTree(fen: string, depthBudget: number): ThreatNode[] 
 
 function buildNode(
   fenBefore: string,
-  threat: ReturnType<typeof findOpponentThreats>[number],
+  threat: ForcingMove,
   depthBudget: number,
   depth: number
 ): ThreatNode {

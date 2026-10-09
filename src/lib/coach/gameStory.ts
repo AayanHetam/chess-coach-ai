@@ -135,7 +135,7 @@ export function positionWin(position: PositionEval | undefined): number | null {
  * The win percentage before and after every move the engine scored on both
  * sides at comparable depth, in game order. Index k is the move at ply k+1.
  */
-function scoredMoves(input: GameStoryInput): TurningPoint[] {
+export function scoredMoves(input: GameStoryInput): TurningPoint[] {
   const { positions, sans } = input;
   if (!positions) return [];
   const declared = input.declaredDepth ?? null;

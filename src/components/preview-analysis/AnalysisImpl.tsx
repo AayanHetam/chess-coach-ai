@@ -80,7 +80,7 @@ import {
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 import { ChessgroundBoardPlaceholder } from "@/components/ui/ChessgroundBoardPlaceholder";
 import { renderMoveLinkedText } from "./moveLinker";
-import { buildGameStory } from "@/lib/coach/gameStory";
+import { buildGameStory, playerName } from "@/lib/coach/gameStory";
 import {
   DEFAULT_ARROW_TOGGLES,
   ARROW_PALETTE,
@@ -7510,6 +7510,13 @@ export default function AnalysisPage() {
   // Save flow (G4) can persist a complete eval to Firestore/IndexedDB
   // instead of synthesising one. Populated alongside enginePositions.
   const [gameEvalFull, setGameEvalFull] = useState<GameEval | null>(null);
+  // The game the sweep above was run for, set in the same batch as the
+  // positions. When a new game loads, the render before the reset effect
+  // still holds the old game's sweep: everything that reads it as this
+  // game's (the classifier, the session cache, the saved evals, the story)
+  // checks this first, so the old evals are never written under the new
+  // game's key or told as its story.
+  const [sweptFor, setSweptFor] = useState<Chess | null>(null);
 
   // G8: real Maia predictions via /api/maia-predict, keyed by
   // `${fen}|${elo}`. Hand-table is the synchronous cold-start fallback.
@@ -7535,7 +7542,7 @@ export default function AnalysisPage() {
   // Miss / Blunder via getMovesClassification. The classifier needs both
   // UCI strings (for legal-move replay) and the canonical FEN sequence.
   const classifiedPositions = useMemo<PositionEval[] | null>(() => {
-    if (!enginePositions) return null;
+    if (!enginePositions || sweptFor !== loadedGame) return null;
     let params: { fens: string[]; uciMoves: string[] };
     try {
       params = getEvaluateGameParams(loadedGame);
@@ -7565,7 +7572,7 @@ export default function AnalysisPage() {
       console.warn("[preview/analysis] classification failed:", err);
       return enginePositions;
     }
-  }, [enginePositions, loadedGame]);
+  }, [enginePositions, sweptFor, loadedGame]);
 
   // G9: derive real key moments from classification. Production's
   // SurpriseAnalyzer is a separate Stockfish pass that adds a lot of
@@ -7608,6 +7615,7 @@ export default function AnalysisPage() {
   useEffect(() => {
     setEnginePositions(null);
     setGameEvalFull(null);
+    setSweptFor(null);
     setAnalysisProgress(0);
     setAnalysisError(null);
   }, [loadedGame, engineSettings.depth, engineSettings.engineName]);
@@ -7648,12 +7656,13 @@ export default function AnalysisPage() {
       if (restored) {
         setEnginePositions(restored.positions);
         if (restored.gameEval) setGameEvalFull(restored.gameEval);
+        setSweptFor(loadedGame);
         setAnalysisProgress(100);
       }
     } catch {
       /* corrupted entry — let Stockfish re-run */
     }
-  }, [cacheKey, enginePositions, analysisError, allMoves.length]);
+  }, [cacheKey, enginePositions, analysisError, allMoves.length, loadedGame]);
 
   // Save when analysis completes.
   //
@@ -7662,15 +7671,18 @@ export default function AnalysisPage() {
   // what made a revisited game a degraded one. Gated on `gameEvalFull` so a
   // restore-from-legacy pass (positions only, no GameEval) cannot overwrite a
   // full entry with a partial one.
+  //
+  // Only the sweep of the game on the board: in the render a new game loads,
+  // cacheKey is already the new game's and gameEvalFull still the old one's.
   useEffect(() => {
-    if (!cacheKey || !gameEvalFull) return;
+    if (!cacheKey || !gameEvalFull || sweptFor !== loadedGame) return;
     if (typeof window === "undefined") return;
     try {
       window.sessionStorage.setItem(cacheKey, JSON.stringify(gameEvalFull));
     } catch {
       /* quota exhausted — skip silently */
     }
-  }, [cacheKey, gameEvalFull]);
+  }, [cacheKey, gameEvalFull, sweptFor, loadedGame]);
 
   // G15: also push every position eval into the production savedEvalsAtom
   // so the rest of the site (production /analysis, /play eval-bar, etc.)
@@ -7678,7 +7690,7 @@ export default function AnalysisPage() {
   // Keyed by FEN per production convention (panelHeader/analyzeButton.tsx).
   const setSavedEvals = useSetAtom(savedEvalsAtom);
   useEffect(() => {
-    if (!enginePositions) return;
+    if (!enginePositions || sweptFor !== loadedGame) return;
     let fens: string[] = [];
     try {
       fens = getEvaluateGameParams(loadedGame).fens;
@@ -7694,7 +7706,13 @@ export default function AnalysisPage() {
       return acc;
     }, {} as SavedEvals);
     setSavedEvals((prev) => ({ ...prev, ...gameSavedEvals }));
-  }, [enginePositions, loadedGame, engineSettings.engineName, setSavedEvals]);
+  }, [
+    enginePositions,
+    sweptFor,
+    loadedGame,
+    engineSettings.engineName,
+    setSavedEvals,
+  ]);
 
   // Flat 0.00 until Stockfish reports. This used to be a hand-authored
   // "plausible" curve shaped around the Kasparov demo's rook sacrifice, which
@@ -7764,6 +7782,7 @@ export default function AnalysisPage() {
         if (cancelled) return;
         setEnginePositions(result.positions);
         setGameEvalFull(result);
+        setSweptFor(loadedGame);
         setAnalysisProgress(100);
       })
       .catch((err) => {
@@ -7906,6 +7925,40 @@ export default function AnalysisPage() {
   // In puzzle mode, prepopulate the coach with a contextual seed message
   const isPuzzleMode = Boolean(puzzleFen);
   const gameSans = useMemo(() => allMoves.map((m) => m.san), [allMoves]);
+  // A game counted from the standard start. Everything that numbers the
+  // game's moves from 1 with White first (the story, the arrival, the
+  // server's replay) is right only for one of these.
+  const standardRoot = !rootFen || rootFen === DEFAULT_POSITION;
+
+  // The game's story from the engine data (gameStory.ts): who won and the
+  // move it turned on. Null before this game's sweep lands, in a puzzle and
+  // for a game set up from a position, whose sides the story would get
+  // wrong (it counts from White's first move).
+  const gameStory = useMemo(() => {
+    if (!classifiedPositions || isPuzzleMode || !standardRoot) return null;
+    const headers = loadedGame.header();
+    return buildGameStory({
+      positions: classifiedPositions,
+      sans: gameSans,
+      white: headers.White,
+      black: headers.Black,
+      result: headers.Result,
+      playerColor: playerSide
+        ? playerSide.color === "white"
+          ? "w"
+          : "b"
+        : null,
+      declaredDepth: gameEvalFull?.settings.depth ?? null,
+    });
+  }, [
+    classifiedPositions,
+    isPuzzleMode,
+    standardRoot,
+    loadedGame,
+    gameSans,
+    playerSide,
+    gameEvalFull,
+  ]);
 
   // The mistake under the cursor, when the current ply is a Mistake /
   // Blunder / Miss. It feeds the suggestion chips ("Why was Nc7+ a
@@ -8061,21 +8114,8 @@ export default function AnalysisPage() {
   // Only the first message, only while it is the arrival greeting, and only
   // when the line would change, so this never fights a restored transcript.
   useEffect(() => {
-    if (!classifiedPositions || isPuzzleMode) return;
-    const headers = loadedGame.header();
-    const story = buildGameStory({
-      positions: classifiedPositions,
-      sans: loadedGame.history(),
-      white: headers.White,
-      black: headers.Black,
-      result: headers.Result,
-      playerColor: playerSide
-        ? playerSide.color === "white"
-          ? "w"
-          : "b"
-        : null,
-      declaredDepth: gameEvalFull?.settings.depth ?? null,
-    });
+    const story = gameStory;
+    if (!story) return;
     const content = `**${story.names}**${story.summary} Step through the moves and the line under the board says what each one does. Ask me anything, or start with **Analyze my game** for the moments that decided it.`;
     const mascot: MastiMood =
       story.terminal && playerSide
@@ -8101,7 +8141,7 @@ export default function AnalysisPage() {
         ...prev.slice(1),
       ];
     });
-  }, [classifiedPositions, loadedGame, playerSide, gameEvalFull, isPuzzleMode]);
+  }, [gameStory, playerSide]);
 
   const [input, setInput] = useState(
     promptParam ? decodeURIComponent(promptParam) : ""
@@ -8238,10 +8278,13 @@ export default function AnalysisPage() {
         // "????.??.??", which used to render as "(????)" in the greeting.
         const year = newHeaders.Date?.split(".")[0];
         const yearSuffix = year && /^\d{4}$/.test(year) ? ` (${year})` : "";
+        // An absent name is chess.js's placeholder "?", which is no name.
+        const white = playerName(newHeaders.White);
+        const black = playerName(newHeaders.Black);
         const greeting =
           opts?.greeting ??
-          (newHeaders.White && newHeaders.Black
-            ? `Loaded **${newHeaders.White} vs ${newHeaders.Black}**${yearSuffix}. Step through the moves and the line under the board says what each one does. Ask me anything, or start with **Analyze my game** for the moments that decided it.`
+          (white && black
+            ? `Loaded **${white} vs ${black}**${yearSuffix}. Step through the moves and the line under the board says what each one does. Ask me anything, or start with **Analyze my game** for the moments that decided it.`
             : "Loaded a new game. Step through the moves and the line under the board says what each one does. Ask me anything about the position or any move.");
         setMessages([
           // D3: UI-authored greeting, not model output.
@@ -8251,11 +8294,10 @@ export default function AnalysisPage() {
             ply: 0,
             synthetic: true,
             mascot: "wave",
-            // A real game (both players named, no custom greeting) gets the
-            // story line once the engine has seen it.
-            ...(!opts?.greeting && newHeaders.White && newHeaders.Black
-              ? { arrival: { told: false } }
-              : {}),
+            // A game loaded fresh (no custom greeting) gets the story line
+            // once the engine has seen it, with "White" and "Black" for the
+            // names a PGN leaves out.
+            ...(!opts?.greeting ? { arrival: { told: false } } : {}),
           },
         ]);
       }

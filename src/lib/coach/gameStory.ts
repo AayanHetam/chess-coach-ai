@@ -198,9 +198,20 @@ export function findDecisive(
   return null;
 }
 
+/**
+ * A player's name from the PGN, or null. chess.js fills an absent White or
+ * Black tag with the PGN placeholder "?", which is no name.
+ */
+export function playerName(header: string | null | undefined): string | null {
+  const name = (header ?? "").trim();
+  return name && name !== "?" ? name : null;
+}
+
 function sideName(side: Side, input: GameStoryInput): string {
-  const name = side === "w" ? input.white : input.black;
-  return name && name.trim() ? name.trim() : side === "w" ? "White" : "Black";
+  return (
+    playerName(side === "w" ? input.white : input.black) ??
+    (side === "w" ? "White" : "Black")
+  );
 }
 
 function resultWords(result: GameResult | null, input: GameStoryInput): string {

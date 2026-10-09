@@ -187,6 +187,16 @@ describe("the line knows the reader's side", () => {
     );
   });
 
+  it("reads chess.js's placeholder for a missing name as no name", () => {
+    const story = buildGameStory({
+      ...base,
+      white: "?",
+      black: " ? ",
+      playerColor: null,
+    });
+    expect(story.names).toBe("White vs Black");
+  });
+
   it("falls back to White and Black when the headers are empty", () => {
     const story = buildGameStory({
       ...base,

@@ -32,6 +32,7 @@ uv venv .evalvenv && uv pip install --python .evalvenv/bin/python -r scripts/eva
 | `motif_detector_recall.ts [--n 400]` | Do the `src/lib/tactics` detectors find the tactics humans label? Recall per Lichess puzzle theme + exact-match on the ChessQA motif battery | $0, no network, ~7 min |
 | `followup_referee_replay.ts` | Replays the follow-up referee (followUpReferee.ts) over the eight saved chat answers from the probe below — what it would have cut, and why | $0, no network |
 | `followup_story_probe.ts` | Does the follow-up chat (fast tier) explain a line better when its compact contract carries what each move does? Two fixtures × two student questions, with and without stories, side by side | 8 Haiku calls, ≈$0.04 |
+| `replay_gate.ts [--extra file] [--verbose]` | The key-less replay gate (pathway 3.7): the committed follow-up results (`results/*.json` with the `chessmasti.followup-results` marker, written by the keyed probes through `lib/followUpRecord.ts`) and three frozen files read back with HEAD's oracle, referee and rules. Fails on a numbered move no board reaches, a page question routed by the model, more than one routing call, a changed corpus, a story-probe pin drift or a flipped flag's missed bar. Prints latency per clock, words at rest, proof tokens and eval figures | $0, no network |
 | `line_story_check.ts [--n 300]` | Is the per-ply line story (lineStory.ts) right? Mate at the labeled ply on `mateInN`, theme motif on a solver ply, sacrifice offers vs non-sacrifice, ledger sign on `crushing` | $0, no network, ~4 min |
 
 `--dry-run` on the python harnesses builds prompts/engine context with zero API calls.
@@ -192,10 +193,12 @@ ones the review or the per-move table displayed, and a piece named on a
 square must stand there — with the ownership the sentence claims — on the
 board under discussion or on a reviewed before/after board. Failing sentences
 are dropped, never hedged; an emptied reply becomes one honest line. Replayed
-over the eight real answers from the story probe: 10 of 67 sentences cut in
+over the eight real answers from the story probe: 11 of 67 sentences cut in
 the arm without stories — every one a fabrication ("your queen on c1" for
 Black's queen, a rook "on c8", "8...Kd7", an "immediate checkmate threat") —
-and 0 of 65 in the arm with stories.
+and 0 of 65 in the arm with stories. Both counts are pinned in
+`REPLAY_MANIFEST.storyProbe.referee` (`replay/manifest.ts`), so the replay
+gate (`replay_gate.ts`) fails when the referee moves them.
 
 ### Follow-up chat with line stories (2026-09-05)
 
@@ -244,7 +247,12 @@ enforcement (asserted in `--dry-run`).
 ## CI
 
 The **deterministic validator gate** (`scripts/mastermind/validator-gate-dryrun.ts`,
-22 fixtures, no network) runs on every PR via `.github/workflows/ci.yml`. The
+22 fixtures, no network) runs on every PR via `.github/workflows/ci.yml`, and
+so does the **replay gate** (step "Replay gate (committed results, no
+network)", `npx tsx scripts/eval/replay_gate.ts`, desktop leg, after the
+contract smoke). Its real-corpus assertions also block the merge through
+`scripts/eval/__tests__/replayGate.test.ts`, which runs the same `runGate`
+over the same files in `npm test`. The
 API-billed harnesses above are manual — run Track A + the 2×2 before/after any
 prompt-version bump or model swap, and commit the results JSON with the model
 ID stamped.

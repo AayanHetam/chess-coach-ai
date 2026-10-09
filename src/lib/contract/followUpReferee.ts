@@ -208,6 +208,14 @@ export const SAN_TOKEN_RE = new RegExp(
     `|\\b(?:play|played|plays|playing|move|moves|with|after|instead of|rather than|try|consider)\\s+(${PAWN_SAN})(?![A-Za-z0-9])`,
   "g"
 );
+/**
+ * The ply a numbered move sits at: White's move N at 2(N-1), Black's one
+ * after it. Black only with three dots ("8... Kd8"), so two dots number
+ * White's move.
+ */
+export function numberedPly(num: string, dots: string | undefined): number {
+  return (Number(num) - 1) * 2 + (dots && dots.length >= 3 ? 1 : 0);
+}
 /** The text between two moves of a line when it is nothing but unnumbered pawn pushes ("g4"). */
 const BARE_PUSHES_GAP_RE = /^\s+(?:[a-h][1-8](?:=[NBRQ])?[+#]?\s+)+$/;
 export const EVAL_RE =
@@ -582,9 +590,7 @@ export function refereeFollowUp(
             }
             if (onRoot) {
               const ply =
-                num !== undefined
-                  ? (Number(num) - 1) * 2 + (dots && dots.length >= 3 ? 1 : 0)
-                  : running.ply;
+                num !== undefined ? numberedPly(num, dots) : running.ply;
               const next =
                 ply === running.ply ? applySan(running.fen, san) : null;
               if (!next) return `san:${san}`;
@@ -595,8 +601,7 @@ export function refereeFollowUp(
               continue;
             }
             if (num !== undefined) {
-              const ply =
-                (Number(num) - 1) * 2 + (dots && dots.length >= 3 ? 1 : 0);
+              const ply = numberedPly(num, dots);
               // A root may open numbered at its own ply too ("Instead of
               // 7... Qxc1, 7... Kd8 8. Be2 Qxa2"), when nothing before it
               // but the move it replaces was named.

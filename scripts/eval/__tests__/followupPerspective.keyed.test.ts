@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { NextRequest } from "next/server";
+import {
+  flagsNow,
+  recordTurn,
+  writeFollowUpResults,
+  type FollowUpTurn,
+} from "../lib/followUpRecord";
+import type { RealFixture } from "../lib/fixtureContract";
 
 /**
  * Keyed probe for PR 2.5 (perspective): does the coach answer a turn about
@@ -19,7 +26,9 @@ import { NextRequest } from "next/server";
  *
  *   PERSPECTIVE_PROBE=1 npx vitest run scripts/eval/__tests__/followupPerspective.keyed.test.ts
  *
- * Writes scripts/eval/results/followup-perspective-probe.json.
+ * Writes scripts/eval/results/followup-perspective-<startedAt>.json through
+ * the results contract (scripts/eval/lib/followUpRecord.ts), which the
+ * replay gate reads back with no key.
  */
 
 const REPO_ROOT = process.cwd();
@@ -154,40 +163,30 @@ const words = (s: string) =>
     .filter(Boolean).length;
 
 describe.skipIf(!RUN)("perspective keyed probe (PERSPECTIVE_PROBE=1)", () => {
-  const results: Record<string, unknown>[] = [];
+  const turns: FollowUpTurn[] = [];
+  let startedAt = "";
 
   beforeAll(() => {
+    startedAt = new Date().toISOString();
     process.env.ANTHROPIC_API_KEY = KEY!;
     process.env.MASTERMIND_VALIDATORS_ENABLED = "false";
     mockSession.mockResolvedValue({ session: { uid: "probe" } });
   });
 
   afterAll(() => {
-    const out = path.join(
-      REPO_ROOT,
-      "scripts/eval/results/followup-perspective-probe.json"
-    );
-    fs.mkdirSync(path.dirname(out), { recursive: true });
-    const on = results.filter((r) => r.arm === "on");
-    fs.writeFileSync(
-      out,
-      JSON.stringify(
-        {
-          date: new Date().toISOString().slice(0, 10),
-          tier: "fast",
-          summary: {
-            answers: results.length,
-            slipsOn: on.reduce((n, r) => n + (r.slips as string[]).length, 0),
-            dropsOn: on.reduce((n, r) => n + (r.drops as string[]).length, 0),
-            overBudgetOn: on.filter((r) => (r.words as number) > 110).length,
-          },
-          results,
-        },
-        null,
-        2
-      )
-    );
-    console.log(`wrote ${out}`);
+    const on = turns.filter((t) => t.flags.COACH_PERSPECTIVE === "1");
+    const out = writeFollowUpResults("followup-perspective", startedAt, turns, {
+      summary: {
+        answers: turns.length,
+        slipsOn: on.reduce(
+          (n, t) => n + Array.from(t.served.matchAll(SLIP_RE)).length,
+          0
+        ),
+        dropsOn: on.reduce((n, t) => n + t.refereeDrops.length, 0),
+        overBudgetOn: on.filter((t) => words(t.served) > 110).length,
+      },
+    });
+    if (out) console.log(`wrote ${out}`);
   });
 
   it(
@@ -218,7 +217,7 @@ describe.skipIf(!RUN)("perspective keyed probe (PERSPECTIVE_PROBE=1)", () => {
             ),
             "utf8"
           )
-        );
+        ) as RealFixture;
         const playerColor = c.player === "white" ? "w" : "b";
         const finalFen = getFenAtHalfMove(
           fx.moveHistory,
@@ -266,6 +265,8 @@ describe.skipIf(!RUN)("perspective keyed probe (PERSPECTIVE_PROBE=1)", () => {
         for (const arm of ["on", "off"] as const) {
           process.env.COACH_PERSPECTIVE = arm === "on" ? "1" : "";
           logged.length = 0;
+          const flags = flagsNow();
+          const t0 = Date.now();
           const res = await POST(
             new NextRequest("http://x/api/chat", {
               method: "POST",
@@ -280,23 +281,32 @@ describe.skipIf(!RUN)("perspective keyed probe (PERSPECTIVE_PROBE=1)", () => {
             })
           );
           const json = await res.json();
-          const answer: string = json.gameAnalysis?.analysis ?? "";
-          const drops = logged
-            .filter(([e]) => e === "followup_referee_dropped")
-            .flatMap(([, d]) => d.dropped as string[]);
-          const row = {
+          const turn = recordTurn({
+            probe: "followup-perspective",
+            seq: turns.length + 1,
             fixture: c.fixture,
-            player: c.player,
+            fx,
+            playerColor,
+            moveIndex: fx.moveHistory.length,
             question: c.question,
-            arm,
-            perspective: json.gameAnalysis?.perspective ?? null,
-            anchor: json.gameAnalysis?.anchor ?? null,
-            answer,
+            kind: "perspective",
+            request: {
+              perspective: c.perspective,
+              conversationHistory: c.history,
+            },
+            flags,
+            status: res.status,
+            json,
+            logged,
+            harnessMs: Date.now() - t0,
+          });
+          turns.push(turn);
+          const answer = turn.served;
+          const drops = turn.refereeDrops;
+          const row = {
             words: words(answer),
             slips: Array.from(answer.matchAll(SLIP_RE)).map((m) => m[0]),
-            drops,
           };
-          results.push(row);
           console.log(
             `\n===== ${c.fixture} | ${c.player} | ${arm.toUpperCase()} | ${c.question}\n${answer}\n-- words ${row.words} | slips ${row.slips.length} | drops ${drops.join(",") || "none"}`
           );

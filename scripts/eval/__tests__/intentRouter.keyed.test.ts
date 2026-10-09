@@ -2,6 +2,15 @@ import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { NextRequest } from "next/server";
+import {
+  flagsNow,
+  recordTurn,
+  writeFollowUpResults,
+  type FollowUpTurn,
+} from "../lib/followUpRecord";
+import type { RealFixture } from "../lib/fixtureContract";
+import { pctl } from "../replay/oracle";
+import { countProseWords } from "@/lib/coach/moment";
 
 /**
  * Keyed probe for PR 3.4 (`COACH_INTENT_ROUTER=1`): the router, the
@@ -26,8 +35,10 @@ import { NextRequest } from "next/server";
  *
  *   INTENT_ROUTER_PROBE=1 npx vitest run scripts/eval/__tests__/intentRouter.keyed.test.ts
  *
- * Writes scripts/eval/results/intent-router-probe-<date>.json. The flag
- * does not flip before that file is committed.
+ * Writes scripts/eval/results/intent-router-<startedAt>.json through the
+ * results contract (scripts/eval/lib/followUpRecord.ts), which the replay
+ * gate reads back with no key. The flag does not flip before that file is
+ * committed.
  */
 
 const REPO_ROOT = process.cwd();
@@ -105,33 +116,23 @@ const FIXTURE = JSON.parse(
 /** The rows the route is asked: every no-board and acknowledgement row, and four one-move controls. */
 const ROUTE_CONTROLS = [2, 38, 49, 53];
 
-const prose = (s: string) =>
-  s.replace(/^\[(?:CONTINUATION|PLAYED):[^\]]*\]$/gm, "");
-const words = (s: string) => prose(s).split(/\s+/).filter(Boolean).length;
-const pctl = (xs: number[], p: number) => {
-  const s = [...xs].sort((a, b) => a - b);
-  return s.length ? s[Math.min(s.length - 1, Math.floor(p * s.length))] : 0;
-};
+const words = countProseWords;
 
 describe.skipIf(!RUN)(
   "intent router keyed probe (INTENT_ROUTER_PROBE=1)",
   () => {
     const router: Record<string, unknown>[] = [];
     const classifier: Record<string, unknown>[] = [];
-    const route: Record<string, unknown>[] = [];
+    const turns: FollowUpTurn[] = [];
+    let startedAt = "";
 
     beforeAll(() => {
+      startedAt = new Date().toISOString();
       process.env.ANTHROPIC_API_KEY = KEY!;
       mockSession.mockResolvedValue({ session: { uid: "probe" } });
     });
 
     afterAll(() => {
-      const date = new Date().toISOString().slice(0, 10);
-      const out = path.join(
-        REPO_ROOT,
-        `scripts/eval/results/intent-router-probe-${date}.json`
-      );
-      fs.mkdirSync(path.dirname(out), { recursive: true });
       const routerRows = router.filter((r) => r.rule === null);
       const ruleRows = router.filter((r) => r.rule !== null);
       const ms = router.map((r) => r.ms as number);
@@ -164,32 +165,21 @@ describe.skipIf(!RUN)(
           ),
         },
         route: {
-          turns: route.length,
-          tokenLines: route.filter((r) => r.tokenLine).length,
-          refereeDrops: route.reduce(
-            (n, r) => n + (r.drops as unknown[]).length,
-            0
-          ),
-          servedFallback: route.filter((r) => r.servedFallback).length,
+          turns: turns.length,
+          tokenLines: turns.filter((t) =>
+            /^\[(?:CONTINUATION|PLAYED):/m.test(t.served)
+          ).length,
+          refereeDrops: turns.reduce((n, t) => n + t.refereeDrops.length, 0),
+          servedFallback: turns.filter((t) => t.echo.pipeline?.servedFallback)
+            .length,
         },
       };
-      fs.writeFileSync(
-        out,
-        JSON.stringify(
-          {
-            date,
-            tier: "fast",
-            fixture: FIXTURE.fixture,
-            summary,
-            router,
-            classifier,
-            route,
-          },
-          null,
-          2
-        )
-      );
-      console.log(`wrote ${out}`);
+      const out = writeFollowUpResults("intent-router", startedAt, turns, {
+        summary,
+        routerCalls: router,
+        extra: { classifier },
+      });
+      if (out) console.log(`wrote ${out}`);
     });
 
     it(
@@ -278,7 +268,7 @@ describe.skipIf(!RUN)(
             ),
             "utf8"
           )
-        );
+        ) as RealFixture;
         const playerColor = FIXTURE.playerColor;
         const finalFen = getFenAtHalfMove(
           fx.moveHistory,
@@ -332,6 +322,7 @@ describe.skipIf(!RUN)(
           __resetMastermindEnvCacheForTests();
           for (const r of rows) {
             logged.length = 0;
+            const flags = flagsNow();
             const t0 = Date.now();
             const res = await POST(
               new NextRequest("http://x/api/chat", {
@@ -345,24 +336,31 @@ describe.skipIf(!RUN)(
               })
             );
             const json = await res.json();
-            const answer: string = json.gameAnalysis?.analysis ?? "";
+            const turn = recordTurn({
+              probe: "intent-router",
+              seq: turns.length + 1,
+              fixture: FIXTURE.fixture,
+              fx,
+              playerColor,
+              moveIndex: r.moveIndex,
+              question: r.q,
+              kind: `intent-60:${r.id}`,
+              origin: r.origin,
+              flags,
+              status: res.status,
+              json,
+              logged,
+              harnessMs: Date.now() - t0,
+            });
+            turns.push(turn);
+            const answer = turn.served;
             const row = {
-              id: r.id,
-              q: r.q,
               validators: validators === "true",
-              routing: json.gameAnalysis?.routing ?? null,
-              answer,
+              routing: turn.echo.routing,
               words: words(answer),
-              tokenLine: /^\[(?:CONTINUATION|PLAYED):/m.test(answer),
-              drops: logged
-                .filter(([e]) => e === "followup_referee_dropped")
-                .flatMap(([, d]) => d.dropped as string[]),
-              servedFallback:
-                json.gameAnalysis?.pipeline?.servedFallback ?? null,
-              category: json.gameAnalysis?.pipeline?.category ?? null,
-              elapsedMs: Date.now() - t0,
+              drops: turn.refereeDrops,
+              servedFallback: turn.echo.pipeline?.servedFallback ?? null,
             };
-            route.push(row);
             console.log(
               `\n===== #${r.id} | ${row.validators ? "validators on" : "validators off"} | ${r.q}\n${answer}\n-- words ${row.words} | grammar ${row.routing?.grammar} | drops ${row.drops.join(",") || "none"} | fallback ${row.servedFallback ?? "none"}`
             );

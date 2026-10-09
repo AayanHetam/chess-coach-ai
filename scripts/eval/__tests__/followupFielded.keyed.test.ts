@@ -2,6 +2,16 @@ import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { NextRequest } from "next/server";
+import {
+  flagsNow,
+  recordTurn,
+  writeFollowUpResults,
+  type FollowUpTurn,
+} from "../lib/followUpRecord";
+import type { RealFixture } from "../lib/fixtureContract";
+import { pctl } from "../replay/oracle";
+import { countProseWords } from "@/lib/coach/moment";
+import { EVAL_RE, SAN_TOKEN_RE } from "@/lib/contract/followUpReferee";
 
 /**
  * Keyed probe for PR 3.1 (`COACH_FOLLOWUP_PROMPT=fielded`): the fielded
@@ -22,7 +32,10 @@ import { NextRequest } from "next/server";
  *
  *   FIELDED_PROBE=1 npx vitest run scripts/eval/__tests__/followupFielded.keyed.test.ts
  *
- * Writes scripts/eval/results/followup-fielded-probe-<date>.json.
+ * Writes scripts/eval/results/followup-fielded-<startedAt>.json through the
+ * results contract (scripts/eval/lib/followUpRecord.ts), which the replay
+ * gate reads back with no key. With COACH_FOLLOWUP_LEAN=1 in the
+ * environment the run is the lean one, recorded as such.
  */
 
 const REPO_ROOT = process.cwd();
@@ -85,79 +98,70 @@ const FIXTURES = [
 /** A move written as the page writes it: "8. Nc7+", "8... Kd8". */
 const label = (index: number, san: string) =>
   `${Math.floor(index / 2) + 1}${index % 2 === 0 ? "." : "..."} ${san}`;
-/** Moves and evaluations written in the prose (the 3.6 measurement). */
-const SAN_RE =
-  /\b(?:\d+\.{1,3}\s*)?(?:[KQRBN][a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?[+#]?|O-O(?:-O)?|[a-h]x[a-h][1-8])\b/g;
-const EVAL_RE = /(?<![A-Za-z0-9.])[+-]\d+(?:\.\d{1,2})?(?![A-Za-z0-9.%])/g;
+/** Moves and evaluations written in the prose (the 3.6 measurement), read as the referee reads them. */
 const prose = (s: string) =>
   s.replace(/^\[(?:CONTINUATION|PLAYED):[^\]]*\]$/gm, "");
-const words = (s: string) => prose(s).split(/\s+/).filter(Boolean).length;
+const words = countProseWords;
+const sansOf = (s: string) =>
+  Array.from(prose(s).matchAll(SAN_TOKEN_RE)).map((m) => m[0]);
+const evalsOf = (s: string) =>
+  Array.from(prose(s).matchAll(EVAL_RE)).map((m) => m[0]);
+/** The mode a turn ran in, from the flags recorded before it. */
+const modeOf = (t: FollowUpTurn) =>
+  t.flags.COACH_FOLLOWUP_PROMPT === "fielded" ? "fielded" : "v1";
 
 describe.skipIf(!RUN)("fielded keyed probe (FIELDED_PROBE=1)", () => {
-  const results: Record<string, unknown>[] = [];
+  const turns: FollowUpTurn[] = [];
+  let startedAt = "";
 
   beforeAll(() => {
+    startedAt = new Date().toISOString();
     process.env.ANTHROPIC_API_KEY = KEY!;
     process.env.MASTERMIND_VALIDATORS_ENABLED = VALIDATORS ? "true" : "false";
     mockSession.mockResolvedValue({ session: { uid: "probe" } });
   });
 
   afterAll(() => {
-    const date = new Date().toISOString().slice(0, 10);
-    const out = path.join(
-      REPO_ROOT,
-      `scripts/eval/results/followup-fielded-probe-${date}.json`
-    );
-    fs.mkdirSync(path.dirname(out), { recursive: true });
-    const by = (mode: string) => results.filter((r) => r.mode === mode);
-    /** How many items the rows hold under `k` (each row's list, counted). */
-    const count = (rows: Record<string, unknown>[], k: string) =>
-      rows.reduce(
-        (n, r) => n + ((r[k] as unknown[] | undefined)?.length ?? 0),
-        0
-      );
     const summary = Object.fromEntries(
       ["fielded", "v1"].map((mode) => {
-        const rows = by(mode);
-        const fieldedRows = rows.filter((r) => r.counter);
+        const rows = turns.filter((t) => modeOf(t) === mode);
+        const fieldedRows = rows.filter((t) => t.fielded);
         return [
           mode,
           {
             answers: rows.length,
             fielded: fieldedRows.length,
             v1Fallback: fieldedRows.filter(
-              (r) => (r.counter as { served?: string }).served === "v1_fallback"
+              (t) => t.fielded?.served === "v1_fallback"
             ).length,
-            regenerated: fieldedRows.filter(
-              (r) => (r.counter as { retryCount?: number }).retryCount === 1
-            ).length,
+            regenerated: fieldedRows.filter((t) => t.fielded?.retryCount === 1)
+              .length,
             clauses: fieldedRows.reduce(
-              (n, r) =>
-                n + Number((r.counter as { clauses?: number }).clauses ?? 0),
+              (n, t) => n + Number(t.fielded?.clauses ?? 0),
               0
             ),
-            referee: count(rows, "drops"),
-            sanInProse: count(rows, "sans"),
-            evalsInProse: count(rows, "evals"),
-            medianWords: [...rows.map((r) => r.words as number)].sort(
-              (a, b) => a - b
-            )[Math.floor(rows.length / 2)],
-            medianMs: [...rows.map((r) => r.elapsedMs as number)].sort(
-              (a, b) => a - b
-            )[Math.floor(rows.length / 2)],
+            referee: rows.reduce((n, t) => n + t.refereeDrops.length, 0),
+            sanInProse: rows.reduce((n, t) => n + sansOf(t.served).length, 0),
+            evalsInProse: rows.reduce(
+              (n, t) => n + evalsOf(t.served).length,
+              0
+            ),
+            medianWords: pctl(
+              rows.map((t) => words(t.served)),
+              0.5
+            ),
+            medianMs: pctl(
+              rows.map((t) => t.harnessMs),
+              0.5
+            ),
           },
         ];
       })
     );
-    fs.writeFileSync(
-      out,
-      JSON.stringify(
-        { date, tier: "fast", validators: VALIDATORS, summary, results },
-        null,
-        2
-      )
-    );
-    console.log(`wrote ${out}`);
+    const out = writeFollowUpResults("followup-fielded", startedAt, turns, {
+      summary,
+    });
+    if (out) console.log(`wrote ${out}`);
   });
 
   it(
@@ -188,7 +192,7 @@ describe.skipIf(!RUN)("fielded keyed probe (FIELDED_PROBE=1)", () => {
             ),
             "utf8"
           )
-        );
+        ) as RealFixture;
         const playerColor: "w" | "b" = fx.playerColor === "b" ? "b" : "w";
         const finalFen = getFenAtHalfMove(
           fx.moveHistory,
@@ -271,6 +275,7 @@ describe.skipIf(!RUN)("fielded keyed probe (FIELDED_PROBE=1)", () => {
             process.env.COACH_FOLLOWUP_PROMPT =
               mode === "fielded" ? "fielded" : "";
             logged.length = 0;
+            const flags = flagsNow();
             const t0 = Date.now();
             const res = await POST(
               new NextRequest("http://x/api/chat", {
@@ -284,31 +289,26 @@ describe.skipIf(!RUN)("fielded keyed probe (FIELDED_PROBE=1)", () => {
               })
             );
             const json = await res.json();
-            const answer: string = json.gameAnalysis?.analysis ?? "";
-            const drops = logged
-              .filter(([e]) => e === "followup_referee_dropped")
-              .flatMap(([, d]) => d.dropped as string[]);
-            const counter =
-              logged.find(([e]) => e === "followup_fielded")?.[1] ?? null;
-            const row = {
+            const turn = recordTurn({
+              probe: "followup-fielded",
+              seq: turns.length + 1,
               fixture,
-              kind,
+              fx,
+              playerColor,
+              moveIndex: fx.moveHistory.length,
               question: q,
-              mode,
-              prompt: json.gameAnalysis?.followUpPrompt,
-              anchor: json.gameAnalysis?.anchor ?? null,
-              answer,
-              words: words(answer),
-              sans: Array.from(prose(answer).matchAll(SAN_RE)).map((m) => m[0]),
-              evals: Array.from(prose(answer).matchAll(EVAL_RE)).map(
-                (m) => m[0]
-              ),
-              drops,
-              counter,
-              elapsedMs: Date.now() - t0,
-              timing: json.gameAnalysis?.timing ?? null,
-            };
-            results.push(row);
+              kind,
+              flags,
+              status: res.status,
+              json,
+              logged,
+              harnessMs: Date.now() - t0,
+            });
+            turns.push(turn);
+            const answer = turn.served;
+            const drops = turn.refereeDrops;
+            const counter = turn.fielded;
+            const row = { words: words(answer) };
             console.log(
               `\n===== ${fixture} | ${kind} | ${mode.toUpperCase()} | ${q}\n${answer}\n-- words ${row.words} | drops ${drops.join(",") || "none"} | ${counter ? JSON.stringify({ served: counter.served, parse: counter.parse, retry: counter.retryCount, omitted: counter.omitted }) : "v1"}`
             );

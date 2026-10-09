@@ -1,0 +1,135 @@
+{
+  "schema": "chessmasti.followup-results",
+  "schemaVersion": 1,
+  "probe": "followup-fielded",
+  "startedAt": "2026-10-09T08:00:00.000Z",
+  "gitSha": "58825998d1c61074b379d1e086df4874ead6e01e",
+  "dirty": false,
+  "environment": "in-process",
+  "machine": {
+    "platform": "linux",
+    "node": "v22.22.0",
+    "cpus": 4
+  },
+  "tier": "fast",
+  "versions": {
+    "followUpPrompt": "1.3",
+    "fieldedPrompt": "fielded-1",
+    "router": "router-1",
+    "grammar": "grammar-1",
+    "perspective": "1"
+  },
+  "summary": {
+    "note": "a frozen sample of the v1 results contract, two canned turns on fixture 07"
+  },
+  "turns": [
+    {
+      "id": "followup-fielded:1",
+      "fixture": "07_knight_fork",
+      "fixtureDigest": "0b275c69f9ba26ab",
+      "playerColor": "w",
+      "moveIndex": 20,
+      "question": "Why was 8. Nc7+ a mistake?",
+      "kind": "finding",
+      "request": {},
+      "flags": {
+        "COACH_FOLLOWUP_PROMPT": "",
+        "COACH_FOLLOWUP_LEAN": "",
+        "COACH_INTENT_ROUTER": "",
+        "COACH_PERSPECTIVE": "",
+        "COACH_WHATIF_EVALS": "",
+        "COACH_ONE_MASTI": "",
+        "MASTERMIND_VALIDATORS_ENABLED": "false",
+        "CONTRACT_CATEGORIES": ""
+      },
+      "status": 200,
+      "served": "8. Nc7+ forks the king and the rook on a8, but Black's queen on c1 still attacks yours on d1. 8. Qxc1 takes that queen first and keeps a clear advantage.\n\n[CONTINUATION:8:w]\n\nLesson: Loose pieces first. Before a check, ask what of yours is still hanging.",
+      "servedBy": "model",
+      "echo": {
+        "followUpPrompt": "1.3",
+        "followUpBudget": null,
+        "anchor": {
+          "ply": 14,
+          "moveNumber": 8,
+          "color": "w",
+          "san": "Nc7+"
+        },
+        "routing": null,
+        "perspective": null,
+        "clientEvals": {
+          "status": "absent"
+        },
+        "pipeline": null
+      },
+      "refereeDrops": [],
+      "fielded": null,
+      "timing": {
+        "elapsedMs": 4630,
+        "prepMs": 0,
+        "llmMs": 4410,
+        "refereeMs": 4,
+        "retryCount": 0
+      },
+      "harnessMs": 4702
+    },
+    {
+      "id": "followup-fielded:2",
+      "fixture": "07_knight_fork",
+      "fixtureDigest": "0b275c69f9ba26ab",
+      "playerColor": "w",
+      "moveIndex": 20,
+      "question": "Why was 8. Nc7+ a mistake?",
+      "kind": "finding",
+      "request": {},
+      "flags": {
+        "COACH_FOLLOWUP_PROMPT": "",
+        "COACH_FOLLOWUP_LEAN": "",
+        "COACH_INTENT_ROUTER": "",
+        "COACH_PERSPECTIVE": "",
+        "COACH_WHATIF_EVALS": "",
+        "COACH_ONE_MASTI": "",
+        "MASTERMIND_VALIDATORS_ENABLED": "true",
+        "CONTRACT_CATEGORIES": ""
+      },
+      "status": 200,
+      "served": "8. Nc7+ wins the rook on a8, but Black's queen then takes yours with check. The engine line runs 8. Qxc1 Rb8 9. Qf4 and White stays clearly better.\n\n[CONTINUATION:8:w]\n\nLesson: Loose pieces first. Before a check, ask what of yours is still hanging.",
+      "servedBy": "model",
+      "echo": {
+        "followUpPrompt": "1.3",
+        "followUpBudget": null,
+        "anchor": {
+          "ply": 14,
+          "moveNumber": 8,
+          "color": "w",
+          "san": "Nc7+"
+        },
+        "routing": null,
+        "perspective": null,
+        "clientEvals": {
+          "status": "absent"
+        },
+        "pipeline": {
+          "finalOutcome": "passed_initial",
+          "retryCount": 0,
+          "classifierCostUsd": 0.00021,
+          "servedDraft": false,
+          "totalCostUsd": 0.0031,
+          "category": "game_review",
+          "classifierConfidence": 0.92,
+          "prepMs": 380,
+          "timedOut": false
+        }
+      },
+      "refereeDrops": [],
+      "fielded": null,
+      "timing": {
+        "elapsedMs": 6120,
+        "prepMs": 380,
+        "llmMs": 5690,
+        "refereeMs": 5,
+        "retryCount": 0
+      },
+      "harnessMs": 6188
+    }
+  ]
+}

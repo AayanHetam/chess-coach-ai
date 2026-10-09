@@ -12,25 +12,23 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
+import type { CompactContract } from "@/lib/contract/followUp";
 process.env.LC0_API_URL = ""; process.env.MAIA_API_URL = "";
 
 (async () => {
-  const { buildCoachContract } = await import("@/lib/contract/builder");
-  const { toCompactContract } = await import("@/lib/contract/followUp");
+  const { loadRealFixture, compactForFixture } = await import("./lib/fixtureContract");
   const { refereeFollowUp } = await import("@/lib/contract/followUpReferee");
-  const { selectCardInsights } = await import("@/lib/prompts/verbalizerPrompt");
   const { getFenAtHalfMove } = await import("@/lib/contract/chessFormat");
   const { __setFetchForTesting } = await import("@/lib/grounding/chessdb");
   __setFetchForTesting((() => Promise.reject(new Error("offline"))) as never);
 
   const saved = JSON.parse(fs.readFileSync(path.join(process.cwd(), "scripts/eval/results/followup-story-probe.json"), "utf8"));
-  const compacts = new Map<string, { compact: ReturnType<typeof toCompactContract>; fen: string; moves: string[] }>();
+  const compacts = new Map<string, { compact: CompactContract; fen: string; moves: string[] }>();
   const summary: Record<string, { sentences: number; dropped: number }> = { with: { sentences: 0, dropped: 0 }, without: { sentences: 0, dropped: 0 } };
   for (const row of saved.results) {
     if (!compacts.has(row.fixture)) {
-      const fx = JSON.parse(fs.readFileSync(path.join(process.cwd(), `src/lib/contract/__tests__/fixtures-real/${row.fixture}.json`), "utf8"));
-      const contract = await buildCoachContract({ moveHistory: fx.moveHistory, gameEval: fx.gameEval, playerColor: fx.playerColor, username: fx.username, userRating: fx.userRating, gameHeaders: fx.gameHeaders });
-      compacts.set(row.fixture, { compact: toCompactContract(contract, selectCardInsights(contract).map((i) => i.factIdPrefix)), fen: getFenAtHalfMove(fx.moveHistory, fx.moveHistory.length), moves: fx.moveHistory });
+      const fx = loadRealFixture(process.cwd(), row.fixture)!;
+      compacts.set(row.fixture, { compact: await compactForFixture(fx), fen: getFenAtHalfMove(fx.moveHistory, fx.moveHistory.length), moves: fx.moveHistory });
     }
     const { compact, fen, moves } = compacts.get(row.fixture)!;
     for (const arm of ["without", "with"] as const) {

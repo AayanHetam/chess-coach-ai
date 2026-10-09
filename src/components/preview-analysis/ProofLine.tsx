@@ -25,8 +25,24 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Tooltip } from "@mui/material";
 import { Pause, Play } from "lucide-react";
-import { captionLine, type LineCaptions } from "@/lib/coach/lineCaptions";
+import {
+  captionLine,
+  type LineCaption,
+  type LineCaptions,
+} from "@/lib/coach/lineCaptions";
 import type { CoachLine } from "./coachLines";
+
+/**
+ * Put the position after the first `k` plies of `line` on the board. `ply`
+ * is the line's own caption of the `k`th ply (null at k = 0, or when a
+ * caller has none), whose facts the board's marks are drawn from.
+ */
+export type ShowLinePly = (
+  line: CoachLine,
+  k: number,
+  replay?: () => boolean,
+  ply?: LineCaption | null
+) => void;
 
 export interface ProofLineProps {
   line: CoachLine;
@@ -38,9 +54,11 @@ export interface ProofLineProps {
    * read-only. `replay` plays this line again from its start through its
    * own Play (so its highlight and caption follow the board), and says
    * false once the line is gone from the page: the page keeps it to carry
-   * out a typed "play the line again".
+   * out a typed "play the line again". The fourth argument is the ply's
+   * caption, read when the ply is shown, so a tick that started before
+   * deferred captions landed passes the current ones.
    */
-  onShowPly?: (line: CoachLine, k: number, replay?: () => boolean) => void;
+  onShowPly?: ShowLinePly;
   /** Leading label; defaults by kind. */
   label?: string;
   /** Milliseconds per ply while playing. */
@@ -71,6 +89,7 @@ function bareCaptions(startFen: string, sans: readonly string[]): LineCaptions {
       caption: "",
       full: "",
       mover,
+      facts: [],
     };
     if (mover === "b") n += 1;
     mover = mover === "w" ? "b" : "w";
@@ -198,6 +217,10 @@ export function ProofLine({
   }, [deferCaptions, now, line.startFen, line.sans, playerColor]);
   const ready = !deferCaptions || (later !== null && later.of === now);
   const captions = ready && later && deferCaptions ? later.captions : now;
+  const captionsRef = useRef(captions);
+  captionsRef.current = captions;
+  const plyCaption = (k: number): LineCaption | null =>
+    k > 0 ? (captionsRef.current.plies[k - 1] ?? null) : null;
   // The ply on the board, 1-based; 0 = the start position; null = untouched.
   const [shown, setShown] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -219,7 +242,7 @@ export function ProofLine({
     if (timer.current) clearInterval(timer.current);
     timer.current = null;
     setShown(0);
-    onShowRef.current?.(line, 0, replay);
+    onShowRef.current?.(line, 0, replay, null);
     setPlaying(true);
     setRun((r) => r + 1);
     return true;
@@ -235,7 +258,7 @@ export function ProofLine({
 
   const show = (k: number) => {
     setShown(k);
-    onShowRef.current?.(line, k, replay);
+    onShowRef.current?.(line, k, replay, plyCaption(k));
   };
 
   useEffect(() => {
@@ -245,7 +268,7 @@ export function ProofLine({
     const tick = () => {
       k += 1;
       setShown(k);
-      onShowRef.current?.(line, k, replay);
+      onShowRef.current?.(line, k, replay, plyCaption(k));
       if (k >= total) stop();
     };
     tick();

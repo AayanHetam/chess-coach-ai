@@ -24,7 +24,7 @@ import React, {
   useSyncExternalStore,
 } from "react";
 import { Box, Tooltip } from "@mui/material";
-import { ProofLine, ProofLinePlaceholder } from "./ProofLine";
+import { ProofLine, ProofLinePlaceholder, type ShowLinePly } from "./ProofLine";
 import {
   compareSummary,
   initialWhatIfState,
@@ -33,6 +33,7 @@ import {
   type WhatIfStore,
 } from "./coachWhatIf";
 import type { CoachLine } from "./coachLines";
+import type { LineCaption } from "@/lib/coach/lineCaptions";
 
 const MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
 
@@ -64,15 +65,20 @@ export function CompareLines({
   /** The page's what-if states; this block reads its own and re-renders alone when it changes. */
   store: WhatIfStore;
   playerColor: "w" | "b" | null;
-  onShowPly?: (line: CoachLine, k: number, replay?: () => boolean) => void;
+  onShowPly?: ShowLinePly;
 }) {
   const initial = useMemo(() => initialWhatIfState(id, ask), [id, ask]);
   const read = () => store.get(id) ?? initial;
   const state = useSyncExternalStore(store.subscribe, read, read);
   const showPly = useCallback(
-    (line: CoachLine, k: number, replay?: () => boolean) => {
+    (
+      line: CoachLine,
+      k: number,
+      replay?: () => boolean,
+      ply?: LineCaption | null
+    ) => {
       store.update(id, (st) => pinWhatIfLine(st, line));
-      onShowPly?.(line, k, replay);
+      onShowPly?.(line, k, replay, ply);
     },
     [onShowPly, store, id]
   );

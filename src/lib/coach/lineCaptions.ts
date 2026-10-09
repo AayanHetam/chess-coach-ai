@@ -29,11 +29,10 @@ export interface LineCaption {
   mover: "w" | "b";
   /**
    * The ply's story facts, so the caption, the ledger and the board's marks
-   * come from one story call (boardAnnotations.ts). Always set by
-   * captionLine. Absent only on a line whose facts are not worked out yet
-   * (ProofLine's bare captions).
+   * come from one story call (boardAnnotations.ts). Empty on a line whose
+   * facts are not worked out yet (ProofLine's bare captions).
    */
-  facts?: readonly StoryFact[];
+  facts: readonly StoryFact[];
 }
 
 export interface LineCaptions {

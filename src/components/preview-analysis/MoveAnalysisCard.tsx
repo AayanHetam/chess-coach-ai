@@ -31,10 +31,8 @@ import { Box, Tooltip } from "@mui/material";
 import { MessageCircle } from "lucide-react";
 import { MoveClassification } from "@/types/enums";
 import { renderMoveLinkedText } from "./moveLinker";
-import type { PositionEval } from "@/types/eval";
-import { ProofLine } from "./ProofLine";
-import type { CoachLine } from "./coachLines";
-import { analyzeMoveAt, type MoveAnalysis } from "./moveAnalysis";
+import { ProofLine, type ShowLinePly } from "./ProofLine";
+import type { MoveAnalysis } from "./moveAnalysis";
 
 const MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
 
@@ -91,12 +89,17 @@ const STYLE: Record<string, { label: string; glyph: string; color: string }> = {
 
 export interface MoveAnalysisCardProps {
   gameSans: readonly string[];
-  positions: readonly PositionEval[] | null | undefined;
+  /**
+   * The move at the cursor, analysed by the page (analyzeMoveAt), which
+   * draws the same analysis on the board. Null at the start, past the end
+   * or before the engine has reached the move.
+   */
+  analysis: MoveAnalysis | null;
   ply: number;
   rootFen?: string;
   playerColor: "w" | "b" | null;
   /** Put a ply of a proof line on the main board. */
-  onShowLinePly?: (line: CoachLine, k: number, replay?: () => boolean) => void;
+  onShowLinePly?: ShowLinePly;
   /** Send a question about this move to the coach. */
   onAsk?: (question: string) => void;
   /**
@@ -155,7 +158,7 @@ function fallbackLabel(gameSans: readonly string[], ply: number): string {
 
 export function MoveAnalysisCard({
   gameSans,
-  positions,
+  analysis,
   ply,
   rootFen,
   playerColor,
@@ -169,11 +172,6 @@ export function MoveAnalysisCard({
   state,
   stateKeepsControls = false,
 }: MoveAnalysisCardProps) {
-  const analysis = useMemo(
-    () => analyzeMoveAt(gameSans, positions, ply, rootFen, playerColor),
-    [gameSans, positions, ply, rootFen, playerColor]
-  );
-
   const cls = analysis?.classification ?? null;
   const style = (cls && STYLE[cls]) || null;
   const label = analysis?.label ?? fallbackLabel(gameSans, ply);

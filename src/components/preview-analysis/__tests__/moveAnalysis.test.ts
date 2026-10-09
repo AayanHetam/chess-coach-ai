@@ -82,6 +82,13 @@ describe("analyzeMoveAt", () => {
     expect(analyzeMoveAt(MOVES, pos, 99, undefined, "w")).toBeNull();
     expect(analyzeMoveAt(MOVES, null, 5, undefined, "w")).toBeNull();
   });
+
+  it("carries the move's story facts, the caption's own, for the board's marks", () => {
+    const fork = analyzeMoveAt(MOVES, pos, 15, undefined, "w")!;
+    const motif = fork.facts.find((f) => f.kind === "motif");
+    expect(motif?.kind === "motif" && motif.motif.motif).toBe("fork");
+    expect(analyzeMoveAt(MOVES, pos, 1, undefined, "w")!.facts).toEqual([]);
+  });
 });
 
 describe("describeMove", () => {

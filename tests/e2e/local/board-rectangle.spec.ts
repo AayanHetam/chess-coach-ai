@@ -674,6 +674,21 @@ test.describe("the board's rectangle", () => {
 });
 
 /**
+ * The story line in the greeting is the sign the sweep has landed: the
+ * composer reads "Ask anything about this position..." before the game
+ * has even loaded. Skips on a machine where Stockfish never finishes.
+ */
+async function sweepLands(page: Page) {
+  const ready = await page
+    .getByText(/The game turned at \d+\.+\S+/)
+    .first()
+    .waitFor({ state: "visible", timeout: 180_000 })
+    .then(() => true)
+    .catch(() => false);
+  test.skip(!ready, "Stockfish never finished on this machine");
+}
+
+/**
  * The arrival (pathway 2.7, behind NEXT_PUBLIC_COACH_ARRIVAL_JUMP; the CI
  * legs build with it on): once the engine has swept a game loaded fresh,
  * the board opens at the move the game turned on (gameStory.ts), the strip
@@ -693,21 +708,6 @@ test.describe("the arrival at the move the game turned on", () => {
     const [, n, dots, san] = m!;
     const ply = (Number(n) - 1) * 2 + (dots === "." ? 1 : 2);
     return { ply, label: `${n}${dots} ${san}` };
-  }
-
-  /**
-   * The story line in the greeting is the sign the sweep has landed: the
-   * composer reads "Ask anything about this position..." before the game
-   * has even loaded.
-   */
-  async function sweepLands(page: Page) {
-    const ready = await page
-      .getByText(/The game turned at \d+\.+\S+/)
-      .first()
-      .waitFor({ state: "visible", timeout: 180_000 })
-      .then(() => true)
-      .catch(() => false);
-    test.skip(!ready, "Stockfish never finished on this machine");
   }
 
   async function arrivalOn(page: Page) {
@@ -943,5 +943,212 @@ test.describe("a compare under the question", () => {
     await page.getByRole("button", { name: /Leave this line/ }).click();
     await expect(page.getByTestId("exploration-path")).toHaveCount(0);
     expectSameRect(rest, await boardRect(page), "back");
+  });
+});
+
+/**
+ * Masti's marks (pathway 4.4, behind NEXT_PUBLIC_COACH_BOARD_ANNOTATIONS,
+ * which the CI legs build with): the board draws the move the strip is
+ * about, a line's ply the reader tapped, and nothing once the reader turns
+ * the marks off, and the board's box does not move for any of it. The
+ * engine runs here, so the spec skips on a machine where the sweep never
+ * finishes.
+ */
+test.describe("Masti's marks on the board", () => {
+  async function marksOn(page: Page) {
+    const on =
+      (await page
+        .locator("[data-board-annotations]")
+        .first()
+        .getAttribute("data-board-annotations")) === "on";
+    test.skip(!on && !process.env.CI, "built without the board's marks");
+    expect(on, "the CI legs build with the board's marks on").toBe(true);
+  }
+
+  /**
+   * What the board draws: which mark, its two move arrows by colour
+   * (ANNOTATION_STYLE's played orange and engine green), and its rings by
+   * square (chessground keeps a square's name on its node).
+   */
+  async function marks(page: Page) {
+    return page.evaluate(() => {
+      const wrap = document.querySelector(".cg-wrap")!;
+      const lines = (stroke: string) =>
+        wrap.querySelectorAll(`svg.cg-shapes line[stroke="${stroke}"]`).length;
+      const rings = (cls: string) =>
+        Array.from(wrap.querySelectorAll(`cg-board square.${cls}`))
+          .map((el) => (el as unknown as { cgKey?: string }).cgKey ?? "?")
+          .sort();
+      return {
+        source:
+          document
+            .querySelector("[data-annotation-source]")
+            ?.getAttribute("data-annotation-source") ?? null,
+        played: lines("#FB923C"),
+        engine: lines("#86EFAC"),
+        targets: rings("cm-anno-target"),
+        threats: rings("cm-anno-threat"),
+      };
+    });
+  }
+
+  test("marks the move on the board, from the strip, a tapped line and the menu, and the board does not move", async ({
+    page,
+  }) => {
+    test.setTimeout(240_000);
+    await stubEverything(page, { blockEngine: false });
+    await page.goto(`/analysis?pgn=${encodeURIComponent(PGN)}`);
+    await expect(page.locator(".cg-wrap").first()).toBeVisible({
+      timeout: 60_000,
+    });
+    await marksOn(page);
+    const rest = await boardRect(page);
+    const strip = page.getByTestId("move-analysis");
+    const stripHeight = (await strip.boundingBox())!.height;
+    const label = page.getByTestId("move-analysis-label");
+    const composer = page.getByPlaceholder(
+      "Ask anything about this position..."
+    );
+    const still = async (when: string) => {
+      expectSameRect(rest, await boardRect(page), when);
+      expect(
+        Math.abs((await strip.boundingBox())!.height - stripHeight),
+        `${when}: the strip's height`
+      ).toBeLessThanOrEqual(2);
+    };
+
+    await sweepLands(page);
+    // The arrival, when it is built, opens at the turning point first.
+    const arrival = page.getByTestId("arrival-strip-state");
+    if (
+      (await page
+        .locator("[data-arrival-jump]")
+        .first()
+        .getAttribute("data-arrival-jump")) === "on"
+    ) {
+      await arrival
+        .waitFor({ state: "visible", timeout: 10_000 })
+        .catch(() => undefined);
+    }
+    await composer.blur();
+    await page.keyboard.press("Home");
+    await expect(arrival).toHaveCount(0);
+    await expect(label).toHaveText("Start");
+
+    // The strip's move: 8. Nc7+ and the engine's 8. Qxc1 as two arrows,
+    // the rook the fork wins ringed, never the king.
+    for (let i = 0; i < 15; i++) await page.keyboard.press("ArrowRight");
+    await expect(label).toHaveText("8. Nc7+");
+    const fork = {
+      source: "strip",
+      played: 1,
+      engine: 1,
+      targets: ["a8"],
+      threats: [],
+    };
+    await expect.poll(() => marks(page)).toEqual(fork);
+    await still("the strip's marks");
+
+    // A flip keeps them (the board's own drawing used to go with a re-sync).
+    const wrap = page.locator(".cg-wrap").first();
+    await page.keyboard.press("f");
+    await expect(wrap).toHaveClass(/orientation-black/);
+    expect(await marks(page)).toEqual(fork);
+    await still("a flip with the marks");
+    await page.keyboard.press("f");
+    await expect(wrap).toHaveClass(/orientation-white/);
+
+    // 8... Kd8, the only move: no move arrows, and the knight on c7 the
+    // king now attacks ringed in place of the rook.
+    await page.keyboard.press("ArrowRight");
+    await expect(label).toHaveText("8... Kd8");
+    await expect
+      .poll(() => marks(page))
+      .toEqual({
+        source: "strip",
+        played: 0,
+        engine: 0,
+        targets: ["c7"],
+        threats: [],
+      });
+    await still("the next move's marks");
+
+    // A line's ply, tapped: its own mark, the ring alone (the move is the
+    // board's last move already).
+    await composer.fill("analyse this game");
+    await composer.press("Enter");
+    await expect(
+      page.getByText("the free queen was the bigger prize")
+    ).toBeVisible({ timeout: 30_000 });
+    await page.getByText("What happened in the game").first().click();
+    await page.getByTestId("insight-played-line-ply").first().click();
+    await expect(label).toHaveText("8. Nc7+");
+    await expect
+      .poll(() => marks(page))
+      .toEqual({
+        source: "line",
+        played: 0,
+        engine: 0,
+        targets: ["a8"],
+        threats: [],
+      });
+    await still("a tapped line's marks");
+
+    // Off the line's position, the line's mark is gone.
+    await page.keyboard.press("ArrowLeft");
+    await expect(label).toHaveText("7... Qxc1");
+    await expect.poll(async () => (await marks(page)).source).toBe("strip");
+    expect((await marks(page)).targets).toEqual(["d1"]);
+    await still("stepping off the line");
+    await page.keyboard.press("ArrowRight");
+    await expect(label).toHaveText("8. Nc7+");
+    await expect.poll(() => marks(page)).toEqual(fork);
+
+    // The menu turns them off, and names the colours.
+    await page.getByTestId("board-menu").click();
+    await expect(page.getByTestId("board-menu-marks-key")).toHaveText(
+      "Played · Engine preferred · At risk · Targeted"
+    );
+    await page.getByTestId("board-menu-marks").click();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("board-menu-marks")).toHaveCount(0);
+    await expect
+      .poll(() => marks(page))
+      .toEqual({
+        source: "none",
+        played: 0,
+        engine: 0,
+        targets: [],
+        threats: [],
+      });
+    await still("the marks turned off");
+    await page.getByTestId("board-menu").click();
+    await page.getByTestId("board-menu-marks").click();
+    await page.keyboard.press("Escape");
+    await expect.poll(() => marks(page)).toEqual(fork);
+    await still("the marks turned back on");
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
+  });
+
+  test("the eval bar swings over half a second, and not at all under reduced motion", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await stubEverything(page);
+    await page.goto(`/analysis?pgn=${encodeURIComponent(PGN)}`);
+    const composer = page.getByPlaceholder(
+      "Ask anything — answering without engine analysis."
+    );
+    await expect(composer).toBeVisible({ timeout: 60_000 });
+    await marksOn(page);
+    const fill = page.getByTestId("eval-bar-fill");
+    const duration = () =>
+      fill.evaluate((el) => getComputedStyle(el).transitionDuration);
+    expect(await duration()).toBe("0.5s");
+
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.reload();
+    await expect(composer).toBeVisible({ timeout: 60_000 });
+    expect(await duration()).toBe("0s");
   });
 });

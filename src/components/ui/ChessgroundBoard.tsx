@@ -9,6 +9,7 @@ import type { Api } from "chessground/api";
 import type { Config } from "chessground/config";
 import type { Key } from "chessground/types";
 import { useEffect, useRef } from "react";
+import { CHESSGROUND_BRUSHES } from "./chessgroundBrushes";
 
 export interface DrawShape {
   orig: string;
@@ -36,7 +37,27 @@ interface ChessgroundBoardProps {
    * revert. Parents bump this counter to undo a stale visual position.
    */
   syncTick?: number;
+  /**
+   * The app's own drawing (chessground's auto shapes): kept across a flip
+   * and a re-sync, which clear the reader's `shapes`. Absent, untouched.
+   */
+  autoShapes?: DrawShape[];
+  /**
+   * Square to class (chessground's custom highlight), styled by
+   * ANNOTATION_SQUARE_CSS, which is rendered only when this is set.
+   */
+  squareClasses?: ReadonlyMap<string, string>;
 }
+
+/**
+ * Masti's rings (boardAnnotations.ts, ANNOTATION_SQUARE_CLASS): a box shadow
+ * and a background, no layout property. The important flag lets a ring win
+ * over the last-move square's own ring.
+ */
+export const ANNOTATION_SQUARE_CSS = [
+  ".cg-wrap cg-board square.cm-anno-target{box-shadow:inset 0 0 0 3px rgba(56,189,248,0.9)!important}",
+  ".cg-wrap cg-board square.cm-anno-threat{box-shadow:inset 0 0 0 3px rgba(248,113,113,0.95)!important;background-image:radial-gradient(circle,rgba(248,113,113,0.3),transparent 70%)}",
+].join("\n");
 
 export function ChessgroundBoard({
   fen,
@@ -49,6 +70,8 @@ export function ChessgroundBoard({
   dests,
   onMove,
   syncTick = 0,
+  autoShapes,
+  squareClasses,
 }: ChessgroundBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
@@ -99,19 +122,7 @@ export function ChessgroundBoard({
         enabled: !viewOnly,
         visible: true,
         defaultSnapToValidMove: true,
-        brushes: {
-          green: { key: "g", color: "#22c55e", opacity: 0.9, lineWidth: 10 },
-          red: { key: "r", color: "#ef4444", opacity: 0.9, lineWidth: 10 },
-          blue: { key: "b", color: "#3b82f6", opacity: 0.9, lineWidth: 10 },
-          yellow: { key: "y", color: "#F97316", opacity: 0.9, lineWidth: 10 },
-          purple: { key: "p", color: "#A855F7", opacity: 0.9, lineWidth: 10 },
-          gold: { key: "go", color: "#FBBF24", opacity: 0.95, lineWidth: 11 },
-          paleBlue: { key: "pb", color: "#3b82f6", opacity: 0.4, lineWidth: 15 },
-          paleGreen: { key: "pg", color: "#22c55e", opacity: 0.4, lineWidth: 15 },
-          paleRed: { key: "pr", color: "#ef4444", opacity: 0.4, lineWidth: 15 },
-          palePurple: { key: "pp", color: "#A855F7", opacity: 0.45, lineWidth: 15 },
-          paleGrey: { key: "pgr", color: "rgba(255,255,255,0.3)", opacity: 0.4, lineWidth: 15 },
-        },
+        brushes: CHESSGROUND_BRUSHES,
       },
     };
     apiRef.current = Chessground(containerRef.current, config);
@@ -163,6 +174,19 @@ export function ChessgroundBoard({
     apiRef.current.setShapes((shapes ?? []) as never);
   }, [shapes]);
 
+  // The app's drawing. Auto shapes and the custom highlight survive a
+  // `set({ fen })`, so a flip or a revert does not drop them.
+  useEffect(() => {
+    if (!apiRef.current || autoShapes === undefined) return;
+    apiRef.current.setAutoShapes(autoShapes as never);
+  }, [autoShapes]);
+  useEffect(() => {
+    if (!apiRef.current || squareClasses === undefined) return;
+    apiRef.current.set({
+      highlight: { custom: new Map(squareClasses) as Map<Key, string> },
+    });
+  }, [squareClasses]);
+
   return (
     <div
       style={{
@@ -171,6 +195,7 @@ export function ChessgroundBoard({
         aspectRatio: "1 / 1",
       }}
     >
+      {squareClasses !== undefined && <style>{ANNOTATION_SQUARE_CSS}</style>}
       <div
         ref={containerRef}
         className="cg-wrap"

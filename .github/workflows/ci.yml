@@ -149,6 +149,8 @@ jobs:
       NEXT_PUBLIC_COACH_COMPARE: "1"
       # A review's key moments drawn from their fields (cardMoment.ts).
       NEXT_PUBLIC_COACH_TURN1_MOMENTS: "1"
+      # Masti's marks on the board and the eval bar's swing (boardShapes.ts).
+      NEXT_PUBLIC_COACH_BOARD_ANNOTATIONS: "1"
     steps:
       - uses: actions/checkout@v4
         with:

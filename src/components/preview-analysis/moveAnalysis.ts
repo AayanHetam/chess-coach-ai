@@ -16,6 +16,7 @@
 import { MoveClassification } from "@/types/enums";
 import type { PositionEval } from "@/types/eval";
 import { captionLine } from "@/lib/coach/lineCaptions";
+import type { StoryFact } from "@/lib/contract/lineStory";
 import { engineLineAt, playedLineAt, type CoachLine } from "./coachLines";
 
 export interface MoveAnalysis {
@@ -35,6 +36,8 @@ export interface MoveAnalysis {
   caption: string;
   /** All of the move's facts, for a tooltip. */
   captionFull: string;
+  /** The move's story facts, the caption's own, for the board's marks. */
+  facts: readonly StoryFact[];
   /** The engine's first choice at that point, when it differs from the move played. */
   bestSan: string | null;
   /** The engine's line from before the move, when its first move differs from the one played. */
@@ -136,6 +139,7 @@ export function analyzeMoveAt(
     evalAfter: formatEval(after?.lines?.[0]),
     caption: first?.caption ?? "",
     captionFull: first?.full ?? "",
+    facts: first?.facts ?? [],
     bestSan,
     engineLine,
     bestCaption,

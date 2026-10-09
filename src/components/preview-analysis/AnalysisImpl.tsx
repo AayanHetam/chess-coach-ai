@@ -36,7 +36,10 @@ import {
   buildLinePreview,
   playSanOnFen,
 } from "@/components/preview-analysis/coachMoveRefs";
-import { ProofLine } from "@/components/preview-analysis/ProofLine";
+import {
+  ProofLine,
+  type ShowLinePly,
+} from "@/components/preview-analysis/ProofLine";
 import { WhatIfLine } from "@/components/preview-analysis/WhatIfLine";
 import { CompareLines } from "@/components/preview-analysis/CompareLines";
 import {
@@ -67,6 +70,21 @@ import {
 } from "@/lib/engine/uciEngine";
 import { splitInsightWhy } from "@/components/preview-analysis/insightWhy";
 import { MoveAnalysisCard } from "@/components/preview-analysis/MoveAnalysisCard";
+import { analyzeMoveAt } from "@/components/preview-analysis/moveAnalysis";
+import {
+  computeBaseShapes,
+  heldEvalShare,
+  isBoardAnnotationsEnabledPublic,
+  lineAnnotationAt,
+  mergeBoardShapes,
+} from "@/components/preview-analysis/boardShapes";
+import {
+  ANNOTATION_STYLE,
+  buildBoardAnnotation,
+  samePosition,
+  type BoardAnnotation,
+} from "@/lib/coach/boardAnnotations";
+import type { LineCaption } from "@/lib/coach/lineCaptions";
 import {
   engineLineAt,
   playedLineAt,
@@ -439,32 +457,6 @@ function normalizePosition(fen: string): string {
   return fen.split(" ").slice(0, 4).join(" ");
 }
 
-function uciToShape(uci: string, brush: string): DrawShape {
-  return { orig: uci.slice(0, 2), dest: uci.slice(2, 4), brush };
-}
-
-/**
- * Resolve a SAN move (e.g. "Nc4") against a FEN into the {from, to} squares
- * a board arrow needs. /api/maia-predict returns SAN, not UCI (the Maia-2
- * service converts server-side — see maia-service/maia_server.py's
- * `best_move_san = board.san(move_obj)`) — feeding a SAN string straight
- * into uciToShape's character-slicing produced garbage square keys (e.g.
- * "Nc4".slice(0,2) === "Nc"), which chessground then rendered as an arrow
- * shooting off the board instead of failing loudly. Returns null on an
- * illegal/unparseable move so the caller can just skip drawing rather than
- * crash — chess.js throws on bad input instead of returning null itself.
- */
-function sanToShape(fen: string, san: string, brush: string): DrawShape | null {
-  try {
-    const g = new Chess(fen);
-    const result = g.move(san);
-    if (!result) return null;
-    return { orig: result.from, dest: result.to, brush };
-  } catch {
-    return null;
-  }
-}
-
 // ───────────────────────────────────────────────────────────────────────────────
 // Real coach wiring — POST to /api/chat with conversation + position context
 // ───────────────────────────────────────────────────────────────────────────────
@@ -600,6 +592,8 @@ const FOLLOWUP_MOMENTS = isFollowUpMomentsEnabledPublic();
 const COMPARE = isCompareEnabledPublic();
 /** Build-time flag: a review's key moments drawn from their fields (cardMoment.ts). */
 const TURN1_MOMENTS = isTurnMomentsEnabledPublic();
+/** Build-time flag: Masti's marks on the board and the eval bar's swing (boardShapes.ts). */
+const BOARD_ANNOTATIONS = isBoardAnnotationsEnabledPublic();
 
 /**
  * User Timing marks for a what-if ("coach-what-if:asked", ":partial",
@@ -2100,7 +2094,17 @@ function GlassEvalBar({
    */
   heightPx?: number | null;
 }) {
-  const whiteShare = pending ? 50 : Math.max(0, Math.min(100, whitePercentage));
+  // Under BOARD_ANNOTATIONS the bar holds its last settled value while the
+  // next is pending, so it swings from there instead of dropping to the
+  // middle and back. The ref is written during render, which is safe here:
+  // the same value always writes the same number.
+  const held = useRef<number | null>(null);
+  const whiteShare = BOARD_ANNOTATIONS
+    ? heldEvalShare(pending, whitePercentage, held.current)
+    : pending
+      ? 50
+      : Math.max(0, Math.min(100, whitePercentage));
+  if (BOARD_ANNOTATIONS && !pending) held.current = whiteShare;
   const whiteOnTop = boardOrientation === "black";
   const whiteAdv = whiteShare >= 50;
   // Label sits at the advantaged side's outer edge (lichess convention).
@@ -2132,6 +2136,7 @@ function GlassEvalBar({
       }}
     >
       <Box
+        data-testid="eval-bar-fill"
         sx={{
           position: "absolute",
           left: 0,
@@ -2139,7 +2144,15 @@ function GlassEvalBar({
           [whiteOnTop ? "top" : "bottom"]: 0,
           height: `${whiteShare}%`,
           background: "linear-gradient(180deg, #FBFAF7, #E9E6DE)",
-          transition: "height 220ms cubic-bezier(0.33, 1, 0.68, 1)",
+          ...(BOARD_ANNOTATIONS
+            ? {
+                // A swing the eye can follow, and none under reduced motion.
+                transition: "height 500ms cubic-bezier(0.33, 1, 0.68, 1)",
+                "@media (prefers-reduced-motion: reduce)": {
+                  transition: "none",
+                },
+              }
+            : { transition: "height 220ms cubic-bezier(0.33, 1, 0.68, 1)" }),
         }}
       />
       {/* 50% midline tick — ember accent */}
@@ -2210,12 +2223,21 @@ function BoardArea({
   evalBar,
   empty = false,
   onLoadGameClick,
+  autoShapes,
+  squareClasses,
+  annotationSource,
 }: {
   fen: string;
   lastMove: Move | null;
   boardOrientation: "white" | "black";
   isInCheck: boolean;
   shapes?: DrawShape[];
+  /** The app's arrows (boardShapes.ts), drawn as chessground's auto shapes. */
+  autoShapes?: DrawShape[];
+  /** Masti's rings, square to class. */
+  squareClasses?: ReadonlyMap<string, string>;
+  /** Which mark the board draws ("strip", "line" or "none"), for the e2e. */
+  annotationSource?: string;
   interactive?: boolean;
   movableColor?: "white" | "black" | "both";
   dests?: Map<string, string[]>;
@@ -2321,6 +2343,7 @@ function BoardArea({
           }}
         >
           <Box
+            data-annotation-source={annotationSource}
             sx={{
               position: "relative",
               width: squarePx ?? "100%",
@@ -2344,6 +2367,8 @@ function BoardArea({
               dests={dests}
               onMove={onMove}
               syncTick={syncTick}
+              autoShapes={autoShapes}
+              squareClasses={squareClasses}
             />
             {empty && (
               <Box
@@ -4775,7 +4800,7 @@ function CoachPanel({
   whatIfStore,
 }: {
   /** Put a ply of a proof line on the main board. */
-  onShowLinePly?: (line: CoachLine, k: number, replay?: () => boolean) => void;
+  onShowLinePly?: ShowLinePly;
   /** The page's what-if states, read by the line under each question that asked one. */
   whatIfStore: WhatIfStore;
   /**
@@ -5245,6 +5270,7 @@ function CoachPanel({
             data-followup-moments={FOLLOWUP_MOMENTS ? "on" : "off"}
             data-coach-compare={COMPARE ? "on" : "off"}
             data-turn1-moments={TURN1_MOMENTS ? "on" : "off"}
+            data-board-annotations={BOARD_ANNOTATIONS ? "on" : "off"}
             fullWidth
             multiline
             maxRows={4}
@@ -6193,7 +6219,7 @@ function DarkInsightCard({
   rootFen?: string;
   playerColor?: "w" | "b" | null;
   /** Put a ply of a proof line on the main board. */
-  onShowLinePly?: (line: CoachLine, k: number, replay?: () => boolean) => void;
+  onShowLinePly?: ShowLinePly;
 }) {
   const why = useMemo(() => splitInsightWhy(insight.why), [insight.why]);
   // Drawn from the moment's fields when the review sent them for this text.
@@ -6515,7 +6541,7 @@ function DarkInsightStack({
   gameSans?: string[];
   rootFen?: string;
   playerColor?: "w" | "b" | null;
-  onShowLinePly?: (line: CoachLine, k: number, replay?: () => boolean) => void;
+  onShowLinePly?: ShowLinePly;
 }) {
   if (insights.length === 0) return null;
 
@@ -6733,7 +6759,7 @@ function CoachBubble({
   enginePositions?: PositionEval[] | null;
   loadedGame?: Chess;
   /** Put a ply of a proof line on the main board. */
-  onShowLinePly?: (line: CoachLine, k: number, replay?: () => boolean) => void;
+  onShowLinePly?: ShowLinePly;
   /** The side the reader played, for the proof line's ledger wording. */
   playerColor?: "w" | "b" | null;
 }) {
@@ -7588,6 +7614,14 @@ const GLASS_MENU_PAPER = {
     "0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
 } as const;
 
+/** The board menu's key to Masti's marks, in ANNOTATION_STYLE's colours. */
+const MARKS_KEY = [
+  { tag: "played", words: "Played" },
+  { tag: "engine", words: "Engine preferred" },
+  { tag: "threat", words: "At risk" },
+  { tag: "target", words: "Targeted" },
+] as const;
+
 /**
  * Everything about the board that is not stepping through it: flip, reset,
  * the four arrow overlays with Maia's Elo, a link to the position. One
@@ -7598,11 +7632,14 @@ function BoardMenu({
   onReset,
   arrows,
   onArrowsChange,
+  marks,
 }: {
   onFlip: () => void;
   onReset: () => void;
   arrows: ArrowToggleState;
   onArrowsChange: (next: ArrowToggleState) => void;
+  /** Masti's marks on the board, on or off, with the key to their colours. */
+  marks?: { on: boolean; onChange: (on: boolean) => void };
 }) {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const close = () => setAnchorEl(null);
@@ -7760,6 +7797,55 @@ function BoardMenu({
               }
               sx={{ color: ARROW_PALETTE.maia.color }}
             />
+          </Box>
+        )}
+        {marks && (
+          <MenuItem
+            data-testid="board-menu-marks"
+            onClick={() => marks.onChange(!marks.on)}
+            sx={itemSx}
+          >
+            <Box
+              component="span"
+              sx={{
+                width: 14,
+                height: 14,
+                borderRadius: "4px",
+                border: `1px solid ${marks.on ? "#FB923C" : "rgba(255,255,255,0.25)"}`,
+                background: marks.on ? "#FB923C" : "transparent",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#0A0A0A",
+                flexShrink: 0,
+              }}
+            >
+              {marks.on && <Check size={11} strokeWidth={3} />}
+            </Box>
+            Masti&apos;s marks
+          </MenuItem>
+        )}
+        {marks && (
+          <Box
+            data-testid="board-menu-marks-key"
+            sx={{
+              px: 2,
+              pb: 1,
+              fontSize: "0.7rem",
+              color: "rgba(255,255,255,0.45)",
+            }}
+          >
+            {MARKS_KEY.map(({ tag, words }, i) => (
+              <Fragment key={tag}>
+                {i > 0 && " · "}
+                <Box
+                  component="span"
+                  sx={{ color: ANNOTATION_STYLE[tag].color }}
+                >
+                  {words}
+                </Box>
+              </Fragment>
+            ))}
           </Box>
         )}
       </Menu>
@@ -8978,6 +9064,13 @@ export default function AnalysisPage() {
   const [arrowToggles, setArrowToggles] = useState<ArrowToggleState>(
     DEFAULT_ARROW_TOGGLES
   );
+  // Masti's marks on the board (boardShapes.ts, under BOARD_ANNOTATIONS):
+  // on unless the reader turns them off in the board menu, and the mark of
+  // the line ply last put on the board, kept while the board shows it.
+  const [annotationsOn, setAnnotationsOn] = useState(true);
+  const [lineAnnotation, setLineAnnotation] = useState<BoardAnnotation | null>(
+    null
+  );
 
   // Live candidate list from the takeover panel (master DB) — used to
   // overlay top-3 candidate arrows on the board while takeover is active.
@@ -9092,6 +9185,12 @@ export default function AnalysisPage() {
   const displayFen = drillState
     ? drillState.currentFen
     : (takeoverPreview?.fen ?? currentFen);
+  // A line's mark is for its own position: once the board shows another,
+  // it is gone (going back to that position later shows the strip's mark).
+  useEffect(() => {
+    if (lineAnnotation && !samePosition(lineAnnotation.fen, displayFen))
+      setLineAnnotation(null);
+  }, [lineAnnotation, displayFen]);
   const displayLastMove = useMemo<Move | null>(() => {
     if (drillState) {
       return drillState.lastMove
@@ -9378,96 +9477,41 @@ export default function AnalysisPage() {
     }
   }, [displayTerminal, displayPositionEval]);
 
-  // Computed arrow shapes from toggles + takeover state
-  const displayShapes = useMemo<DrawShape[]>(() => {
-    const shapes: DrawShape[] = [];
-
-    // In takeover (no specific candidate selected yet): show the top 3 master
-    // moves as fan-out arrows. Brightest for the most-played, dimmer for the
-    // alternatives. Gives an instant visual of "what masters do here."
-    if (takeoverMode && !takeoverPreview && takeoverCandidates.length > 0) {
-      const topThree = takeoverCandidates.slice(0, 3);
-      topThree.forEach((c, i) => {
-        if (!c.uci || c.uci.length < 4) return;
-        shapes.push({
-          orig: c.uci.slice(0, 2),
-          dest: c.uci.slice(2, 4),
-          brush: i === 0 ? "green" : "paleGreen",
-        });
-      });
-    }
-
-    // Takeover preview always wins visibility — gold arrow (overlays the
-    // top-3 fan-out so the user sees their selection clearly)
-    if (takeoverPreview) {
-      shapes.push({
-        orig: takeoverPreview.from,
-        dest: takeoverPreview.to,
-        brush: "gold",
-      });
-    }
-
-    // The four toggles describe the position ON THE BOARD. While exploring
-    // (a master line, a coach recommendation, a drill) that is not the
-    // mainline position `currentPly` points at, and these used to draw the
-    // mainline's arrows over it anyway — "Game played" from a square the
-    // piece had already left, "Most common" for a position no longer shown.
-    // Same defect the Lines tab had with enginePositions[currentPly], same
-    // fix: key everything off displayFen.
+  // The board's arrows before Masti's marks: the Masters fan-out and the
+  // gold preview arrow, then the four toggles (boardShapes.ts).
+  //
+  // The toggles describe the position ON THE BOARD. While exploring (a
+  // master line, a coach recommendation, a drill) that is not the mainline
+  // position `currentPly` points at, and these used to draw the mainline's
+  // arrows over it anyway: "Game played" from a square the piece had
+  // already left, "Most common" for a position no longer shown. Same defect
+  // the Lines tab had with enginePositions[currentPly], same fix: key
+  // everything off displayFen.
+  const baseShapes = useMemo(() => {
     const exploring = displayFen !== currentFen;
-
-    // Engine best (green) — straight off the Stockfish pass for THIS ply, or
-    // the FEN-keyed evaluation of the displayed position while exploring.
-    // Previously a hardcoded 15-entry ply→UCI table written against the
-    // Kasparov demo, which drew an arbitrary arrow on the first 15 plies of
-    // whatever game the user actually loaded. Nothing to draw until the
-    // engine has reported, which is the honest state.
-    if (arrowToggles.best) {
-      const pos = exploring
-        ? displayPositionEval
-        : enginePositions?.[currentPly];
-      const best = pos?.bestMove ?? pos?.lines?.[0]?.pv?.[0];
-      if (best && best.length >= 4) {
-        shapes.push(uciToShape(best, ARROW_PALETTE.best.brush));
-      }
-    }
-
-    // Most common from master DB (blue) — live data, see commonCache below.
-    if (arrowToggles.common) {
-      const top = commonCache[displayFen]?.[0];
-      if (top) shapes.push(uciToShape(top.uci, ARROW_PALETTE.common.brush));
-    }
-
-    // Game played — the move that was actually played at currentPly+1. Only
-    // on the mainline: off it, nothing was played.
-    if (arrowToggles.game && !exploring) {
-      const nextMove = allMoves[currentPly];
-      if (nextMove) {
-        shapes.push({
-          orig: nextMove.from,
-          dest: nextMove.to,
-          brush: ARROW_PALETTE.game.brush,
-        });
-      }
-    }
-
-    // Maia at the selected ELO (purple) — live /api/maia-predict for the
-    // displayed FEN+ELO. The old ply-indexed hand-table fallback went with
-    // the demo; nothing renders while the fetch is in flight or when
-    // MAIA_API_URL is unconfigured.
-    if (arrowToggles.maia) {
-      const maia = maiaCache[`${displayFen}|${arrowToggles.maiaElo}`];
-      // maiaCache holds SAN ("Nc4"), not UCI — /api/maia-predict's
-      // response is SAN. uciToShape's slice(0,2)/slice(2,4) on a SAN
-      // string produces nonsense square keys, which chessground renders
-      // as an arrow shooting off the board instead of a legal move.
-      if (maia) {
-        const shape = sanToShape(displayFen, maia, ARROW_PALETTE.maia.brush);
-        if (shape) shapes.push(shape);
-      }
-    }
-
-    return shapes;
+    // Engine best: straight off the Stockfish pass for THIS ply, or the
+    // FEN-keyed evaluation of the displayed position while exploring.
+    // Nothing to draw until the engine has reported, which is the honest
+    // state.
+    const pos = exploring ? displayPositionEval : enginePositions?.[currentPly];
+    const best = pos?.bestMove ?? pos?.lines?.[0]?.pv?.[0] ?? null;
+    // Game played: the move that was actually played at currentPly+1.
+    const next = allMoves[currentPly];
+    return computeBaseShapes({
+      takeoverMode,
+      takeoverPreview,
+      takeoverCandidates,
+      toggles: arrowToggles,
+      displayFen,
+      exploring,
+      bestUci: best,
+      // Most common from the master DB, live (see commonCache below).
+      commonUci: commonCache[displayFen]?.[0]?.uci ?? null,
+      nextMove: next ? { from: next.from, to: next.to } : null,
+      // Maia at the selected Elo, live /api/maia-predict for the displayed
+      // FEN and Elo, as SAN (sanToShape resolves it against the FEN).
+      maiaSan: maiaCache[`${displayFen}|${arrowToggles.maiaElo}`] ?? null,
+    });
   }, [
     takeoverMode,
     takeoverPreview,
@@ -9482,6 +9526,72 @@ export default function AnalysisPage() {
     commonCache,
     enginePositions,
   ]);
+  const displayShapes = useMemo<DrawShape[]>(
+    () => [...baseShapes.preview, ...baseShapes.toggles],
+    [baseShapes]
+  );
+
+  // The move at the cursor, analysed once for the strip under the board
+  // and for the board's marks (moveAnalysis.ts).
+  const stripAnalysis = useMemo(
+    () =>
+      analyzeMoveAt(
+        gameSans,
+        classifiedPositions ?? enginePositions,
+        currentPly,
+        rootFen,
+        playerSide ? (playerSide.color === "white" ? "w" : "b") : null
+      ),
+    [
+      gameSans,
+      classifiedPositions,
+      enginePositions,
+      currentPly,
+      rootFen,
+      playerSide,
+    ]
+  );
+  // The strip's move as Masti's marks: the move and the engine's choice
+  // when they differ, and what the move's own facts point at, checked on
+  // the board (boardAnnotations.ts).
+  const stripAnnotation = useMemo(
+    () =>
+      BOARD_ANNOTATIONS && stripAnalysis?.playedLine
+        ? buildBoardAnnotation({
+            source: "strip",
+            fenBefore: stripAnalysis.playedLine.startFen,
+            played: stripAnalysis.san,
+            engine: stripAnalysis.bestSan,
+            facts: stripAnalysis.facts,
+            moveArrows: true,
+          })
+        : null,
+    [stripAnalysis]
+  );
+  // What the board draws: the preview, one mark (a line's ply before the
+  // strip's move), then the toggles, each mark only on its own position
+  // and never in a drill or the Masters view.
+  const boardShapes = useMemo(
+    () =>
+      mergeBoardShapes({
+        displayFen,
+        base: baseShapes,
+        takeoverMode,
+        drill: drillState !== null,
+        annotationsOn,
+        line: lineAnnotation,
+        strip: stripAnnotation,
+      }),
+    [
+      displayFen,
+      baseShapes,
+      takeoverMode,
+      drillState,
+      annotationsOn,
+      lineAnnotation,
+      stripAnnotation,
+    ]
+  );
 
   // G8 fetch effect: when the Maia toggle is on and the (fen, elo) pair
   // isn't cached, hit /api/maia-predict. Silent on 401/503/network errors
@@ -9661,10 +9771,20 @@ export default function AnalysisPage() {
   const lastShownReplayRef = useRef<(() => boolean) | null>(null);
   const lastShownWhatIfRef = useRef<number | null>(null);
   const handleShowLinePly = useCallback(
-    (line: CoachLine, k: number, replay?: () => boolean) => {
+    (
+      line: CoachLine,
+      k: number,
+      replay?: () => boolean,
+      ply?: LineCaption | null
+    ) => {
       lastShownLineRef.current = line;
       lastShownReplayRef.current = replay ?? null;
       lastShownWhatIfRef.current = null;
+      // The ply's own mark, from the line's caption of it (none at the
+      // line's start, or without a caption: a typed replay of a line no
+      // longer on the page).
+      if (BOARD_ANNOTATIONS)
+        setLineAnnotation(k > 0 && ply ? lineAnnotationAt(line, k, ply) : null);
       revealBoard();
       if (line.kind === "played") {
         setTakeoverPreview(null);
@@ -11888,7 +12008,18 @@ export default function AnalysisPage() {
                   lastMove={displayLastMove}
                   boardOrientation={boardOrientation}
                   isInCheck={displayInCheck}
-                  shapes={displayShapes}
+                  shapes={BOARD_ANNOTATIONS ? undefined : displayShapes}
+                  autoShapes={
+                    BOARD_ANNOTATIONS ? boardShapes.autoShapes : undefined
+                  }
+                  squareClasses={
+                    BOARD_ANNOTATIONS ? boardShapes.squareClasses : undefined
+                  }
+                  annotationSource={
+                    BOARD_ANNOTATIONS
+                      ? (boardShapes.source ?? "none")
+                      : undefined
+                  }
                   interactive={takeoverMode || drillActive}
                   movableColor={
                     drillActive
@@ -11940,7 +12071,7 @@ export default function AnalysisPage() {
                 />
                 <MoveAnalysisCard
                   gameSans={gameSans}
-                  positions={classifiedPositions ?? enginePositions}
+                  analysis={stripAnalysis}
                   ply={currentPly}
                   rootFen={rootFen}
                   playerColor={
@@ -11972,6 +12103,11 @@ export default function AnalysisPage() {
                       onReset={() => setCurrentPly(0)}
                       arrows={arrowToggles}
                       onArrowsChange={setArrowToggles}
+                      marks={
+                        BOARD_ANNOTATIONS
+                          ? { on: annotationsOn, onChange: setAnnotationsOn }
+                          : undefined
+                      }
                     />
                   }
                   state={

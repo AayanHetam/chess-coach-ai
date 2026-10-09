@@ -168,8 +168,12 @@ export function momentView(prose: MomentProse): MomentView {
     const words = lessonText(prose.lesson);
     const pattern = prose.lesson.pattern.trim().replace(/[.!?]+$/, "");
     // The pattern's name leads the note, so it reads as the thing to keep.
+    // A pattern with emphasis of its own is not wrapped in more of it.
     lesson =
-      pattern && prose.lesson.check.trim() && words.startsWith(`${pattern}. `)
+      pattern &&
+      !pattern.includes("*") &&
+      prose.lesson.check.trim() &&
+      words.startsWith(`${pattern}. `)
         ? `**${capitalise(pattern)}.** ${words.slice(pattern.length + 2)}`
         : capitalise(words);
   }

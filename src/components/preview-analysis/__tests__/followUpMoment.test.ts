@@ -153,6 +153,15 @@ describe("momentView", () => {
     expect(v.question).toBeNull();
   });
 
+  it("a pattern with emphasis of its own is not wrapped in more of it", () => {
+    expect(
+      momentView({
+        ...FULL,
+        lesson: { pattern: "the *loose* piece", check: "count captures" },
+      }).lesson
+    ).toBe("The *loose* piece. count captures.");
+  });
+
   it("a lesson with no check or no name is its one sentence", () => {
     expect(
       momentView({ ...FULL, lesson: { pattern: "", check: "count captures" } })

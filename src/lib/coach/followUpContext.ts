@@ -272,7 +272,13 @@ export function buildAnchorBlock(
    * opponent's move" stay the player's, who is "you", and are left out
    * when the player's side is a guess. Absent, the header is as it was.
    */
-  subject?: { side: "w" | "b"; confirmed: boolean } | null
+  subject?: { side: "w" | "b"; confirmed: boolean } | null,
+  /**
+   * The review is the first message of the model's conversation. False
+   * under COACH_FOLLOWUP_LEAN with a contract, where it is not sent: the
+   * line that points at it says where its facts are instead.
+   */
+  reviewReplayed = true
 ): string {
   const colorName = anchor.color === "w" ? "White" : "Black";
   const whose =
@@ -521,7 +527,13 @@ export function buildFollowUpCondensedContext(
    * labelled a guess and the player's accuracy left out. Absent, the
    * context is byte for byte what it was.
    */
-  subject?: { side: "w" | "b"; confirmed: boolean } | null
+  subject?: { side: "w" | "b"; confirmed: boolean } | null,
+  /**
+   * The review is the first message of the model's conversation. False
+   * under COACH_FOLLOWUP_LEAN with a contract, where it is not sent: the
+   * line that points at it says where its facts are instead.
+   */
+  reviewReplayed = true
 ): string {
   const player = context.playerColor === "w" ? "w" : "b";
   const other = subject && subject.side !== player ? subject : null;
@@ -548,7 +560,9 @@ export function buildFollowUpCondensedContext(
       );
   }
   lines.push(
-    "Your review of this game is your first message in this conversation. Build on it; do not repeat it. If the player corrects something in it, take the correction."
+    reviewReplayed
+      ? "Your review of this game is your first message in this conversation. Build on it; do not repeat it. If the player corrects something in it, take the correction."
+      : "The player has read your review of this game. It is not repeated here: the findings it was built from are in the facts below. Build on them; do not repeat them. If the player refers to the review or corrects it, answer from those facts and take the correction."
   );
 
   const compact = context.compactGameContext ?? "";

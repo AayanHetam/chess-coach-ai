@@ -75,24 +75,50 @@ async function stubCoach(page: Page) {
       body,
     });
   });
+  let asked = 0;
   await page.route("**/api/chat", async (route) => {
+    asked += 1;
     await route.fulfill({
       status: 200,
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        gameAnalysis: {
-          analysis: FOLLOWUP,
-          position: "",
-          anchor: { ply: 15, moveNumber: 8, color: "w", san: "Nc7+" },
-          followUpPrompt: "1.0",
-          validationScore: 1,
-          cached: false,
-          fastPath: true,
-        },
+        gameAnalysis:
+          asked === 1
+            ? {
+                analysis: FOLLOWUP,
+                position: "",
+                anchor: { ply: 15, moveNumber: 8, color: "w", san: "Nc7+" },
+                followUpPrompt: "1.0",
+                validationScore: 1,
+                cached: false,
+                fastPath: true,
+              }
+            : // A follow-up answered in fields (pathway 3.3): its engine
+              // line is drawn from the page's own engine data.
+              {
+                analysis: MOMENT_TEXT,
+                moment: MOMENT,
+                position: "",
+                followUpPrompt: "fielded-1",
+                validationScore: 1,
+                cached: false,
+                fastPath: true,
+              },
       }),
     });
   });
 }
+
+const MOMENT = {
+  idea: "You went for the fork because it hits the king and the rook.",
+  happens: "The queen on c1 was free, and 8. Qxc1 takes it outright.",
+  proof: { kind: "engine", moveNumber: 8, color: "w" },
+  lesson: null,
+  question: null,
+  more: null,
+  omitted: [],
+};
+const MOMENT_TEXT = `${MOMENT.idea} ${MOMENT.happens}\n\n[CONTINUATION:8:w]`;
 
 test.describe("coach proof lines", () => {
   test("a key moment draws the engine's line, plays it on the board, and a follow-up moves the board to the move it names", async ({
@@ -257,6 +283,28 @@ test.describe("coach proof lines", () => {
     await banner.getByRole("button", { name: /Back to/ }).click();
     await expect(banner).toHaveCount(0);
     await expect(moveCard.getByTestId("move-analysis-label")).toBeVisible();
+
+    // A follow-up answered in fields: with the page's flag on, its engine
+    // line is drawn from the page's own engine data, never the clause.
+    const built =
+      (await page
+        .locator("[data-followup-moments]")
+        .first()
+        .getAttribute("data-followup-moments")) === "on";
+    if (built) {
+      await composer.fill("And why was the fork worse?");
+      await composer.press("Enter");
+      const drawn = page.getByTestId("coach-moment");
+      await expect(drawn).toBeVisible({ timeout: 30_000 });
+      await expect(drawn.getByTestId("proof-line")).toHaveCount(1);
+      await expect(drawn.getByTestId("proof-line-ply").first()).toContainText(
+        "8.Qxc1"
+      );
+      await expect(drawn.getByTestId("coach-moment-proof-absent")).toHaveCount(
+        0
+      );
+    } else
+      expect(!!process.env.CI, "the CI legs build with moments on").toBe(false);
 
     // The page is one board and one conversation: no tab strip, the views a
     // word away in the header, and the coach's answers are prose beside

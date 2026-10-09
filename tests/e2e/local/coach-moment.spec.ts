@@ -145,6 +145,13 @@ test.describe("a follow-up drawn from its fields", () => {
       "Ask anything — answering without engine analysis."
     );
     await expect(composer).toBeVisible({ timeout: 60_000 });
+    const built =
+      (await page
+        .locator("[data-followup-moments]")
+        .first()
+        .getAttribute("data-followup-moments")) === "on";
+    test.skip(!built && !process.env.CI, "built without follow-up moments");
+    expect(built, "the CI legs build with follow-up moments on").toBe(true);
 
     await composer.fill("analyse this game");
     await composer.press("Enter");

@@ -206,7 +206,13 @@ function servedMoment(
 function keptHistoryTurns(
   conversationHistory: unknown,
   initialAnalysis: string | undefined,
-  useFollowUpPrompt: boolean
+  useFollowUpPrompt: boolean,
+  /**
+   * The review is not replayed (COACH_FOLLOWUP_LEAN with a contract): the
+   * turns it answered go with it, so the model never meets the question
+   * the review answered as one still open beside this turn's.
+   */
+  dropAnswered = false
 ): LLMMessage[] {
   if (!conversationHistory || !Array.isArray(conversationHistory)) return [];
   const canonical = initialAnalysis?.trim();
@@ -224,6 +230,7 @@ function keptHistoryTurns(
       msg.content.trim() === canonical
     ) {
       droppedCanonical = true;
+      if (dropAnswered) priorTurns.length = 0;
       continue;
     }
     if (msg.role && msg.content) {
@@ -507,6 +514,9 @@ export async function POST(request: NextRequest) {
       // contract carries its facts, and no validator retry on this path.
       const lean = useFollowUpPrompt && isFollowUpLean();
       const budget = lean ? FOLLOWUP_LEAN_BUDGET : FOLLOWUP_BUDGET;
+      // Lean, with a contract the review's facts ride in the suffix, so the
+      // review itself is not replayed, and neither is the turn it answered.
+      const reviewReplayed = !(lean && context.compactContract);
 
       // The side this turn looks at the game from (questionPerspective.ts):
       // the question's words, else the page's standing choice. The player
@@ -902,7 +912,12 @@ export async function POST(request: NextRequest) {
           : null;
       const condensedContext = [
         useFollowUpPrompt
-          ? buildFollowUpCondensedContext(context, centerPly, otherSubject)
+          ? buildFollowUpCondensedContext(
+              context,
+              centerPly,
+              otherSubject,
+              reviewReplayed
+            )
           : buildCondensedContext(context),
         contractBlock,
         perTurnFacts,
@@ -940,7 +955,7 @@ export async function POST(request: NextRequest) {
       // Lean, with a contract the review's facts ride in the suffix, so the
       // review itself is not replayed (and the de-dupe below keeps the
       // client's copy out of the history too).
-      if (!(lean && context.compactContract))
+      if (reviewReplayed)
         nonSystemMessages.push({
           role: "assistant",
           content: context.initialAnalysis,
@@ -948,7 +963,16 @@ export async function POST(request: NextRequest) {
 
       // Prior conversation turns (excluding the initial analysis which is
       // already injected above); see keptHistoryTurns.
-      nonSystemMessages.push(...keptHistory);
+      nonSystemMessages.push(
+        ...(reviewReplayed
+          ? keptHistory
+          : keptHistoryTurns(
+              conversationHistory,
+              context.initialAnalysis,
+              useFollowUpPrompt,
+              true
+            ))
+      );
 
       // The player's question, with the budget under it on the follow-up
       // path (followUpPrompt.ts): the model's copy of the turn only. The
@@ -987,6 +1011,8 @@ export async function POST(request: NextRequest) {
           : useFollowUpPrompt
             ? FOLLOWUP_PROMPT_VERSION
             : "legacy",
+        // The budget the prompt stated, only when it is not the default.
+        ...(lean ? { followUpBudget: "lean" } : {}),
         // What happened to the client's what-if numbers; the client ignores
         // it, the synthetic tester and the logs read it.
         clientEvals: clientEvalsOutcome,
@@ -1089,6 +1115,7 @@ export async function POST(request: NextRequest) {
           requestId,
           branch,
           version: FIELDED_PROMPT_VERSION,
+          ...(lean ? { lean: true } : {}),
           eligible: true,
           turnKind: fielded.reviewed ? "reviewed" : "unreviewed",
           whatIf: !!whatIf,

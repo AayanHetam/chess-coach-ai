@@ -252,7 +252,15 @@ describe.each([
     expect(b.system).toContain("BUDGET: at most 60 words");
     expect(b.maxTokens).toBe(350);
     expect(a.maxTokens).toBe(600);
-    expect(b.systemSuffix).toBe(a.systemSuffix);
+    // The suffix differs only where it points at the review, which is not
+    // sent: it says where the review's facts are instead.
+    const FIRST =
+      "Your review of this game is your first message in this conversation. Build on it; do not repeat it. If the player corrects something in it, take the correction.";
+    const NOT_SENT =
+      "The player has read your review of this game. It is not repeated here: the findings it was built from are in the facts below. Build on them; do not repeat them. If the player refers to the review or corrects it, answer from those facts and take the correction.";
+    expect(a.systemSuffix).toContain(FIRST);
+    expect(b.systemSuffix).not.toContain(FIRST);
+    expect(b.systemSuffix).toBe(a.systemSuffix.replace(FIRST, NOT_SENT));
     if (validators === "true") {
       expect(pipelineOpts.map((o) => o.maxRetries)).toEqual([1, 0]);
     }
@@ -270,6 +278,29 @@ describe.each([
       role: "assistant",
       content: "Review.",
     });
+  });
+
+  it("the question the review answered goes with it, so it is never asked again beside this one", async () => {
+    vi.stubEnv("COACH_FOLLOWUP_LEAN", "1");
+    const { coachCalls } = provider();
+    await ask(Q, {
+      conversationHistory: [
+        { role: "user", content: "Why did I lose this game?" },
+        { role: "assistant", content: "Review." },
+      ],
+    });
+    const msgs = coachCalls[0].messages;
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].role).toBe("user");
+    expect(msgs[0].content.startsWith(Q)).toBe(true);
+  });
+
+  it("says the turn was held to the lean budget, and only then", async () => {
+    const off = await (await ask(Q)).json();
+    expect(off.gameAnalysis.followUpBudget).toBeUndefined();
+    vi.stubEnv("COACH_FOLLOWUP_LEAN", "1");
+    const on = await (await ask(Q)).json();
+    expect(on.gameAnalysis.followUpBudget).toBe("lean");
   });
 
   it("the client's copy of the review stays out of the history, and the history starts on a question", async () => {

@@ -290,6 +290,41 @@ describe.each([
     );
   });
 
+  it("a field that fails twice is sent omitted, with its clause in the text the fields project to", async () => {
+    fielded();
+    // A proof no line holds, twice.
+    provider([
+      JSON.stringify({
+        ...clean,
+        proof: { kind: "engine", moveNumber: 30, color: "w" },
+      }),
+    ]);
+    const json = await (await ask(Q)).json();
+    expect(json.gameAnalysis.moment.omitted).toEqual(["proof"]);
+    expect(json.gameAnalysis.moment.proof).toBeNull();
+    expect(json.gameAnalysis.analysis).toContain(
+      "I don't have a line I can stand behind here."
+    );
+    expect(momentToText(json.gameAnalysis.moment)).toBe(
+      json.gameAnalysis.analysis
+    );
+  });
+
+  it("a timed-out turn is the template, and a template never carries fields", async () => {
+    if (validators !== "true") return;
+    fielded();
+    vi.stubEnv("PIPELINE_TIMEOUT_MS", "50");
+    provider();
+    const slow = mockCallLLM.getMockImplementation()!;
+    mockCallLLM.mockImplementation(
+      async (o: Record<string, unknown>) =>
+        new Promise((r) => setTimeout(() => r(slow(o)), 300))
+    );
+    const json = await (await ask(Q)).json();
+    expect(json.gameAnalysis.pipeline.timedOut).toBe(true);
+    expect(json.gameAnalysis.moment).toBeUndefined();
+  });
+
   it("a sentence the second net drops leaves the text with no fields beside it", async () => {
     fielded();
     provider();

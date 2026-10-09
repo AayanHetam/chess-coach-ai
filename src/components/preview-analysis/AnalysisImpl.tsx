@@ -7009,17 +7009,19 @@ function CoachBubble({
         </Box>
       );
     }
+    // The text path's display filters, field by field: a tag the model was
+    // told not to write is never shown, and markdown renders as markdown.
+    const shown = (text: string) => extractPracticeTags(text).stripped;
     return (
       <Box data-testid="coach-moment">
         {view.lines.map((l) => (
           <Box
             key={l.field}
-            component="p"
             data-testid={`coach-moment-${l.field}`}
             data-absent={l.absent ? "true" : undefined}
-            sx={{ m: 0, mb: 0.75, ...(l.absent ? quiet : {}) }}
+            sx={{ mb: 0.75, ...(l.absent ? quiet : {}) }}
           >
-            {renderInline(l.text)}
+            {renderMarkdownProse(shown(l.text))}
           </Box>
         ))}
         {proof}
@@ -7030,7 +7032,7 @@ function CoachBubble({
             renderInline={renderInline}
             data-testid="coach-note-lesson"
           >
-            {view.lesson}
+            {shown(view.lesson)}
           </CoachNote>
         )}
         {view.question && (
@@ -7039,7 +7041,7 @@ function CoachBubble({
             renderInline={renderInline}
             data-testid="coach-note-your-turn"
           >
-            {view.question}
+            {shown(view.question)}
           </CoachNote>
         )}
       </Box>

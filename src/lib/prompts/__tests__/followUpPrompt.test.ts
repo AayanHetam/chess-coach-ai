@@ -137,6 +137,11 @@ describe("getFollowUpPromptMode", () => {
     vi.stubEnv("COACH_FOLLOWUP_PROMPT", "v2");
     expect(getFollowUpPromptMode()).toBe("v1");
   });
+
+  it("'fielded' (trimmed, any case) is the moment envelope", () => {
+    vi.stubEnv("COACH_FOLLOWUP_PROMPT", " Fielded\n");
+    expect(getFollowUpPromptMode()).toBe("fielded");
+  });
 });
 
 describe("followUpTurnReminder", () => {

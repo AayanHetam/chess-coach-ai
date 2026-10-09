@@ -61,7 +61,10 @@ export type FireReason =
   // Lever 2 relational-claim validator (Phase 2)
   // ─────────────────────────────────────────────────────────────────────
   | "relational_claim_contradicted"
-  | "no_fen_to_verify";
+  | "no_fen_to_verify"
+  // Pathway 3.1: a fielded follow-up checks its fields itself, so the eval
+  // and feature parsers are not called; one event each says so.
+  | "skip_fielded_turn";
 
 export type FinalOutcome =
   | "passed_initial"

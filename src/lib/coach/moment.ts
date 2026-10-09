@@ -11,7 +11,8 @@
  *
  * This module is pure: the type, the JSON schema under the provider's
  * structured-output rules, the projection to today's prose grammar and
- * the parsers back from it. Nothing serves from it yet. The route the
+ * the parsers back from it. The fielded follow-up (fieldedTurn.ts, under
+ * COACH_FOLLOWUP_PROMPT=fielded) serves from it. The route the
  * pathway chose (MASTERMIND_CONTEXT/IDEAL_PRODUCT_PATHWAY.md, "moment")
  * is to keep every downstream consumer byte-identical by projecting a
  * fielded answer to the prose it reads today, so the projection here is

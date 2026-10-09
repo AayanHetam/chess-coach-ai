@@ -8,6 +8,7 @@ import { buildFenPositionFacts } from "@/lib/mastermind/positionFacts";
 import { renderContractCompact } from "@/lib/contract/followUp";
 import {
   refereeFollowUp,
+  type FollowUpRefereeInput,
   type LicensedLine,
 } from "@/lib/contract/followUpReferee";
 import { FOLLOWUP_REDUCED_GROUNDING_NOTE } from "@/lib/prompts/followupGrounding";
@@ -20,6 +21,18 @@ import {
   followUpTurnReminder,
   type FollowUpSubject,
 } from "@/lib/prompts/followUpPrompt";
+import {
+  FIELDED_PROMPT_VERSION,
+  fieldedTurnReminder,
+  getFieldedFollowUpSystemPromptStable,
+} from "@/lib/prompts/fieldedFollowUpPrompt";
+import { planFieldedTurn } from "@/lib/coach/fieldedFacts";
+import {
+  fieldedAsRegenerateResult,
+  runFieldedTurn,
+  type FieldedTurnResult,
+} from "@/lib/coach/fieldedTurn";
+import { MOMENT_OUTPUT_SCHEMA } from "@/lib/coach/moment";
 import {
   confirmedSideOf,
   softenPerspectiveLine,
@@ -67,6 +80,7 @@ import {
   LLMError,
   PUBLIC_LLM_ERROR,
   toSafeLLMError,
+  type CallLLMOptions,
   type LLMMessage,
 } from "@/lib/llmProvider";
 import { recordLLMCall } from "@/lib/llmStatsAggregator";
@@ -89,6 +103,10 @@ import {
   prepareMastermindContext,
   forwardPipelineTelemetryForRoute,
 } from "@/lib/mastermind/routeHelpers";
+import {
+  deferRelationalShadow,
+  fieldedProseValidator,
+} from "@/lib/mastermind/validators/fielded";
 import { aiRefusal } from "@/lib/coach/aiGate";
 
 const log = logger.child({ module: "chat" });
@@ -258,25 +276,8 @@ function refereeChatReply(
 ): string {
   if (!context.compactContract) return reply;
   try {
-    const evalSource = `${context.compactGameContext ?? ""}\n${anchorLicence?.text ?? ""}`;
-    const licensedEvals = Array.from(
-      evalSource.matchAll(
-        /(?<![A-Za-z0-9.])([+-]\d+(?:\.\d{1,2})?|M[+-]?\d+)(?![A-Za-z0-9.%])/g
-      )
-    ).map((m) => m[1]);
-    const result = refereeFollowUp({
-      reply,
-      compact: context.compactContract,
-      activeFen,
-      moveHistory: context.playedMoves ?? [],
-      licensedEvals,
-      licensedEvalsByMove: anchorLicence?.evalsByMove,
-      extraFens: anchorLicence?.fens,
-      extraLicensedText: anchorLicence?.text,
-      activePly: anchorLicence?.activePly,
-      extraLines: anchorLicence?.lines,
-      flaggedSpans,
-    });
+    const input = refereeInputFor(context, activeFen, anchorLicence)!;
+    const result = refereeFollowUp({ reply, ...input, flaggedSpans });
     if (result.dropped.length > 0) {
       log.info("followup_referee_dropped", {
         requestId,
@@ -289,6 +290,37 @@ function refereeChatReply(
   } catch {
     return reply;
   }
+}
+
+/**
+ * Everything the follow-up referee is given on a turn but the reply and the
+ * flagged spans: what refereeChatReply passes, and what the fielded turn's
+ * pre-pass (fieldedTurn.ts) passes, so the two judge alike. Null without a
+ * contract.
+ */
+function refereeInputFor(
+  context: Parameters<typeof refereeChatReply>[1],
+  activeFen: string,
+  anchorLicence?: Parameters<typeof refereeChatReply>[4]
+): Omit<FollowUpRefereeInput, "reply" | "flaggedSpans"> | null {
+  if (!context.compactContract) return null;
+  const evalSource = `${context.compactGameContext ?? ""}\n${anchorLicence?.text ?? ""}`;
+  const licensedEvals = Array.from(
+    evalSource.matchAll(
+      /(?<![A-Za-z0-9.])([+-]\d+(?:\.\d{1,2})?|M[+-]?\d+)(?![A-Za-z0-9.%])/g
+    )
+  ).map((m) => m[1]);
+  return {
+    compact: context.compactContract,
+    activeFen,
+    moveHistory: context.playedMoves ?? [],
+    licensedEvals,
+    licensedEvalsByMove: anchorLicence?.evalsByMove,
+    extraFens: anchorLicence?.fens,
+    extraLicensedText: anchorLicence?.text,
+    activePly: anchorLicence?.activePly,
+    extraLines: anchorLicence?.lines,
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -445,7 +477,10 @@ export async function POST(request: NextRequest) {
           ? "b"
           : "w";
       const followUpMode = getFollowUpPromptMode();
-      const useFollowUpPrompt = followUpMode === "v1";
+      // The fielded mode is the follow-up prompt on every turn it does not
+      // field (fieldedFacts.ts), byte for byte.
+      const useFollowUpPrompt = followUpMode !== "legacy";
+      const fieldedMode = followUpMode === "fielded";
 
       // The side this turn looks at the game from (questionPerspective.ts):
       // the question's words, else the page's standing choice. The player
@@ -804,9 +839,35 @@ export async function POST(request: NextRequest) {
       // The follow-up prompt (followUpPrompt.ts): the verdict / proof /
       // lesson shape with a word budget, per attitude, cached like turn 1.
       // `COACH_FOLLOWUP_PROMPT=legacy` puts the turn-1 prompt back here.
-      const cachedSystemPrompt = useFollowUpPrompt
-        ? getFollowUpSystemPromptStable(context.personalityId ?? "friendly")
-        : (context.systemPromptStable ?? context.systemPrompt);
+      // A turn about one move under COACH_FOLLOWUP_PROMPT=fielded is answered
+      // as the moment envelope (fieldedTurn.ts); every other turn, and every
+      // turn in any other mode, as before.
+      const fieldedPlan = fieldedMode
+        ? planFieldedTurn({
+            anchor,
+            otherSide,
+            compact: context.compactContract,
+            question: userMessage,
+            playedMoves: context.playedMoves ?? [],
+            gameEval: context.gameEval as never,
+            playerColor: playerColorLetter,
+            whatIf,
+          })
+        : null;
+      const fielded = fieldedPlan?.eligible ? fieldedPlan.facts : null;
+      if (fieldedPlan && !fieldedPlan.eligible)
+        log.info("followup_fielded", {
+          requestId: extractRequestId(request.headers),
+          version: FIELDED_PROMPT_VERSION,
+          eligible: false,
+          reason: fieldedPlan.reason,
+        });
+      const personality = context.personalityId ?? "friendly";
+      const cachedSystemPrompt = fielded
+        ? getFieldedFollowUpSystemPromptStable(personality)
+        : useFollowUpPrompt
+          ? getFollowUpSystemPromptStable(personality)
+          : (context.systemPromptStable ?? context.systemPrompt);
       // Half-moves of the position under discussion, for the windowed table.
       const centerPly = anchor
         ? anchor.ply
@@ -863,11 +924,14 @@ export async function POST(request: NextRequest) {
       // path (followUpPrompt.ts): the model's copy of the turn only. The
       // transcript the client keeps, the anchor and the referee all see the
       // question as typed.
+      const v1Question = useFollowUpPrompt
+        ? `${userMessage}\n\n${followUpTurnReminder(userMessage, promptSubject)}`
+        : userMessage;
       nonSystemMessages.push({
         role: "user",
-        content: useFollowUpPrompt
-          ? `${userMessage}\n\n${followUpTurnReminder(userMessage, promptSubject)}`
-          : userMessage,
+        content: fielded
+          ? `${userMessage}\n\n${fieldedTurnReminder(fielded, promptSubject)}`
+          : v1Question,
       });
 
       const systemText = cachedSystemPrompt;
@@ -888,7 +952,11 @@ export async function POST(request: NextRequest) {
         // The shadow router's reading of the question; the client ignores it
         // today, and the synthetic tester can count it.
         intent,
-        followUpPrompt: useFollowUpPrompt ? FOLLOWUP_PROMPT_VERSION : "legacy",
+        followUpPrompt: fielded
+          ? FIELDED_PROMPT_VERSION
+          : useFollowUpPrompt
+            ? FOLLOWUP_PROMPT_VERSION
+            : "legacy",
         // What happened to the client's what-if numbers; the client ignores
         // it, the synthetic tester and the logs read it.
         clientEvals: clientEvalsOutcome,
@@ -941,9 +1009,63 @@ export async function POST(request: NextRequest) {
                   : undefined,
             };
 
+      // The fielded turn's two requests: its own (the fielded system prompt,
+      // reminder and schema on the v1 request), and the v1 request on the
+      // same turn, for a reply it cannot read at all. Its referee pre-pass
+      // gets the second net's very inputs and logs nothing.
+      const fieldedRequest: CallLLMOptions | null = fielded
+        ? {
+            tier: "fast",
+            system: systemText,
+            systemSuffix: uncachedSuffix,
+            messages: nonSystemMessages,
+            temperature: 0.7,
+            maxTokens: outputCap,
+            cacheSystem: true,
+            outputSchema: MOMENT_OUTPUT_SCHEMA,
+          }
+        : null;
+      const v1Request: CallLLMOptions | null = fielded
+        ? {
+            tier: "fast",
+            system: getFollowUpSystemPromptStable(personality),
+            systemSuffix: uncachedSuffix,
+            messages: [
+              ...nonSystemMessages.slice(0, -1),
+              { role: "user", content: v1Question },
+            ],
+            temperature: 0.7,
+            maxTokens: outputCap,
+            cacheSystem: true,
+          }
+        : null;
+      const fieldedRefereeInput = fielded
+        ? refereeInputFor(context, activeFen, anchorLicence)
+        : null;
+      const fieldedReferee = (text: string) =>
+        refereeFollowUp({ reply: text, ...fieldedRefereeInput! });
+
       // Stage B insertion (§3.7.9 chat-equivalent of A): single env read.
       const { validatorsEnabled } = getMastermindEnv();
       const requestId = extractRequestId(request.headers);
+      // The fielded turn's log line: content-free, on both wings.
+      const logFielded = (
+        branch: "pipeline" | "flag-off",
+        out: FieldedTurnResult | undefined,
+        timedOut = false
+      ) => {
+        if (!fielded) return;
+        log.info("followup_fielded", {
+          requestId,
+          branch,
+          version: FIELDED_PROMPT_VERSION,
+          eligible: true,
+          turnKind: fielded.reviewed ? "reviewed" : "unreviewed",
+          whatIf: !!whatIf,
+          ...(out ? out.counter : {}),
+          served: timedOut ? "timeout" : (out?.served ?? "none"),
+        });
+      };
 
       // ── Stage B flag-on wing for /api/chat fast path ────────────────
       // Per §3.4: chat path uses degraded mode (no scout — chat fast-path
@@ -998,56 +1120,80 @@ export async function POST(request: NextRequest) {
           const dataSources = prep.dataSources;
           const pipelineStartedAt = Date.now();
           let pipelineResult: PipelineResultWithTimeout;
+          // The fielded turn, run in the pipeline's place inside the same
+          // timeout race; read back only when the race did not time out.
+          const fieldedBox: { out?: FieldedTurnResult } = {};
           try {
             pipelineResult = await withPipelineTimeout(
               (signal) =>
-                runValidationPipeline({
-                  initialRequest: {
-                    tier: "fast",
-                    system: systemText,
-                    systemSuffix: uncachedSuffix,
-                    messages: nonSystemMessages,
-                    temperature: 0.7,
-                    maxTokens: outputCap,
-                    cacheSystem: true,
-                  },
-                  stockfishEval: prep.moveCtx.stockfishEval,
-                  positionEvals: whatIf
-                    ? whatIf.moves.map((m) => ({
-                        san: m.san,
-                        cp: m.cp,
-                        mate: m.mate,
-                        review: m.review,
-                        moveNumber: whatIf!.moveNumber,
-                        color: whatIf!.color,
-                        // A bare "Qxc1" is this move only when the game
-                        // never played that SAN at another ply.
-                        playedElsewhere: (context.playedMoves ?? []).some(
-                          (san, k) =>
-                            k !== whatIf!.index &&
-                            san.replace(/[+#]/g, "") ===
-                              m.san.replace(/[+#]/g, "")
-                        ),
-                      }))
-                    : undefined,
-                  featureDelta: dataSources.featureDelta,
-                  pieceRoleDiff: dataSources.pieceRoleDiff,
-                  threatTree: dataSources.threatTree,
-                  playerPerspective,
-                  fen: prep.moveCtx.fenAfter,
-                  moveSan: prep.moveCtx.moveSan,
-                  correlationId: requestId,
-                  category: prep.category,
-                  // §10.4 + §3.4: chat retry budget is tighter than
-                  // enhanced-analysis (1 retry max) to keep follow-up
-                  // latency in chat tolerance.
-                  maxRetries: 1,
-                  dataSources: {
-                    scout: dataSources.scout,
-                    userHistory: dataSources.userHistory,
-                  },
-                  signal,
-                }),
+                fielded && fieldedRequest && v1Request
+                  ? runFieldedTurn({
+                      request: fieldedRequest,
+                      v1Request,
+                      fx: fielded,
+                      referee: fieldedReferee,
+                      callLLM,
+                      signal,
+                      checkProse: fieldedProseValidator({
+                        dataSources,
+                        correlationId: requestId,
+                      }),
+                    }).then((out) => {
+                      fieldedBox.out = out;
+                      return fieldedAsRegenerateResult(out, {
+                        correlationId: requestId,
+                        fen: fielded.fenAfter,
+                        moveSan: fielded.label,
+                        playerPerspective,
+                      });
+                    })
+                  : runValidationPipeline({
+                      initialRequest: {
+                        tier: "fast",
+                        system: systemText,
+                        systemSuffix: uncachedSuffix,
+                        messages: nonSystemMessages,
+                        temperature: 0.7,
+                        maxTokens: outputCap,
+                        cacheSystem: true,
+                      },
+                      stockfishEval: prep.moveCtx.stockfishEval,
+                      positionEvals: whatIf
+                        ? whatIf.moves.map((m) => ({
+                            san: m.san,
+                            cp: m.cp,
+                            mate: m.mate,
+                            review: m.review,
+                            moveNumber: whatIf!.moveNumber,
+                            color: whatIf!.color,
+                            // A bare "Qxc1" is this move only when the game
+                            // never played that SAN at another ply.
+                            playedElsewhere: (context.playedMoves ?? []).some(
+                              (san, k) =>
+                                k !== whatIf!.index &&
+                                san.replace(/[+#]/g, "") ===
+                                  m.san.replace(/[+#]/g, "")
+                            ),
+                          }))
+                        : undefined,
+                      featureDelta: dataSources.featureDelta,
+                      pieceRoleDiff: dataSources.pieceRoleDiff,
+                      threatTree: dataSources.threatTree,
+                      playerPerspective,
+                      fen: prep.moveCtx.fenAfter,
+                      moveSan: prep.moveCtx.moveSan,
+                      correlationId: requestId,
+                      category: prep.category,
+                      // §10.4 + §3.4: chat retry budget is tighter than
+                      // enhanced-analysis (1 retry max) to keep follow-up
+                      // latency in chat tolerance.
+                      maxRetries: 1,
+                      dataSources: {
+                        scout: dataSources.scout,
+                        userHistory: dataSources.userHistory,
+                      },
+                      signal,
+                    }),
               {
                 correlationId: requestId,
                 timeoutMs: readPipelineTimeoutMs(prep.category),
@@ -1088,12 +1234,15 @@ export async function POST(request: NextRequest) {
             context.compactContract
               ? pipelineResult.lastDraft
               : undefined;
+          const fieldedOut = pipelineResult.timedOut
+            ? undefined
+            : fieldedBox.out;
           const flaggedSpans = draft
             ? pipelineResult.cumulativeIssues
                 .filter((i) => i.severity === "error")
                 .map((i) => i.llm_span)
                 .filter((span) => typeof span === "string" && span.length > 0)
-            : undefined;
+            : fieldedOut?.flaggedSpans;
           if (draft) {
             log.info("followup_draft_served", {
               requestId,
@@ -1135,9 +1284,12 @@ export async function POST(request: NextRequest) {
           // design (role changes from featureDelta), while validateAIResponse
           // checks against post-move FEN → systematic false positive.
           const servedTemplate = isFallbackUsed && !draft;
+          // A fielded answer's fields are checked one by one: a field that
+          // failed is gone, never hedged with the validator's footnote.
           const usePositionAnchoredAnnotation =
             !servedTemplate &&
-            POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category);
+            POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category) &&
+            fieldedOut?.served !== "fielded";
           const refereeStartedAt = Date.now();
           const analysis = refereeChatReply(
             usePositionAnchoredAnnotation && !validation.isValid
@@ -1159,6 +1311,24 @@ export async function POST(request: NextRequest) {
             refereeMs: Date.now() - refereeStartedAt,
             retryCount: pipelineResult.retryCount,
           };
+          logFielded("pipeline", fieldedOut, pipelineResult.timedOut);
+          // The relational parser over the two prose lines, after the
+          // response, counted and never acted on.
+          if (
+            fielded &&
+            fieldedOut?.served === "fielded" &&
+            fieldedOut.envelope1
+          ) {
+            const env1 = fieldedOut.envelope1;
+            deferRelationalShadow({
+              idea: env1.idea,
+              happens: env1.happens,
+              fen: fielded.fenAfter,
+              correlationId: requestId,
+              onDone: (r) =>
+                log.info("followup_fielded_relational", { requestId, ...r }),
+            });
+          }
           log.info("chat_fastpath_timing", {
             requestId,
             branch: "pipeline",
@@ -1211,16 +1381,28 @@ export async function POST(request: NextRequest) {
       // maxTokens here is the OUTPUT cap; raised so answers about long games
       // (many moves discussed) don't get truncated mid-explanation.
       let llmResult;
+      let fieldedOut: FieldedTurnResult | undefined;
       try {
-        llmResult = await callLLM({
-          tier: "fast",
-          system: systemText,
-          systemSuffix: uncachedSuffix,
-          messages: nonSystemMessages,
-          temperature: 0.7,
-          maxTokens: outputCap,
-          cacheSystem: true,
-        });
+        if (fielded && fieldedRequest && v1Request) {
+          fieldedOut = await runFieldedTurn({
+            request: fieldedRequest,
+            v1Request,
+            fx: fielded,
+            referee: fieldedReferee,
+            callLLM,
+          });
+          llmResult = fieldedOut.calls[fieldedOut.calls.length - 1];
+        } else {
+          llmResult = await callLLM({
+            tier: "fast",
+            system: systemText,
+            systemSuffix: uncachedSuffix,
+            messages: nonSystemMessages,
+            temperature: 0.7,
+            maxTokens: outputCap,
+            cacheSystem: true,
+          });
+        }
       } catch (err) {
         const e = toSafeLLMError(err);
         console.error("LLM chat call failed:", e.message);
@@ -1233,8 +1415,11 @@ export async function POST(request: NextRequest) {
           { status: 502 }
         );
       }
-      recordLLMCall(llmResult);
-      const rawContent = llmResult.content || "I couldn't generate a response.";
+      if (fieldedOut) fieldedOut.calls.forEach((c) => recordLLMCall(c));
+      else recordLLMCall(llmResult);
+      const rawContent =
+        (fieldedOut ? fieldedOut.text : llmResult.content) ||
+        "I couldn't generate a response.";
 
       // Light validation against the position under discussion
       const validation = validateOnBoards(
@@ -1245,25 +1430,33 @@ export async function POST(request: NextRequest) {
 
       const refereeStartedAt = Date.now();
       const analysis = refereeChatReply(
-        validation.isValid ? rawContent : validation.correctedResponse,
+        validation.isValid || fieldedOut?.served === "fielded"
+          ? rawContent
+          : validation.correctedResponse,
         context,
         activeFen,
         requestId,
-        anchorLicence
+        anchorLicence,
+        fieldedOut?.flaggedSpans
       );
       // Same shape as the pipeline branch. No prep ran here (the classifier
       // and the data fetch belong to the validators), so prepMs is 0.
       const timing = {
         elapsedMs: Date.now() - startedAt,
         prepMs: 0,
-        llmMs: llmResult.elapsedMs,
+        llmMs: fieldedOut
+          ? fieldedOut.calls.reduce((sum, c) => sum + c.elapsedMs, 0)
+          : llmResult.elapsedMs,
         refereeMs: Date.now() - refereeStartedAt,
-        retryCount: 0,
+        retryCount: fieldedOut?.retryCount ?? 0,
       };
+      logFielded("flag-off", fieldedOut);
       log.info("chat_fastpath_timing", {
         requestId,
         branch: "flag-off",
-        provider: llmResult.provider,
+        provider: fieldedOut
+          ? fieldedOut.calls[0].provider
+          : llmResult.provider,
         ...timing,
       });
 

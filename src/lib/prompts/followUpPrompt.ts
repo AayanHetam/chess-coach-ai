@@ -44,14 +44,16 @@ export const FOLLOWUP_LESSON_WORD_BUDGET = 35;
 /** Output cap in tokens: several times the budget, so only a runaway answer is ever cut. */
 export const FOLLOWUP_MAX_TOKENS = 600;
 
-export type FollowUpPromptMode = "v1" | "legacy";
+export type FollowUpPromptMode = "v1" | "legacy" | "fielded";
 
-/** `COACH_FOLLOWUP_PROMPT=legacy` is the one-line rollback; anything else is the new prompt. */
+/**
+ * `COACH_FOLLOWUP_PROMPT=legacy` is the one-line rollback, `fielded` the
+ * moment envelope on a turn about one move (fieldedFollowUpPrompt.ts, off
+ * until its flip); anything else is the follow-up prompt.
+ */
 export function getFollowUpPromptMode(): FollowUpPromptMode {
-  return (process.env.COACH_FOLLOWUP_PROMPT ?? "").trim().toLowerCase() ===
-    "legacy"
-    ? "legacy"
-    : "v1";
+  const v = (process.env.COACH_FOLLOWUP_PROMPT ?? "").trim().toLowerCase();
+  return v === "legacy" ? "legacy" : v === "fielded" ? "fielded" : "v1";
 }
 
 /**
@@ -154,7 +156,8 @@ export interface FollowUpSubject {
 
 const colourName = (c: "w" | "b") => (c === "w" ? "White" : "Black");
 
-function subjectReminder(s: FollowUpSubject): string {
+/** The subject restated under the question, in both prompts' reminders. */
+export function subjectReminder(s: FollowUpSubject): string {
   const side = colourName(s.side);
   if (!s.confirmed)
     return `This turn is about ${side}'s moves. Name both sides by colour.`;

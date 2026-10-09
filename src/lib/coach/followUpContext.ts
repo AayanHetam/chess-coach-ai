@@ -216,6 +216,34 @@ export function whatIfLicensedEvals(
   return whatIf.moves.map((m) => ({ eval: formatEval(m), san: m.san }));
 }
 
+/**
+ * What each move of a line does, in the anchor block's own words: the
+ * licence the fielded turn's checks read (fieldedFacts.ts).
+ */
+export function anchorStoryLines(
+  fen: string,
+  sans: readonly string[]
+): string[] {
+  return storyLines(fen, [...sans]);
+}
+
+/**
+ * The engine's preferred move before the anchored move, as SAN, the way the
+ * anchor block names it; null without one.
+ */
+export function anchorBestSan(
+  anchor: QuestionAnchor,
+  gameEval: GameEvalLike | undefined
+): string | null {
+  const before = gameEval?.positions?.[anchor.index];
+  if (!before?.bestMove || before.bestMove === "N/A") return null;
+  try {
+    return uciToSan(anchor.fenBefore, before.bestMove) || null;
+  } catch {
+    return null;
+  }
+}
+
 /** The board after the alternative the question asked about, when it is legal. */
 export function anchorAlternativeFen(anchor: QuestionAnchor): string | null {
   if (!anchor.askedSan) return null;

@@ -429,4 +429,32 @@ describe("byte for byte as at 5d592e7", () => {
       MODES.length * TURNS.filter((t) => !t.sided).length
     );
   }, 120_000);
+
+  // Pathway 3.1: under COACH_FOLLOWUP_PROMPT=fielded, every turn the plan
+  // does not field (no anchor, a walkthrough, no contract) is the v1 turn,
+  // byte for byte.
+  it("a turn the fielded mode does not field is the v1 turn, byte for byte", async () => {
+    const golden = JSON.parse(fs.readFileSync(GOLDEN, "utf8"));
+    for (const mode of MODES.filter((m) => m.prompt === "")) {
+      vi.stubEnv("MASTERMIND_VALIDATORS_ENABLED", mode.validators);
+      vi.stubEnv("COACH_FOLLOWUP_PROMPT", "fielded");
+      vi.stubEnv("COACH_PERSPECTIVE", "");
+      __resetMastermindEnvCacheForTests();
+      let declined = 0;
+      for (const turn of TURNS) {
+        mockLog.info.mockClear();
+        const hash = await serve(turn);
+        const plan = mockLog.info.mock.calls.find(
+          (c) => c[0] === "followup_fielded"
+        )?.[1] as { eligible?: boolean } | undefined;
+        if (plan && plan.eligible === false) {
+          declined += 1;
+          expect(hash, `${mode.name}:${turn.name}`).toBe(
+            golden.route[`${mode.name}:${turn.name}`]
+          );
+        }
+      }
+      expect(declined, mode.name).toBeGreaterThanOrEqual(3);
+    }
+  }, 120_000);
 });

@@ -27,7 +27,7 @@
  * absence clause in its place), a "shape" failure is served as it is to the
  * referee's second net.
  *
- * Pure. No call sites yet.
+ * Pure. Called by lib/coach/fieldedTurn.ts.
  */
 import { Chess } from "chess.js";
 import type { CompactContract, CompactInsight } from "@/lib/contract/followUp";
@@ -281,7 +281,8 @@ const PIECE_NAME: Record<string, string> = {
   k: "king",
 };
 
-function describeSquare(fen: string, square: string): string {
+/** What stands on a square, in words: "white queen", "empty". */
+export function describeSquare(fen: string, square: string): string {
   try {
     const p = new Chess(fen).get(square as never);
     if (!p) return "empty";

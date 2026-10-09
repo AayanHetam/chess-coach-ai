@@ -59,11 +59,14 @@ import {
 } from "@/lib/coach/questionAnchor";
 import { fensAlongGame } from "@/lib/contract/chessFormat";
 import {
+  comparedOf,
+  isCompareEnabled,
   isWhatIfEvalsEnabled,
   verifyClientEvals,
   type ClientEvalsOutcome,
   type VerifiedWhatIf,
 } from "@/lib/coach/clientEvals";
+import { compareMatchesWords } from "@/lib/coach/compareWords";
 import { resolveQuestionIntent } from "@/lib/coach/questionIntent";
 import {
   pageTurnKind,
@@ -81,8 +84,11 @@ import {
 import { resolveLiveIntent } from "@/lib/coach/intentRules";
 import { routeIntentByModel } from "@/lib/mastermind/categorization/intentRouter";
 import {
+  COMPARE_GRAMMAR_VERSION,
   FOLLOWUP_GRAMMAR_VERSION,
   NO_BOARD_FACTS_HEADER,
+  followUpCompareClause,
+  followUpCompareReminder,
   followUpGrammarClause,
   followUpGrammarReminder,
 } from "@/lib/prompts/followUpGrammar";
@@ -90,6 +96,7 @@ import {
   buildAnchorBlock,
   anchorAlternativeFen,
   anchorLicensedLines,
+  compareAltFens,
   buildFollowUpCondensedContext,
   buildSubjectMomentsBlock,
   whatIfLicensedLines,
@@ -311,6 +318,8 @@ function refereeChatReply(
     lines?: readonly LicensedLine[];
     /** A verified what-if's numbers, each licensed only beside its own move. */
     evalsByMove?: readonly { eval: string; san: string }[];
+    /** A verified compare's two moves (asked, compared): a figure tied to either never stands beside both. */
+    compared?: readonly [string, string];
   },
   /**
    * Spans a Mastermind validator contradicted in this very reply, when the
@@ -365,6 +374,7 @@ function refereeInputFor(
     extraLicensedText: anchorLicence?.text,
     activePly: anchorLicence?.activePly,
     extraLines: anchorLicence?.lines,
+    ...(anchorLicence?.compared ? { compared: anchorLicence.compared } : {}),
   };
 }
 
@@ -537,6 +547,11 @@ export async function POST(request: NextRequest) {
       // COACH_INTENT_ROUTER (pathway 3.4): the turn's grammar, fact pack and
       // validator category come from one row of the intent table.
       const routerOn = useFollowUpPrompt && isIntentRouterEnabled();
+      // COACH_COMPARE (pathway 3.5): a clientEvals payload may name a second
+      // move to set beside the first. Only on the router's turn, whose row
+      // the compare's grammar replaces, and with the what-if's numbers on.
+      const compareOn =
+        routerOn && isWhatIfEvalsEnabled() && isCompareEnabled();
 
       // The side this turn looks at the game from (questionPerspective.ts):
       // the question's words, else the page's standing choice. The player
@@ -648,20 +663,45 @@ export async function POST(request: NextRequest) {
             ? { status: "dropped", reason: "shape" }
             : { status: "off" };
       if (clientEvalsRaw !== undefined && isWhatIfEvalsEnabled()) {
-        const verdict = verifyClientEvals(clientEvalsRaw, {
-          playedMoves: context.playedMoves ?? [],
-          gameEval: context.gameEval as never,
-        });
+        const verdict = verifyClientEvals(
+          clientEvalsRaw,
+          {
+            playedMoves: context.playedMoves ?? [],
+            gameEval: context.gameEval as never,
+          },
+          compareOn ? { compare: true } : undefined
+        );
+        const compared = verdict.ok ? comparedOf(verdict.value) : null;
         if (!verdict.ok) {
           clientEvalsOutcome = { status: "dropped", reason: verdict.reason };
+        } else if (
+          compared &&
+          !compareMatchesWords(userMessage, verdict.value, {
+            anchor: resolvedAnchor,
+            moves: context.playedMoves ?? [],
+            playerColor: playerColorLetter,
+          })
+        ) {
+          // A compare the words do not name, move for move, in the order
+          // they name them, at that ply: answered as if it were not sent.
+          clientEvalsOutcome = { status: "dropped", reason: "not_compare" };
         } else {
           const asked = verdict.value.moves.find((m) => m.role === "asked")!;
           // The alternative asked about, unless it is the game's own move
-          // there ("what about 8. Nc7+?").
+          // there ("what about 8. Nc7+?"). A compare whose first move is
+          // the game's has the second as its alternative.
+          const playedThere = (context.playedMoves ?? [])[verdict.value.index];
+          const exact = (san: string) => san.replace(/[+#!?]/g, "");
+          const altSan =
+            compared &&
+            playedThere !== undefined &&
+            exact(asked.san) === exact(playedThere)
+              ? compared.san
+              : asked.san;
           const whatIfAnchor = anchorAtIndex(
             context.playedMoves ?? [],
             verdict.value.index,
-            asked.san
+            altSan
           );
           if (!whatIfAnchor) {
             clientEvalsOutcome = {
@@ -675,10 +715,13 @@ export async function POST(request: NextRequest) {
               status: "verified",
               index: verdict.value.index,
               depth: verdict.value.depth,
+              ...(compared ? { compare: true as const } : {}),
             };
           }
         }
       }
+      // A verified compare: two moves from one search, set side by side.
+      const compareVerified = !!whatIf && !!comparedOf(whatIf);
       if (anchor) {
         activeFen = anchor.fenAfter;
         effectiveMoveIndex = anchor.ply;
@@ -878,6 +921,7 @@ export async function POST(request: NextRequest) {
               wordsAskedSan: resolvedAnchor?.askedSan ?? null,
             }
           : {}),
+        ...(compareVerified ? { clientEvalsCompare: true } : {}),
         ...(subject
           ? {
               perspective: subject.side,
@@ -905,7 +949,10 @@ export async function POST(request: NextRequest) {
           grammar: turnRoute.grammar,
           category: turnRoute.category,
           factPack: subjectMoments ? "subject" : turnRoute.factPack,
-          pendingSource: turnRoute.row.pendingSource ?? null,
+          // A verified compare is the second score the compare row waits for.
+          pendingSource: compareVerified
+            ? null
+            : (turnRoute.row.pendingSource ?? null),
           veto: turnRoute.veto ?? null,
           shadowIntent: intent.intent,
           shadowRule: intent.rule,
@@ -915,6 +962,7 @@ export async function POST(request: NextRequest) {
           routerMs: turnRoute.model?.ms ?? 0,
           routerCostUsd: turnRoute.model?.costUsd ?? 0,
           routerProvider: turnRoute.model?.provider ?? null,
+          ...(compareVerified ? { compare: COMPARE_GRAMMAR_VERSION } : {}),
         });
 
       // PR-CI-6a — follow-up grounding. When the review above was served
@@ -939,7 +987,12 @@ export async function POST(request: NextRequest) {
               ? {
                   moveNumber: anchor.moveNumber,
                   color: anchor.color,
-                  ...(whatIf ? { whatIf: true } : {}),
+                  ...(whatIf
+                    ? {
+                        whatIf: true,
+                        ...(compareVerified ? { compare: true } : {}),
+                      }
+                    : {}),
                 }
               : otherSide
                 ? { subject: otherSide }
@@ -963,6 +1016,7 @@ export async function POST(request: NextRequest) {
             gameEval: context.gameEval as never,
             playerColor: playerColorLetter,
             whatIf,
+            compare: compareVerified,
           })
         : null;
       const fielded = fieldedPlan?.eligible ? fieldedPlan.facts : null;
@@ -1016,7 +1070,12 @@ export async function POST(request: NextRequest) {
         otherSide && promptSubject ? followUpSubjectClause(promptSubject) : "";
       // The turn's grammar (followUpGrammar.ts), after USER CONTEXT and the
       // subject clause and before the game's facts. Empty for one move.
-      const grammarClause = turnRoute ? followUpGrammarClause(turnRoute) : "";
+      // A verified compare has its own clause in the grammar's place.
+      const grammarClause = compareVerified
+        ? followUpCompareClause()
+        : turnRoute
+          ? followUpGrammarClause(turnRoute)
+          : "";
       const uncachedSuffix =
         useFollowUpPrompt || context.systemPromptStable
           ? `${perUserTail}${subjectClause ? `\n\n${subjectClause}` : ""}${grammarClause ? `\n\n${grammarClause}` : ""}\n\n${condensedContext}`.trim()
@@ -1058,14 +1117,16 @@ export async function POST(request: NextRequest) {
       // question as typed.
       const v1Question = useFollowUpPrompt
         ? `${userMessage}\n\n${
-            turnRoute
-              ? followUpGrammarReminder(
-                  turnRoute,
-                  userMessage,
-                  promptSubject,
-                  budget
-                )
-              : followUpTurnReminder(userMessage, promptSubject, budget)
+            compareVerified
+              ? followUpCompareReminder(promptSubject, budget)
+              : turnRoute
+                ? followUpGrammarReminder(
+                    turnRoute,
+                    userMessage,
+                    promptSubject,
+                    budget
+                  )
+                : followUpTurnReminder(userMessage, promptSubject, budget)
           }`
         : userMessage;
       nonSystemMessages.push({
@@ -1124,12 +1185,19 @@ export async function POST(request: NextRequest) {
           : {}),
       };
       const altFen = anchor ? anchorAlternativeFen(anchor) : null;
+      const comparedSans: [string, string] | undefined = compareVerified
+        ? [
+            whatIf!.moves.find((m) => m.role === "asked")!.san,
+            comparedOf(whatIf!)!.san,
+          ]
+        : undefined;
       const anchorLicence = anchor
         ? {
             fens: [
               anchor.fenBefore,
               anchor.fenAfter,
               ...(altFen ? [altFen] : []),
+              ...(compareVerified ? compareAltFens(whatIf!, anchor.san) : []),
             ],
             text: anchorLicenceText,
             activePly: anchor.ply,
@@ -1138,6 +1206,7 @@ export async function POST(request: NextRequest) {
               ...(whatIf ? whatIfLicensedLines(whatIf) : []),
             ],
             evalsByMove: whatIf ? whatIfLicensedEvals(whatIf) : [],
+            compared: comparedSans,
           }
         : subjectMoments
           ? {

@@ -2,10 +2,21 @@ import { describe, expect, it } from "vitest";
 import { Chess } from "chess.js";
 import {
   CLIENT_EVALS_LINE_PLIES,
-  verifyClientEvals,
+  comparedOf,
+  verifyClientEvals as verifyRaw,
   type ClientEvals,
   type ClientEvalsGame,
 } from "../clientEvals";
+
+/**
+ * Every plain what-if below is verified twice, with the compare's reading
+ * (pathway 3.5) and without it, and the two must agree to the byte.
+ */
+const verifyClientEvals = (raw: unknown, g: ClientEvalsGame) => {
+  const off = verifyRaw(raw, g);
+  expect(verifyRaw(raw, g, { compare: true })).toEqual(off);
+  return off;
+};
 
 /** Fixture 07: 8. Nc7+ forks king and rook while 8. Qxc1 takes a free queen. */
 const SANS =
@@ -299,5 +310,127 @@ describe("verifyClientEvals: what is dropped, and why", () => {
         moves: [p.moves[0], { ...p.moves[1], uci: "b5d6", pv: ["b5d6"] }],
       })
     ).toBe("played_mismatch");
+  });
+});
+
+describe("a compare (pathway 3.5)", () => {
+  /** The game's 8. Nc7+ against 8. Nd6+, sent compared first, with the review's best, 8. Qxc1. */
+  const comparePayload = (moves?: unknown[]) => ({
+    index: 14,
+    fen: FEN_BEFORE_8,
+    depth: 12,
+    moves: moves ?? [
+      {
+        role: "compared",
+        uci: "b5d6",
+        cp: -130,
+        depth: 12,
+        pv: ["b5d6", "e7d6"],
+      },
+      {
+        role: "asked",
+        uci: "b5c7",
+        cp: -97,
+        depth: 12,
+        pv: ["b5c7", "e8d8"],
+      },
+      { role: "best", uci: "d1c1", cp: 251, depth: 12, pv: ["d1c1", "a8b8"] },
+    ],
+  });
+  const compareReason = (p: unknown) => {
+    const v = verifyRaw(p, game, { compare: true });
+    return v.ok ? "ok" : v.reason;
+  };
+  const asked = {
+    role: "asked",
+    uci: "d1c1",
+    cp: 251,
+    depth: 12,
+    pv: ["d1c1", "a8b8"],
+  };
+  const compared = {
+    role: "compared",
+    uci: "b5d6",
+    cp: -130,
+    depth: 12,
+    pv: ["b5d6", "e7d6"],
+  };
+
+  it("without the compare's reading, a compared move is no shape", () => {
+    expect(verifyRaw(comparePayload(), game)).toEqual({
+      ok: false,
+      reason: "shape",
+    });
+  });
+
+  it("with it, the payload verifies and sorts asked, compared, best", () => {
+    const v = verifyRaw(comparePayload(), game, { compare: true });
+    expect(v.ok).toBe(true);
+    if (!v.ok) return;
+    expect(v.value.moves.map((m) => [m.role, m.san])).toEqual([
+      ["asked", "Nc7+"],
+      ["compared", "Nd6+"],
+      ["best", "Qxc1"],
+    ]);
+    expect(comparedOf(v.value)).toMatchObject({
+      role: "compared",
+      uci: "b5d6",
+      san: "Nd6+",
+      cp: -130,
+      lineSan: ["Nd6+", "exd6"],
+    });
+    expect(v.value.moves[2].review).toEqual({ cp: 284 });
+    const plain = verifyRaw(payload(), game);
+    expect(plain.ok && comparedOf(plain.value)).toBe(null);
+  });
+
+  it("roles: two compared moves, a compared move that is the asked one, a compared and a played move", () => {
+    expect(
+      compareReason(
+        comparePayload([
+          asked,
+          compared,
+          { ...compared, uci: "b5c7", pv: ["b5c7"] },
+        ])
+      )
+    ).toBe("roles");
+    expect(
+      compareReason(comparePayload([asked, { ...asked, role: "compared" }]))
+    ).toBe("roles");
+    expect(
+      compareReason(
+        comparePayload([
+          asked,
+          compared,
+          {
+            role: "played",
+            uci: "b5c7",
+            cp: -97,
+            depth: 12,
+            pv: ["b5c7"],
+          },
+        ])
+      )
+    ).toBe("roles");
+    expect(compareReason(comparePayload([compared]))).toBe("roles");
+  });
+
+  it("checks a compared move as it checks any move", () => {
+    expect(
+      compareReason(
+        comparePayload([asked, { ...compared, uci: "b5b6", pv: ["b5b6"] }])
+      )
+    ).toBe("illegal_move");
+    expect(
+      compareReason(
+        comparePayload([asked, { ...compared, pv: ["b5c7", "e8d8"] }])
+      )
+    ).toBe("line_mismatch");
+    // Mate in 1 for White, on a line that reaches past its first move with no mate.
+    expect(
+      compareReason(
+        comparePayload([asked, { ...compared, cp: undefined, mate: 1 }])
+      )
+    ).toBe("mate_mismatch");
   });
 });

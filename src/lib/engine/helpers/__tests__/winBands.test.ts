@@ -3,6 +3,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { Chess } from "chess.js";
 import { getMovesClassification } from "@/lib/engine/helpers/moveClassification";
+import {
+  WIN_LOSS_THRESHOLDS,
+  classifyWinLoss,
+} from "@/lib/engine/helpers/winBands";
+import { MoveClassification as C } from "@/types/enums";
 import type { PositionEval } from "@/types/eval";
 
 /**
@@ -91,5 +96,49 @@ describe("the review's classification over the real fixtures", () => {
     }
     expect(Object.keys(out)).toHaveLength(20);
     expect(out).toMatchSnapshot();
+  });
+});
+
+describe("the bands, at their edges", () => {
+  it("keeps the review's thresholds", () => {
+    expect(WIN_LOSS_THRESHOLDS).toEqual({
+      BEST: 0.0,
+      EXCELLENT_MAX: 0.02,
+      GOOD_MAX: 0.05,
+      INACCURACY_MAX: 0.1,
+      MISTAKE_MAX: 0.2,
+      BLUNDER_MAX: 1.0,
+    });
+  });
+
+  // Points of the mover's winning chances given up, and the band each
+  // earns: every edge is inclusive.
+  const EDGES: Array<[number, C]> = [
+    [0, C.Best],
+    [0.5, C.Excellent],
+    [2, C.Excellent],
+    [2.5, C.Good],
+    [5, C.Good],
+    [5.5, C.Inaccuracy],
+    [10, C.Inaccuracy],
+    [10.5, C.Mistake],
+    [20, C.Mistake],
+    [20.5, C.Blunder],
+    [60, C.Blunder],
+  ];
+
+  it("reads a White move's loss from White's win percentage", () => {
+    for (const [loss, band] of EDGES)
+      expect(classifyWinLoss(50, 50 - loss, true), `${loss}`).toBe(band);
+  });
+
+  it("reads a Black move's loss from White's win percentage, the other way round", () => {
+    for (const [loss, band] of EDGES)
+      expect(classifyWinLoss(50, 50 + loss, false), `${loss}`).toBe(band);
+  });
+
+  it("counts a gain as no loss", () => {
+    expect(classifyWinLoss(40, 70, true)).toBe(C.Best);
+    expect(classifyWinLoss(70, 40, false)).toBe(C.Best);
   });
 });

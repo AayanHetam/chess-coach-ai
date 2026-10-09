@@ -4,7 +4,10 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  COMPARE_GRAMMAR_VERSION,
   FOLLOWUP_GRAMMAR_VERSION,
+  followUpCompareClause,
+  followUpCompareReminder,
   followUpGrammarClause,
   followUpGrammarReminder,
   NO_BOARD_FACTS_HEADER,
@@ -14,6 +17,7 @@ import {
   FOLLOWUP_BUDGET,
   FOLLOWUP_LEAN_BUDGET,
   followUpTurnReminder,
+  subjectReminder,
   type FollowUpSubject,
 } from "../followUpPrompt";
 import { SAN_CORE } from "@/lib/coach/questionIntent";
@@ -181,5 +185,53 @@ describe("the reminders", () => {
     for (const spec of [NO_BOARD, GREETING, ...MODES])
       for (const r of Object.values(reminders(spec)))
         expect(r).not.toMatch(/[;\u2014]/);
+  });
+});
+
+describe("the compare (pathway 3.5)", () => {
+  it("is its own version, beside the grammars'", () => {
+    expect(COMPARE_GRAMMAR_VERSION).toBe("compare-1");
+    expect(FOLLOWUP_GRAMMAR_VERSION).toBe("grammar-1");
+  });
+
+  it("its clause is pinned whole", () => {
+    expect(followUpCompareClause()).toBe(
+      `THIS TURN COMPARES TWO MOVES
+The player asked which of two moves is better from one position. The app draws both lines under the question with their numbers, so for this answer the four parts of THE SHAPE give way to this. One short paragraph per move, in the order the player named them, each opening with the move as the COMPARE SEARCH writes it, number included: what the move is for, then what happens in its own line, in one or two sentences from that line's facts only. Every sentence but the verdict names one of the two moves, never both, and a move from one move's line is never a move of the other's. Then the engine's verdict, copied from the COMPARE SEARCH as it is written there. No token line, no evaluation and no percentage. A paragraph that starts with "Lesson:" only if the difference gives the player a check to run in the next game. The BUDGET holds.`
+    );
+  });
+
+  it("its reminder holds the turn's words, 100 at rest and 60 lean", () => {
+    const body =
+      "One short paragraph per move, in the order asked, each opening with the move and its number: what it is for, then what happens in its line. Then the engine's verdict as the COMPARE SEARCH writes it. A Lesson only if the difference teaches a check. No token line, no evaluation, no percentage.";
+    expect(followUpCompareReminder(null, FOLLOWUP_BUDGET)).toBe(
+      `[At most 100 words. ${body}]`
+    );
+    expect(followUpCompareReminder(null, FOLLOWUP_LEAN_BUDGET)).toBe(
+      `[At most 60 words. ${body}]`
+    );
+    expect(FOLLOWUP_BUDGET.words).toBe(100);
+    expect(FOLLOWUP_LEAN_BUDGET.words).toBe(60);
+  });
+
+  it("appends the subject, as the grammars do", () => {
+    for (const subject of [OTHER, GUESS, OWN])
+      expect(followUpCompareReminder(subject, FOLLOWUP_BUDGET)).toBe(
+        followUpCompareReminder(null, FOLLOWUP_BUDGET).replace(
+          /\]$/,
+          ` ${subjectReminder(subject)}]`
+        )
+      );
+  });
+
+  it("holds no semicolon and no em dash", () => {
+    for (const text of [
+      followUpCompareClause(),
+      followUpCompareReminder(OTHER, FOLLOWUP_BUDGET),
+      followUpCompareReminder(null, FOLLOWUP_LEAN_BUDGET),
+    ]) {
+      expect(text).not.toContain(";");
+      expect(text).not.toContain("\u2014");
+    }
   });
 });

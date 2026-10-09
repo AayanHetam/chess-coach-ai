@@ -14,7 +14,9 @@
  * A clause goes in the uncached half of the system prompt, after USER
  * CONTEXT and the subject clause and before the game's facts. A reminder
  * goes under the question, in the model's copy of the turn only. The stable
- * prompts are never touched.
+ * prompts are never touched. A verified compare (pathway 3.5, behind
+ * `COACH_COMPARE`) is anchored, so its row is one move, and its own clause
+ * and reminder take those places.
  */
 import type { AckCapability, FollowUpGrammar } from "@/lib/coach/intentTable";
 import {
@@ -25,6 +27,9 @@ import {
 } from "./followUpPrompt";
 
 export { FOLLOWUP_GRAMMAR_VERSION } from "@/lib/coach/intentTable";
+
+/** The compare's clause and reminder (pathway 3.5, `COACH_COMPARE`). */
+export const COMPARE_GRAMMAR_VERSION = "compare-1";
 
 /** The board on screen re-headed for a turn about an idea. */
 export const NO_BOARD_FACTS_HEADER =
@@ -82,4 +87,25 @@ export function followUpGrammarReminder(
   if (spec.capability)
     return `[At most ${budget.openingWords} words, one or two sentences. No move in notation, no token line, no evaluation, no Lesson.${about}]`;
   return `[One friendly sentence, then one concrete thing worth looking at next, at most ${budget.openingWords} words. No token line, no Lesson, no question back.${about}]`;
+}
+
+const COMPARE_CLAUSE = `THIS TURN COMPARES TWO MOVES
+The player asked which of two moves is better from one position. The app draws both lines under the question with their numbers, so for this answer the four parts of THE SHAPE give way to this. One short paragraph per move, in the order the player named them, each opening with the move as the COMPARE SEARCH writes it, number included: what the move is for, then what happens in its own line, in one or two sentences from that line's facts only. Every sentence but the verdict names one of the two moves, never both, and a move from one move's line is never a move of the other's. Then the engine's verdict, copied from the COMPARE SEARCH as it is written there. No token line, no evaluation and no percentage. A paragraph that starts with "Lesson:" only if the difference gives the player a check to run in the next game. The BUDGET holds.`;
+
+/**
+ * The paragraph a verified compare adds to the uncached system suffix, in
+ * the grammar clause's place: the two moves told one after the other, then
+ * the engine's verdict as the anchor block's COMPARE SEARCH words it.
+ */
+export function followUpCompareClause(): string {
+  return COMPARE_CLAUSE;
+}
+
+/** The line under a compare's question, in the reminder's place. The budget is the turn's `words`. */
+export function followUpCompareReminder(
+  subject: FollowUpSubject | null,
+  budget: Readonly<FollowUpBudget>
+): string {
+  const about = subject ? ` ${subjectReminder(subject)}` : "";
+  return `[At most ${budget.words} words. One short paragraph per move, in the order asked, each opening with the move and its number: what it is for, then what happens in its line. Then the engine's verdict as the COMPARE SEARCH writes it. A Lesson only if the difference teaches a check. No token line, no evaluation, no percentage.${about}]`;
 }

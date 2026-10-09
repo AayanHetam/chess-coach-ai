@@ -39,6 +39,13 @@ const ROOTS = [
   // that reads a question the route's way can carry them.
   "lib/coach/intentRules.ts",
   "lib/coach/intentTable.ts",
+  // A compare (pathway 3.5): the review's bands, the grade of one move
+  // against another from one search, the engine's verdict in the app's
+  // words, and the reading of the two moves the words name.
+  "lib/engine/helpers/winBands.ts",
+  "lib/engine/gradeMove.ts",
+  "lib/coach/compareVerdict.ts",
+  "lib/coach/compareWords.ts",
 ];
 const FORBIDDEN = ["lib/prompts/", "app/api/"];
 
@@ -142,6 +149,23 @@ describe("the client what-if chain", () => {
       expect(bad, bad.join("\n\n")).toEqual([]);
     });
   }
+
+  it("the grade reaches neither the review's classifier nor the opening book it imports", () => {
+    for (const root of [
+      "lib/engine/gradeMove.ts",
+      "lib/coach/compareVerdict.ts",
+    ]) {
+      const files = Array.from(reach(path.join(SRC, root)).keys()).map(rel);
+      expect(files, root).toContain("lib/engine/helpers/winBands.ts");
+      expect(files, root).not.toContain(
+        "lib/engine/helpers/moveClassification.ts"
+      );
+      expect(
+        files.filter((f) => f.endsWith(".json")),
+        root
+      ).toEqual([]);
+    }
+  });
 
   it("the scan itself sees the chain it guards", () => {
     const reached = reach(

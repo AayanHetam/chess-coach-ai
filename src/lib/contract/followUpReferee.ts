@@ -83,6 +83,12 @@ export interface FollowUpRefereeInput {
    */
   extraLines?: readonly LicensedLine[];
   /**
+   * The two moves a compare turn sets side by side: a figure tied to either
+   * is licensed only in a sentence that names one of them, so two figures
+   * cannot swap.
+   */
+  compared?: readonly [string, string];
+  /**
    * Spans of the reply a validator contradicted (Mastermind
    * `ValidatorIssue.llm_span`, error severity). The sentence holding one is
    * dropped whatever else licenses it. This is what lets a draft the
@@ -713,11 +719,19 @@ export function refereeFollowUp(
             .filter((x): x is string => !!x)
             .map(exactSan)
         );
+        // A sentence naming both compared moves ties a figure to neither.
+        const both =
+          !!input.compared &&
+          input.compared.every((s) => named.has(exactSan(s)));
         for (const m of Array.from(sentence.matchAll(EVAL_RE))) {
           const k = evalKey(m[1]);
           if (!k || evalPool.has(k)) continue;
           const moves = tiedEvals.get(k);
-          if (moves && Array.from(moves).some((san) => named.has(san)))
+          if (
+            !both &&
+            moves &&
+            Array.from(moves).some((san) => named.has(san))
+          )
             continue;
           reason = `eval:${m[1]}`;
           break;

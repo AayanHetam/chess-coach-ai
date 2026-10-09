@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
+import { Chess } from "chess.js";
 import type { AnalysisContext } from "@/lib/analysisContextCache";
 import { buildCompactGameContext } from "@/lib/coach/compactGameContext";
 import { anchorAtIndex, resolveQuestionAnchor } from "../questionAnchor";
 import {
   buildAnchorBlock,
   buildFollowUpCondensedContext,
+  compareAltFens,
   whatIfLicensedLines,
   windowMoveTable,
 } from "../followUpContext";
@@ -344,5 +347,190 @@ describe("buildAnchorBlock — a verified what-if's own search", () => {
         replacing: true,
       },
     ]);
+  });
+});
+
+describe("buildAnchorBlock: a verified compare (pathway 3.5)", () => {
+  const fenBefore = anchorAtIndex(MOVES, 14)!.fenBefore;
+  const verify = (moves: unknown[], compare = true) => {
+    const v = verifyClientEvals(
+      { index: 14, fen: fenBefore, depth: 12, moves },
+      { playedMoves: MOVES, gameEval: gameEval() as never },
+      compare ? { compare: true } : undefined
+    );
+    if (!v.ok) throw new Error(`fixture did not verify: ${v.reason}`);
+    return v.value;
+  };
+  const QXC1 = {
+    role: "asked",
+    uci: "d1c1",
+    cp: 251,
+    depth: 12,
+    pv: ["d1c1", "a8b8", "c1f4", "g8f6"],
+  };
+  const ND6 = {
+    role: "compared",
+    uci: "b5d6",
+    cp: -130,
+    depth: 12,
+    pv: ["b5d6", "e7d6"],
+  };
+  // 8. Qxc1 or 8. Nd6+, neither the game's: the anchor carries the first.
+  const both = verify([QXC1, ND6]);
+  const anchor = anchorAtIndex(MOVES, 14, "Qxc1")!;
+  const block = buildAnchorBlock(anchor, MOVES, gameEval() as never, "w", both);
+  const lines = block.split("\n");
+
+  it("says the player compares two moves, in the order named", () => {
+    expect(block).toContain(
+      "The player compares 8. Qxc1 and 8. Nd6+ at this point: two moves from the position before 8. Nc7+."
+    );
+    expect(block).not.toContain("as an alternative at this point");
+  });
+
+  it("tells the COMPARE SEARCH with its role words and both stories", () => {
+    expect(block).toContain(
+      "COMPARE SEARCH of the position before 8. Nc7+, at depth 12: one search on the player's device that scored the two moves the player compares side by side. Its numbers compare with each other only, never with the evals above, which come from another search."
+    );
+    expect(block).not.toContain("WHAT-IF SEARCH");
+    const first = lines.indexOf(
+      "  8. Qxc1 (the first move compared): +2.51 (White's perspective), line 8. Qxc1 Rb8 9. Qf4 Nf6"
+    );
+    const second = lines.indexOf(
+      "  8. Nd6+ (the second move compared): -1.30 (White's perspective), line 8. Nd6+ exd6"
+    );
+    expect(first).toBeGreaterThan(-1);
+    expect(second).toBeGreaterThan(first);
+    expect(lines[first + 1]).toBe("    what this line does:");
+    expect(lines[second + 1]).toBe("    what this line does:");
+    expect(lines.slice(second + 2).join("\n")).toMatch(/exd6/);
+  });
+
+  it("gives the engine's verdict in the app's words, then keeps each line to its move", () => {
+    const verdict = lines.findIndex((l) =>
+      l.startsWith("The engine's verdict on the two")
+    );
+    expect(lines[verdict]).toBe(
+      "The engine's verdict on the two, in the app's words: \"Of the two, the engine prefers 8. Qxc1, by a wide margin.\" Say which move the engine prefers only in these words and never with a number: the app shows both numbers under the question."
+    );
+    expect(lines[verdict + 1]).toBe(
+      "Each compared line belongs to its own move: a move from one of them is never a move of the other."
+    );
+  });
+
+  it("shows one board per move that is not the game's", () => {
+    const boards = lines.filter((l) => / instead \(/.test(l));
+    expect(boards).toEqual([
+      "Board AFTER 8. Qxc1 instead (the first move compared, Black to move):",
+      "Board AFTER 8. Nd6+ instead (the second move compared, Black to move):",
+    ]);
+    expect(block).not.toContain("the alternative asked about");
+  });
+
+  it("names the game's own move as the move played, and gives it no board of its own", () => {
+    const withPlayed = verify([
+      QXC1,
+      { ...ND6, uci: "b5c7", pv: ["b5c7", "e8d8"] },
+    ]);
+    const b = buildAnchorBlock(
+      anchor,
+      MOVES,
+      gameEval() as never,
+      "w",
+      withPlayed
+    );
+    expect(b).toContain(
+      "The player compares 8. Qxc1 and 8. Nc7+ (the move played) at this point"
+    );
+    expect(b).toContain(
+      "  8. Nc7+ (the second move compared, the move played): -1.30"
+    );
+    expect(b.split("\n").filter((l) => / instead \(/.test(l))).toEqual([
+      "Board AFTER 8. Qxc1 instead (the first move compared, Black to move):",
+    ]);
+    // The review's best beside them is named in the header.
+    const withBest = verify([
+      { ...QXC1, role: "asked", uci: "b5c7", pv: ["b5c7"] },
+      ND6,
+      { ...QXC1, role: "best" },
+    ]);
+    const onPlayed = anchorAtIndex(MOVES, 14, "Nd6+")!;
+    const c = buildAnchorBlock(
+      onPlayed,
+      MOVES,
+      gameEval() as never,
+      "w",
+      withBest
+    );
+    expect(c).toContain(
+      "scored the two moves the player compares side by side, and the engine's best."
+    );
+    expect(c).toContain("  8. Qxc1 (the engine's best): +2.51");
+    expect(c).toContain("  8. Nc7+ (the first move compared, the move played)");
+  });
+
+  it("with no review eval it forbids none and points at nothing", () => {
+    const b = buildAnchorBlock(anchor, MOVES, undefined, "w", both);
+    expect(b).toContain("The review has no evaluation for this move.\n");
+    expect(b).not.toContain("quote only the what-if search's numbers");
+    expect(b).not.toContain("do not quote an evaluation");
+  });
+
+  it("compareAltFens gives the boards after the moves that are not the game's", () => {
+    const after = (san: string) => {
+      const g = new Chess(fenBefore);
+      g.move(san);
+      return g.fen();
+    };
+    expect(compareAltFens(both, "Nc7+")).toEqual([
+      after("Qxc1"),
+      after("Nd6+"),
+    ]);
+    expect(compareAltFens(both, "Qxc1")).toEqual([after("Nd6+")]);
+    // A plain what-if has no compared move, and the played move is no alternative.
+    const plain = verify(
+      [
+        { ...ND6, role: "asked" },
+        { ...QXC1, role: "best" },
+      ],
+      false
+    );
+    expect(compareAltFens(plain, "Nc7+")).toEqual([after("Nd6+")]);
+  });
+
+  it("a plain what-if's block is byte for byte what it was before the compare", () => {
+    // Hashes of the same blocks generated at 1319bd2, before pathway 3.5a.
+    const sha = (t: string) =>
+      createHash("sha256").update(t).digest("hex").slice(0, 20);
+    const plain = verify(
+      [
+        { ...ND6, role: "asked" },
+        {
+          role: "played",
+          uci: "b5c7",
+          cp: -97,
+          depth: 12,
+          pv: ["b5c7", "e8d8", "c7a8"],
+        },
+        { ...QXC1, role: "best", pv: ["d1c1", "a8b8"] },
+      ],
+      false
+    );
+    const nd6 = anchorAtIndex(MOVES, 14, "Nd6+")!;
+    const onQxc1 = resolveQuestionAnchor("why not 8. Qxc1?", MOVES, "w")!;
+    expect(sha(buildAnchorBlock(onQxc1, MOVES, undefined, "w", plain))).toBe(
+      "fcc5cabc1f55c15a134a"
+    );
+    expect(
+      sha(buildAnchorBlock(nd6, MOVES, gameEval() as never, "w", plain))
+    ).toBe("73a8b891366f69fa8e7f");
+    expect(
+      sha(
+        buildAnchorBlock(nd6, MOVES, gameEval() as never, "b", plain, {
+          side: "b",
+          confirmed: true,
+        })
+      )
+    ).toBe("1e8a49b85388b7945624");
   });
 });

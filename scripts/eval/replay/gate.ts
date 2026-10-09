@@ -428,6 +428,10 @@ const PROBE_COMMANDS: Record<ProbeName, string[]> = {
   "followup-perspective": [
     "PERSPECTIVE_PROBE=1 npx vitest run scripts/eval/__tests__/followupPerspective.keyed.test.ts",
   ],
+  "followup-compare": [
+    "COMPARE_PROBE=1 npx vitest run scripts/eval/__tests__/followupCompare.keyed.test.ts",
+    "and COMPARE_PROBE_VALIDATORS=1 with it for the other wing",
+  ],
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -728,12 +732,20 @@ export async function runGate(
       continue;
     }
     let whatIf: VerifiedWhatIf | null = null;
-    const ce = t.echo.clientEvals as { status?: unknown } | null;
+    const ce = t.echo.clientEvals as {
+      status?: unknown;
+      compare?: unknown;
+    } | null;
     if (t.request.clientEvals !== undefined && ce?.status === "verified") {
-      const v = verifyClientEvals(t.request.clientEvals, {
-        playedMoves: fx.moveHistory,
-        gameEval: fx.gameEval as never,
-      });
+      // A compare (pathway 3.5) was verified with its second move read.
+      const v = verifyClientEvals(
+        t.request.clientEvals,
+        {
+          playedMoves: fx.moveHistory,
+          gameEval: fx.gameEval as never,
+        },
+        ce.compare === true ? { compare: true } : undefined
+      );
       if (!v.ok) {
         rd.notMeasured = `HEAD no longer verifies its what-if (${v.reason})`;
         continue;

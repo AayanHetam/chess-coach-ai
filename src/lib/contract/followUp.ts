@@ -262,6 +262,8 @@ export type ContractFocus =
       color: "w" | "b";
       /** The block also carries a what-if search's lines for that move (clientEvals.ts). */
       whatIf?: boolean;
+      /** That search compares two moves the player named (pathway 3.5). */
+      compare?: boolean;
     }
   | {
       /**
@@ -310,7 +312,7 @@ export function renderContractCompact(
     head.push(
       focus.whatIf
         ? `The question is about ${focusName}. Only that move's engine lines are given this turn, ` +
-          "the review's and the what-if search's, below or in the MOVE UNDER DISCUSSION block; every " +
+          `the review's and the ${focus.compare ? "compare" : "what-if"} search's, below or in the MOVE UNDER DISCUSSION block; every ` +
           "other finding keeps its verdict and evals and its line is withheld. A move from a line you " +
           "cannot see is not a move you can name, and a move from one finding's line never belongs " +
           "to another move."

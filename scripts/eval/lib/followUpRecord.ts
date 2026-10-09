@@ -34,6 +34,7 @@ export const RECORDED_FLAGS = [
   "COACH_INTENT_ROUTER",
   "COACH_PERSPECTIVE",
   "COACH_WHATIF_EVALS",
+  "COACH_COMPARE",
   "COACH_ONE_MASTI",
   "MASTERMIND_VALIDATORS_ENABLED",
   "CONTRACT_CATEGORIES",
@@ -44,6 +45,7 @@ export const PROBE_NAMES = [
   "intent-router",
   "followup-fielded",
   "followup-perspective",
+  "followup-compare",
 ] as const;
 export type ProbeName = (typeof PROBE_NAMES)[number];
 
@@ -65,7 +67,22 @@ export function fixtureDigest(fx: {
     .slice(0, 16);
 }
 
-const flagsSchema = z.record(z.enum(RECORDED_FLAGS), z.string());
+/**
+ * Flags recorded since a later pathway PR (COACH_COMPARE, 3.5a): a file
+ * written before one was recorded leaves it out, and it is read as unset.
+ */
+const LATER_FLAGS: readonly RecordedFlag[] = ["COACH_COMPARE"];
+
+const flagsSchema = z.preprocess(
+  (v) =>
+    v && typeof v === "object" && !Array.isArray(v)
+      ? {
+          ...Object.fromEntries(LATER_FLAGS.map((f) => [f, ""])),
+          ...(v as Record<string, unknown>),
+        }
+      : v,
+  z.record(z.enum(RECORDED_FLAGS), z.string())
+);
 
 export const SERVED_BY = [
   "model",

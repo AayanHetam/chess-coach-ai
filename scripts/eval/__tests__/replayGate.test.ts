@@ -606,6 +606,13 @@ describe("recordTurn", () => {
     expect(r.data.turns.every((t) => t.fixture === "07_knight_fork")).toBe(
       true
     );
+    // Written before COACH_COMPARE was recorded (pathway 3.5a): read as
+    // unset, and a flag the contract does not know is still refused.
+    expect(sample.turns[0].flags).not.toHaveProperty("COACH_COMPARE");
+    expect(r.data.turns.map((t) => t.flags.COACH_COMPARE)).toEqual(["", ""]);
+    const unknown = JSON.parse(JSON.stringify(sample));
+    unknown.turns[0].flags.COACH_NO_SUCH_FLAG = "1";
+    expect(followUpResultsV1.safeParse(unknown).success).toBe(false);
   });
 });
 

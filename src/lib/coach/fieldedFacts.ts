@@ -42,6 +42,7 @@ export type FieldedIneligible =
   | "no_anchor"
   | "other_side"
   | "walkthrough"
+  | "compare"
   | "no_facts";
 
 export type FieldedPlan =
@@ -70,11 +71,17 @@ export function planFieldedTurn(i: {
   gameEval: Parameters<typeof anchorEngineLine>[1];
   playerColor: "w" | "b";
   whatIf: VerifiedWhatIf | null;
+  /**
+   * A verified compare (pathway 3.5): two moves, which one envelope cannot
+   * hold, so it is the v1 turn.
+   */
+  compare?: boolean;
 }): FieldedPlan {
   if (!i.compact) return { eligible: false, reason: "no_contract" };
   const anchor = i.anchor;
   if (!anchor) return { eligible: false, reason: "no_anchor" };
   if (i.otherSide) return { eligible: false, reason: "other_side" };
+  if (i.compare) return { eligible: false, reason: "compare" };
   if (isWalkthroughQuestion(i.question))
     return { eligible: false, reason: "walkthrough" };
   try {

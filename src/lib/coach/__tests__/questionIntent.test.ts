@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { resolveQuestionAnchor } from "../questionAnchor";
 import {
   QUESTION_INTENTS,
+  compareTokens,
   resolveQuestionIntent,
   type IntentContext,
 } from "../questionIntent";
@@ -394,5 +395,80 @@ describe("the live reading (pathway PR 3.4)", () => {
       "",
     ])
       expect(live(q), q).toEqual(route(q));
+  });
+});
+
+// Pathway 3.5 gave the compare's match groups for each move's number and
+// dots. The readings below were taken from the rule before that change,
+// and must not move.
+describe("the compare rule's readings, as they were", () => {
+  const READINGS: Array<[string, string[] | null]> = [
+    ["Nf3 or Nc3 here?", ["Nf3", "Nc3"]],
+    ["8. Qxc1 vs 8. Nc7+, which is better?", ["Qxc1", "Nc7+"]],
+    ["8. Qxc1 or 8. Nd6+?", ["Qxc1", "Nd6+"]],
+    ["Qxc1 or Nc7+ here?", ["Qxc1", "Nc7+"]],
+    ["8...Kd8 or 8...Ke8?", ["Kd8", "Ke8"]],
+    ["is my knight better on e4 or d4?", ["e4", "d4"]],
+    ["e4 or d4?", ["e4", "d4"]],
+    ["Nf3, or Nc3?", ["Nf3", "Nc3"]],
+    ["Nf3 versus Nc3", ["Nf3", "Nc3"]],
+    ["Nf3 compared with Nc3?", ["Nf3", "Nc3"]],
+    ["Nf3 against Nc3", ["Nf3", "Nc3"]],
+    ["O-O or O-O-O?", ["O-O", "O-O-O"]],
+    ["8. Qxc1 vs. 8. Nd6+", ["Qxc1", "Nd6+"]],
+    ["e8=Q or e8=N?", ["e8=Q", "e8=N"]],
+    ["nf3 or Nc3?", ["nf3", "Nc3"]],
+    ["which is better, 12.Nf3 or 12.Nc3?", ["Nf3", "Nc3"]],
+    ["Bxc4 or bxc4?", null],
+    ["Nf3 or Nf3", null],
+    ["Is Nf3 better than Nc3?", null],
+    ["compare Nf3 and Nc3", null],
+  ];
+
+  it("reads the same moves, and no compare where it read none", () => {
+    for (const [q, moves] of READINGS) {
+      const r = route(q);
+      if (moves)
+        expect(r, q).toEqual({
+          intent: "compare",
+          rule: "compare:or",
+          moves,
+        });
+      else expect(r.intent, q).not.toBe("compare");
+    }
+  });
+
+  it("compareTokens names the same two moves, with their numbers and offsets", () => {
+    for (const [q, moves] of READINGS) {
+      const t = compareTokens(q);
+      expect(t?.map((x) => x.san) ?? null, q).toEqual(
+        moves && route(q).intent === "compare" ? moves : null
+      );
+      if (t)
+        for (const x of t)
+          expect(q.slice(x.start, x.end).endsWith(x.san), q).toBe(true);
+    }
+    expect(compareTokens("Is Nf3 better than Nc3?")).toBeNull();
+    const [a, b] = compareTokens("8. Qxc1 vs 8... Kd8, which?")!;
+    expect(a).toEqual({
+      san: "Qxc1",
+      numbered: { number: 8, color: "w" },
+      start: 0,
+      end: 7,
+    });
+    expect(b).toEqual({
+      san: "Kd8",
+      numbered: { number: 8, color: "b" },
+      start: 11,
+      end: 19,
+    });
+    const [c, d] = compareTokens("Is it Nf3 or 2.. Nc3?")!;
+    expect(c).toEqual({ san: "Nf3", start: 6, end: 9 });
+    expect(d).toEqual({
+      san: "Nc3",
+      numbered: { number: 2, color: "b" },
+      start: 13,
+      end: 20,
+    });
   });
 });

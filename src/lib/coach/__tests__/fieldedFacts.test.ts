@@ -195,4 +195,22 @@ describe("planFieldedTurn", () => {
     ).toBe("walkthrough");
     expect(reason(plan({ playedMoves: null as never }))).toBe("no_facts");
   });
+
+  // Pathway 3.5: a verified compare names two moves, which one envelope
+  // cannot hold.
+  it("declines a compare right after the other side, and changes nothing without one", () => {
+    const reason = (p: FieldedPlan) => (p.eligible ? null : p.reason);
+    expect(reason(plan({ compare: true }))).toBe("compare");
+    expect(reason(plan({ otherSide: "b", compare: true }))).toBe("other_side");
+    expect(
+      reason(
+        plan({
+          compare: true,
+          question: "Walk me through 8. Nc7+ step by step",
+        })
+      )
+    ).toBe("compare");
+    expect(plan({ compare: false })).toEqual(plan());
+    expect(plan({ compare: undefined })).toEqual(plan());
+  });
 });

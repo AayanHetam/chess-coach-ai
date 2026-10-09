@@ -373,6 +373,20 @@ describe("focus on the move under discussion (2026-09-26)", () => {
     expect(out).not.toContain("The question is about");
   });
 
+  it("a what-if's focus names its search, and a compare's names the compare search (pathway 3.5)", () => {
+    const whatIf = renderContractCompact(compact, undefined, { moveNumber: 8, color: "w", whatIf: true });
+    expect(whatIf).toContain("the review's and the what-if search's, below or in the MOVE UNDER DISCUSSION block");
+    const compare = renderContractCompact(compact, undefined, { moveNumber: 8, color: "w", whatIf: true, compare: true });
+    expect(compare).toContain("the review's and the compare search's, below or in the MOVE UNDER DISCUSSION block");
+    expect(compare).not.toContain("what-if");
+    // Only the one word moves.
+    expect(compare.replace("compare search's", "what-if search's")).toBe(whatIf);
+    // Without a what-if the flag says nothing.
+    expect(renderContractCompact(compact, undefined, { moveNumber: 8, color: "w", compare: true })).toBe(
+      renderContractCompact(compact, undefined, { moveNumber: 8, color: "w" })
+    );
+  });
+
   it("without a focus every line is there, as before", () => {
     const out = renderContractCompact(compact);
     expect(out).toContain("Rb8");

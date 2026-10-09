@@ -41,12 +41,27 @@ export function isWhatIfEvalsEnabled(): boolean {
   return v === "1" || v === "on" || v === "true";
 }
 
+/**
+ * The server switch for a compare (pathway 3.5, read by the chat route
+ * only): `COACH_COMPARE=1` verifies a payload with a `compared` move and
+ * answers it as two moves set side by side. It acts only with the intent
+ * router and COACH_WHATIF_EVALS on. Off, such a payload is dropped as
+ * "shape", as before.
+ */
+export function isCompareEnabled(): boolean {
+  const v = (process.env.COACH_COMPARE ?? "").trim().toLowerCase();
+  return v === "1" || v === "on" || v === "true";
+}
+
 /** What the route did with a turn's clientEvals, echoed in its response. */
 export type ClientEvalsOutcome =
   | { status: "absent" }
   | { status: "off" }
-  | { status: "dropped"; reason: ClientEvalsDropReason | "final_position" }
-  | { status: "verified"; index: number; depth: number };
+  | {
+      status: "dropped";
+      reason: ClientEvalsDropReason | "final_position" | "not_compare";
+    }
+  | { status: "verified"; index: number; depth: number; compare?: true };
 
 /** UCI as chess.js writes it (e1g1 for castling). */
 const UCI_RE = /^[a-h][1-8][a-h][1-8][qrbn]?$/;
@@ -54,38 +69,63 @@ const UCI_RE = /^[a-h][1-8][a-h][1-8][qrbn]?$/;
 /** The plies of a line that are licensed and told: the anchor block's own length. */
 export const CLIENT_EVALS_LINE_PLIES = 8;
 
-const moveSchema = z.object({
-  role: z.enum(["asked", "played", "best"]),
-  uci: z.string().regex(UCI_RE),
-  cp: z.number().int().min(-8999).max(8999).optional(),
-  mate: z
-    .number()
-    .int()
-    .min(-100)
-    .max(100)
-    .refine((m) => m !== 0)
-    .optional(),
-  depth: z.number().int().min(1).max(64),
-  pv: z.array(z.string().regex(UCI_RE)).min(1).max(CLIENT_EVALS_LINE_PLIES),
-});
+/** One scored move, for the roles a payload may carry. */
+function moveSchemaFor<R extends string>(roles: readonly [R, ...R[]]) {
+  return z.object({
+    role: z.enum(roles),
+    uci: z.string().regex(UCI_RE),
+    cp: z.number().int().min(-8999).max(8999).optional(),
+    mate: z
+      .number()
+      .int()
+      .min(-100)
+      .max(100)
+      .refine((m) => m !== 0)
+      .optional(),
+    depth: z.number().int().min(1).max(64),
+    pv: z.array(z.string().regex(UCI_RE)).min(1).max(CLIENT_EVALS_LINE_PLIES),
+  });
+}
+
+/** The payload around the moves. */
+function payloadSchemaFor<R extends string>(roles: readonly [R, ...R[]]) {
+  return z.object({
+    /** Plies before the position the moves are played from. */
+    index: z.number().int().min(0).max(1024),
+    /** That position, as the client replayed it. */
+    fen: z.string().min(1).max(120),
+    /** The depth of the search the numbers come from: at least the pathway's stable first depth. */
+    depth: z.number().int().min(10).max(64),
+    moves: z.array(moveSchemaFor(roles)).min(1).max(10),
+  });
+}
 
 /** The wire shape, exactly as the client sends it. */
-export const clientEvalsSchema = z.object({
-  /** Plies before the position the moves are played from. */
-  index: z.number().int().min(0).max(1024),
-  /** That position, as the client replayed it. */
-  fen: z.string().min(1).max(120),
-  /** The depth of the search the numbers come from: at least the pathway's stable first depth. */
-  depth: z.number().int().min(10).max(64),
-  moves: z.array(moveSchema).min(1).max(10),
-});
+export const clientEvalsSchema = payloadSchemaFor([
+  "asked",
+  "played",
+  "best",
+] as const);
 
-export type ClientEvals = z.infer<typeof clientEvalsSchema>;
-export type ClientEvalsMove = z.infer<typeof moveSchema>;
+/**
+ * A compare's wire shape (pathway 3.5): the what-if's, with a second move
+ * the player names beside the first (`compared`). Read only under
+ * COACH_COMPARE.
+ */
+export const compareEvalsSchema = payloadSchemaFor([
+  "asked",
+  "compared",
+  "played",
+  "best",
+] as const);
+
+/** The wire type, a compare's included. */
+export type ClientEvals = z.infer<typeof compareEvalsSchema>;
+export type ClientEvalsMove = ClientEvals["moves"][number];
 
 /** A move of a verified what-if, with what the server derived from it. */
 export interface VerifiedWhatIfMove {
-  role: "asked" | "played" | "best";
+  role: "asked" | "compared" | "played" | "best";
   uci: string;
   /** SAN derived here, never the client's. */
   san: string;
@@ -108,8 +148,13 @@ export interface VerifiedWhatIf {
   moveNumber: number;
   color: "w" | "b";
   depth: number;
-  /** The asked move first, then the played and the best where present. */
+  /** The asked move first, then the compared, the played and the best where present. */
   moves: VerifiedWhatIfMove[];
+}
+
+/** The second move of a verified compare, or null for a plain what-if. */
+export function comparedOf(w: VerifiedWhatIf): VerifiedWhatIfMove | null {
+  return w.moves.find((m) => m.role === "compared") ?? null;
 }
 
 export type ClientEvalsVerdict =
@@ -177,16 +222,29 @@ function playUci(
  */
 export function verifyClientEvals(
   raw: unknown,
-  game: ClientEvalsGame
+  game: ClientEvalsGame,
+  /**
+   * `compare`: a payload may name a second move (`compared`), under
+   * COACH_COMPARE. Without it a compare payload is dropped as "shape" and
+   * every other outcome is what it was.
+   */
+  opts?: { compare?: boolean }
 ): ClientEvalsVerdict {
-  const parsed = clientEvalsSchema.safeParse(raw);
+  const parsed: { success: true; data: ClientEvals } | { success: false } =
+    opts?.compare
+      ? compareEvalsSchema.safeParse(raw)
+      : clientEvalsSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, reason: "shape" };
   const payload = parsed.data;
 
-  // One asked move; at most one played and one best; no move twice.
+  // One asked move, at most one played and one best, and no move twice. A
+  // compare names one second move, and the game's move then plays no
+  // separate part.
   const roles = payload.moves.map((m) => m.role);
   const count = (r: string) => roles.filter((x) => x === r).length;
   if (count("asked") !== 1 || count("played") > 1 || count("best") > 1)
+    return { ok: false, reason: "roles" };
+  if (count("compared") > 1 || (count("compared") === 1 && count("played") > 0))
     return { ok: false, reason: "roles" };
   if (payload.moves.some((m) => m.cp === undefined && m.mate === undefined))
     return { ok: false, reason: "no_score" };
@@ -297,7 +355,7 @@ export function verifyClientEvals(
       ...(review ? { review } : {}),
     });
   }
-  const order = { asked: 0, played: 1, best: 2 } as const;
+  const order = { asked: 0, compared: 1, played: 2, best: 3 } as const;
   verified.sort((a, b) => order[a.role] - order[b.role]);
 
   return {

@@ -7,23 +7,7 @@ import {
 import { MoveClassification } from "@/types/enums";
 import { detectOpening } from "@/lib/unifiedOpeningDetector";
 import { getIsPieceSacrifice, isSimplePieceRecapture } from "@/lib/chess";
-
-// Chess.com's Expected Points Model thresholds
-const CHESS_COM_THRESHOLDS = {
-  BEST: 0.0,
-  EXCELLENT_MAX: 0.02,
-  GOOD_MAX: 0.05,
-  INACCURACY_MAX: 0.1,
-  MISTAKE_MAX: 0.2,
-  BLUNDER_MAX: 1.0,
-};
-
-// Convert win percentage difference to expected points loss
-const winPercentageToExpectedPoints = (winPercentageDiff: number): number => {
-  // Chess.com's expected points formula
-  // This converts our win percentage model to their expected points model
-  return Math.abs(winPercentageDiff) / 100;
-};
+import { classifyWinLoss } from "./winBands";
 
 export const getMovesClassification = (
   rawPositions: PositionEval[],
@@ -140,7 +124,7 @@ export const getMovesClassification = (
     }
 
     // Chess.com-style basic classification using expected points
-    const moveClassification = getChessComClassification(
+    const moveClassification = classifyWinLoss(
       lastPositionWinPercentage,
       positionWinPercentage,
       isWhiteMove
@@ -154,39 +138,6 @@ export const getMovesClassification = (
   });
 
   return positions;
-};
-
-// Chess.com-compatible classification based on expected points loss
-const getChessComClassification = (
-  lastPositionWinPercentage: number,
-  positionWinPercentage: number,
-  isWhiteMove: boolean
-): MoveClassification => {
-  const winPercentageDiff =
-    (positionWinPercentage - lastPositionWinPercentage) *
-    (isWhiteMove ? 1 : -1);
-
-  const expectedPointsLoss = winPercentageToExpectedPoints(
-    Math.min(0, winPercentageDiff)
-  );
-
-  if (expectedPointsLoss === CHESS_COM_THRESHOLDS.BEST) {
-    return MoveClassification.Best;
-  }
-  if (expectedPointsLoss <= CHESS_COM_THRESHOLDS.EXCELLENT_MAX) {
-    return MoveClassification.Excellent;
-  }
-  if (expectedPointsLoss <= CHESS_COM_THRESHOLDS.GOOD_MAX) {
-    return MoveClassification.Good;
-  }
-  if (expectedPointsLoss <= CHESS_COM_THRESHOLDS.INACCURACY_MAX) {
-    return MoveClassification.Inaccuracy;
-  }
-  if (expectedPointsLoss <= CHESS_COM_THRESHOLDS.MISTAKE_MAX) {
-    return MoveClassification.Mistake;
-  }
-
-  return MoveClassification.Blunder;
 };
 
 // Detect missed opportunities (Chess.com's "Miss" category)

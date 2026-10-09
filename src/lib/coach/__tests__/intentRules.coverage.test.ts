@@ -184,6 +184,24 @@ describe("the sixty questions, by rule", () => {
     }
   });
 
+  // Pathway 3.5 reads the compare's two moves from the same match.
+  it("row 37 is still the compare rule's, with its two moves", () => {
+    const row = ROWS.find((r) => r.id === 37)!;
+    expect(row.q).toBe("Nf3 or Nc3 here?");
+    const { live } = liveOf(row);
+    expect(live).toEqual({
+      intent: "compare",
+      rule: "compare:or",
+      moves: ["Nf3", "Nc3"],
+      source: "rule",
+    });
+    expect(routeOf(row)).toMatchObject({
+      intent: "compare",
+      grammar: row.expect.grammar,
+      category: row.expect.category,
+    });
+  });
+
   it("prints the per-intent coverage table", () => {
     const table: Record<string, { rule: number; router: number }> = {};
     for (const r of ROWS) {

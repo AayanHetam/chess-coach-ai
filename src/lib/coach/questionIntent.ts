@@ -165,8 +165,12 @@ const QUIZ_RE =
 
 const WHAT_IF_RE =
   /\b(?:what\s+if|what\s+about|how\s+about|why\s+not|instead\s+of|instead\b|rather\s+than|could\s+i\s+have\s+played|should\s+i\s+have\s+played|would\s+.*\s+(?:have\s+)?(?:been\s+)?better|is\s+.*\s+better|was\s+.*\s+better|does\s+.*\s+work|would\s+.*\s+work)/i;
+/**
+ * Two moves set against each other. Groups 1 to 3 are the first move's
+ * number, dots and SAN, groups 4 to 6 the second's (compareTokens).
+ */
 const COMPARE_JOIN_RE = new RegExp(
-  `(?<![A-Za-z0-9])(?:\\d{1,3}\\s*\\.{1,3}\\s*)?(${SAN_CORE})(?![A-Za-z0-9])\\s*(?:,\\s*)?(?:or|vs\\.?|versus|against|compared\\s+(?:to|with))\\s+(?:\\d{1,3}\\s*\\.{1,3}\\s*)?(${SAN_CORE})(?![A-Za-z0-9])`,
+  `(?<![A-Za-z0-9])(?:(\\d{1,3})\\s*(\\.{1,3})\\s*)?(${SAN_CORE})(?![A-Za-z0-9])\\s*(?:,\\s*)?(?:or|vs\\.?|versus|against|compared\\s+(?:to|with))\\s+(?:(\\d{1,3})\\s*(\\.{1,3})\\s*)?(${SAN_CORE})(?![A-Za-z0-9])`,
   "i"
 );
 
@@ -355,11 +359,11 @@ export function resolveQuestionIntent(
 
   // 6. Two moves set against each other.
   const compare = COMPARE_JOIN_RE.exec(text);
-  if (compare && compare[1].toLowerCase() !== compare[2].toLowerCase()) {
+  if (compare && compare[3].toLowerCase() !== compare[6].toLowerCase()) {
     return {
       intent: "compare",
       rule: "compare:or",
-      moves: [compare[1], compare[2]],
+      moves: [compare[3], compare[6]],
     };
   }
 
@@ -390,4 +394,61 @@ export function resolveQuestionIntent(
   if (ctx.anchor) return { intent: "verdict", rule: "verdict:anchor_only" };
 
   return { intent: "unknown", rule: "none" };
+}
+
+/** One of the two moves a compare names, where the text writes it. */
+export interface CompareToken {
+  /** As written. */
+  san: string;
+  /** The number written before it. Two dots or more are Black's. */
+  numbered?: { number: number; color: "w" | "b" };
+  /** Offsets in the text: from the number, or the SAN, to the SAN's end. */
+  start: number;
+  end: number;
+}
+
+/**
+ * The two moves a compare names ("8. Qxc1 or 8. Nd6+?"), by the same match
+ * and the same case check as the compare rule, or null when the rule would
+ * not read one. Which rule decides the turn is not asked here (see
+ * compareWords.ts, readCompare).
+ */
+export function compareTokens(
+  text: string
+): readonly [CompareToken, CompareToken] | null {
+  const m = COMPARE_JOIN_RE.exec(typeof text === "string" ? text : "");
+  if (!m || m[3].toLowerCase() === m[6].toLowerCase()) return null;
+  const numbered = (n: string | undefined, dots: string | undefined) =>
+    n && dots
+      ? {
+          numbered: {
+            number: Number(n),
+            color: (dots.length >= 2 ? "b" : "w") as "w" | "b",
+          },
+        }
+      : {};
+  const whole = m[0];
+  // The first move opens the match: its SAN is the first letter on, since
+  // a number is digits, dots and spaces only.
+  const firstEnd = whole.search(/[A-Za-z]/) + m[3].length;
+  // The second closes it, its number (when written) just before it.
+  const secondSan = whole.length - m[6].length;
+  const lead = m[4]
+    ? /\d{1,3}\s*\.{1,3}\s*$/.exec(whole.slice(0, secondSan))
+    : null;
+  const secondStart = lead ? lead.index : secondSan;
+  return [
+    {
+      san: m[3],
+      ...numbered(m[1], m[2]),
+      start: m.index,
+      end: m.index + firstEnd,
+    },
+    {
+      san: m[6],
+      ...numbered(m[4], m[5]),
+      start: m.index + secondStart,
+      end: m.index + whole.length,
+    },
+  ];
 }

@@ -32,7 +32,8 @@ import { buildRelationalFacts } from "@/lib/relational/relationalFactsBuilder";
 import { convertPvToSan, uciToSan } from "@/lib/contract/chessFormat";
 import { buildLineStory, projectLineStory } from "@/lib/contract/lineStory";
 import type { QuestionAnchor } from "./questionAnchor";
-import type { VerifiedWhatIf } from "./clientEvals";
+import { comparedOf, type VerifiedWhatIf } from "./clientEvals";
+import { compareTwo, compareVerdictWords } from "./compareVerdict";
 import {
   sideMoments,
   sideMomentsSection,
@@ -255,6 +256,40 @@ export function anchorAlternativeFen(anchor: QuestionAnchor): string | null {
   }
 }
 
+/** The same move, as the server's SAN writes it: case counts (Bxc4 is not bxc4), check marks do not. */
+function sameSan(a: string, b: string): boolean {
+  const exact = (san: string) => san.replace(/[+#!?]/g, "");
+  return exact(a) === exact(b);
+}
+
+/** The boards after a compare's moves that are not the game's, in the order the player named them. */
+function compareAlternatives(
+  w: VerifiedWhatIf,
+  playedSan: string
+): { san: string; role: "asked" | "compared"; fen: string }[] {
+  const out: { san: string; role: "asked" | "compared"; fen: string }[] = [];
+  for (const m of w.moves) {
+    if (m.role !== "asked" && m.role !== "compared") continue;
+    if (sameSan(m.san, playedSan)) continue;
+    try {
+      const g = new Chess(w.fenBefore);
+      if (g.move(m.san)) out.push({ san: m.san, role: m.role, fen: g.fen() });
+    } catch {
+      /* a verified move is legal, so there is nothing to add otherwise */
+    }
+  }
+  return out;
+}
+
+/**
+ * The boards after each move of a verified compare that is not the game's
+ * move there (`playedSan`): the referee reads piece claims about either
+ * alternative from them.
+ */
+export function compareAltFens(w: VerifiedWhatIf, playedSan: string): string[] {
+  return compareAlternatives(w, playedSan).map((a) => a.fen);
+}
+
 export function buildAnchorBlock(
   anchor: QuestionAnchor,
   playedMoves: readonly string[],
@@ -292,7 +327,20 @@ export function buildAnchorBlock(
   out.push(
     `## MOVE UNDER DISCUSSION — ${label} (${colorName}${about}). The board will show the position after it.`
   );
-  if (anchor.askedSan) {
+  // A compare (pathway 3.5): two moves the player sets side by side from
+  // this position, one of them perhaps the game's.
+  const compared =
+    whatIf && whatIf.index === anchor.index ? comparedOf(whatIf) : null;
+  const dots = anchor.color === "w" ? "." : "...";
+  const numbered = (san: string) => `${anchor.moveNumber}${dots} ${san}`;
+  if (compared) {
+    const named = (san: string) =>
+      `${numbered(san)}${sameSan(san, anchor.san) ? " (the move played)" : ""}`;
+    const asked = whatIf!.moves.find((m) => m.role === "asked")!;
+    out.push(
+      `The player compares ${named(asked.san)} and ${named(compared.san)} at this point: two moves from the position before ${label}.`
+    );
+  } else if (anchor.askedSan) {
     out.push(
       `The player asks about ${anchor.askedSan} as an alternative at this point.`
     );
@@ -314,6 +362,8 @@ export function buildAnchorBlock(
     out.push(
       `Eval after the move: ${evalAfter}. (Pawns, White's perspective.)`
     );
+  } else if (compared) {
+    out.push("The review has no evaluation for this move.");
   } else if (whatIf && whatIf.index === anchor.index) {
     out.push(
       "The review has no evaluation for this move: quote only the what-if search's numbers below."
@@ -408,7 +458,61 @@ export function buildAnchorBlock(
   // table). Every figure is followed by its perspective, never by a full
   // stop, so the referee reads it, and none is put as "the engine rates",
   // which the eval parser takes for attribution and does not check.
-  if (whatIf && whatIf.index === anchor.index && whatIf.moves.length > 0) {
+  if (compared) {
+    // A compare: the two moves the player named, from the same search, each
+    // with its own line and story, then the engine's verdict on the two in
+    // the app's words (compareVerdict.ts), which carry no figure.
+    const hasBest = whatIf!.moves.some((m) => m.role === "best");
+    out.push(
+      `COMPARE SEARCH of the position before ${label}, at depth ${whatIf!.depth}: one search on the player's device that scored the two moves the player compares side by side${hasBest ? ", and the engine's best" : ""}. Its numbers compare with each other only, never with the evals above, which come from another search.`
+    );
+    for (const m of whatIf!.moves) {
+      const role =
+        m.role === "asked"
+          ? "the first move compared"
+          : m.role === "compared"
+            ? "the second move compared"
+            : "the engine's best";
+      const played =
+        m.role !== "best" && sameSan(m.san, anchor.san)
+          ? ", the move played"
+          : "";
+      out.push(
+        `  ${numbered(m.san)} (${role}${played}): ${formatEval(m)} (White's perspective), line ${renderLine(anchor.moveNumber, anchor.color === "w", m.lineSan)}`
+      );
+      if (m.role === "asked" || m.role === "compared") {
+        const story = storyLines(whatIf!.fenBefore, m.lineSan);
+        if (story.length > 0) {
+          out.push("    what this line does:");
+          for (const l of story) out.push(`      - ${l}`);
+        }
+      }
+    }
+    const asked = whatIf!.moves.find((m) => m.role === "asked")!;
+    const verdict = compareTwo(
+      { fen: whatIf!.fenBefore, moves: whatIf!.moves },
+      asked.uci,
+      compared.uci
+    );
+    if (verdict) {
+      const sanOf = new Map(whatIf!.moves.map((m) => [m.uci, m.san]));
+      const words = compareVerdictWords(
+        verdict,
+        (uci) => numbered(sanOf.get(uci) ?? uci),
+        "long"
+      );
+      out.push(
+        `The engine's verdict on the two, in the app's words: "${words}" Say which move the engine prefers only in these words and never with a number: the app shows both numbers under the question.`
+      );
+    }
+    out.push(
+      "Each compared line belongs to its own move: a move from one of them is never a move of the other."
+    );
+  } else if (
+    whatIf &&
+    whatIf.index === anchor.index &&
+    whatIf.moves.length > 0
+  ) {
     // Asked about by name, the game's own move is no alternative to itself.
     const roleWord = (role: string) =>
       role === "asked"
@@ -438,9 +542,20 @@ export function buildAnchorBlock(
 
   // The alternative the question named gets its own board, so an answer
   // about it is not written from the board after the move that was played.
-  const altFen = anchorAlternativeFen(anchor);
+  // A compare gets one per move that is not the game's.
+  const altFen = compared ? null : anchorAlternativeFen(anchor);
   const pmAlt = altFen ? pieceMap(altFen) : null;
-  if (altFen && pmAlt) {
+  if (compared) {
+    for (const alt of compareAlternatives(whatIf!, anchor.san)) {
+      const pm = pieceMap(alt.fen);
+      if (!pm) continue;
+      out.push(
+        `Board AFTER ${numbered(alt.san)} instead (the ${alt.role === "asked" ? "first" : "second"} move compared, ${pm.toMove} to move):`
+      );
+      out.push(`  White pieces: ${pm.white}`);
+      out.push(`  Black pieces: ${pm.black}`);
+    }
+  } else if (altFen && pmAlt) {
     out.push(
       `Board AFTER ${anchor.moveNumber}${anchor.color === "w" ? "." : "..."} ${anchor.askedSan} instead (the alternative asked about, ${pmAlt.toMove} to move):`
     );

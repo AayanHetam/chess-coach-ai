@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { stubMaiaHealthy, stubSignedIn } from "../helpers";
+import { horizontalOverflow, stubMaiaHealthy, stubSignedIn } from "../helpers";
 
 /**
  * The board never moves on a tap.
@@ -367,5 +367,83 @@ test.describe("the board's rectangle", () => {
       /orientation-black/
     );
     expectSameRect(rest, await boardRect(page), "leaving a drill by order");
+  });
+
+  // A switch of the side the answers are about (standingSide.ts, behind
+  // NEXT_PUBLIC_COACH_PERSPECTIVE and typed through page actions; CI builds
+  // with both on): its acknowledgement takes the strip's first row at the
+  // row's own height, its way back fits beside the menu, and neither moves
+  // the board.
+  test("does not move for a switch of the side the answers are about, or its way back", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await stubEverything(page);
+    await page.goto(`/analysis?pgn=${encodeURIComponent(PGN)}`);
+    const composer = page.getByPlaceholder(
+      "Ask anything — answering without engine analysis."
+    );
+    await expect(composer).toBeVisible({ timeout: 60_000 });
+    const flag = (name: string) =>
+      page.locator(`[${name}]`).first().getAttribute(name);
+    const on =
+      (await flag("data-page-actions")) === "on" &&
+      (await flag("data-coach-perspective")) === "on";
+    test.skip(
+      !on && !process.env.CI,
+      "built without perspective or page actions"
+    );
+    expect(on, "the CI legs build with perspective and page actions on").toBe(
+      true
+    );
+    const say = async (text: string, ack: string) => {
+      const lines = page.getByText(ack, { exact: true });
+      const before = await lines.count();
+      await composer.fill(text);
+      await composer.press("Enter");
+      await expect(lines).toHaveCount(before + 1, { timeout: 10_000 });
+    };
+
+    await say("I was white", "Coaching you as White.");
+    const rest = await boardRect(page);
+    const strip = page.getByTestId("move-analysis");
+    const stripBox = (await strip.boundingBox())!;
+
+    await say(
+      "coach me as black",
+      "Answers are about Black's moves now. You're still White."
+    );
+    const state = page.getByTestId("standing-strip-state");
+    await expect(state).toHaveAttribute("data-subject", "b");
+    expectSameRect(rest, await boardRect(page), "a side switch");
+    expect(
+      Math.abs((await strip.boundingBox())!.height - stripBox.height)
+    ).toBeLessThanOrEqual(2);
+    // The way back fits in the row, left of the board menu.
+    const back = state.getByRole("button", { name: "Back to my side" });
+    const b = (await back.boundingBox())!;
+    const m = (await page.getByTestId("board-menu").first().boundingBox())!;
+    expect(b.x + b.width).toBeLessThanOrEqual(m.x + 1);
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
+
+    await back.click();
+    await expect(state).toHaveCount(0);
+    await expect(page.getByTestId("move-analysis-label")).toBeVisible();
+    await expect(page.locator(".cg-wrap").first()).toHaveClass(
+      /orientation-white/
+    );
+    expectSameRect(rest, await boardRect(page), "the way back");
+
+    // Shown once: the board moving takes it away.
+    await say(
+      "coach me as black",
+      "Answers are about Black's moves now. You're still White."
+    );
+    await expect(state).toBeVisible();
+    // The key is the board's, not the composer's.
+    await composer.blur();
+    await page.keyboard.press("End");
+    await expect(state).toHaveCount(0);
+    expectSameRect(rest, await boardRect(page), "stepping after a switch");
   });
 });

@@ -65,6 +65,8 @@ export interface CoachReplyHandlers {
   onPageTurn?: (turn: PageTurn | null) => void;
   /** Things the page does beside an answer (the router's, from pathway PR 3.4). */
   onActions?: (actions: PageAction[]) => void;
+  /** The coach's reading of the turn's side (the route's `perspective` echo), raw. */
+  onPerspective?: (echo: unknown) => void;
 }
 
 /** A patch for the coach's placeholder: the last message, when it is the coach's. */
@@ -113,6 +115,11 @@ export interface CoachReplySink {
   servePageTurn(turn: PageTurn | null): void;
   /** Do what the server asked beside its answer; the answer is still the answer. */
   applyActions(actions: PageAction[]): void;
+  /**
+   * The coach's reading of the turn's side (standingSide.ts): the page may
+   * take its standing side from it. Optional: a sink without it ignores it.
+   */
+  notePerspective?(echo: unknown): void;
 }
 
 export interface CoachReplyRun {
@@ -230,6 +237,10 @@ export async function runCoachReply(run: CoachReplyRun): Promise<void> {
       onActions: (actions) => {
         if (served || actions.length === 0) return;
         sink.applyActions(actions);
+      },
+      onPerspective: (echo) => {
+        if (served) return;
+        sink.notePerspective?.(echo);
       },
     });
     if (!served) onDone?.(accumulated);

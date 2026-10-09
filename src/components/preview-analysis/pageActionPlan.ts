@@ -63,6 +63,14 @@ export interface PageTurnState {
    * a colour on its own is then the answer to it, not the side ask's.
    */
   coachAsked: boolean;
+  /**
+   * Under NEXT_PUBLIC_COACH_PERSPECTIVE (standingSide.ts): the side the
+   * answers are about (null for none set) and the side the coach's context
+   * was built for. A "coach me as" wish then sets the standing side
+   * instead of the player's, with no re-review, and "back to my side" ends
+   * it. Absent, the plan is as before.
+   */
+  standing?: { side: "w" | "b" | null; player: "w" | "b" };
 }
 
 export type PageEffect =
@@ -79,7 +87,13 @@ export type PageEffect =
    * keeps the side it replaces, so "back to my side" can undo a "coach me
    * as" wish; `restore` is that undoing.
    */
-  | { type: "side"; color: "w" | "b"; remember?: true; restore?: true };
+  | { type: "side"; color: "w" | "b"; remember?: true; restore?: true }
+  /**
+   * The side the answers are about (standingSide.ts); the player's own
+   * side ends a switch. Never the player's side: no context is thrown
+   * away and nothing is re-reviewed.
+   */
+  | { type: "standing"; side: "w" | "b" };
 
 export interface PagePlan {
   effects: PageEffect[];
@@ -281,8 +295,60 @@ function planAction(a: PageAction, s: PageTurnState): PagePlan {
   );
 }
 
+/**
+ * A wish or "back to my side" under a standing side (standingSide.ts), or
+ * null for the plan without one: a wish needs the player's side known
+ * (with it unknown, "coach me as Black" answers the side ask, as before).
+ */
+function planStanding(p: PagePreference, s: PageTurnState): PagePlan | null {
+  const st = s.standing;
+  if (!st) return null;
+  const switched = st.side !== null && st.side !== st.player;
+  const backToPlayer = (): PagePlan => {
+    const mine = st.player === "w" ? "white" : "black";
+    return {
+      effects: [
+        { type: "standing", side: st.player },
+        ...(s.playerSide && !s.drill && s.orientation !== mine
+          ? [{ type: "orientation" as const, to: mine as "white" | "black" }]
+          : []),
+      ],
+      ack: "Answers are about your moves again.",
+      mood: "wave",
+    };
+  };
+  if (p.kind === "my_side") return switched ? backToPlayer() : null;
+  if (p.bare || p.declared || s.playerSide === null) return null;
+  if (p.color === s.playerSide) return switched ? backToPlayer() : null;
+  const name = colorName(p.color);
+  if (st.side === p.color)
+    return {
+      effects: [],
+      ack: `Answers are already about ${name}'s moves.`,
+      mood: "wave",
+    };
+  return {
+    // A drill owns the board: the side changes, its orientation does not.
+    effects: [
+      { type: "standing", side: p.color },
+      ...(s.drill
+        ? []
+        : [
+            {
+              type: "orientation" as const,
+              to: (p.color === "w" ? "white" : "black") as "white" | "black",
+            },
+          ]),
+    ],
+    ack: `Answers are about ${name}'s moves now. You're still ${colorName(s.playerSide)}.`,
+    mood: "wave",
+  };
+}
+
 function planPreference(p: PagePreference, s: PageTurnState): PagePlan | null {
   if (!s.sideEligible) return null;
+  const standing = planStanding(p, s);
+  if (standing) return standing;
   if (p.kind === "side") {
     // A colour on its own answers the side ask, and only that: once the
     // side is known, or when the coach has just asked something, it is a

@@ -36,6 +36,28 @@ export function isPerspectiveEnabled(): boolean {
   return v === "1" || v === "on" || v === "true";
 }
 
+/**
+ * The analysis page's half (PR 2.6), off until its flip: its own one-line
+ * PR changes this default, and the env overrides it either way, which is
+ * how the Playwright legs run it on. Never on before `COACH_PERSPECTIVE`:
+ * a page that moves "go to move 8" to Black's 8th while the coach reads
+ * the player's would disagree with it.
+ */
+export const PERSPECTIVE_PUBLIC_DEFAULT = false;
+
+/**
+ * Read once at module level by the analysis page. `NEXT_PUBLIC_` values are
+ * inlined at build time, and only for this literal spelling of the name.
+ */
+export function isPerspectiveEnabledPublic(): boolean {
+  const v = (process.env.NEXT_PUBLIC_COACH_PERSPECTIVE ?? "")
+    .trim()
+    .toLowerCase();
+  if (v === "1" || v === "on" || v === "true") return true;
+  if (v === "0" || v === "off" || v === "false") return false;
+  return PERSPECTIVE_PUBLIC_DEFAULT;
+}
+
 /** The version of the perspective wording the route sends, echoed and logged so answers can be told apart. */
 export const PERSPECTIVE_CLAUSE_VERSION = "1";
 
@@ -48,6 +70,12 @@ export interface TurnSubject {
   source: "words" | "field" | "history";
   /** Which reading decided it, for the logs and the echo. */
   rule: string;
+  /**
+   * The page's standing side set aside for this turn, because the words
+   * are about the player ("what did I do wrong?", "and White?", "back to
+   * my side, why was move 8 bad?"): echoed, nothing else served about it.
+   */
+  yielded?: "words";
 }
 
 /** A side as the subject of a verb: "Black", "my opponent", "he". */
@@ -211,6 +239,22 @@ const CARRIED_KINDS = new Set([
   "moments",
 ]);
 
+/**
+ * Words about the player's own play: the first person ("I", "we", "my"
+ * but not "my opponent"), the player's own side ("back to my side"), or
+ * the player's colour by name. They end a carried subject and set aside a
+ * standing one for the turn. The page reads them too, so its what-if
+ * draws the move the coach will anchor.
+ */
+export function aboutThePlayer(message: string, player: Side): boolean {
+  const said = normalise(message ?? "");
+  return (
+    FIRST_PERSON_RE.test(said) ||
+    PLAYER_RE.test(said) ||
+    namesColour(said, player)
+  );
+}
+
 /** The page's standing choice, as sent: "w", "b", "white" or "black"; anything else is no choice. */
 export function readPerspectiveField(raw: unknown): Side | null {
   if (typeof raw !== "string") return null;
@@ -295,16 +339,15 @@ export function resolveTurnSubject(input: {
     input.sideConfirmed
   );
   if (words) return { side: words.side, source: "words", rule: words.rule };
-  const field = readPerspectiveField(input.field);
-  if (field)
-    return field !== input.player
-      ? { side: field, source: "field", rule: "field" }
-      : null;
   const text = normalise(input.message ?? "");
-  const endsCarry = (said: string) =>
-    FIRST_PERSON_RE.test(said) ||
-    PLAYER_RE.test(said) ||
-    namesColour(said, input.player);
+  const endsCarry = (said: string) => aboutThePlayer(said, input.player);
+  const field = readPerspectiveField(input.field);
+  if (field) {
+    if (field === input.player) return null;
+    return endsCarry(text)
+      ? { side: field, source: "field", rule: "field", yielded: "words" }
+      : { side: field, source: "field", rule: "field" };
+  }
   // "what should we play now?", "and how did White play?", "back to my side".
   if (endsCarry(text) || HERE_CUE_RE.test(text)) return null;
   const history = input.history ?? [];

@@ -115,6 +115,16 @@ async function skipUnlessOn(page: Page) {
   expect(on, "the CI legs build with page actions on").toBe(true);
 }
 
+/** Was this build made with the standing side on (NEXT_PUBLIC_COACH_PERSPECTIVE)? */
+async function perspectiveOn(page: Page): Promise<boolean> {
+  return (
+    (await page
+      .locator("[data-coach-perspective]")
+      .first()
+      .getAttribute("data-coach-perspective")) === "on"
+  );
+}
+
 async function boardRect(page: Page) {
   return page
     .locator(".cg-wrap")
@@ -268,11 +278,24 @@ test.describe("orders the page carries out itself", () => {
       "Coaching you as White (your choice)"
     );
     await expect(board).toHaveClass(/orientation-white/);
-    await say("coach me as black", "Coaching you as Black now.");
-    await expect(page.getByTestId("player-side-chip")).toContainText(
-      "Coaching you as Black"
-    );
-    await say("back to my side", "Coaching you as White again.");
+    if (await perspectiveOn(page)) {
+      // A wish is a switch of the side the answers are about: the player
+      // stays White, and nothing is reviewed again (standingSide.ts).
+      await say(
+        "coach me as black",
+        "Answers are about Black's moves now. You're still White."
+      );
+      await expect(page.getByTestId("player-side-chip")).toContainText(
+        "Coaching you as White"
+      );
+      await say("back to my side", "Answers are about your moves again.");
+    } else {
+      await say("coach me as black", "Coaching you as Black now.");
+      await expect(page.getByTestId("player-side-chip")).toContainText(
+        "Coaching you as Black"
+      );
+      await say("back to my side", "Coaching you as White again.");
+    }
     await expect(board).toHaveClass(/orientation-white/);
 
     // Still only the two requests the two questions made.
@@ -402,6 +425,123 @@ test.describe("orders the page carries out itself", () => {
       )
       .toBe(plies);
     expect(seen.chat).toHaveLength(0);
+    expect(seen.deep).toHaveLength(1);
+  });
+
+  test("a switch of the side the answers are about is answered in one message, with no re-review", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    const seen = await stubCoach(page, LONG_REVIEW, { blockEngine: true });
+    await page.goto(`/analysis?pgn=${encodeURIComponent(LONG_PGN)}`);
+    const composer = page.getByPlaceholder(
+      "Ask anything — answering without engine analysis."
+    );
+    await expect(composer).toBeVisible({ timeout: 60_000 });
+    await skipUnlessOn(page);
+    const on = await perspectiveOn(page);
+    test.skip(
+      !on && !process.env.CI,
+      "built without NEXT_PUBLIC_COACH_PERSPECTIVE=1"
+    );
+    expect(on, "the CI legs build with the standing side on").toBe(true);
+    const say = async (text: string, ack: string) => {
+      const lines = page.getByText(ack, { exact: true });
+      const before = await lines.count();
+      await composer.fill(text);
+      await composer.press("Enter");
+      await expect(lines).toHaveCount(before + 1, { timeout: 10_000 });
+    };
+    // A question that reaches the coach, once its answer is on the page.
+    const ask = async (text: string, answer = CHAT_ANSWER) => {
+      const before = seen.chat.length;
+      const answers = page.getByText(answer, { exact: true });
+      const shown = await answers.count();
+      await composer.fill(text);
+      await composer.press("Enter");
+      await expect(answers).toHaveCount(shown + 1, { timeout: 30_000 });
+      expect(seen.chat).toHaveLength(before + 1);
+      return seen.chat[before];
+    };
+
+    await say("I was white", "Coaching you as White.");
+    await composer.fill("analyse this game");
+    await composer.press("Enter");
+    await expect(page.getByText(/kept the pieces breathing/)).toBeVisible({
+      timeout: 30_000,
+    });
+    expect(seen.deep).toHaveLength(1);
+
+    // No standing side: nothing extra on the wire.
+    expect("perspective" in (await ask("why was move 20 bad?"))).toBe(false);
+
+    // The coach's jump holds the strip: back from it first, so the strip
+    // is free to say the switch.
+    const leaveJump = async () => {
+      const jump = page.getByTestId("coach-jump-banner");
+      if (await jump.count())
+        await jump.getByRole("button", { name: /Back to/ }).click();
+      await expect(jump).toHaveCount(0);
+    };
+    await leaveJump();
+
+    // The switch: one line, no request, and the next question carries it.
+    await say(
+      "coach me as black",
+      "Answers are about Black's moves now. You're still White."
+    );
+    await expect(page.getByTestId("standing-strip-state")).toHaveAttribute(
+      "data-subject",
+      "b"
+    );
+    expect((await ask("what went wrong?")).perspective).toBe("b");
+    // A bare "move 20" is Black's now, for the page as for the coach.
+    await say("go to move 20", "Here's 20... d4, Black's move 20.");
+    // The way back is sent too: it is the only way the coach hears of it.
+    await say("back to my side", "Answers are about your moves again.");
+    expect((await ask("and then?")).perspective).toBe("w");
+
+    await leaveJump();
+    // The coach reading a question as a view from Black's side switches it
+    // the same way, with the strip saying so.
+    await page.route(
+      "**/api/chat",
+      async (route) => {
+        seen.chat.push(route.request().postDataJSON());
+        await route.fulfill({
+          status: 200,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            gameAnalysis: {
+              analysis: "Black grabbed one pawn too many.",
+              position: "",
+              followUpPrompt: "1.3",
+              perspective: {
+                side: "b",
+                source: "words",
+                rule: "colour_view",
+                version: "1",
+              },
+              validationScore: 1,
+              cached: false,
+              fastPath: true,
+            },
+          }),
+        });
+      },
+      { times: 1 }
+    );
+    await ask(
+      "from Black's side, what went wrong?",
+      "Black grabbed one pawn too many."
+    );
+    await expect(page.getByTestId("standing-strip-state")).toHaveAttribute(
+      "data-subject",
+      "b"
+    );
+    expect((await ask("tell me more")).perspective).toBe("b");
+
+    // Never a second review.
     expect(seen.deep).toHaveLength(1);
   });
 });

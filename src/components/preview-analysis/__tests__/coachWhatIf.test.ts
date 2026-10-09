@@ -878,6 +878,27 @@ describe("resolveWhatIf: which side the alternative is for", () => {
     expect(resolveWhatIf("what about Nd5 on move 9?", open())).toBeNull();
   });
 
+  it("'move 4' legal for both follows the side the coach will read it as (defaultSide)", () => {
+    expect(
+      resolveWhatIf("what about Nd5 on move 4?", open({ defaultSide: "b" }))!
+        .index
+    ).toBe(7);
+    // Even with the player's side a guess: a colour is never relative.
+    expect(
+      resolveWhatIf(
+        "what about Nd5 on move 4?",
+        open({ playerSideKnown: false, defaultSide: "b" })
+      )!.index
+    ).toBe(7);
+    // A side the words give the move still decides.
+    expect(
+      resolveWhatIf(
+        "what if White plays Nd5 on move 4?",
+        open({ defaultSide: "b" })
+      )!.index
+    ).toBe(6);
+  });
+
   it("a numbered alternative whose notation was played a ply earlier is still its own move", () => {
     const ask = resolveWhatIf(
       "after 7... Qxc1, why not 8. Qxc1?",

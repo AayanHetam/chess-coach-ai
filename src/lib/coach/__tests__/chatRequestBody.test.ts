@@ -112,3 +112,24 @@ describe("coach follow-up request body: the orders the page can carry out", () =
     }
   });
 });
+
+describe("coach follow-up request body: the page's standing side", () => {
+  it("carries it as a letter when set", () => {
+    expect(
+      buildChatRequestBody({ ...base, perspective: "b" }).perspective
+    ).toBe("b");
+    expect(
+      buildChatRequestBody({ ...base, perspective: "w" }).perspective
+    ).toBe("w");
+  });
+
+  it("leaves the field out when none is set, so every other body is the one it was", () => {
+    for (const perspective of [undefined, null]) {
+      const body = buildChatRequestBody({ ...base, perspective });
+      expect("perspective" in body).toBe(false);
+      expect(JSON.stringify(body)).toBe(
+        JSON.stringify(buildChatRequestBody(base))
+      );
+    }
+  });
+});

@@ -440,3 +440,48 @@ describe("patchLastCoachMessage: the placeholder reducer the page's sink uses", 
     expect(patchLastCoachMessage(theirs, { content: "x" })).toBe(theirs);
   });
 });
+
+describe("runCoachReply: the coach's reading of the turn's side", () => {
+  it("reaches the sink beside the answer", async () => {
+    const { calls, sink } = recorder();
+    const noted: unknown[] = [];
+    await runCoachReply({
+      stream: async (h: CoachReplyHandlers) => {
+        h.onPerspective?.({ side: "b", source: "words" });
+        h.onDelta("Black grabbed too much.");
+        return RETURNED;
+      },
+      fromPly: 4,
+      site: "send",
+      sink: { ...sink, notePerspective: (e) => void noted.push(e) },
+    });
+    expect(noted).toEqual([{ side: "b", source: "words" }]);
+    expect(calls.some(([k]) => k === "patch")).toBe(true);
+  });
+
+  it("is ignored after a served page turn, and by a sink without the method", async () => {
+    const { sink } = recorder();
+    const noted: unknown[] = [];
+    await runCoachReply({
+      stream: async (h: CoachReplyHandlers) => {
+        h.onPageTurn?.(null);
+        h.onPerspective?.({ side: "b" });
+        return RETURNED;
+      },
+      fromPly: 4,
+      site: "send",
+      sink: { ...sink, notePerspective: (e) => void noted.push(e) },
+    });
+    expect(noted).toEqual([]);
+    // No method: nothing throws.
+    await runCoachReply({
+      stream: async (h: CoachReplyHandlers) => {
+        h.onPerspective?.({ side: "b" });
+        return RETURNED;
+      },
+      fromPly: 4,
+      site: "send",
+      sink,
+    });
+  });
+});

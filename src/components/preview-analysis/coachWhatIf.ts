@@ -78,6 +78,13 @@ export interface WhatIfContext {
    * one side, never for the guessed one.
    */
   playerSideKnown?: boolean;
+  /**
+   * The side a bare "move 8" legal for both sides is read as, the way the
+   * coach will anchor it (standingSide.ts, whatIfDefaultSide): a side the
+   * words name, or the page's standing side. Absent, the player's side
+   * when it is known, as before.
+   */
+  defaultSide?: "w" | "b";
   /** The review's sweep, for the engine's best move at the position. */
   enginePositions?: readonly PositionEval[] | null;
   /**
@@ -626,8 +633,10 @@ function onMoveNumber(
       side
     );
     if (left.length === 1) return left[0];
-    if (left.length === 2 && !side && ctx.playerSideKnown)
-      return left.find((r) => r.board.turn() === ctx.playerColor) ?? null;
+    const tie =
+      ctx.defaultSide ?? (ctx.playerSideKnown ? ctx.playerColor : undefined);
+    if (left.length === 2 && !side && tie)
+      return left.find((r) => r.board.turn() === tie) ?? null;
     return null;
   }
   const left = onSide(

@@ -16,7 +16,9 @@
  * The first row's label gives way to the board's state when it is off the
  * mainline ("Exploring 8.Qxc1 Rb8 · Back to move 7", "Showing 8. Nc7+, the
  * move you asked about · Back to move 10"), which used to be two banners
- * that dropped in above the board and resized it.
+ * that dropped in above the board and resized it, and once, at the moment
+ * of a switch, to the side the answers are about ("Black's side · Back to
+ * my side", standingSide.ts), which goes when the board moves.
  *
  * The analysis itself is moveAnalysis.ts over the engine data the client
  * already holds: it exists for every ply, the opponent's included, and never
@@ -112,9 +114,10 @@ export interface MoveAnalysisCardProps {
   /** The board menu, at the right of the first row. */
   menu?: React.ReactNode;
   /**
-   * Replaces the move label while the board is off the mainline: the
-   * exploration path with its way back, or the coach's jump with its way
-   * back. Same row, same height, so the board below never moves.
+   * Replaces the move label while the board is off the mainline (the
+   * exploration path, the coach's jump or a drill, each with its way back)
+   * or, until the board moves, after a switch of the side the answers are
+   * about. Same row, same height, so the board below never moves.
    */
   state?: React.ReactNode;
 }
@@ -194,10 +197,10 @@ export function MoveAnalysisCard({
           minWidth: 0,
         }}
       >
-        {/* On a phone the row cannot hold the step buttons AND an exploring
-            state with its way back, so while the board is off the mainline
-            the buttons yield the row to the state; they are back the moment
-            the reader is. Beside a board there is room for both. */}
+        {/* On a phone the row cannot hold the step buttons AND a state
+            with its way back, so while one shows the buttons yield the row
+            to it; they are back the moment it goes. Beside a board there is
+            room for both. */}
         <Box
           sx={{
             display: state ? { xs: "none", md: "contents" } : "contents",

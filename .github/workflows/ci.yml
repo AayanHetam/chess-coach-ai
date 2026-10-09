@@ -137,6 +137,10 @@ jobs:
     env:
       # Orders the page carries out itself (lib/coach/pageActions.ts).
       NEXT_PUBLIC_COACH_PAGE_ACTIONS: "1"
+      # The side the coach's answers are about (standingSide.ts). The chat
+      # route is stubbed in these legs, so the server's COACH_PERSPECTIVE
+      # is not needed here.
+      NEXT_PUBLIC_COACH_PERSPECTIVE: "1"
     steps:
       - uses: actions/checkout@v4
         with:

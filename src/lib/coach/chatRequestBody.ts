@@ -34,6 +34,12 @@ export interface ChatRequestBodyInput {
    * call, and never otherwise.
    */
   pageActions?: readonly PageTurnKind[] | null;
+  /**
+   * The page's standing side (standingSide.ts), sent only while
+   * perspective is on and a side is set: the side the coach's answers are
+   * about, never the player's colour.
+   */
+  perspective?: "w" | "b" | null;
 }
 
 export interface ChatRequestBody {
@@ -44,6 +50,7 @@ export interface ChatRequestBody {
   moveIndex?: number;
   clientEvals?: ClientEvals;
   pageActions?: PageTurnKind[];
+  perspective?: "w" | "b";
 }
 
 export function buildChatRequestBody(
@@ -66,5 +73,6 @@ export function buildChatRequestBody(
     ...(input.pageActions && input.pageActions.length > 0
       ? { pageActions: [...input.pageActions] }
       : {}),
+    ...(input.perspective ? { perspective: input.perspective } : {}),
   };
 }

@@ -497,12 +497,13 @@ export async function POST(request: NextRequest) {
         perspectiveOn
           ? {
               defaultSide:
-                subject && subject.source !== "history"
+                subject && subject.source !== "history" && !subject.yielded
                   ? subject.side
                   : playerColorLetter,
               sideConfirmed,
               strictDefault: subject?.source === "words",
-              preferDefaultSide: !!subject && subject.source !== "history",
+              preferDefaultSide:
+                !!subject && subject.source !== "history" && !subject.yielded,
               onMissing: (m) => {
                 missing.push(m);
               },
@@ -595,11 +596,14 @@ export async function POST(request: NextRequest) {
       // player's own the turn is anchored on ("why not Qxc1 instead?" on
       // White's 8th under a Black standing side): the turn is about that
       // move, so it is served about the player, and the echo says so.
-      const yielded =
-        !!subject &&
-        subject.source !== "words" &&
-        !!anchor &&
-        anchor.color === playerColorLetter;
+      const yielded: "words" | "anchor" | null = subject?.yielded
+        ? "words"
+        : !!subject &&
+            subject.source !== "words" &&
+            !!anchor &&
+            anchor.color === playerColorLetter
+          ? "anchor"
+          : null;
       // The other side, when the turn is about it: what changes the facts.
       const otherSide =
         subject && !yielded && subject.side !== playerColorLetter
@@ -758,7 +762,7 @@ export async function POST(request: NextRequest) {
               perspectiveSource: subject.source,
               perspectiveRule: subject.rule,
               perspectiveVersion: PERSPECTIVE_CLAUSE_VERSION,
-              ...(yielded ? { perspectiveYielded: "anchor" } : {}),
+              ...(yielded ? { perspectiveYielded: yielded } : {}),
               subjectMoments: subjectMoments
                 ? subjectMoments.lines.length
                 : null,
@@ -897,7 +901,7 @@ export async function POST(request: NextRequest) {
                 source: subject.source,
                 rule: subject.rule,
                 version: PERSPECTIVE_CLAUSE_VERSION,
-                ...(yielded ? { yielded: "anchor" } : {}),
+                ...(yielded ? { yielded } : {}),
               },
             }
           : {}),

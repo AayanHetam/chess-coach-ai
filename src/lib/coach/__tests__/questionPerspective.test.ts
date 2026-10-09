@@ -209,6 +209,41 @@ describe("resolveTurnSubject", () => {
     ).toEqual({ side: "b", source: "words", rule: "colour_view" });
   });
 
+  it("a standing field is set aside for a turn about the player", () => {
+    for (const message of [
+      "what did I do wrong?",
+      "why did I play move 8?",
+      "and White?",
+    ])
+      expect(
+        resolveTurnSubject({ ...base, message, field: "b" }),
+        message
+      ).toEqual({
+        side: "b",
+        source: "field",
+        rule: "field",
+        yielded: "words",
+      });
+    // Unconfirmed too: "my side" cannot name a colour, but it is the player's.
+    expect(
+      resolveTurnSubject({
+        player: "w",
+        sideConfirmed: false,
+        message: "back to my side, why was move 8 bad?",
+        field: "b",
+      })
+    ).toMatchObject({ yielded: "words" });
+    for (const message of [
+      "tell me more",
+      "I don't understand, why?",
+      "and move 9?",
+    ])
+      expect(
+        resolveTurnSubject({ ...base, message, field: "b" }),
+        message
+      ).toEqual({ side: "b", source: "field", rule: "field" });
+  });
+
   it("the field stands when the words name no side", () => {
     expect(
       resolveTurnSubject({ ...base, message: "and move 20?", field: "black" })

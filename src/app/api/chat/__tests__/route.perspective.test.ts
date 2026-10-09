@@ -419,6 +419,25 @@ describe("a turn about the other side (validators on)", () => {
     expect(suffix).not.toContain("These findings are the player's");
   });
 
+  it("a standing field gives way to a question about the player's own play", async () => {
+    const sent = provider(DRAFT);
+    const json = await (
+      await ask("why did I play move 8?", { perspective: "b" })
+    ).json();
+    expect(json.gameAnalysis.perspective).toEqual({
+      side: "b",
+      source: "field",
+      rule: "field",
+      version: "1",
+      yielded: "words",
+    });
+    expect(json.gameAnalysis.anchor).toMatchObject({ ply: 15, san: "Nc7+" });
+    const suffix = String(sent[0].systemSuffix);
+    expect(suffix).not.toContain("THIS TURN IS ABOUT");
+    expect(suffix).toContain("## TOP MISTAKES");
+    expect(sent[0].messages.at(-1).content).not.toContain("This turn is about");
+  });
+
   it("the words win over the field: my move is the player's", async () => {
     const sent = provider(DRAFT);
     const json = await (

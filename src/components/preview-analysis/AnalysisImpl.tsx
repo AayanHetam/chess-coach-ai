@@ -202,6 +202,16 @@ import {
   type PageTurn,
   type PageTurnKind,
 } from "@/lib/coach/pageActions";
+import { isPerspectiveEnabledPublic } from "@/lib/coach/questionPerspective";
+import {
+  moveNumberSide,
+  readPerspectiveEcho,
+  standingAfterEcho,
+  standingStripWords,
+  strippedSide,
+  whatIfDefaultSide,
+  type Side as StandingSide,
+} from "./standingSide";
 import {
   coachAskedLast,
   markServedPageTurn,
@@ -557,6 +567,8 @@ function buildContextBlurb(
 const AI_DISABLED = isAiDisabledPublic();
 /** Build-time flag: orders the page carries out itself (lib/coach/pageActions.ts). */
 const PAGE_ACTIONS = isPageActionsEnabledPublic();
+/** Build-time flag: the side the coach's answers are about (standingSide.ts). */
+const PERSPECTIVE = isPerspectiveEnabledPublic();
 
 /**
  * User Timing marks for a what-if ("coach-what-if:asked", ":partial",
@@ -702,6 +714,14 @@ async function streamCoachReply(params: {
   onPageTurn?: (turn: PageTurn | null) => void;
   /** Things the page does beside an answer. */
   onActions?: (actions: PageAction[]) => void;
+  /**
+   * The page's standing side (standingSide.ts), read when the request is
+   * sent: the side the answers are about, never the player's colour. The
+   * deep path never carries it (the review is the player's).
+   */
+  perspectiveRef?: { current: "w" | "b" | null };
+  /** The coach's reading of the turn's side, raw (the route's `perspective` echo). */
+  onPerspective?: (echo: unknown) => void;
   signal?: AbortSignal;
 }): Promise<string> {
   const {
@@ -731,6 +751,8 @@ async function streamCoachReply(params: {
     pageActions,
     onPageTurn,
     onActions,
+    perspectiveRef,
+    onPerspective,
     signal,
   } = params;
   // A context minted by this request is built for the side it carries.
@@ -741,6 +763,8 @@ async function streamCoachReply(params: {
   // Group D: synthetic (UI-authored) and incomplete (truncated) turns are
   // filtered out here, in the ONE place history is assembled.
   const conversationHistory = buildConversationHistory(prevMessages);
+  // The standing side as this request carries it.
+  const sentPerspective = perspectiveRef?.current ?? null;
 
   const hasContext =
     contextIdRef.current !== null &&
@@ -764,6 +788,7 @@ async function streamCoachReply(params: {
           currentPly,
           clientEvals,
           pageActions: PAGE_ACTIONS ? pageActions : null,
+          perspective: PERSPECTIVE ? sentPerspective : null,
         })
       ),
       signal,
@@ -785,6 +810,15 @@ async function streamCoachReply(params: {
       }
       const text: string =
         data.message ?? data.response ?? data.gameAnalysis?.analysis ?? "";
+      // The coach's reading of the turn's side, before the anchor, so the
+      // page takes a standing side in the same render as the answer.
+      // Not when the reader switched while it was on its way.
+      if (
+        PERSPECTIVE &&
+        data.gameAnalysis?.perspective !== undefined &&
+        (perspectiveRef?.current ?? null) === sentPerspective
+      )
+        onPerspective?.(data.gameAnalysis.perspective);
       const anchor = data.gameAnalysis?.anchor;
       if (
         anchor &&
@@ -3400,6 +3434,72 @@ function CoachJumpState({
   );
 }
 
+/**
+ * The answers are about the other side's moves now (standingSide.ts): said
+ * once in the strip at the moment of the switch, with the way back. The
+ * board does not move and the player stays "you"; it goes when the board
+ * moves or the strip shows anything else.
+ */
+function StandingStripState({
+  side,
+  onBack,
+}: {
+  side: StandingSide;
+  onBack: () => void;
+}) {
+  const words = standingStripWords(side);
+  return (
+    <Box
+      data-testid="standing-strip-state"
+      data-subject={side}
+      sx={{
+        flex: 1,
+        minWidth: 0,
+        display: "flex",
+        alignItems: "center",
+        gap: 0.9,
+      }}
+    >
+      <Box
+        component="span"
+        sx={{
+          flexShrink: 1,
+          minWidth: 0,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          fontSize: "0.64rem",
+          fontWeight: 800,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          color: "#CBD5E1",
+        }}
+      >
+        <span aria-hidden>{side === "w" ? "♔" : "♚"} </span>
+        {words.label}
+      </Box>
+      <Typography
+        sx={{
+          display: { xs: "none", sm: "block" },
+          flex: 1,
+          // Gives way first: beside the step buttons there is room for the
+          // side and its way back, not always for the sentence.
+          minWidth: 0,
+          fontSize: "0.8rem",
+          color: "rgba(255,255,255,0.82)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {words.text}
+      </Typography>
+      <Box sx={{ flex: { xs: 1, sm: "none" } }} />
+      <BackButton onClick={onBack}>{words.back}</BackButton>
+    </Box>
+  );
+}
+
 function BackButton({
   onClick,
   tooltip,
@@ -4874,6 +4974,7 @@ function CoachPanel({
             disabled={AI_DISABLED || analysisActive}
             // Read by the e2e: was this build made with page actions on?
             data-page-actions={PAGE_ACTIONS ? "on" : "off"}
+            data-coach-perspective={PERSPECTIVE ? "on" : "off"}
             fullWidth
             multiline
             maxRows={4}
@@ -7697,6 +7798,31 @@ export default function AnalysisPage() {
   // the PGN headers, or a stored per-game answer) or by the user clicking
   // the ask card / the switch chip. Threads into coachExtras.playerColor.
   const [playerSide, setPlayerSide] = useState<PlayerSide | null>(null);
+  // The side the coach's answers are about (standingSide.ts), under
+  // NEXT_PUBLIC_COACH_PERSPECTIVE: set by a "coach me as" wish or by a
+  // question the coach read as a view from a side, ended by "back to my
+  // side". Never the player's side and never in the context, so a switch
+  // is answered in one message with no re-review. Sent on every follow-up
+  // while set (the player's own side included, after a way back).
+  const standingRef = useRef<StandingSide | null>(null);
+  const [standing, setStandingState] = useState<StandingSide | null>(null);
+  // The strip's acknowledgement of a switch, at the ply it was made: gone
+  // when the board moves or the strip shows anything else.
+  const [standingAck, setStandingAck] = useState<{
+    side: StandingSide;
+    atPly: number;
+  } | null>(null);
+  const setStanding = useCallback((side: StandingSide | null) => {
+    standingRef.current = side;
+    setStandingState(side);
+  }, []);
+  // A new game, or a change of the player's own side, ends it: it was
+  // about the other side of the old player.
+  useEffect(() => {
+    standingRef.current = null;
+    setStandingState(null);
+    setStandingAck(null);
+  }, [loadedGame, playerSide?.color]);
 
   // ─── Production-parity personalization extras for the deep coach path ───
   // Production's AICoachChat (line 2459-2487) threads playerColor +
@@ -7861,11 +7987,16 @@ export default function AnalysisPage() {
               : null,
             openingName:
               headers.Opening?.trim() || detectedOpening?.name || null,
-            playerColor: playerSide
-              ? playerSide.color === "white"
-                ? "w"
-                : "b"
-              : null,
+            // The chips about one side's moves ("walk me through the
+            // blunder at …") are about the standing side's while one is set.
+            playerColor:
+              (PERSPECTIVE && playerSide
+                ? strippedSide(
+                    standing,
+                    playerSide.color === "white" ? "w" : "b"
+                  )
+                : null) ??
+              (playerSide ? (playerSide.color === "white" ? "w" : "b") : null),
           }),
     [
       hasGame,
@@ -7876,6 +8007,7 @@ export default function AnalysisPage() {
       headers.Opening,
       detectedOpening,
       playerSide,
+      standing,
     ]
   );
 
@@ -8335,6 +8467,16 @@ export default function AnalysisPage() {
   // saved snapshot; the message log is never mutated, so chat history
   // survives the round-trip automatically.
   const [drillState, setDrillState] = useState<DrillState | null>(null);
+
+  // The strip's acknowledgement of a switch goes when the board moves, and
+  // for good when anything else takes the strip: it never comes back stale
+  // after that state's Back.
+  useEffect(() => {
+    setStandingAck((a) => (a && a.atPly !== currentPly ? null : a));
+  }, [currentPly]);
+  useEffect(() => {
+    if (drillState || takeoverPreview || coachJump) setStandingAck(null);
+  }, [drillState, takeoverPreview, coachJump]);
   const drillActive = drillState !== null && drillState.status !== "complete";
   // Bumped to force the board to re-sync to React-state FEN. Chessground
   // commits a drag visually before the move event fires, so a rejected
@@ -9144,6 +9286,18 @@ export default function AnalysisPage() {
         // Null until the side is answered or inferred: a "move 8" with no
         // side is then drawn only where it is legal for one side.
         playerSideKnown: playerSide != null,
+        // A "move 8" legal for both sides, read the way the coach will
+        // anchor it: a side the words name, or the standing side.
+        ...(PERSPECTIVE
+          ? {
+              defaultSide: whatIfDefaultSide(
+                question,
+                coachContextColorRef.current ?? coachExtras.playerColor,
+                playerSide != null,
+                standing
+              ),
+            }
+          : {}),
         enginePositions,
         exploring:
           (takeoverPreview !== null && !ownPreview) || drillState !== null,
@@ -9162,6 +9316,7 @@ export default function AnalysisPage() {
       currentPly,
       coachExtras.playerColor,
       playerSide,
+      standing,
       enginePositions,
       takeoverPreview,
       drillState,
@@ -9329,6 +9484,30 @@ export default function AnalysisPage() {
   const pageActionsBesideRef = useRef<(actions: PageAction[]) => void>(
     () => {}
   );
+  // The coach's reading of a turn's side (standingSide.ts): a view of the
+  // game from a side, or the player's own side named, becomes the standing
+  // side; anything else was that turn's only. Assigned every render, so it
+  // reads the page as it is when the answer lands.
+  const notePerspectiveRef = useRef<(echo: unknown) => void>(() => {});
+  notePerspectiveRef.current = (raw) => {
+    if (!PERSPECTIVE) return;
+    const player = coachContextColorRef.current ?? coachExtras.playerColor;
+    const next = standingAfterEcho(
+      readPerspectiveEcho(raw),
+      standingRef.current,
+      player
+    );
+    if (next === undefined) return;
+    setStanding(next);
+    setStandingAck(
+      strippedSide(next, player) &&
+        !drillState &&
+        !takeoverPreview &&
+        !coachJump
+        ? { side: next, atPly: currentPly }
+        : null
+    );
+  };
   const coachSink = useMemo<CoachReplySink>(
     () => ({
       patchLastCoach: (patch) =>
@@ -9359,6 +9538,7 @@ export default function AnalysisPage() {
         }
       },
       applyActions: (actions) => pageActionsBesideRef.current(actions),
+      notePerspective: (echo) => notePerspectiveRef.current(echo),
     }),
     [applyCoachJump, whatIfJumpGate]
   );
@@ -9423,6 +9603,7 @@ export default function AnalysisPage() {
             gameEvalFull,
             contextIdRef: coachContextIdRef,
             contextColorRef: coachContextColorRef,
+            perspectiveRef: standingRef,
             ...coachExtras,
             ...reply,
           }),
@@ -9631,7 +9812,12 @@ export default function AnalysisPage() {
       ply: currentPly,
       sans: gameSans,
       rootFen,
-      moveSide: coachContextColorRef.current ?? coachExtras.playerColor,
+      moveSide: PERSPECTIVE
+        ? moveNumberSide(
+            standingRef.current,
+            coachContextColorRef.current ?? coachExtras.playerColor
+          )
+        : (coachContextColorRef.current ?? coachExtras.playerColor),
       playerSide: playerSide
         ? playerSide.color === "white"
           ? "w"
@@ -9658,6 +9844,14 @@ export default function AnalysisPage() {
         replay && replay.sans.length > 0
           ? { anchorPly: replay.anchorPly, firstSan: replay.sans[0] }
           : null,
+      ...(PERSPECTIVE
+        ? {
+            standing: {
+              side: standingRef.current,
+              player: coachContextColorRef.current ?? coachExtras.playerColor,
+            },
+          }
+        : {}),
     };
   };
 
@@ -9720,6 +9914,23 @@ export default function AnalysisPage() {
           });
           reveal = true;
           break;
+        case "standing": {
+          const player =
+            coachContextColorRef.current ?? coachExtras.playerColor;
+          setStanding(e.side);
+          // Said in the strip unless the strip shows something else: it is
+          // never shown late.
+          setStandingAck(
+            strippedSide(e.side, player) &&
+              !drillState &&
+              !takeoverPreview &&
+              !coachJump
+              ? { side: e.side, atPly: currentPly }
+              : null
+          );
+          reveal = true;
+          break;
+        }
       }
     }
     // A what-if still searching does not draw over the board the player
@@ -10236,6 +10447,7 @@ export default function AnalysisPage() {
             gameEvalFull,
             contextIdRef: coachContextIdRef,
             contextColorRef: coachContextColorRef,
+            perspectiveRef: standingRef,
             ...coachExtras,
             ...reply,
           }),
@@ -10372,6 +10584,7 @@ export default function AnalysisPage() {
             gameEvalFull,
             contextIdRef: coachContextIdRef,
             contextColorRef: coachContextColorRef,
+            perspectiveRef: standingRef,
             ...coachExtras,
             ...(declinedOrder ? { pageActions: null } : {}),
             ...reply,
@@ -11120,6 +11333,23 @@ export default function AnalysisPage() {
                           const from = coachJump.fromPly;
                           setCoachJump(null);
                           setCurrentPly(from);
+                        }}
+                      />
+                    ) : standingAck ? (
+                      <StandingStripState
+                        side={standingAck.side}
+                        onBack={() => {
+                          // What "back to my side" does: the answers are
+                          // the player's again, and the board is theirs.
+                          const plan = planPageTurn(
+                            {
+                              type: "preference",
+                              preference: { kind: "my_side" },
+                            },
+                            pageTurnStateRef.current()
+                          );
+                          if (plan) applyPageEffects(plan.effects);
+                          setStandingAck(null);
                         }}
                       />
                     ) : null

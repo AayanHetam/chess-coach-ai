@@ -31,6 +31,10 @@ const ROOTS = [
   // by the route alike, and the page's plan for them.
   "lib/coach/pageActions.ts",
   "components/preview-analysis/pageActionPlan.ts",
+  // The side the answers are about: the route's resolver, read on the
+  // page for its own defaults, and the page's standing side.
+  "lib/coach/questionPerspective.ts",
+  "components/preview-analysis/standingSide.ts",
 ];
 const FORBIDDEN = ["lib/prompts/", "app/api/"];
 

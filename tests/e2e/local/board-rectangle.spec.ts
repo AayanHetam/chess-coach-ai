@@ -748,3 +748,108 @@ test.describe("the arrival at the move the game turned on", () => {
     await expect(page.getByTestId("eval-arc-decisive")).toBeVisible();
   });
 });
+
+/**
+ * A compare (pathway 3.5, behind NEXT_PUBLIC_COACH_COMPARE, which the CI
+ * legs build with): "8. Qxc1 or 8. Nd6+?" draws two lines under the
+ * question and puts neither move on the board until the reader plays one.
+ * The engine runs here, so the spec skips, like the what-if spec, on a
+ * machine where the sweep never finishes.
+ */
+test.describe("a compare under the question", () => {
+  test("does not move for a compare, or either of its lines played", async ({
+    page,
+  }) => {
+    test.setTimeout(240_000);
+    await stubEverything(page, { blockEngine: false });
+    await page.goto(`/analysis?pgn=${encodeURIComponent(PGN)}`);
+    await expect(page.locator(".cg-wrap").first()).toBeVisible({
+      timeout: 60_000,
+    });
+    const composer = page.getByPlaceholder(
+      "Ask anything about this position..."
+    );
+    // Read by the e2e: was this build made with the compare on?
+    const flag = (name: string) =>
+      page.locator(`[${name}]`).first().getAttribute(name);
+    const built = (await flag("data-coach-compare")) === "on";
+    test.skip(!built && !process.env.CI, "built without the compare");
+    expect(built, "the CI legs build with the compare on").toBe(true);
+    // The story line in the greeting is the sign the sweep has landed.
+    const ready = await page
+      .getByText(/The game turned at \d+\.+\S+/)
+      .first()
+      .waitFor({ state: "visible", timeout: 180_000 })
+      .then(() => true)
+      .catch(() => false);
+    test.skip(!ready, "Stockfish never finished on this machine");
+    // The arrival, when it is built, opens at the turning point: back to
+    // the start, where a compare's board is left alone.
+    const arrival = page.getByTestId("arrival-strip-state");
+    if (
+      (await flag("data-arrival-jump")) === "on" &&
+      (await arrival
+        .waitFor({ state: "visible", timeout: 10_000 })
+        .then(() => true)
+        .catch(() => false))
+    ) {
+      await composer.blur();
+      await page.keyboard.press("Home");
+      await expect(arrival).toHaveCount(0);
+    }
+    await composer.fill("analyse this game");
+    await composer.press("Enter");
+    // The review's key moment (its one-line intro gives way to the story).
+    await expect(
+      page.getByText("the free queen was the bigger prize")
+    ).toBeVisible({ timeout: 30_000 });
+    const rest = await boardRect(page);
+    const strip = page.getByTestId("move-analysis");
+    const stripHeight = (await strip.boundingBox())!.height;
+    const label = await page.getByTestId("move-analysis-label").textContent();
+
+    await composer.fill("8. Qxc1 or 8. Nd6+?");
+    await composer.press("Enter");
+    const compare = page.getByTestId("compare").last();
+    await expect(compare).toBeVisible({ timeout: 5_000 });
+    expectSameRect(rest, await boardRect(page), "the compare asked");
+    await expect(compare.getByTestId("compare-line-second")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(compare).toHaveAttribute("data-status", /drawn|final/);
+    expectSameRect(rest, await boardRect(page), "the compare drawn");
+    // Neither move is on the board, and the strip names the move it did.
+    await expect(page.getByTestId("exploration-path")).toHaveCount(0);
+    await expect(page.getByTestId("move-analysis-label")).toHaveText(label!);
+    expect(
+      Math.abs((await strip.boundingBox())!.height - stripHeight)
+    ).toBeLessThanOrEqual(2);
+    // The coach's words leave it so.
+    await expect(page.getByText("the queen on c1 was free")).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByTestId("coach-jump-banner")).toHaveCount(0);
+    expectSameRect(rest, await boardRect(page), "the coach's words");
+
+    // Each line played on the board: the strip's state row, at its height.
+    for (const which of ["first", "second"] as const) {
+      const san = which === "first" ? "Qxc1" : "Nd6+";
+      const play = compare.getByTestId(`compare-line-${which}-play`);
+      await play.click();
+      await expect(page.getByTestId("exploration-path")).toContainText(san, {
+        timeout: 5_000,
+      });
+      await expect(play).toHaveText(/Play/, { timeout: 20_000 });
+      expectSameRect(rest, await boardRect(page), `the ${which} line played`);
+      expect(
+        Math.abs((await strip.boundingBox())!.height - stripHeight)
+      ).toBeLessThanOrEqual(2);
+    }
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
+
+    // Back: the board where the reader branched off.
+    await page.getByRole("button", { name: /Leave this line/ }).click();
+    await expect(page.getByTestId("exploration-path")).toHaveCount(0);
+    expectSameRect(rest, await boardRect(page), "back");
+  });
+});

@@ -38,17 +38,21 @@ import {
 } from "@/components/preview-analysis/coachMoveRefs";
 import { ProofLine } from "@/components/preview-analysis/ProofLine";
 import { WhatIfLine } from "@/components/preview-analysis/WhatIfLine";
+import { CompareLines } from "@/components/preview-analysis/CompareLines";
 import {
   createWhatIfJumpGate,
   createWhatIfStore,
   initialWhatIfState,
+  isCompareEnabledPublic,
   pinWhatIfLine,
+  resolveCompare,
   resolveWhatIf,
   runWhatIf,
   WHAT_IF_EVALS_WAIT_MS,
   whatIfClientEvals,
   whatIfEvalsWithin,
   whatIfLine,
+  whatIfLineFor,
   whatIfStateFrom,
   whatIfUnavailable,
   type WhatIfAsk,
@@ -585,6 +589,8 @@ const PERSPECTIVE = isPerspectiveEnabledPublic();
 const ARRIVAL_JUMP = isArrivalJumpEnabledPublic();
 /** Build-time flag: a follow-up answered in fields is drawn from them (followUpMoment.ts). */
 const FOLLOWUP_MOMENTS = isFollowUpMomentsEnabledPublic();
+/** Build-time flag: two moves compared under the question (coachWhatIf.ts, resolveCompare). */
+const COMPARE = isCompareEnabledPublic();
 
 /**
  * User Timing marks for a what-if ("coach-what-if:asked", ":partial",
@@ -4940,13 +4946,23 @@ function CoachPanel({
                 full height from the moment the question is sent. */}
               {msg.role === "user" && msg.whatIf && (
                 <Box sx={{ alignSelf: "stretch", minWidth: 0, mt: -1.25 }}>
-                  <WhatIfLine
-                    id={msg.whatIf.id}
-                    ask={msg.whatIf.ask}
-                    store={whatIfStore}
-                    playerColor={playerColor ?? null}
-                    onShowPly={onShowLinePly}
-                  />
+                  {msg.whatIf.ask.compared ? (
+                    <CompareLines
+                      id={msg.whatIf.id}
+                      ask={msg.whatIf.ask}
+                      store={whatIfStore}
+                      playerColor={playerColor ?? null}
+                      onShowPly={onShowLinePly}
+                    />
+                  ) : (
+                    <WhatIfLine
+                      id={msg.whatIf.id}
+                      ask={msg.whatIf.ask}
+                      store={whatIfStore}
+                      playerColor={playerColor ?? null}
+                      onShowPly={onShowLinePly}
+                    />
+                  )}
                 </Box>
               )}
             </Fragment>
@@ -5201,6 +5217,7 @@ function CoachPanel({
             data-coach-perspective={PERSPECTIVE ? "on" : "off"}
             data-arrival-jump={ARRIVAL_JUMP ? "on" : "off"}
             data-followup-moments={FOLLOWUP_MOMENTS ? "on" : "off"}
+            data-coach-compare={COMPARE ? "on" : "off"}
             fullWidth
             multiline
             maxRows={4}
@@ -9766,7 +9783,7 @@ export default function AnalysisPage() {
       const ownPreview =
         takeoverPreview !== null &&
         takeoverPreview === whatIfPreviewRef.current;
-      return resolveWhatIf(question, {
+      const ctx: Parameters<typeof resolveWhatIf>[1] = {
         sans: gameSans,
         rootFen,
         viewedPly: currentPly,
@@ -9796,7 +9813,13 @@ export default function AnalysisPage() {
                 fen: takeoverPreview!.fen,
               }
             : undefined,
-      });
+      };
+      // Two moves set side by side ("8. Qxc1 or 8. Nd6+?"), behind its
+      // flag: never a what-if, so tried after one.
+      return (
+        resolveWhatIf(question, ctx) ??
+        (COMPARE ? resolveCompare(question, ctx) : null)
+      );
     },
     [
       gameSans,
@@ -9882,10 +9905,17 @@ export default function AnalysisPage() {
           if (drawn) return;
           const line = whatIfLine(ask, result);
           if (!line) return;
+          // A compare is drawn with both its lines, never one.
+          if (ask.compared && !whatIfLineFor(ask, result, ask.compared.uci))
+            return;
           drawn = true;
           // The line is the answer: the coach's jump for this question,
           // if it arrived first and is held, is dropped.
           whatIfJumpGate.drawn(id);
+          // A compare puts neither move on the board: the reader taps or
+          // plays the one they want. The board does not move, so the live
+          // eval this search stopped is asked again when it ends.
+          if (ask.compared) return;
           // The board answers: the asked move on the board through the
           // exploration preview, the way a proof line's Play puts it there.
           // After the next frame, so the line under the question is painted
@@ -11070,7 +11100,10 @@ export default function AnalysisPage() {
       ]);
       setInput("");
       if (whatIfAsk) {
-        markWhatIf("asked", { id: whatIfId });
+        markWhatIf("asked", {
+          id: whatIfId,
+          ...(whatIfAsk.compared ? { kind: "compare" } : {}),
+        });
         launchWhatIf(whatIfId, whatIfAsk, currentPly);
       }
       // A what-if's question goes up with its search's numbers when they

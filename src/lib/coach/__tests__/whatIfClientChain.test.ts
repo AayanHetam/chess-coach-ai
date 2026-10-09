@@ -46,6 +46,8 @@ const ROOTS = [
   "lib/engine/gradeMove.ts",
   "lib/coach/compareVerdict.ts",
   "lib/coach/compareWords.ts",
+  // The page's compare: two lines under the question.
+  "components/preview-analysis/CompareLines.tsx",
 ];
 const FORBIDDEN = ["lib/prompts/", "app/api/"];
 

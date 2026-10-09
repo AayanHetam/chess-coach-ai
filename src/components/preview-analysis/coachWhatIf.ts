@@ -37,10 +37,16 @@ import {
   CLIENT_EVALS_LINE_PLIES,
   type ClientEvals,
 } from "@/lib/coach/clientEvals";
+import { readCompare } from "@/lib/coach/compareWords";
+import { compareTwo, compareVerdictWords } from "@/lib/coach/compareVerdict";
 import { formatEval, type CoachLine } from "./coachLines";
 
-/** Why a move is in the search: the one asked about, the one the game played there, the review's best there. */
-export type WhatIfRole = "asked" | "played" | "best";
+/**
+ * Why a move is in the search: the one asked about, the one the game played
+ * there, the review's best there. In a compare, the second move the player
+ * names beside the first.
+ */
+export type WhatIfRole = "asked" | "compared" | "played" | "best";
 
 export interface WhatIfMove {
   role: WhatIfRole;
@@ -58,10 +64,15 @@ export interface WhatIfAsk {
   /** The side that plays the asked move. */
   color: "w" | "b";
   asked: WhatIfMove;
-  /** The search's moves: the asked one first, then the played and the best where they differ. */
+  /**
+   * A compare's second move ("8. Qxc1 or 8. Nd6+?"), the one named after
+   * the asked move. Absent for a what-if.
+   */
+  compared?: WhatIfMove;
+  /** The search's moves: the asked one first, then the compared, the played and the best where they differ. */
   moves: WhatIfMove[];
-  /** How the question named the alternative. */
-  rule: "asked_san" | "phrase";
+  /** How the question named the alternative, or "compare" for two moves set side by side. */
+  rule: "asked_san" | "phrase" | "compare";
 }
 
 export interface WhatIfContext {
@@ -867,6 +878,129 @@ export function resolveWhatIf(
   };
 }
 
+/** A piece named before the moves: "is my knight better on e4 or d4?" names squares, not pawn moves. */
+const PIECE_WORD_RE = /\b(?:king|queen|rook|bishop|knight|piece)s?\b/i;
+
+/**
+ * Two moves set side by side ("8. Qxc1 or 8. Nd6+?", "Nf3 or Nc3 here?"),
+ * read with the router's own rule (compareWords.ts, readCompare), as two
+ * moves legal in one position, with the review's best beside them where it
+ * is neither. Tried after resolveWhatIf, which never reads a compare. Null
+ * unless the words place both moves at exactly one ply:
+ * - The two moves the rule read are the only moves written, as written
+ *   (no third move, so no "after" line), and no "move 8" is named.
+ * - A bare pawn pair counts only beside a move cue ("should I push e4 or
+ *   d4?", "e4 or d4 here?"), and never after a piece's name.
+ * - A side the words name is the side to move there.
+ * - A number written beside either move places them, both numbers alike,
+ *   else the board: the next move with "here" or "now", the move the strip
+ *   names with "instead" or "should I have", either with neither cue or
+ *   both, and never on an exploration or a what-if's own board, which this
+ *   resolver cannot see.
+ * Both moves must be legal there and differ. The coach still answers in
+ * words when nothing is drawn, and a wrong ply is never drawn.
+ */
+export function resolveCompare(
+  question: string,
+  ctx: WhatIfContext
+): WhatIfAsk | null {
+  const { sans } = ctx;
+  if (!question.trim() || sans.length === 0) return null;
+  const tokens = readCompare(question, {
+    anchor: null,
+    moves: sans,
+    playerColor: ctx.playerColor,
+  });
+  if (!tokens) return null;
+  const written = Array.from(question.matchAll(MOVE_TOKEN_RE));
+  if (written.length !== 2 || written.some((m, i) => m[3] !== tokens[i].san))
+    return null;
+  if (MOVE_NUMBER_RE.test(question)) return null;
+  const moves: QuestionMove[] = tokens.map((t) => ({
+    san: t.san,
+    numbered: t.numbered,
+    role: "plain",
+    start: t.start,
+    end: t.end,
+  }));
+  const [first, second] = moves;
+  const numbers = moves.flatMap((m) => (m.numbered ? [m.numbered] : []));
+  if (numbers.length === 0 && moves.some((m) => PAWN_PUSH_RE.test(m.san))) {
+    const before = question.slice(0, first.start);
+    if (PIECE_WORD_RE.test(before)) return null;
+    if (
+      !PAWN_CUE_BEFORE_RE.test(before) &&
+      !moves.some((m) => nextCueBeside(question, m))
+    )
+      return null;
+  }
+  const side = sideNamed(question, moves, ctx);
+  if (side === "conflict") return null;
+
+  let plies: number[];
+  if (numbers.length > 0) {
+    const [a, b] = numbers;
+    if (b && (a.number !== b.number || a.color !== b.color)) return null;
+    const k = numberedIndex(ctx, a);
+    if (k === null) return null;
+    plies = [k];
+  } else {
+    if (ctx.exploring || ctx.onWhatIf) return null;
+    const viewed = Math.max(0, Math.min(ctx.viewedPly, sans.length));
+    const replace = REPLACE_CUE_RE.test(question);
+    const next = moves.some((m) => nextCueBeside(question, m));
+    plies =
+      next && !replace
+        ? [viewed]
+        : replace && !next
+          ? [viewed - 1]
+          : [viewed - 1, viewed];
+  }
+  const fits = plies.flatMap((k) => {
+    const a = readingAt(ctx, k, first.san, true);
+    const b = readingAt(ctx, k, second.san, true);
+    if (!a || !b || a.asked.uci === b.asked.uci) return [];
+    if (side && a.board.turn() !== side) return [];
+    return [{ k, board: a.board, asked: a.asked, compared: b.asked }];
+  });
+  if (fits.length !== 1) return null;
+  const { k, board } = fits[0];
+  // On a what-if's own board, as for a what-if: a move that is also the
+  // reply there may be about the board in front of the reader, and that is
+  // left to the coach.
+  if (ctx.onWhatIf && k !== ctx.onWhatIf.index) {
+    for (const m of [first, second]) {
+      let reply: { uci: string; san: string } | null = null;
+      try {
+        reply = tryMove(new Chess(ctx.onWhatIf.fen), m.san);
+      } catch {
+        reply = null;
+      }
+      if (reply) return null;
+    }
+  }
+
+  const asked: WhatIfMove = { role: "asked", ...fits[0].asked };
+  const compared: WhatIfMove = { role: "compared", ...fits[0].compared };
+  const searched: WhatIfMove[] = [asked, compared];
+  const best = ctx.enginePositions?.[k]?.lines?.[0];
+  if (best && best.depth > 0 && best.pv?.[0]) {
+    const m = tryMove(board, uciParams(best.pv[0]));
+    if (m && !searched.some((x) => x.uci === m.uci))
+      searched.push({ role: "best", ...m });
+  }
+  return {
+    index: k,
+    fen: board.fen(),
+    moveNumber: board.moveNumber(),
+    color: board.turn(),
+    asked,
+    compared,
+    moves: searched,
+    rule: "compare",
+  };
+}
+
 /** The asked move's score in a result, or null when the engine gave it no line. */
 export function askedMoveEval(
   ask: WhatIfAsk,
@@ -884,7 +1018,20 @@ export function whatIfLine(
   result: MovesEval,
   maxPlies = 8
 ): CoachLine | null {
-  const scored = askedMoveEval(ask, result);
+  return whatIfLineFor(ask, result, ask.asked.uci, maxPlies);
+}
+
+/**
+ * The line for one move of the search (`uci`): that move and the engine's
+ * reply to it, from the position it is asked about. A compare draws two.
+ */
+export function whatIfLineFor(
+  ask: WhatIfAsk,
+  result: MovesEval,
+  uci: string,
+  maxPlies = 8
+): CoachLine | null {
+  const scored = result.moves.find((m) => m.uci === uci) ?? null;
   if (!scored || scored.pv.length === 0) return null;
   const sans: string[] = [];
   try {
@@ -919,7 +1066,8 @@ export const WHAT_IF_EVALS_WAIT_MS = 1500;
  * search scored with its own number, depth and line, White-relative, the
  * line cut to the length the server licenses. Null while the asked move has
  * no line or the search is short of the pathway's first depth; the question
- * then goes up without them.
+ * then goes up without them. A compare's second move goes up as `compared`,
+ * and a compare whose second move is not scored sends nothing.
  */
 export function whatIfClientEvals(
   ask: WhatIfAsk,
@@ -945,6 +1093,7 @@ export function whatIfClientEvals(
     });
   }
   if (!moves.some((m) => m.role === "asked")) return null;
+  if (ask.compared && !moves.some((m) => m.role === "compared")) return null;
   const depth = Math.min(...moves.map((m) => m.depth));
   if (depth < WHAT_IF_FIRST_DEPTH) return null;
   return { index: ask.index, fen: ask.fen, depth, moves };
@@ -971,7 +1120,7 @@ export function whatIfEvalsWithin(
   });
 }
 
-/** Every move of the search with its number, in the ask's order: asked, played, best. */
+/** Every move of the search with its number, in the ask's order: asked, compared, played, best. */
 export function whatIfScores(ask: WhatIfAsk, result: MovesEval): WhatIfScore[] {
   return ask.moves.map((m) => {
     const scored = result.moves.find((r) => r.uci === m.uci);
@@ -1132,17 +1281,41 @@ export interface WhatIfState {
    * moves under the reader.
    */
   pinned?: CoachLine | null;
+  /**
+   * A compare's second line, beside `line` (the asked move's): drawn with
+   * it, never before, and held on its own once the reader taps or plays it.
+   */
+  compared?: { line: CoachLine | null; pinned?: CoachLine | null };
 }
 
 export function initialWhatIfState(id: number, ask: WhatIfAsk): WhatIfState {
-  return { id, ask, status: "checking", line: null, scores: [], depth: 0 };
+  return {
+    id,
+    ask,
+    status: "checking",
+    line: null,
+    scores: [],
+    depth: 0,
+    ...(ask.compared ? { compared: { line: null } } : {}),
+  };
 }
 
-/** The state with `line` held for good, unless a line already is. */
+/**
+ * The state with `line` held for good, unless a line already is. A
+ * compare holds each of its two lines on its own: the one that opens with
+ * the compared move is the second.
+ */
 export function pinWhatIfLine(
   state: WhatIfState,
   line: CoachLine
 ): WhatIfState {
+  const compared = state.ask.compared;
+  if (compared && line.sans[0] === compared.san) {
+    const slot = state.compared ?? { line: null };
+    return slot.pinned
+      ? state
+      : { ...state, compared: { ...slot, pinned: line } };
+  }
   return state.pinned ? state : { ...state, pinned: line };
 }
 
@@ -1153,12 +1326,21 @@ export function whatIfUnavailable(
   return { ...prev, status: "unavailable", reason };
 }
 
+/** `next`, keeping `prev`'s `sans` array when the moves are the same, so only the numbers change. */
+function keptLine(prev: CoachLine | null, next: CoachLine): CoachLine {
+  return prev !== null && prev.sans.join(" ") === next.sans.join(" ")
+    ? { ...prev, evalDisplay: next.evalDisplay, depth: next.depth }
+    : next;
+}
+
 /**
  * The state after a result. A partial that gave the asked move no line is
  * waited through; a final without one is "no-line". When the moves are the
  * ones already drawn, the previous line's `sans` array is kept, so
  * ProofLine's caption memo holds across partials and only the numbers
- * change under the reader.
+ * change under the reader. A compare is drawn only with both its lines: a
+ * partial missing either is waited through, and a final missing either is
+ * "no-line".
  */
 export function whatIfStateFrom(
   prev: WhatIfState,
@@ -1172,7 +1354,10 @@ export function whatIfStateFrom(
   if (!final && result.depth < prev.depth) return prev;
   if (!final && prev.line && result.depth < prev.depth + 2) return prev;
   const line = whatIfLine(prev.ask, result);
-  if (!line) {
+  const compared = prev.ask.compared
+    ? whatIfLineFor(prev.ask, result, prev.ask.compared.uci)
+    : null;
+  if (!line || (prev.ask.compared && !compared)) {
     return final
       ? {
           ...prev,
@@ -1181,17 +1366,24 @@ export function whatIfStateFrom(
           line: null,
           scores: [],
           depth: result.depth,
+          ...(prev.compared
+            ? { compared: { ...prev.compared, line: null } }
+            : {}),
         }
       : prev;
   }
-  const same =
-    prev.line !== null && prev.line.sans.join(" ") === line.sans.join(" ");
   return {
     ...prev,
     status: final ? "final" : "drawn",
-    line: same
-      ? { ...prev.line!, evalDisplay: line.evalDisplay, depth: line.depth }
-      : line,
+    line: keptLine(prev.line, line),
+    ...(compared
+      ? {
+          compared: {
+            ...prev.compared,
+            line: keptLine(prev.compared?.line ?? null, compared),
+          },
+        }
+      : {}),
     scores: whatIfScores(prev.ask, result),
     depth: result.depth,
   };
@@ -1311,6 +1503,7 @@ export function createWhatIfStore(): WhatIfStore {
 
 const ROLE_WORD: Record<WhatIfRole, string> = {
   asked: "",
+  compared: "",
   played: "played",
   best: "engine's",
 };
@@ -1348,6 +1541,98 @@ export function whatIfSummary(state: WhatIfState): string {
         parts.push(`${ROLE_WORD[o.role]} ${o.san} ${o.evalDisplay ?? "?"}`);
       parts.push(`d${state.depth}`);
       return parts.join(" · ");
+    }
+  }
+}
+
+// ─── A compare ──────────────────────────────────────────────────────────────
+
+/**
+ * Off until its flip (pathway 3.5, never on before the server's
+ * COACH_COMPARE): its own one-line PR changes this default, and the env
+ * overrides it either way, which is how the Playwright legs run it on.
+ */
+export const COMPARE_PUBLIC_DEFAULT = false;
+
+/**
+ * Read once at module level by the analysis page. `NEXT_PUBLIC_` values are
+ * inlined at build time, and only for this literal spelling of the name.
+ */
+export function isCompareEnabledPublic(): boolean {
+  const v = (process.env.NEXT_PUBLIC_COACH_COMPARE ?? "").trim().toLowerCase();
+  if (v === "1" || v === "on" || v === "true") return true;
+  if (v === "0" || v === "off" || v === "false") return false;
+  return COMPARE_PUBLIC_DEFAULT;
+}
+
+/** "8. Qxc1 and Nd6+": the two moves, the number written once, as the summary names them. */
+export function compareLabel(ask: WhatIfAsk): string {
+  const first = whatIfMoveLabel(ask);
+  return ask.compared ? `${first} and ${ask.compared.san}` : first;
+}
+
+/**
+ * The two rows above a compare's lines (two lines are reserved for each):
+ * the numbers, both moves' and the engine's best where it is neither, from
+ * the one search, with its depth, and the engine's verdict on the two in
+ * the app's words, never a figure (compareVerdict.ts). Before the numbers,
+ * what is being checked or why nothing could be, and no verdict.
+ */
+export function compareSummary(state: WhatIfState): {
+  numbers: string;
+  words: string;
+} {
+  const label = compareLabel(state.ask);
+  const unchecked = (numbers: string) => ({ numbers, words: "" });
+  switch (state.status) {
+    case "checking":
+      return unchecked(`Checking ${label} with the engine…`);
+    case "unavailable":
+      switch (state.reason) {
+        case "no-engine":
+          return unchecked(
+            `The engine isn't available here, so ${label} are unchecked.`
+          );
+        case "busy":
+          return unchecked(
+            `The engine is still reviewing the game, so ${label} are unchecked.`
+          );
+        case "no-line":
+          return unchecked(
+            `The engine found no line for one of ${label}, so they are not compared.`
+          );
+        case "superseded":
+          return unchecked(
+            `A newer question took the engine before ${label} were checked.`
+          );
+        default:
+          return unchecked(`The engine couldn't check ${label}.`);
+      }
+    default: {
+      const { ask } = state;
+      // The moves are played from the same position, so the number is
+      // written once, on the first.
+      const parts = state.scores.map((s) =>
+        s.role === "asked"
+          ? `${whatIfMoveLabel(ask)} ${s.evalDisplay ?? "?"}`
+          : [ROLE_WORD[s.role], s.san, s.evalDisplay ?? "?"]
+              .filter(Boolean)
+              .join(" ")
+      );
+      parts.push(`d${state.depth}`);
+      const verdict = ask.compared
+        ? compareTwo(
+            { fen: ask.fen, moves: state.scores },
+            ask.asked.uci,
+            ask.compared.uci
+          )
+        : null;
+      const san = (uci: string) =>
+        ask.moves.find((m) => m.uci === uci)?.san ?? uci;
+      return {
+        numbers: parts.join(" · "),
+        words: verdict ? compareVerdictWords(verdict, san, "short") : "",
+      };
     }
   }
 }

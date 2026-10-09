@@ -15,6 +15,15 @@
 //
 //   node scripts/engine/evaluate-moves-headless.mjs [--depths 12,13,16] [--out p.json]
 //
+// With --compare it runs only the pairs a compare sets side by side
+// (pathway 3.5), each marked `compare: true` in the output, for the depths
+// test (src/lib/coach/__tests__/compareVerdict.depths.test.ts): the
+// engine's verdict on a pair at the coach's depth must not name the other
+// move than at the page's final depth.
+//
+//   node scripts/engine/evaluate-moves-headless.mjs --compare --depths 10,12,14,16 \
+//     --out scripts/engine/results/compare-depths-<date>.json
+//
 // Chromium: Playwright's bundled build, CHROME_PATH to override.
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -28,6 +37,7 @@ const arg = (name, dflt) => {
   return i >= 0 ? argv[i + 1] : dflt;
 };
 const DEPTHS = arg("--depths", "12,13,16").split(",").map(Number);
+const COMPARE_ONLY = argv.includes("--compare");
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = arg(
   "--out",
@@ -85,7 +95,32 @@ const CASES = (() => {
       fen: pawnEnding,
       moves: ["e2e4", "e1d2", "e1f2"],
     },
-  ];
+    // The pairs a compare sets side by side, in the order named.
+    {
+      name: "compare: 07 before 8.Nc7+, Qxc1 against Nd6+",
+      fen: beforeNc7,
+      moves: [uciOf(beforeNc7, "Qxc1"), uciOf(beforeNc7, "Nd6+")],
+      compare: true,
+    },
+    {
+      name: "compare: 07 before 8.Nc7+, Nc7+ against Nd6+",
+      fen: beforeNc7,
+      moves: [uciOf(beforeNc7, "Nc7+"), uciOf(beforeNc7, "Nd6+")],
+      compare: true,
+    },
+    {
+      name: "compare: Ruy Lopez after 3.Bb5, a6 against Nf6 (Black to move)",
+      fen: ruyLopez,
+      moves: [uciOf(ruyLopez, "a6"), uciOf(ruyLopez, "Nf6")],
+      compare: true,
+    },
+    {
+      name: "compare: K+P v K, e2e4 against e1d2",
+      fen: pawnEnding,
+      moves: ["e2e4", "e1d2"],
+      compare: true,
+    },
+  ].filter((c) => !COMPARE_ONLY || c.compare);
 })();
 
 /* ---------------- the transport ---------------- */
@@ -245,6 +280,7 @@ async function main() {
       if (!ok) failures++;
       results.push({
         case: c.name,
+        ...(c.compare ? { compare: true } : {}),
         fen: c.fen,
         asked: c.moves,
         depth,

@@ -145,6 +145,8 @@ jobs:
       NEXT_PUBLIC_COACH_ARRIVAL_JUMP: "1"
       # A follow-up answered in fields is drawn from them (followUpMoment.ts).
       NEXT_PUBLIC_COACH_FOLLOWUP_MOMENTS: "1"
+      # Two moves compared under the question (coachWhatIf.ts, resolveCompare).
+      NEXT_PUBLIC_COACH_COMPARE: "1"
     steps:
       - uses: actions/checkout@v4
         with:

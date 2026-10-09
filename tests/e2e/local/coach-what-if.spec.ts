@@ -275,10 +275,11 @@ async function whatIfTiming(
  * Record the what-if block's height and place at every status it takes,
  * inside the page, at the moment the status changes (a MutationObserver's
  * callback runs before the next paint, and reading offsetHeight there lays
- * out the state just committed). Read back with recordedPlaces.
+ * out the state just committed). Read back with recordedPlaces. A
+ * compare's block is `compare`.
  */
-async function recordWhatIfPlaces(page: Page) {
-  await page.evaluate(() => {
+async function recordWhatIfPlaces(page: Page, testId = "what-if") {
+  await page.evaluate((testId) => {
     const w = window as unknown as {
       __whatIfPlaces?: Array<{
         status: string | null;
@@ -294,7 +295,7 @@ async function recordWhatIfPlaces(page: Page) {
         top: el.offsetTop,
       });
     const isBlock = (n: Node): boolean =>
-      n instanceof HTMLElement && n.getAttribute("data-testid") === "what-if";
+      n instanceof HTMLElement && n.getAttribute("data-testid") === testId;
     new MutationObserver((records) => {
       for (const r of records) {
         if (r.type === "attributes" && isBlock(r.target))
@@ -305,7 +306,7 @@ async function recordWhatIfPlaces(page: Page) {
             const el = isBlock(n)
               ? n
               : (n.querySelector(
-                  '[data-testid="what-if"]'
+                  `[data-testid="${testId}"]`
                 ) as HTMLElement | null);
             if (el) record(el);
           }
@@ -316,7 +317,7 @@ async function recordWhatIfPlaces(page: Page) {
       attributes: true,
       attributeFilter: ["data-status"],
     });
-  });
+  }, testId);
 }
 
 async function recordedPlaces(page: Page) {
@@ -856,5 +857,198 @@ test.describe("the client what-if", () => {
       );
       expect(await plies.allTextContents()).toEqual(held);
     }
+  });
+
+  test("draws a compare's two lines under the question within two seconds, and leaves the board alone until a line is played", async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(240_000);
+    const chatBodies: unknown[] = [];
+    await stubCoach(page, { chatBodies });
+    await page.goto(`/analysis?pgn=${encodeURIComponent(PGN)}`);
+    const composer = page.getByPlaceholder(
+      "Ask anything about this position..."
+    );
+    const ready = await composer
+      .waitFor({ state: "visible", timeout: 180_000 })
+      .then(() => true)
+      .catch(() => false);
+    test.skip(!ready, "Stockfish never finished on this machine");
+    // Behind NEXT_PUBLIC_COACH_COMPARE, which the CI legs build with.
+    const built =
+      (await page
+        .locator("[data-coach-compare]")
+        .first()
+        .getAttribute("data-coach-compare")) === "on";
+    test.skip(!built && !process.env.CI, "built without the compare");
+    expect(built, "the CI legs build with the compare on").toBe(true);
+    await leaveArrival(page, composer);
+    await composer.fill("analyse this game");
+    await composer.press("Enter");
+    await expect(page.getByText("the free queen was bigger")).toBeVisible({
+      timeout: 30_000,
+    });
+    if (testInfo.project.name.includes("mobile")) {
+      await throttleLikeAPhone(page);
+    }
+    const rest = await boardRect(page);
+
+    await composer.fill("8. Qxc1 or 8. Nd6+?");
+    await recordWhatIfPlaces(page, "compare");
+    const t0 = await startClock(page);
+    const sentAt = Date.now();
+    await composer.press("Enter");
+
+    // The space for both lines is there at once, before any answer.
+    const compare = page.getByTestId("compare").last();
+    await expect(compare).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId("what-if")).toHaveCount(0);
+
+    // Both lines within two seconds of the send, on the page's own clock.
+    const second = compare.getByTestId("compare-line-second");
+    await expect(second).toBeVisible({ timeout: 10_000 });
+    const seenMs = Date.now() - sentAt;
+    const marks = await page.evaluate((t0) => {
+      const entries = (name: string) =>
+        performance
+          .getEntriesByName(name)
+          .filter((e) => e.startTime >= t0)
+          .map((e) => ({
+            at: e.startTime - t0,
+            detail: (e as PerformanceMark).detail as Record<
+              string,
+              unknown
+            > | null,
+          }));
+      return {
+        asked: entries("coach-what-if:asked"),
+        partial: entries("coach-what-if:partial"),
+        drawn: entries("coach-what-if:drawn"),
+      };
+    }, t0);
+    expect(marks.asked.map((m) => m.detail?.kind)).toEqual(["compare"]);
+    const drawn = marks.drawn.filter((m) => m.detail?.kind === "compare");
+    expect(drawn).toHaveLength(1);
+    const summary = `asked ${Math.round(marks.asked[0].at)} ms, first partial ${Math.round(marks.partial[0]?.at ?? NaN)} ms, drawn ${Math.round(drawn[0].at)} ms; seen by the harness ${seenMs} ms`;
+    testInfo.annotations.push({
+      type: "compare first lines",
+      description: summary,
+    });
+    console.log(`[compare] ${testInfo.project.name}: ${summary}`);
+    expect(drawn[0].at).toBeLessThanOrEqual(2_000);
+    expect(
+      Number(await compare.getAttribute("data-depth"))
+    ).toBeGreaterThanOrEqual(10);
+
+    // Each line opens with its own move, the numbers name both from the
+    // one search, and the verdict is in words.
+    await expect(
+      compare
+        .getByTestId("compare-line-first")
+        .getByTestId("compare-line-first-ply")
+        .first()
+    ).toContainText("8.Qxc1");
+    await expect(
+      second.getByTestId("compare-line-second-ply").first()
+    ).toContainText("8.Nd6+");
+    const numbers = compare.getByTestId("compare-summary");
+    await expect(numbers).toContainText(/8\. Qxc1 [+-]\d+\.\d\d/);
+    await expect(numbers).toContainText(/Nd6\+ [+-]\d+\.\d\d/);
+    await expect(compare.getByTestId("compare-words")).toHaveText(
+      /prefers|close|mate|winning|losing/
+    );
+    // No chip, no badge, no box.
+    const chrome = await compare.evaluate((el) =>
+      [
+        el,
+        el.querySelector('[data-testid="compare-line-first"]'),
+        el.querySelector('[data-testid="compare-line-second"]'),
+      ]
+        .filter((n): n is Element => n !== null)
+        .map((n) => {
+          const cs = getComputedStyle(n);
+          return [
+            cs.borderTopWidth,
+            cs.borderRightWidth,
+            cs.borderBottomWidth,
+            cs.borderLeftWidth,
+            cs.backgroundColor,
+            cs.backgroundImage,
+            cs.boxShadow,
+          ].join(" | ");
+        })
+    );
+    expect(chrome).toHaveLength(3);
+    for (const c of chrome)
+      expect(c).toMatch(
+        /^0px \| 0px \| 0px \| 0px \| (rgba\(0, 0, 0, 0\)|transparent) \| none \| none$/
+      );
+
+    // Neither move goes on the board by itself.
+    expect(await marksAfter(page, "coach-what-if:board", t0)).toHaveLength(0);
+    await expect(page.getByTestId("exploration-path")).toHaveCount(0);
+    expectSameRect(rest, await boardRect(page), "the compare drawn");
+
+    // The coach's words arrive. The jump for them is held or skipped for
+    // the compare, and none lands.
+    await expect(page.getByText("simply takes the queen")).toBeVisible({
+      timeout: 30_000,
+    });
+    const held = await marksAfter(page, "coach-what-if:jump-held", t0);
+    const skipped = await marksAfter(page, "coach-what-if:jump-skipped", t0);
+    expect(held.length + skipped.length).toBe(1);
+    await expect(page.getByTestId("coach-jump-banner")).toHaveCount(0);
+    await expect(page.getByTestId("exploration-path")).toHaveCount(0);
+    expectSameRect(rest, await boardRect(page), "the coach's words");
+
+    // The question went up with both moves' numbers from the position
+    // before 8. Nc7+ (the review's best there is 8. Qxc1, the first move).
+    const asked = chatBodies[chatBodies.length - 1] as {
+      userMessage: string;
+      clientEvals?: {
+        index: number;
+        depth: number;
+        moves: Array<{ role: string; uci: string }>;
+      };
+    };
+    expect(asked.userMessage).toBe("8. Qxc1 or 8. Nd6+?");
+    expect(asked.clientEvals).toBeDefined();
+    expect(asked.clientEvals!.index).toBe(14);
+    expect(asked.clientEvals!.depth).toBeGreaterThanOrEqual(10);
+    expect(asked.clientEvals!.moves.map((m) => [m.role, m.uci])).toEqual([
+      ["asked", "d1c1"],
+      ["compared", "b5d6"],
+    ]);
+
+    // The block held one height and one place from the push to the end of
+    // the search, read in the page at each status as it was committed.
+    await expect(compare).toHaveAttribute("data-status", "final", {
+      timeout: 90_000,
+    });
+    const places = await recordedPlaces(page);
+    console.log(
+      `[compare] ${testInfo.project.name}: ${places
+        .map((p) => `${p.status} ${p.height}px@${p.top}`)
+        .join(", ")}`
+    );
+    expect(places[0].status).toBe("checking");
+    expect(places.map((p) => p.status)).toEqual(
+      expect.arrayContaining(["checking", "drawn"])
+    );
+    for (const p of places) {
+      expect(
+        Math.abs(p.height - places[0].height),
+        p.status!
+      ).toBeLessThanOrEqual(1);
+      expect(Math.abs(p.top - places[0].top), p.status!).toBeLessThanOrEqual(1);
+    }
+
+    // A line played puts its own move on the board, and holds its moves.
+    await compare.getByTestId("compare-line-second-play").click();
+    await expect(page.getByTestId("exploration-path")).toContainText("Nd6+", {
+      timeout: 5_000,
+    });
+    await expect(compare).toHaveAttribute("data-pinned", "true");
+    expectSameRect(rest, await boardRect(page), "the compared line played");
   });
 });

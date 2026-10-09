@@ -34,6 +34,10 @@ export interface FieldedMomentLabel {
   ownLabels: string[];
   /** The alternative the player asked about, labelled, if any. */
   askedLabel: string | null;
+  /** The move the words asked about when it cannot be played there, labelled. */
+  askedIllegal?: string | null;
+  /** The engine's line starts with the move played: it is no line instead of it. */
+  engineIsPlayed?: boolean;
   hasEngineLine: boolean;
   hasPlayedLine: boolean;
 }
@@ -112,17 +116,22 @@ export function fieldedTurnReminder(
   subject?: FollowUpSubject | null,
   budget: Readonly<FollowUpBudget> = FOLLOWUP_BUDGET
 ): string {
+  const engine = m.engineIsPlayed
+    ? `{"kind":"engine"} for the engine's line, which starts with the move played`
+    : `{"kind":"engine"} for the engine's line instead of ${m.label}`;
   const opts =
     m.hasEngineLine && m.hasPlayedLine
-      ? `{"kind":"engine"} for the engine's line instead of ${m.label}, {"kind":"played"} for the game's, or null`
+      ? `${engine}, {"kind":"played"} for the game's, or null`
       : m.hasPlayedLine
         ? `{"kind":"played"} for the game's line (there is no engine line for this move), or null`
         : m.hasEngineLine
-          ? `{"kind":"engine"} for the engine's line instead of ${m.label}, or null`
+          ? `${engine}, or null`
           : "null";
   const asked = m.askedLabel
     ? `, and the player asks about ${m.askedLabel} instead`
-    : "";
+    : m.askedIllegal
+      ? `, and the move the player asks about cannot be played in this position: say so without writing it`
+      : "";
   const about = subject ? ` ${subjectReminder(subject)}` : "";
   return `[The move under discussion is ${m.label} (moveNumber ${m.moveNumber}, color "${m.color}")${asked}. idea: one sentence; happens: one or two; together at most ${budget.openingWords} words. Name no move but ${list(m.ownLabels)}, and write no number. proof: ${opts}. lesson: the pattern and the check, with no square, move or number, if there is one to teach.${about}]`;
 }

@@ -49,6 +49,15 @@ export type FieldedPlan =
   | { eligible: false; reason: FieldedIneligible };
 
 const bare = (san: string) => san.replace(/[+#!?]/g, "");
+
+/** The move is legal from `fen` as written (a UCI fallback or a wrong piece is not). */
+function legalAt(fen: string, san: string): boolean {
+  try {
+    return !!new Chess(fen).move(san);
+  } catch {
+    return false;
+  }
+}
 /** The board's placement and side to move: two FENs of one position agree on these. */
 const positionOf = (fen: string) => fen.split(" ").slice(0, 2).join(" ");
 
@@ -95,10 +104,20 @@ function buildFacts(
       x.color === color &&
       positionOf(x.fenBefore) === positionOf(anchor.fenBefore)
   );
+  // The alternative asked about: the anchor's, else the what-if's, never
+  // the game's own move (a what-if about the move played asks about it,
+  // not about something instead of it).
+  const whatIfAsked = i.whatIf?.moves.find((m) => m.role === "asked")?.san;
   const askedSan =
-    anchor.askedSan ?? i.whatIf?.moves.find((m) => m.role === "asked")?.san;
+    anchor.askedSan ??
+    (whatIfAsked && bare(whatIfAsked) !== bare(anchor.san)
+      ? whatIfAsked
+      : undefined);
+  const askedLegal = !!askedSan && legalAt(anchor.fenBefore, askedSan);
 
-  // The moves the prose may name: all played from the board before the move.
+  // The moves the prose may name: every one legal from the board before
+  // the move, so a move the words asked about that cannot be played there
+  // is never one to name.
   const own: string[] = [];
   for (const san of [
     anchor.san,
@@ -108,7 +127,12 @@ function buildFacts(
     insight?.bestSan,
     ...(i.whatIf?.moves.map((m) => m.san) ?? []),
   ]) {
-    if (san && !own.some((o) => bare(o) === bare(san))) own.push(san);
+    if (
+      san &&
+      !own.some((o) => bare(o) === bare(san)) &&
+      legalAt(anchor.fenBefore, san)
+    )
+      own.push(san);
   }
 
   let bestFen: string | null = null;
@@ -169,7 +193,9 @@ function buildFacts(
     moveNumber,
     color,
     ownLabels: own.map(label),
-    askedLabel: askedSan ? label(askedSan) : null,
+    askedLabel: askedSan && askedLegal ? label(askedSan) : null,
+    askedIllegal: askedSan && !askedLegal ? label(askedSan) : null,
+    engineIsPlayed: !!engine[0] && bare(engine[0]) === bare(anchor.san),
     hasEngineLine: engine.length > 0,
     hasPlayedLine: played.length > 0,
     facts,

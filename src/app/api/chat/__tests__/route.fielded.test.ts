@@ -355,14 +355,30 @@ describe.each([
       expect(logged("followup_fielded_relational")).toHaveLength(1);
   });
 
-  it("a reply that is no object is answered by the v1 request", async () => {
+  it("a reply that is no object is answered by the v1 request, checked and reported as v1", async () => {
     fielded();
-    provider(['{"idea": "unterminated']);
+    const { coachCalls, parserSystems } = provider(['{"idea": "unterminated']);
     const res = await ask(Q);
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.gameAnalysis.analysis).toContain("8. Qxc1");
     expect(json.gameAnalysis.moment).toBeUndefined();
+    // The prompt that wrote it, and no retry of the fielded call.
+    expect(json.gameAnalysis.followUpPrompt).toBe("1.3");
+    expect(json.gameAnalysis.timing.retryCount).toBe(0);
+    expect(coachCalls).toHaveLength(2);
+    expect(coachCalls[1].outputSchema).toBeUndefined();
+    if (validators === "true") {
+      // The v1 pipeline checked it, as any v1 turn: its parsers ran.
+      expect(
+        parserSystems.some(
+          (p) =>
+            p === EVAL_CLAIM_PARSER_SYSTEM ||
+            p === FEATURE_CITATION_PARSER_SYSTEM
+        )
+      ).toBe(true);
+      expect(json.gameAnalysis.pipeline.finalOutcome).toBe("passed_initial");
+    }
     expect(logged("followup_fielded")[0]).toMatchObject({
       served: "v1_fallback",
       parse: "failed",

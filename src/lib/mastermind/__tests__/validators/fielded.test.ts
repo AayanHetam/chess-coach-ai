@@ -64,14 +64,63 @@ describe("relationalShadow", () => {
       "Coach analysis:\nYou went for the check.\nAfter that your queen still sits on c1."
     );
     expect(user).not.toContain("Lesson:");
-    expect(r.contradicted.idea).toBe(0);
-    expect(
-      r.contradicted.idea + r.contradicted.happens + r.contradicted.unmapped
-    ).toBeGreaterThanOrEqual(0);
+    // The white queen is not on c1 (Black's is): the claim in happens is
+    // contradicted, and the count is the parser's one claim.
+    expect(r.contradicted).toEqual({ idea: 0, happens: 1, unmapped: 0 });
+    expect(r.checked).toBe(1);
+    expect(r.parserFailed).toBe(false);
     // Numbers and booleans only.
     const flat = JSON.stringify(r);
     expect(flat).not.toContain("queen");
     expect(flat).not.toContain(FEN.split(" ")[0]);
+  });
+
+  it("counts every claim the parser returned, a contradicted one among them", async () => {
+    const r = await relationalShadow({
+      idea: "Black's queen sits on c1.",
+      happens: "After that your queen still sits on c1.",
+      fen: FEN,
+      correlationId: "c",
+      parseCall: async () => ({
+        raw: JSON.stringify([
+          {
+            kind: "presence",
+            targetSquare: "c1",
+            expectedPiece: { type: "q", color: "w" },
+            rawText: "your queen still sits on c1",
+          },
+          {
+            kind: "presence",
+            targetSquare: "c1",
+            expectedPiece: { type: "q", color: "b" },
+            rawText: "Black's queen sits on c1",
+          },
+        ]),
+        costUsd: 0,
+      }),
+    });
+    expect(r.contradicted).toEqual({ idea: 0, happens: 1, unmapped: 0 });
+    expect(r.checked).toBe(2);
+  });
+
+  it("an answer with no JSON in it is a failed parse, not a clean zero", async () => {
+    const r = await relationalShadow({
+      idea: "a",
+      happens: "b",
+      fen: FEN,
+      correlationId: "c",
+      parseCall: async () => ({ raw: "not json at all", costUsd: 0 }),
+    });
+    expect(r.parserFailed).toBe(true);
+    expect(r.checked).toBe(0);
+    const empty = await relationalShadow({
+      idea: "a",
+      happens: "b",
+      fen: FEN,
+      correlationId: "c",
+      parseCall: async () => ({ raw: "[]", costUsd: 0 }),
+    });
+    expect(empty).toMatchObject({ parserFailed: false, checked: 0 });
   });
 
   it("a parser that throws says so and counts nothing", async () => {
@@ -85,6 +134,7 @@ describe("relationalShadow", () => {
       },
     });
     expect(r.parserFailed).toBe(true);
+    expect(r.checked).toBeNull();
     expect(r.contradicted).toEqual({ idea: 0, happens: 0, unmapped: 0 });
   });
 });

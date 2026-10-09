@@ -125,8 +125,9 @@ export interface FieldedTurnResult {
 
 // ── Normalizing a reply ─────────────────────────────────────────────────────
 
+/** "Lesson:", "**Lesson**:" and "**Lesson:**" alike, the bold closed before or after the colon. */
 const LABEL_RE =
-  /^\s*(?:\*\*)?(?:lesson|your turn|idea|happens|what happens|question)(?:\*\*)?\s*:\s*/i;
+  /^\s*(?:\*\*|__)?(?:lesson|your turn|idea|happens|what happens|question)(?:\*\*|__)?\s*:\s*(?:\*\*|__)?\s*/i;
 
 /**
  * Labels the model was told not to write, a token inside a prose field
@@ -341,6 +342,9 @@ function readReply(
       repairs: Array.from(new Set(repairs)),
     };
   }
+  // A JSON value that is not the object (null, an array, a bare string)
+  // is no answer to lift: the v1 request answers it.
+  if (isJsonValue(content)) return null;
   if (content.trim().length > 0 && !content.includes("{")) {
     const lifted = momentFromFollowUpText(content);
     const norm = normalizeEnvelope({
@@ -353,6 +357,22 @@ function readReply(
     return { envelope: norm.envelope, parse: "prose", repairs: norm.repairs };
   }
   return null;
+}
+
+/** The reply is one JSON value, fenced or not. */
+function isJsonValue(content: string): boolean {
+  const t = content
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "")
+    .trim();
+  if (!t) return false;
+  try {
+    JSON.parse(t);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function tally(j: Judgement): {
@@ -373,6 +393,51 @@ function tally(j: Judgement): {
     }
   }
   return { checks, referee };
+}
+
+/** The prose as it will be served: the omitted fields gone, their clauses in place. */
+function servedProse(
+  env: MomentEnvelope,
+  omit: ReadonlySet<MomentProseField>
+): MomentProse {
+  return {
+    idea: omit.has("idea") ? null : env.idea,
+    happens: omit.has("happens") ? null : env.happens,
+    proof: omit.has("proof") ? null : env.proof,
+    lesson: omit.has("lesson") ? null : env.lesson,
+    question: omit.has("question") ? null : env.question,
+    more: null,
+    omitted: FIELDS.filter((f) => omit.has(f)),
+  };
+}
+
+/** The fields still served that the referee drops a sentence of, as served. */
+function refereeFailed(
+  env: MomentEnvelope,
+  omit: ReadonlySet<MomentProseField>,
+  referee: (text: string) => FollowUpRefereeResult
+): Set<MomentProseField> {
+  const failed = new Set<MomentProseField>();
+  let dropped: { sentence: string }[] = [];
+  try {
+    dropped = referee(momentToText(servedProse(env, omit))).dropped;
+  } catch {
+    return failed;
+  }
+  const live = FIELDS.filter((f) => !omit.has(f));
+  const rendered = live.map((f) => [f, squash(renderField(env, f))] as const);
+  for (const d of dropped) {
+    const sentence = squash(d.sentence);
+    const fields = rendered
+      .filter(([, text]) => sentence.length > 0 && text.includes(sentence))
+      .map(([f]) => f);
+    const owners =
+      fields.length > 0
+        ? fields
+        : (["idea", "happens"] as const).filter((f) => !omit.has(f));
+    for (const f of owners) failed.add(f);
+  }
+  return failed;
 }
 
 function pick(
@@ -398,6 +463,12 @@ export async function runFieldedTurn(i: {
   checkProse?: (text: string, signal?: AbortSignal) => Promise<ValidatorResult>;
   /** The word budget the counted budget check reads (the lean one under COACH_FOLLOWUP_LEAN). */
   budget?: Partial<MomentBudget>;
+  /**
+   * Leave the v1 answer to a reply that cannot be read to the caller (the
+   * validators-on wing runs it through the v1 pipeline): the result is a
+   * `v1_fallback` with no text and call 1 alone.
+   */
+  deferV1?: boolean;
 }): Promise<FieldedTurnResult> {
   const { fx, referee, signal } = i;
   const budget = i.regenBudgetMs ?? FIELDED_REGEN_BUDGET_MS;
@@ -436,19 +507,23 @@ export async function runFieldedTurn(i: {
   };
 
   if (!read1) {
-    // Nothing to read: the v1 answer to the same turn, served as v1.
-    const r2 = await i.callLLM({ ...i.v1Request, signal });
-    calls.push(r2);
+    // Nothing to read: the v1 answer to the same turn, served as v1. It is
+    // the v1 turn's first answer, not a retry of this one.
     counter.served = "v1_fallback";
-    counter.retryCount = 1;
     counter.proseValidator = "absent";
+    let text = "";
+    if (!i.deferV1) {
+      const r2 = await i.callLLM({ ...i.v1Request, signal });
+      calls.push(r2);
+      text = r2.content;
+    }
     finishCalls();
     return {
       served: "v1_fallback",
-      text: r2.content,
+      text,
       prose: null,
       calls,
-      retryCount: 1,
+      retryCount: 0,
       proseIssues: [],
       proseTelemetry: [],
       proseCostUsd: 0,
@@ -517,6 +592,19 @@ export async function runFieldedTurn(i: {
       else if (!j1.failed.has(f)) Object.assign(chosen, pick(env1, f));
       else omit.add(f);
     }
+    // An idea and a happens from different calls are one line no call was
+    // judged on (a move number closing one and a move opening the other
+    // read as one move): the referee reads the text as served, and a field
+    // it still drops is omitted, so its clause stands where it was. A
+    // sentence across the two gives up what happens first.
+    for (let pass = 0; pass < 2; pass++) {
+      const still = refereeFailed(chosen, omit, referee);
+      const open = targets.filter((f) => !omit.has(f) && still.has(f));
+      if (open.length === 0) break;
+      if (open.includes("idea") && open.includes("happens"))
+        omit.add("happens");
+      else for (const f of open) omit.add(f);
+    }
   }
 
   // A proof the facts cannot resolve is absent whether or not it failed.
@@ -527,15 +615,7 @@ export async function runFieldedTurn(i: {
   )
     omit.add("proof");
 
-  const prose: MomentProse = {
-    idea: omit.has("idea") ? null : chosen.idea,
-    happens: omit.has("happens") ? null : chosen.happens,
-    proof: omit.has("proof") ? null : chosen.proof,
-    lesson: omit.has("lesson") ? null : chosen.lesson,
-    question: omit.has("question") ? null : chosen.question,
-    more: null,
-    omitted: FIELDS.filter((f) => omit.has(f)),
-  };
+  const prose = servedProse(chosen, omit);
   const text = momentToText(prose);
 
   const pv = await pc;
@@ -575,6 +655,22 @@ export async function runFieldedTurn(i: {
   };
 }
 
+/** What the turn's own calls cost, priced as the pipeline prices its calls. */
+export function fieldedCallsCostUsd(out: FieldedTurnResult): number {
+  return out.calls.reduce(
+    (sum, c) =>
+      sum +
+      (estimateCostUSD({
+        model: c.model,
+        inputTokens: c.inputTokens,
+        outputTokens: c.outputTokens,
+        cacheCreationTokens: c.cacheCreationTokens,
+        cacheReadTokens: c.cacheReadTokens,
+      }) ?? 0),
+    0
+  );
+}
+
 /**
  * The turn as the validators-on branch reports a pipeline result, so the
  * timeout race, the telemetry forwarder and the response read it unchanged.
@@ -604,18 +700,7 @@ export function fieldedAsRegenerateResult(
       actual: {},
       context,
     });
-  const callCost = out.calls.reduce(
-    (sum, c) =>
-      sum +
-      (estimateCostUSD({
-        model: c.model,
-        inputTokens: c.inputTokens,
-        outputTokens: c.outputTokens,
-        cacheCreationTokens: c.cacheCreationTokens,
-        cacheReadTokens: c.cacheReadTokens,
-      }) ?? 0),
-    0
-  );
+  const callCost = fieldedCallsCostUsd(out);
   return {
     finalResponse: out.text,
     retryCount: out.retryCount,

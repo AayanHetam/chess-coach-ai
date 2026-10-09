@@ -17,7 +17,11 @@
 import { after } from "next/server";
 import type { ValidatorDataSources } from "./index";
 import type { ParserCall } from "./evalClaim";
-import { validateRelationalClaim } from "./relationalClaim";
+import {
+  __test as relationalInternals,
+  defaultRelationalParserCall,
+  validateRelationalClaim,
+} from "./relationalClaim";
 import { validateScoutCitation } from "./scoutCitation";
 import { validateUserHistoryCitation } from "./userHistoryCitation";
 import type { ValidatorResult } from "./types";
@@ -80,7 +84,7 @@ export function fieldedProseValidator(o: {
 /** What the relational shadow saw: counts only, never a span or a board. */
 export interface RelationalShadowResult {
   contradicted: { idea: number; happens: number; unmapped: number };
-  /** Claims the parser checked, when it said so. */
+  /** Claims the parser returned, counted here; null when it was never asked or threw. */
   checked: number | null;
   parserFailed: boolean;
   costUsd: number;
@@ -96,11 +100,29 @@ export async function relationalShadow(o: {
   correlationId: string;
   parseCall?: ParserCall;
 }): Promise<RelationalShadowResult> {
+  // The parser's own output, read here: the validator reports its count
+  // only on a turn with nothing contradicted, and an answer that is no
+  // JSON reads to it as no claims.
+  const seen: { raw: string | null; threw: boolean } = {
+    raw: null,
+    threw: false,
+  };
+  const base = o.parseCall ?? defaultRelationalParserCall;
+  const parseCall: ParserCall = async (args) => {
+    try {
+      const r = await base(args);
+      seen.raw = r.raw;
+      return r;
+    } catch (err) {
+      seen.threw = true;
+      throw err;
+    }
+  };
   const result = await validateRelationalClaim({
     llmResponse: `${o.idea}\n${o.happens}`,
     fen: o.fen,
     correlationId: o.correlationId,
-    parseCall: o.parseCall,
+    parseCall,
     signal: AbortSignal.timeout(10_000),
   });
   const contradicted = { idea: 0, happens: 0, unmapped: 0 };
@@ -112,19 +134,29 @@ export async function relationalShadow(o: {
     else if (span && happens.includes(span)) contradicted.happens += 1;
     else contradicted.unmapped += 1;
   }
-  const passedEvent = result.telemetry.find(
-    (t) => t.check_name === "relational_claim" && t.fire_reason === "passed"
-  );
-  const checkedRaw = (passedEvent?.actual as { claims_checked?: unknown })
-    ?.claims_checked;
+  const out = seen.raw;
   return {
     contradicted,
-    checked: typeof checkedRaw === "number" ? checkedRaw : null,
-    parserFailed: result.telemetry.some(
-      (t) => t.fire_reason === "parser_json_invalid"
-    ),
+    checked: out === null ? null : relationalInternals.parseClaims(out).length,
+    parserFailed:
+      seen.threw || (out !== null && out.trim().length > 0 && !holdsArray(out)),
     costUsd: result.costUsd,
   };
+}
+
+/** The parser's text carries a JSON array, fenced or not, as parseClaims reads it. */
+function holdsArray(text: string): boolean {
+  let body = text.trim();
+  const fence = body.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) body = fence[1].trim();
+  const start = body.indexOf("[");
+  const end = body.lastIndexOf("]");
+  if (start === -1 || end < start) return false;
+  try {
+    return Array.isArray(JSON.parse(body.slice(start, end + 1)));
+  } catch {
+    return false;
+  }
 }
 
 /** `after()` where a request is in flight, a microtask elsewhere (tests, scripts). */

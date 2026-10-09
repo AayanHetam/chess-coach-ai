@@ -31,6 +31,7 @@ import {
 import { planFieldedTurn } from "@/lib/coach/fieldedFacts";
 import {
   fieldedAsRegenerateResult,
+  fieldedCallsCostUsd,
   runFieldedTurn,
   type FieldedTurnResult,
 } from "@/lib/coach/fieldedTurn";
@@ -1148,6 +1149,51 @@ export async function POST(request: NextRequest) {
           // narrowing across function boundaries).
           const dataSources = prep.dataSources;
           const pipelineStartedAt = Date.now();
+          // The v1 pipeline on this turn, for the v1 request or, when the
+          // fielded reply could not be read, for the v1 request that answers
+          // it instead.
+          const pipelineFor = (
+            initialRequest: CallLLMOptions,
+            signal: AbortSignal
+          ) =>
+            runValidationPipeline({
+              initialRequest,
+              stockfishEval: prep.moveCtx.stockfishEval,
+              positionEvals: whatIf
+                ? whatIf.moves.map((m) => ({
+                    san: m.san,
+                    cp: m.cp,
+                    mate: m.mate,
+                    review: m.review,
+                    moveNumber: whatIf!.moveNumber,
+                    color: whatIf!.color,
+                    // A bare "Qxc1" is this move only when the game
+                    // never played that SAN at another ply.
+                    playedElsewhere: (context.playedMoves ?? []).some(
+                      (san, k) =>
+                        k !== whatIf!.index &&
+                        san.replace(/[+#]/g, "") === m.san.replace(/[+#]/g, "")
+                    ),
+                  }))
+                : undefined,
+              featureDelta: dataSources.featureDelta,
+              pieceRoleDiff: dataSources.pieceRoleDiff,
+              threatTree: dataSources.threatTree,
+              playerPerspective,
+              fen: prep.moveCtx.fenAfter,
+              moveSan: prep.moveCtx.moveSan,
+              correlationId: requestId,
+              category: prep.category,
+              // §10.4 + §3.4: chat retry budget is tighter than
+              // enhanced-analysis (1 retry max) to keep follow-up
+              // latency in chat tolerance; none at the bar (lean).
+              maxRetries: lean ? 0 : 1,
+              dataSources: {
+                scout: dataSources.scout,
+                userHistory: dataSources.userHistory,
+              },
+              signal,
+            });
           let pipelineResult: PipelineResultWithTimeout;
           // The fielded turn, run in the pipeline's place inside the same
           // timeout race; read back only when the race did not time out.
@@ -1168,8 +1214,18 @@ export async function POST(request: NextRequest) {
                         correlationId: requestId,
                       }),
                       budget: lean ? budget : undefined,
+                      deferV1: true,
                     }).then((out) => {
                       fieldedBox.out = out;
+                      // A reply with no object to read is answered by the
+                      // v1 request, checked by the v1 pipeline as any v1
+                      // turn is; call 1's cost rides on its total.
+                      if (out.served === "v1_fallback")
+                        return pipelineFor(v1Request, signal).then((r) => ({
+                          ...r,
+                          totalCostUsd:
+                            r.totalCostUsd + fieldedCallsCostUsd(out),
+                        }));
                       return fieldedAsRegenerateResult(out, {
                         correlationId: requestId,
                         fen: fielded.fenAfter,
@@ -1177,8 +1233,8 @@ export async function POST(request: NextRequest) {
                         playerPerspective,
                       });
                     })
-                  : runValidationPipeline({
-                      initialRequest: {
+                  : pipelineFor(
+                      {
                         tier: "fast",
                         system: systemText,
                         systemSuffix: uncachedSuffix,
@@ -1187,43 +1243,8 @@ export async function POST(request: NextRequest) {
                         maxTokens: outputCap,
                         cacheSystem: true,
                       },
-                      stockfishEval: prep.moveCtx.stockfishEval,
-                      positionEvals: whatIf
-                        ? whatIf.moves.map((m) => ({
-                            san: m.san,
-                            cp: m.cp,
-                            mate: m.mate,
-                            review: m.review,
-                            moveNumber: whatIf!.moveNumber,
-                            color: whatIf!.color,
-                            // A bare "Qxc1" is this move only when the game
-                            // never played that SAN at another ply.
-                            playedElsewhere: (context.playedMoves ?? []).some(
-                              (san, k) =>
-                                k !== whatIf!.index &&
-                                san.replace(/[+#]/g, "") ===
-                                  m.san.replace(/[+#]/g, "")
-                            ),
-                          }))
-                        : undefined,
-                      featureDelta: dataSources.featureDelta,
-                      pieceRoleDiff: dataSources.pieceRoleDiff,
-                      threatTree: dataSources.threatTree,
-                      playerPerspective,
-                      fen: prep.moveCtx.fenAfter,
-                      moveSan: prep.moveCtx.moveSan,
-                      correlationId: requestId,
-                      category: prep.category,
-                      // §10.4 + §3.4: chat retry budget is tighter than
-                      // enhanced-analysis (1 retry max) to keep follow-up
-                      // latency in chat tolerance; none at the bar (lean).
-                      maxRetries: lean ? 0 : 1,
-                      dataSources: {
-                        scout: dataSources.scout,
-                        userHistory: dataSources.userHistory,
-                      },
-                      signal,
-                    }),
+                      signal
+                    ),
               {
                 correlationId: requestId,
                 timeoutMs: readPipelineTimeoutMs(prep.category),
@@ -1375,6 +1396,11 @@ export async function POST(request: NextRequest) {
               analysis,
               position: activeFen,
               ...anchorFields,
+              // The prompt that wrote the answer: v1's when the fielded
+              // reply could not be read.
+              ...(fieldedOut?.served === "v1_fallback"
+                ? { followUpPrompt: FOLLOWUP_PROMPT_VERSION }
+                : {}),
               ...(moment ? { moment } : {}),
               validationScore: validation.score,
               cached: false,
@@ -1501,6 +1527,9 @@ export async function POST(request: NextRequest) {
           analysis,
           position: activeFen,
           ...anchorFields,
+          ...(fieldedOut?.served === "v1_fallback"
+            ? { followUpPrompt: FOLLOWUP_PROMPT_VERSION }
+            : {}),
           ...(moment ? { moment } : {}),
           validationScore: validation.score,
           cached: false,

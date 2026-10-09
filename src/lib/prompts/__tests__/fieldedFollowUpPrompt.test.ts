@@ -82,4 +82,20 @@ describe("fieldedTurnReminder", () => {
       fieldedTurnReminder(nc7, { side: "w", player: "w", confirmed: true })
     ).toMatch(/This turn is about White's moves, the player's own\.\]$/);
   });
+
+  it("never offers the engine's line as one instead of the move it starts with", () => {
+    const r = fieldedTurnReminder({ ...nc7, engineIsPlayed: true });
+    expect(r).toContain(
+      `{"kind":"engine"} for the engine's line, which starts with the move played`
+    );
+    expect(r).not.toContain("instead of 8. Nc7+");
+  });
+
+  it("an asked move that cannot be played there is said to be so, and never named", () => {
+    const r = fieldedTurnReminder({ ...nc7, askedIllegal: "8. Qxa8" });
+    expect(r).toContain(
+      "the move the player asks about cannot be played in this position: say so without writing it"
+    );
+    expect(r).not.toContain("Qxa8");
+  });
 });

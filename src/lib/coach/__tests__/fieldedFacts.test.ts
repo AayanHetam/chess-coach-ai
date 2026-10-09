@@ -102,6 +102,75 @@ describe("planFieldedTurn", () => {
     expect(fx.facts.boards.length).toBeGreaterThanOrEqual(3);
   });
 
+  it("an asked move that cannot be played there is never a move to name", () => {
+    // 8. Qxa8: the queen on d1 has no path to a8.
+    const fx = facts(
+      plan({
+        anchor: { ...anchor8, askedSan: "Qxa8" },
+        question: "Why not 8. Qxa8?",
+      })
+    );
+    expect(fx.facts.ownMoves).not.toContain("Qxa8");
+    expect(fx.ownLabels).not.toContain("8. Qxa8");
+    expect(fx.askedLabel).toBeNull();
+    expect(fx.askedIllegal).toBe("8. Qxa8");
+  });
+
+  it("a what-if about the game's own move asks about it, not about it instead of itself", () => {
+    const whatIf: VerifiedWhatIf = {
+      index: 14,
+      fenBefore: anchor8.fenBefore,
+      moveNumber: 8,
+      color: "w",
+      depth: 16,
+      moves: [
+        {
+          role: "asked",
+          uci: "b5c7",
+          san: "Nc7+",
+          cp: -211,
+          depth: 16,
+          lineSan: ["Nc7+", "Kd8"],
+        },
+        {
+          role: "best",
+          uci: "d1c1",
+          san: "Qxc1",
+          cp: 251,
+          depth: 16,
+          lineSan: ["Qxc1", "Rb8"],
+        },
+      ],
+    };
+    const fx = facts(plan({ whatIf, question: "What about 8. Nc7+?" }));
+    expect(fx.askedLabel).toBeNull();
+    expect(fx.askedIllegal).toBeNull();
+  });
+
+  it("knows when the engine's line starts with the move played", () => {
+    // A sweep whose line before 7. Nb5 starts with 7. Nb5.
+    const withNb5 = {
+      positions: gameEval.positions.map((p, i) =>
+        i === 12
+          ? {
+              bestMove: "a3b5",
+              lines: [{ pv: ["a3b5", "a1c1"], cp: -350, depth: 16 }],
+            }
+          : p
+      ),
+    };
+    const nb5 = facts(
+      plan({
+        anchor: anchorAt(12),
+        question: "Why 7. Nb5?",
+        gameEval: withNb5 as never,
+      })
+    );
+    expect(nb5.label).toBe("7. Nb5");
+    expect(nb5.engineIsPlayed).toBe(true);
+    expect(facts(plan()).engineIsPlayed).toBe(false);
+  });
+
   it("a finding whose board is another position is not this move's", () => {
     const fx = facts(
       plan({

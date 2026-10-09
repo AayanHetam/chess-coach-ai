@@ -207,6 +207,35 @@ describe("the field-scoped regeneration", () => {
     expect(r.prose?.omitted).toEqual([]);
   });
 
+  it("an idea and a happens from different calls are judged together as served, and a dropped line keeps its clause", async () => {
+    // Each alone passes, but "on move 8." before "Kd8 steps" reads as one
+    // sentence with 8. Kd8 in it, which the referee drops.
+    const idea = "You wanted to hit the king and the rook at once on move 8.";
+    const happens =
+      "Kd8 steps out of the check, and Black keeps the extra queen.";
+    expect(referee(`${idea} ${clean.happens}`).dropped).toEqual([]);
+    expect(referee(`${clean.idea} ${happens}`).dropped).toEqual([]);
+    // Call 1's happens and call 2's idea fail, so the good idea of one
+    // call meets the good happens of the other, in either order.
+    const a = {
+      idea,
+      happens: "After 8... Kxc7 the knight is simply lost for nothing.",
+    };
+    const b = { idea: "You hoped 8... Kxc7 would never come.", happens };
+    for (const steps of [
+      [json(a), json(b)],
+      [json(b), json(a)],
+    ]) {
+      const r = await run(steps).out;
+      // The second net drops nothing from what is served.
+      expect(referee(r.text).dropped).toEqual([]);
+      expect(r.prose?.idea).toBe(idea);
+      expect(r.prose?.happens).toBeNull();
+      expect(r.prose?.omitted).toContain("happens");
+      expect(r.text).toContain(ABSENCE_CLAUSE.happens);
+    }
+  });
+
   it("an empty happens twice is its clause", async () => {
     const { out } = run([json({ happens: "" }), json({ happens: "" })]);
     const r = await out;
@@ -306,6 +335,31 @@ describe("reading a reply", () => {
     expect(r.served).toBe("v1_fallback");
     expect(r.text).toBe("A v1 answer.");
     expect(r.counter.parse).toBe("failed");
+    // The v1 turn's first answer, not a retry of this one.
+    expect(r.retryCount).toBe(0);
+    expect(r.counter.retryCount).toBe(0);
+  });
+
+  it("a JSON value that is not the object is no answer to lift: null and an array go to v1", async () => {
+    for (const reply of [
+      "null",
+      '["You went for the check.", "The queen on c1 was already hanging."]',
+      '"You went for the check."',
+    ]) {
+      const { m, out } = run([reply, "A v1 answer."]);
+      const r = await out;
+      expect(m.sent).toHaveLength(2);
+      expect(r.served).toBe("v1_fallback");
+      expect(r.text).toBe("A v1 answer.");
+    }
+  });
+
+  it("left to the caller, an unreadable reply is a v1 fallback with call 1 alone and no text", async () => {
+    const { m, out } = run(['{"idea": "unterminated'], { deferV1: true });
+    const r = await out;
+    expect(m.sent).toHaveLength(1);
+    expect(r).toMatchObject({ served: "v1_fallback", text: "", retryCount: 0 });
+    expect(r.calls).toHaveLength(1);
   });
 
   it("a prose reply is lifted into the fields", async () => {
@@ -322,6 +376,22 @@ describe("reading a reply", () => {
     const r = await out;
     expect(r.counter.parse).toBe("repaired");
     expect(r.served).toBe("fielded");
+  });
+
+  it("strips a label bolded with its colon inside, as markdown writes it", () => {
+    const { envelope, repairs } = normalizeEnvelope({
+      ...clean,
+      idea: "**Idea:** You wanted the fork.",
+      lesson: {
+        pattern: "**Lesson:** Take what hangs",
+        check: "List captures.",
+      },
+      question: "__Your turn:__ which piece is loose?",
+    });
+    expect(envelope.idea).toBe("You wanted the fork.");
+    expect(envelope.lesson?.pattern).toBe("Take what hangs");
+    expect(envelope.question).toBe("which piece is loose?");
+    expect(repairs).toContain("label_stripped");
   });
 
   it("normalizes the labels, tokens and line breaks the model was told not to write", () => {

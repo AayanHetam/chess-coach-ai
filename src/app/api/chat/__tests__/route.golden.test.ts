@@ -431,8 +431,8 @@ describe("byte for byte as at 5d592e7", () => {
   }, 120_000);
 
   // Pathway 3.1: under COACH_FOLLOWUP_PROMPT=fielded, every turn the plan
-  // does not field (no anchor, a walkthrough, no contract) is the v1 turn,
-  // byte for byte.
+  // does not field is the v1 turn, byte for byte. The TURNS it declines
+  // here have no anchor; the test after this one covers the other reasons.
   it("a turn the fielded mode does not field is the v1 turn, byte for byte", async () => {
     const golden = JSON.parse(fs.readFileSync(GOLDEN, "utf8"));
     for (const mode of MODES.filter((m) => m.prompt === "")) {
@@ -455,6 +455,73 @@ describe("byte for byte as at 5d592e7", () => {
         }
       }
       expect(declined, mode.name).toBeGreaterThanOrEqual(3);
+    }
+  }, 120_000);
+
+  // The other reasons the plan declines a turn (a walkthrough, a context
+  // with no contract, a turn about the other side), each compared with the
+  // v1 turn served in the same run, since the 5d592e7 golden has no entry
+  // for them.
+  it("a walkthrough, a context with no contract and a turn about the other side are the v1 turn, byte for byte", async () => {
+    const stored = mockGetAnalysisContext.getMockImplementation()!;
+    const CASES: {
+      reason: string;
+      turn: Turn;
+      perspective: string;
+      noContract?: boolean;
+    }[] = [
+      {
+        reason: "walkthrough",
+        turn: {
+          name: "walkthrough",
+          body: { userMessage: "walk me through 8. Nc7+ step by step" },
+        },
+        perspective: "",
+      },
+      {
+        reason: "no_contract",
+        turn: {
+          name: "no-contract",
+          body: { userMessage: "why was 8. Nc7+ a mistake?" },
+        },
+        perspective: "",
+        noContract: true,
+      },
+      {
+        reason: "other_side",
+        turn: {
+          name: "other-side",
+          body: { userMessage: "why was 7... Qxc1 good?", perspective: "b" },
+        },
+        perspective: "1",
+      },
+    ];
+    for (const mode of MODES.filter((m) => m.prompt === "")) {
+      for (const c of CASES) {
+        mockGetAnalysisContext.mockImplementation(() => {
+          const ctx = stored() as Record<string, unknown>;
+          if (c.noContract) delete ctx.compactContract;
+          return ctx;
+        });
+        vi.stubEnv("MASTERMIND_VALIDATORS_ENABLED", mode.validators);
+        vi.stubEnv("COACH_PERSPECTIVE", c.perspective);
+        vi.stubEnv("COACH_FOLLOWUP_PROMPT", "");
+        __resetMastermindEnvCacheForTests();
+        const v1 = await serve(c.turn);
+        vi.stubEnv("COACH_FOLLOWUP_PROMPT", "fielded");
+        __resetMastermindEnvCacheForTests();
+        mockLog.info.mockClear();
+        const fielded = await serve(c.turn);
+        const plan = mockLog.info.mock.calls.find(
+          (x) => x[0] === "followup_fielded"
+        )?.[1] as { eligible?: boolean; reason?: string } | undefined;
+        expect(plan, `${mode.name}:${c.reason}`).toMatchObject({
+          eligible: false,
+          reason: c.reason,
+        });
+        expect(fielded, `${mode.name}:${c.reason}`).toBe(v1);
+      }
+      mockGetAnalysisContext.mockImplementation(stored);
     }
   }, 120_000);
 });

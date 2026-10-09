@@ -141,6 +141,8 @@ jobs:
       # route is stubbed in these legs, so the server's COACH_PERSPECTIVE
       # is not needed here.
       NEXT_PUBLIC_COACH_PERSPECTIVE: "1"
+      # A fresh load opens at the move the game turned on (arrivalJump.ts).
+      NEXT_PUBLIC_COACH_ARRIVAL_JUMP: "1"
     steps:
       - uses: actions/checkout@v4
         with:

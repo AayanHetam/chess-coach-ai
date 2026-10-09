@@ -82,6 +82,11 @@ import { ChessgroundBoardPlaceholder } from "@/components/ui/ChessgroundBoardPla
 import { renderMoveLinkedText } from "./moveLinker";
 import { buildGameStory, playerName } from "@/lib/coach/gameStory";
 import {
+  arrivalTarget,
+  isArrivalJumpEnabledPublic,
+} from "@/lib/coach/arrivalJump";
+import { decisiveLabel, decisiveMark, type DecisiveMove } from "./evalArc";
+import {
   DEFAULT_ARROW_TOGGLES,
   ARROW_PALETTE,
   type ArrowToggleState,
@@ -569,6 +574,8 @@ const AI_DISABLED = isAiDisabledPublic();
 const PAGE_ACTIONS = isPageActionsEnabledPublic();
 /** Build-time flag: the side the coach's answers are about (standingSide.ts). */
 const PERSPECTIVE = isPerspectiveEnabledPublic();
+/** Build-time flag: a fresh load opens at the move the game turned on (arrivalJump.ts). */
+const ARRIVAL_JUMP = isArrivalJumpEnabledPublic();
 
 /**
  * User Timing marks for a what-if ("coach-what-if:asked", ":partial",
@@ -2396,6 +2403,7 @@ function EvalSparkline({
   progress = 0,
   errored = false,
   hasGame = true,
+  decisive = null,
 }: {
   series: number[];
   currentPly: number;
@@ -2408,6 +2416,8 @@ function EvalSparkline({
   errored?: boolean;
   /** False on the empty board — nothing to plot, so say so. */
   hasGame?: boolean;
+  /** The move the game turned on (gameStory.ts), marked once the sweep is in. */
+  decisive?: DecisiveMove | null;
 }) {
   const width = 800;
   const height = 30;
@@ -2495,11 +2505,14 @@ function EvalSparkline({
   // Nothing to plot: keep the height so the strip below does not move
   // when the first evaluation arrives.
   if (!hasGame || series.length < 2) {
-    return <Box sx={{ height }} />;
+    return <Box data-testid="eval-arc" sx={{ height }} />;
   }
+
+  const mark = decisiveMark(decisive, series.length, { analyzing });
 
   return (
     <Box
+      data-testid="eval-arc"
       sx={{
         position: "relative",
         width: "100%",
@@ -2592,6 +2605,62 @@ function EvalSparkline({
           strokeWidth={2}
         />
       </svg>
+      {/* The move the game turned on: a gold tick across the arc, a way
+          there. Drawn over the svg, not in it, so the arc's stretch does
+          not squash it, and inside the arc's own height. */}
+      {mark && (
+        <Box
+          component="button"
+          type="button"
+          data-testid="eval-arc-decisive"
+          aria-label={mark.ariaLabel}
+          title={mark.title}
+          onClick={(e: React.MouseEvent) => {
+            e.stopPropagation();
+            onJumpTo(mark.ply);
+          }}
+          sx={{
+            position: "absolute",
+            top: 0,
+            left: `${mark.percent}%`,
+            transform: "translateX(-50%)",
+            width: 16,
+            height,
+            p: 0,
+            m: 0,
+            border: 0,
+            background: "transparent",
+            cursor: "pointer",
+            "&::before": {
+              content: '""',
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              left: "50%",
+              width: 2,
+              transform: "translateX(-50%)",
+              background: "rgba(252,211,77,0.85)",
+              borderRadius: 1,
+            },
+            "&::after": {
+              content: '""',
+              position: "absolute",
+              top: 1,
+              left: "50%",
+              width: 7,
+              height: 7,
+              transform: "translateX(-50%) rotate(45deg)",
+              background: "#FCD34D",
+              boxShadow: "0 0 0 1.5px #08090C",
+            },
+            "&:focus-visible": {
+              outline: "2px solid #FCD34D",
+              outlineOffset: 1,
+              borderRadius: "2px",
+            },
+          }}
+        />
+      )}
       {statusChip && (
         <Box
           sx={{
@@ -3511,6 +3580,71 @@ function StandingStripState({
           Back
         </Box>
       </BackButton>
+    </Box>
+  );
+}
+
+/**
+ * The arrival opened the board at the move the game turned on
+ * (arrivalJump.ts): the strip names it with the way back to the start. A
+ * note, not a way off the game, so on a phone the step buttons stay beside
+ * it and their Start is the way back.
+ */
+function ArrivalStripState({
+  label,
+  ply,
+  onBack,
+}: {
+  label: string;
+  ply: number;
+  onBack: () => void;
+}) {
+  return (
+    <Box
+      data-testid="arrival-strip-state"
+      data-ply={ply}
+      sx={{
+        flex: 1,
+        minWidth: 0,
+        display: "flex",
+        alignItems: "center",
+        gap: 0.9,
+      }}
+    >
+      <Box
+        component="span"
+        sx={{
+          flexShrink: 0,
+          fontSize: "0.64rem",
+          fontWeight: 800,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          color: "#FCD34D",
+          whiteSpace: "nowrap",
+        }}
+      >
+        Turning point
+      </Box>
+      <Box
+        component="span"
+        sx={{
+          minWidth: 0,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          fontFamily:
+            "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+          fontSize: "0.92rem",
+          fontWeight: 700,
+          color: "rgba(255,255,255,0.94)",
+        }}
+      >
+        {label}
+      </Box>
+      <Box sx={{ flex: 1 }} />
+      <Box sx={{ display: { xs: "none", sm: "inline-flex" } }}>
+        <BackButton onClick={onBack}>Back to start</BackButton>
+      </Box>
     </Box>
   );
 }
@@ -4996,6 +5130,7 @@ function CoachPanel({
             // Read by the e2e: was this build made with page actions on?
             data-page-actions={PAGE_ACTIONS ? "on" : "off"}
             data-coach-perspective={PERSPECTIVE ? "on" : "off"}
+            data-arrival-jump={ARRIVAL_JUMP ? "on" : "off"}
             fullWidth
             multiline
             maxRows={4}
@@ -7594,6 +7729,11 @@ export default function AnalysisPage() {
       return enginePositions;
     }
   }, [enginePositions, sweptFor, loadedGame]);
+  // This game's sweep is in, every position of it.
+  const sweepLanded =
+    enginePositions !== null &&
+    sweptFor === loadedGame &&
+    enginePositions.length === allMoves.length + 1;
 
   // G9: derive real key moments from classification. Production's
   // SurpriseAnalyzer is a separate Stockfish pass that adds a lot of
@@ -8480,6 +8620,13 @@ export default function AnalysisPage() {
     toPly: number;
     label: string;
   } | null>(null);
+  // Where the arrival opened the board (arrivalJump.ts): the move the game
+  // turned on, named in the strip with the way back to the start until the
+  // board moves or the strip shows anything else.
+  const [arrivalJump, setArrivalJump] = useState<{
+    toPly: number;
+    label: string;
+  } | null>(null);
 
   // Desync fix (companion to the ae4cf45 replay fix): navigating game history
   // (arrows / move-history strip) advances `currentPly` → `currentFen`, but the
@@ -8543,6 +8690,56 @@ export default function AnalysisPage() {
     if (standingAck && (drillState || takeoverPreview || coachJump))
       setStandingAck(null);
   }, [standingAck, drillState, takeoverPreview, coachJump]);
+
+  // The arrival (arrivalJump.ts): once per game loaded fresh, when its
+  // sweep lands with the board still where it loaded, the board opens at
+  // the move the game turned on. Decided once per game, applied or not, so
+  // a later sweep (a depth change) never moves the board again.
+  const arrivalForRef = useRef<Chess | null>(null);
+  const boardTouchedRef = useRef(false);
+  useEffect(() => {
+    boardTouchedRef.current = false;
+  }, [loadedGame]);
+  useEffect(() => {
+    if (currentPly !== 0) boardTouchedRef.current = true;
+  }, [currentPly]);
+  useEffect(() => {
+    if (!ARRIVAL_JUMP || !sweepLanded || arrivalForRef.current === loadedGame)
+      return;
+    arrivalForRef.current = loadedGame;
+    const decisive = gameStory?.decisive ?? null;
+    const target = arrivalTarget({
+      enabled: ARRIVAL_JUMP,
+      sweepLanded,
+      freshLoad: messages[0]?.arrival !== undefined,
+      standardRoot,
+      puzzleMode: isPuzzleMode,
+      decisivePly: decisive?.ply ?? null,
+      ply: currentPly,
+      touched: boardTouchedRef.current,
+      boardBusy:
+        drillState !== null || takeoverPreview !== null || coachJump !== null,
+      coachView: rightTab === "coach",
+    });
+    if (target === null || !decisive) return;
+    setCurrentPly(target);
+    setArrivalJump({ toPly: target, label: decisiveLabel(decisive) });
+    // Decided on the render the sweep lands in; the rest is read then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sweepLanded, loadedGame, gameStory]);
+  // It goes when the board moves, and for good when anything else takes
+  // the strip. Each sets state only when there is one to clear.
+  useEffect(() => {
+    if (arrivalJump && arrivalJump.toPly !== currentPly) setArrivalJump(null);
+  }, [currentPly, arrivalJump]);
+  useEffect(() => {
+    if (
+      arrivalJump &&
+      (drillState || takeoverPreview || coachJump || standingAck)
+    )
+      setArrivalJump(null);
+  }, [arrivalJump, drillState, takeoverPreview, coachJump, standingAck]);
+
   const drillActive = drillState !== null && drillState.status !== "complete";
   // Bumped to force the board to re-sync to React-state FEN. Chessground
   // commits a drag visually before the move event fires, so a rejected
@@ -8654,7 +8851,11 @@ export default function AnalysisPage() {
       engineRunning: hasGame && analysisActive,
       coachError: lastCoachError,
       aiDisabled: AI_DISABLED,
-      terminal: (displayTerminal?.label as TerminalLabel | undefined) ?? null,
+      // While the arrival holds the board at the move the game turned on,
+      // the face is the game's result: the reader has just been told it.
+      terminal:
+        (displayTerminal?.label as TerminalLabel | undefined) ??
+        (arrivalJump ? (gameStory?.terminal ?? null) : null),
       playerColor: playerSide?.color ?? null,
       classification: cls ? String(cls) : null,
       mover,
@@ -8670,6 +8871,8 @@ export default function AnalysisPage() {
     analysisActive,
     lastCoachError,
     displayTerminal,
+    arrivalJump,
+    gameStory,
   ]);
   // Held for one animation loop so arrow-key scrubbing does not flicker.
   const coachMasti = useStickyMood(coachMood, 1400);
@@ -9903,7 +10106,9 @@ export default function AnalysisPage() {
         : null,
       jump: coachJump
         ? { fromPly: coachJump.fromPly, toPly: coachJump.toPly }
-        : null,
+        : arrivalJump
+          ? { fromPly: 0, toPly: arrivalJump.toPly }
+          : null,
       typedJump: typedJumpRef.current,
       coachAsked: coachAskedLast(messages),
       replay:
@@ -9949,6 +10154,7 @@ export default function AnalysisPage() {
           break;
         case "clear_jump":
           setCoachJump(null);
+          if (arrivalJump) setArrivalJump(null);
           break;
         case "cursor":
           setCurrentPly(e.ply);
@@ -11351,6 +11557,7 @@ export default function AnalysisPage() {
                   progress={analysisProgress}
                   errored={analysisError !== null}
                   hasGame={hasGame}
+                  decisive={ARRIVAL_JUMP ? (gameStory?.decisive ?? null) : null}
                 />
                 <MoveAnalysisCard
                   gameSans={gameSans}
@@ -11432,6 +11639,15 @@ export default function AnalysisPage() {
                                 coachExtras.playerColor
                             );
                           setStandingAck(null);
+                        }}
+                      />
+                    ) : arrivalJump ? (
+                      <ArrivalStripState
+                        label={arrivalJump.label}
+                        ply={arrivalJump.toPly}
+                        onBack={() => {
+                          setArrivalJump(null);
+                          setCurrentPly(0);
                         }}
                       />
                     ) : null

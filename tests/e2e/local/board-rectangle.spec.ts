@@ -65,8 +65,11 @@ const PUZZLE_PACK = {
 const FOLLOWUP =
   "You saw the fork, but the queen on c1 was free for the taking.\n\nLesson: take what is hanging before you start a combination.";
 
-async function stubEverything(page: Page) {
-  await page.route("**/engines/**", (route) => route.abort());
+async function stubEverything(
+  page: Page,
+  { blockEngine = true }: { blockEngine?: boolean } = {}
+) {
+  if (blockEngine) await page.route("**/engines/**", (route) => route.abort());
   await stubSignedIn(page);
   await stubMaiaHealthy(page);
   await page.route("**/api/mistake-puzzles", (r) =>
@@ -451,5 +454,169 @@ test.describe("the board's rectangle", () => {
     await page.keyboard.press("End");
     await expect(state).toHaveCount(0);
     expectSameRect(rest, await boardRect(page), "stepping after a switch");
+  });
+});
+
+/**
+ * The arrival (pathway 2.7, behind NEXT_PUBLIC_COACH_ARRIVAL_JUMP; the CI
+ * legs build with it on): once the engine has swept a game loaded fresh,
+ * the board opens at the move the game turned on (gameStory.ts), the strip
+ * names it with the way back, the arc marks it and Masti wears the result.
+ * The engine runs here, so the spec skips, like the what-if spec, on a
+ * machine where the sweep never finishes.
+ */
+test.describe("the arrival at the move the game turned on", () => {
+  /** The move the greeting says the game turned at, and its ply. */
+  async function turningPoint(page: Page) {
+    const greeting = page.getByText(/The game turned at \d+\.+\S+/).first();
+    await expect(greeting).toBeVisible({ timeout: 30_000 });
+    const m = /The game turned at (\d+)(\.+)(\S+?) \(/.exec(
+      (await greeting.textContent()) ?? ""
+    );
+    expect(m, "the greeting names the move").not.toBeNull();
+    const [, n, dots, san] = m!;
+    const ply = (Number(n) - 1) * 2 + (dots === "." ? 1 : 2);
+    return { ply, label: `${n}${dots} ${san}` };
+  }
+
+  /**
+   * The story line in the greeting is the sign the sweep has landed: the
+   * composer reads "Ask anything about this position..." before the game
+   * has even loaded.
+   */
+  async function sweepLands(page: Page) {
+    const ready = await page
+      .getByText(/The game turned at \d+\.+\S+/)
+      .first()
+      .waitFor({ state: "visible", timeout: 180_000 })
+      .then(() => true)
+      .catch(() => false);
+    test.skip(!ready, "Stockfish never finished on this machine");
+  }
+
+  async function arrivalOn(page: Page) {
+    const on =
+      (await page
+        .locator("[data-arrival-jump]")
+        .first()
+        .getAttribute("data-arrival-jump")) === "on";
+    test.skip(!on && !process.env.CI, "built without the arrival jump");
+    expect(on, "the CI legs build with the arrival jump on").toBe(true);
+  }
+
+  test("opens at the turning point once the sweep lands, and the board does not move", async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(240_000);
+    await stubEverything(page, { blockEngine: false });
+    await page.goto(`/analysis?pgn=${encodeURIComponent(PGN)}`);
+    await expect(page.locator(".cg-wrap").first()).toBeVisible({
+      timeout: 60_000,
+    });
+    await arrivalOn(page);
+    const rest = await boardRect(page);
+    const strip = page.getByTestId("move-analysis");
+    const stripHeight = (await strip.boundingBox())!.height;
+
+    await sweepLands(page);
+    const turned = await turningPoint(page);
+    const state = page.getByTestId("arrival-strip-state");
+    await expect(state).toBeVisible({ timeout: 10_000 });
+    await expect(state).toHaveAttribute("data-ply", String(turned.ply));
+    await expect(state).toContainText("Turning point");
+    await expect(state).toContainText(turned.label);
+    expectSameRect(rest, await boardRect(page), "the arrival");
+    expect(
+      Math.abs((await strip.boundingBox())!.height - stripHeight)
+    ).toBeLessThanOrEqual(2);
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
+    // The step buttons stay beside it, on a phone too.
+    await expect(page.getByLabel("Next move (→)").first()).toBeVisible();
+
+    // The arc marks the move, where the arc draws that ply.
+    const arc = page.getByTestId("eval-arc");
+    const arcBox = (await arc.boundingBox())!;
+    expect(Math.abs(arcBox.height - 30)).toBeLessThanOrEqual(1);
+    const mark = page.getByTestId("eval-arc-decisive");
+    await expect(mark).toHaveAttribute(
+      "aria-label",
+      `Go to ${turned.label}, the move that decided the game`
+    );
+    const markBox = (await mark.boundingBox())!;
+    const at = (markBox.x + markBox.width / 2 - arcBox.x) / arcBox.width;
+    expect(Math.abs(at - turned.ply / 20)).toBeLessThanOrEqual(0.02);
+
+    // Masti wears the result: White lost this game, and the side is not
+    // known until the reader says it.
+    const face = page.getByTestId("coach-masti");
+    await expect(face).toHaveAttribute("data-masti-avatar", "idea", {
+      timeout: 5_000,
+    });
+    await page.getByTestId("player-side-ask").getByText("White").click();
+    await expect(face).toHaveAttribute("data-masti-avatar", "defeated", {
+      timeout: 5_000,
+    });
+    await expect(state).toBeVisible();
+    // No figure over the board.
+    const overBoard = await page.evaluate(() => {
+      const board = document.querySelector(".cg-wrap")!.getBoundingClientRect();
+      return Array.from(document.querySelectorAll("[data-masti-mood]")).some(
+        (el) => {
+          const r = el.getBoundingClientRect();
+          return (
+            r.width > 0 &&
+            r.left < board.right &&
+            r.right > board.left &&
+            r.top < board.bottom &&
+            r.bottom > board.top
+          );
+        }
+      );
+    });
+    expect(overBoard).toBe(false);
+
+    // The way back: the state's own button beside a board, the step
+    // buttons' Start on a phone.
+    if (testInfo.project.name.includes("mobile"))
+      await page.getByLabel("Start (Home)").first().click();
+    else await state.getByRole("button", { name: "Back to start" }).click();
+    await expect(state).toHaveCount(0);
+    await expect(page.getByTestId("move-analysis-label")).toHaveText("Start");
+    expectSameRect(rest, await boardRect(page), "back to the start");
+    // Once per load: nothing takes the reader back there.
+    await page.waitForTimeout(1_000);
+    await expect(state).toHaveCount(0);
+
+    // The arc's mark is a way there.
+    await mark.click();
+    await expect(page.getByTestId("move-analysis-label")).toHaveText(
+      turned.label
+    );
+    expectSameRect(rest, await boardRect(page), "the arc's mark");
+  });
+
+  test("a reader who moved before the sweep landed is left where they are", async ({
+    page,
+  }) => {
+    test.setTimeout(240_000);
+    await stubEverything(page, { blockEngine: false });
+    await page.goto(`/analysis?pgn=${encodeURIComponent(PGN)}`);
+    await expect(page.locator(".cg-wrap").first()).toBeVisible({
+      timeout: 60_000,
+    });
+    await arrivalOn(page);
+    // The game is on the board (its greeting is), and the sweep is not in.
+    await expect(
+      page.getByText("E2E White vs E2E Black").filter({ visible: true }).first()
+    ).toBeVisible({ timeout: 30_000 });
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByTestId("move-analysis-label")).toHaveText("1. e4");
+    await sweepLands(page);
+    await turningPoint(page);
+    await page.waitForTimeout(1_000);
+    await expect(page.getByTestId("arrival-strip-state")).toHaveCount(0);
+    await expect(page.getByTestId("move-analysis-label")).toHaveText("1. e4");
+    // The arc still marks it.
+    await expect(page.getByTestId("eval-arc-decisive")).toBeVisible();
   });
 });

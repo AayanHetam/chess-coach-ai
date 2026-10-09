@@ -149,3 +149,38 @@ describe("recap, score and result moods", () => {
     expect(coachErrorMood("api")).toBe("defeated");
   });
 });
+
+describe("analysisMood: the game's result (pathway 2.7)", () => {
+  it("a draw is an idea, spelled either way, for any side", () => {
+    for (const playerColor of ["white", "black", null] as const)
+      for (const terminal of ["½-½", "1/2-1/2"] as const)
+        expect(analysisMood({ hasGame: true, terminal, playerColor })).toBe("idea");
+  });
+
+  it("the result beats the decisive move's own face", () => {
+    expect(
+      analysisMood({
+        hasGame: true,
+        terminal: "0-1",
+        playerColor: "black",
+        classification: "blunder",
+        mover: "opponent",
+      })
+    ).toBe("excited");
+    expect(
+      analysisMood({ hasGame: true, terminal: "0-1", playerColor: "white" })
+    ).toBe("defeated");
+    expect(analysisMood({ hasGame: true, terminal: "1-0", playerColor: null })).toBe(
+      "idea"
+    );
+  });
+
+  it("the coach working and the sweep still come first", () => {
+    expect(
+      analysisMood({ hasGame: true, terminal: "1-0", playerColor: "white", thinking: true })
+    ).toBe("thinking");
+    expect(
+      analysisMood({ hasGame: true, terminal: "1-0", playerColor: "white", engineRunning: true })
+    ).toBe("thinking");
+  });
+});

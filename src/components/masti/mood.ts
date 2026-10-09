@@ -51,7 +51,8 @@ export function puzzleMood(i: PuzzleMoodInput): MastiMood {
 }
 
 export type PlayerColor = "white" | "black";
-export type TerminalLabel = "1-0" | "0-1" | "½-½";
+/** A game's result. A draw comes either way: the board's "½-½" or the PGN's "1/2-1/2". */
+export type TerminalLabel = "1-0" | "0-1" | "½-½" | "1/2-1/2";
 
 /**
  * Move classifications as the analysis surface spells them (the
@@ -124,7 +125,10 @@ export interface AnalysisMoodInput {
   engineRunning?: boolean;
   coachError?: CoachErrorKind | null;
   aiDisabled?: boolean;
-  /** Game-over label on the displayed position, if any. */
+  /**
+   * Game over on the displayed position, or, while a fresh load opens at the
+   * move the game was decided on (arrivalJump.ts), the game's result.
+   */
   terminal?: TerminalLabel | null;
   playerColor?: PlayerColor | null;
   /** Classification of the move that led to the displayed position. */
@@ -149,7 +153,7 @@ export function analysisMood(i: AnalysisMoodInput): MastiMood {
   if (!i.hasGame) return "wave";
   if (i.engineRunning) return "thinking";
   if (i.terminal) {
-    if (i.terminal === "½-½") return "idea";
+    if (i.terminal === "½-½" || i.terminal === "1/2-1/2") return "idea";
     if (!i.playerColor) return "idea";
     const playerWon =
       (i.terminal === "1-0" && i.playerColor === "white") ||

@@ -65,6 +65,29 @@ async function pageActionsOn(page: Page): Promise<boolean> {
   );
 }
 
+/**
+ * The arrival (pathway 2.7, behind NEXT_PUBLIC_COACH_ARRIVAL_JUMP, on in
+ * the CI legs) opens the board at the move the game turned on, 8. Nc7+
+ * here, which is also where the coach's anchor for these questions lands.
+ * Back to the start, so the board is where these tests have always begun.
+ */
+async function leaveArrival(page: Page, composer: Locator) {
+  const on =
+    (await page
+      .locator("[data-arrival-jump]")
+      .first()
+      .getAttribute("data-arrival-jump")) === "on";
+  if (!on) return;
+  // The composer reads "Ask anything about this position..." before the
+  // game has even loaded, so its being visible is no sign of the sweep:
+  // the arrival itself is, and it comes when the sweep lands.
+  const state = page.getByTestId("arrival-strip-state");
+  await expect(state).toBeVisible({ timeout: 180_000 });
+  await composer.blur();
+  await page.keyboard.press("Home");
+  await expect(state).toHaveCount(0);
+}
+
 async function stubCoach(
   page: Page,
   {
@@ -375,6 +398,7 @@ test.describe("the client what-if", () => {
       !ready,
       "Stockfish never finished on this machine — the what-if is unit-tested"
     );
+    await leaveArrival(page, composer);
 
     // The review first, so the follow-up goes the fast path like a real one.
     await composer.fill("analyse this game");
@@ -607,6 +631,7 @@ test.describe("the client what-if", () => {
       .then(() => true)
       .catch(() => false);
     test.skip(!ready, "Stockfish never finished on this machine");
+    await leaveArrival(page, composer);
     await composer.fill("analyse this game");
     await composer.press("Enter");
     await expect(page.getByText("the free queen was bigger")).toBeVisible({
@@ -643,6 +668,7 @@ test.describe("the client what-if", () => {
       .then(() => true)
       .catch(() => false);
     test.skip(!ready, "Stockfish never finished on this machine");
+    await leaveArrival(page, composer);
     await composer.fill("analyse this game");
     await composer.press("Enter");
     await expect(page.getByText("the free queen was bigger")).toBeVisible({
@@ -754,6 +780,7 @@ test.describe("the client what-if", () => {
       .then(() => true)
       .catch(() => false);
     test.skip(!ready, "Stockfish never finished on this machine");
+    await leaveArrival(page, composer);
     await composer.fill("analyse this game");
     await composer.press("Enter");
     await expect(page.getByText("the free queen was bigger")).toBeVisible({

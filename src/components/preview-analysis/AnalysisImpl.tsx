@@ -8172,7 +8172,7 @@ export default function AnalysisPage() {
       // extraction.
       tacticalMotifs: [],
     };
-  }, [classifiedPositions, currentPly, allMoves]);
+  }, [classifiedPositions, currentPly, allMoves, rootFen]);
 
   // Per-game suggestion pills shown above the coach input + in the
   // command palette's "Coach" section. Replaces the old static
@@ -8463,7 +8463,9 @@ export default function AnalysisPage() {
         ]);
       }
     },
-    []
+    // The signed-in names are username-match candidates: a game loaded
+    // after sign-in resolves must see them.
+    [user?.displayName, user?.email]
   );
 
   // ───── URL-param + localStorage ingestion (mirrors production /analysis) ─────
@@ -9881,7 +9883,18 @@ export default function AnalysisPage() {
         sink: coachSink,
       });
     },
-    [messages, currentPly, displayFen, allMoves, handleTabChange, coachSink]
+    [
+      messages,
+      currentPly,
+      displayFen,
+      allMoves,
+      handleTabChange,
+      coachSink,
+      loadedGame,
+      enginePositions,
+      gameEvalFull,
+      coachExtras,
+    ]
   );
 
   // Played SAN — what was played at the CURRENT canonical position (for the
@@ -10578,7 +10591,8 @@ export default function AnalysisPage() {
           });
         });
     },
-    []
+    // Stable but for sign-in: a signed-in reader's pack is the adaptive one.
+    [user?.uid]
   );
   // Stable, so CoachBubble's memoized body holds across keystrokes, eval
   // partials and stream deltas: an inline arrow here made the memo inert.
@@ -10756,7 +10770,19 @@ export default function AnalysisPage() {
         },
       });
     },
-    [allMoves, isThinking, messages, triggerPuzzleFetch, coachSink]
+    [
+      allMoves,
+      isThinking,
+      messages,
+      triggerPuzzleFetch,
+      coachSink,
+      currentPly,
+      rootFen,
+      loadedGame,
+      enginePositions,
+      gameEvalFull,
+      coachExtras,
+    ]
   );
 
   // G6 auto-fire infrastructure: a ref to the latest handleSend so we can
@@ -10928,6 +10954,7 @@ export default function AnalysisPage() {
       rootFen,
       gameSans,
       coachExtras,
+      gameEvalFull,
     ]
   );
 

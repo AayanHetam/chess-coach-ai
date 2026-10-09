@@ -128,6 +128,7 @@ describe("the sides the page reads", () => {
   it("the strip's words", () => {
     expect(standingStripWords("b")).toEqual({
       label: "Black's side",
+      short: "Black",
       text: "Answers are about Black's moves",
       back: "Back to my side",
     });

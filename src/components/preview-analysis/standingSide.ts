@@ -135,11 +135,14 @@ export function standingStripWords(
   sideKnown = true
 ): {
   label: string;
+  /** The label beside the step buttons on a phone: the side's name. */
+  short: string;
   text: string;
   back: string;
 } {
   return {
     label: `${NAME[side]}'s side`,
+    short: NAME[side],
     text: `Answers are about ${NAME[side]}'s moves`,
     back: sideKnown ? "Back to my side" : "Back",
   };

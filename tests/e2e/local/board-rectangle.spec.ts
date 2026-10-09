@@ -155,6 +155,24 @@ async function boardRect(page: Page) {
   return box;
 }
 
+/**
+ * The element shows all of its text: nothing cut by its own ellipsis, and
+ * nothing hidden past the edge of a row that hides its overflow.
+ */
+async function notClipped(el: import("@playwright/test").Locator) {
+  return el.evaluate((node) => {
+    const own = node as HTMLElement;
+    if (own.scrollWidth > own.clientWidth + 1) return false;
+    const r = own.getBoundingClientRect();
+    for (let p = own.parentElement; p; p = p.parentElement) {
+      if (getComputedStyle(p).overflowX === "visible") continue;
+      const b = p.getBoundingClientRect();
+      if (r.left < b.left - 1 || r.right > b.right + 1) return false;
+    }
+    return true;
+  });
+}
+
 function expectSameRect(
   before: { x: number; y: number; width: number; height: number },
   after: { x: number; y: number; width: number; height: number },
@@ -424,6 +442,11 @@ test.describe("the board's rectangle", () => {
     );
     const state = page.getByTestId("standing-strip-state");
     await expect(state).toHaveAttribute("data-subject", "b");
+    // The side is what the note says: never cut, the step buttons beside it.
+    expect(
+      await notClipped(state.getByTestId("standing-strip-label")),
+      "the side is not cut"
+    ).toBe(true);
     expectSameRect(rest, await boardRect(page), "a side switch");
     expect(
       Math.abs((await strip.boundingBox())!.height - stripBox.height)
@@ -525,6 +548,10 @@ test.describe("the arrival at the move the game turned on", () => {
     await expect(state).toHaveAttribute("data-ply", String(turned.ply));
     await expect(state).toContainText("Turning point");
     await expect(state).toContainText(turned.label);
+    // The move is what the note says: never cut, at any width.
+    const moveLabel = state.getByTestId("arrival-strip-label");
+    await expect(moveLabel).toHaveText(turned.label);
+    expect(await notClipped(moveLabel), "the move is not cut").toBe(true);
     expectSameRect(rest, await boardRect(page), "the arrival");
     expect(
       Math.abs((await strip.boundingBox())!.height - stripHeight)

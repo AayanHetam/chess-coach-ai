@@ -2624,7 +2624,9 @@ function EvalSparkline({
             top: 0,
             left: `${mark.percent}%`,
             transform: "translateX(-50%)",
-            width: 16,
+            // Never wider than one ply of the arc, so a tap beside the tick
+            // still reaches the ply it was meant for.
+            width: `min(16px, ${100 / (series.length - 1)}%)`,
             height,
             p: 0,
             m: 0,
@@ -3538,11 +3540,10 @@ function StandingStripState({
     >
       <Box
         component="span"
+        data-testid="standing-strip-label"
         sx={{
-          flexShrink: 1,
-          minWidth: 0,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
+          // The side is what the note says: the sentence gives way first.
+          flexShrink: 0,
           whiteSpace: "nowrap",
           fontSize: "0.64rem",
           fontWeight: 800,
@@ -3552,7 +3553,13 @@ function StandingStripState({
         }}
       >
         <span aria-hidden>{side === "w" ? "♔" : "♚"} </span>
-        {words.label}
+        {/* Beside the step buttons on a phone, the side's name alone. */}
+        <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+          {words.label}
+        </Box>
+        <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+          {words.short}
+        </Box>
       </Box>
       <Typography
         sx={{
@@ -3611,10 +3618,15 @@ function ArrivalStripState({
         gap: 0.9,
       }}
     >
+      {/* The note gives way before the move does: the move is what it says.
+          On a phone a gold diamond stands for the words. */}
       <Box
         component="span"
         sx={{
-          flexShrink: 0,
+          flexShrink: 1,
+          minWidth: 0,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
           fontSize: "0.64rem",
           fontWeight: 800,
           letterSpacing: "0.12em",
@@ -3623,14 +3635,41 @@ function ArrivalStripState({
           whiteSpace: "nowrap",
         }}
       >
-        Turning point
+        <Box
+          component="span"
+          aria-hidden
+          sx={{ display: { xs: "inline", sm: "none" }, letterSpacing: 0 }}
+        >
+          ◆
+        </Box>
+        <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+          Turning point
+        </Box>
+        {/* The words for a screen reader where the diamond stands for them. */}
+        <Box
+          component="span"
+          sx={{
+            display: { xs: "inline", sm: "none" },
+            // Strings: a bare 1 in sx is 100%.
+            position: "absolute",
+            width: "1px",
+            height: "1px",
+            margin: "-1px",
+            padding: 0,
+            border: 0,
+            overflow: "hidden",
+            clip: "rect(0 0 0 0)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Turning point
+        </Box>
       </Box>
       <Box
         component="span"
+        data-testid="arrival-strip-label"
         sx={{
-          minWidth: 0,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
+          flexShrink: 0,
           whiteSpace: "nowrap",
           fontFamily:
             "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
@@ -3642,8 +3681,12 @@ function ArrivalStripState({
         {label}
       </Box>
       <Box sx={{ flex: 1 }} />
-      <Box sx={{ display: { xs: "none", sm: "inline-flex" } }}>
-        <BackButton onClick={onBack}>Back to start</BackButton>
+      {/* Beside the step buttons the way back is one word; on a phone their
+          Start, a tap away, is the way back. */}
+      <Box sx={{ display: { xs: "none", sm: "inline-flex" }, flexShrink: 0 }}>
+        <BackButton onClick={onBack} ariaLabel="Back to start">
+          Back
+        </BackButton>
       </Box>
     </Box>
   );
@@ -7239,10 +7282,13 @@ function BoardNav({
     children: ReactNode;
   }) => (
     <Tooltip title={tooltip}>
+      {/* The span lets the tooltip work on a disabled button; the button
+          carries the name itself, since the tooltip names the span. */}
       <span>
         <IconButton
           onClick={onClick}
           disabled={disabled}
+          aria-label={tooltip}
           size="small"
           sx={{
             width: 30,
@@ -7666,13 +7712,23 @@ export default function AnalysisPage() {
   // Save flow (G4) can persist a complete eval to Firestore/IndexedDB
   // instead of synthesising one. Populated alongside enginePositions.
   const [gameEvalFull, setGameEvalFull] = useState<GameEval | null>(null);
-  // The game the sweep above was run for, set in the same batch as the
-  // positions. When a new game loads, the render before the reset effect
-  // still holds the old game's sweep: everything that reads it as this
-  // game's (the classifier, the session cache, the saved evals, the story)
-  // checks this first, so the old evals are never written under the new
-  // game's key or told as its story.
-  const [sweptFor, setSweptFor] = useState<Chess | null>(null);
+  // What the sweep above was run for (the game, the depth, the engine), set
+  // in the same batch as the positions. When a new game loads, or the depth
+  // or the engine changes, the render before the reset effect still holds
+  // the old sweep: everything that reads it as the current one (the
+  // classifier, the session cache, the saved evals, the story) checks this
+  // first, so the old evals are never written under the new key, restored
+  // in place of the new sweep, or told as its story.
+  const [sweptFor, setSweptFor] = useState<{
+    game: Chess;
+    depth: number;
+    engine: EngineName;
+  } | null>(null);
+  const sweepCurrent =
+    sweptFor !== null &&
+    sweptFor.game === loadedGame &&
+    sweptFor.depth === engineSettings.depth &&
+    sweptFor.engine === engineSettings.engineName;
 
   // G8: real Maia predictions via /api/maia-predict, keyed by
   // `${fen}|${elo}`. Hand-table is the synchronous cold-start fallback.
@@ -7698,7 +7754,7 @@ export default function AnalysisPage() {
   // Miss / Blunder via getMovesClassification. The classifier needs both
   // UCI strings (for legal-move replay) and the canonical FEN sequence.
   const classifiedPositions = useMemo<PositionEval[] | null>(() => {
-    if (!enginePositions || sweptFor !== loadedGame) return null;
+    if (!enginePositions || !sweepCurrent) return null;
     let params: { fens: string[]; uciMoves: string[] };
     try {
       params = getEvaluateGameParams(loadedGame);
@@ -7728,11 +7784,11 @@ export default function AnalysisPage() {
       console.warn("[preview/analysis] classification failed:", err);
       return enginePositions;
     }
-  }, [enginePositions, sweptFor, loadedGame]);
+  }, [enginePositions, sweepCurrent, loadedGame]);
   // This game's sweep is in, every position of it.
   const sweepLanded =
     enginePositions !== null &&
-    sweptFor === loadedGame &&
+    sweepCurrent &&
     enginePositions.length === allMoves.length + 1;
 
   // G9: derive real key moments from classification. Production's
@@ -7817,13 +7873,25 @@ export default function AnalysisPage() {
       if (restored) {
         setEnginePositions(restored.positions);
         if (restored.gameEval) setGameEvalFull(restored.gameEval);
-        setSweptFor(loadedGame);
+        setSweptFor({
+          game: loadedGame,
+          depth: engineSettings.depth,
+          engine: engineSettings.engineName,
+        });
         setAnalysisProgress(100);
       }
     } catch {
       /* corrupted entry — let Stockfish re-run */
     }
-  }, [cacheKey, enginePositions, analysisError, allMoves.length, loadedGame]);
+  }, [
+    cacheKey,
+    enginePositions,
+    analysisError,
+    allMoves.length,
+    loadedGame,
+    engineSettings.depth,
+    engineSettings.engineName,
+  ]);
 
   // Save when analysis completes.
   //
@@ -7833,17 +7901,18 @@ export default function AnalysisPage() {
   // restore-from-legacy pass (positions only, no GameEval) cannot overwrite a
   // full entry with a partial one.
   //
-  // Only the sweep of the game on the board: in the render a new game loads,
-  // cacheKey is already the new game's and gameEvalFull still the old one's.
+  // Only the current sweep: in the render a new game loads, or the depth or
+  // the engine changes, cacheKey is already the new one's and gameEvalFull
+  // still the old one's.
   useEffect(() => {
-    if (!cacheKey || !gameEvalFull || sweptFor !== loadedGame) return;
+    if (!cacheKey || !gameEvalFull || !sweepCurrent) return;
     if (typeof window === "undefined") return;
     try {
       window.sessionStorage.setItem(cacheKey, JSON.stringify(gameEvalFull));
     } catch {
       /* quota exhausted — skip silently */
     }
-  }, [cacheKey, gameEvalFull, sweptFor, loadedGame]);
+  }, [cacheKey, gameEvalFull, sweepCurrent]);
 
   // G15: also push every position eval into the production savedEvalsAtom
   // so the rest of the site (production /analysis, /play eval-bar, etc.)
@@ -7851,7 +7920,7 @@ export default function AnalysisPage() {
   // Keyed by FEN per production convention (panelHeader/analyzeButton.tsx).
   const setSavedEvals = useSetAtom(savedEvalsAtom);
   useEffect(() => {
-    if (!enginePositions || sweptFor !== loadedGame) return;
+    if (!enginePositions || !sweepCurrent) return;
     let fens: string[] = [];
     try {
       fens = getEvaluateGameParams(loadedGame).fens;
@@ -7869,7 +7938,7 @@ export default function AnalysisPage() {
     setSavedEvals((prev) => ({ ...prev, ...gameSavedEvals }));
   }, [
     enginePositions,
-    sweptFor,
+    sweepCurrent,
     loadedGame,
     engineSettings.engineName,
     setSavedEvals,
@@ -7917,6 +7986,10 @@ export default function AnalysisPage() {
   useEffect(() => {
     if (!engine || enginePositions || analysisError) return;
     if (!allMoves.length) return;
+    // While a newly picked engine loads, the hook still hands back the old
+    // one: sweep on the engine the settings name, so the sweep is tagged
+    // with the engine that ran it.
+    if (engine.name !== engineSettings.engineName) return;
     let cancelled = false;
     const params = getEvaluateGameParams(loadedGame);
     setAnalysisProgress(1);
@@ -7943,7 +8016,11 @@ export default function AnalysisPage() {
         if (cancelled) return;
         setEnginePositions(result.positions);
         setGameEvalFull(result);
-        setSweptFor(loadedGame);
+        setSweptFor({
+          game: loadedGame,
+          depth: engineSettings.depth,
+          engine: engineSettings.engineName,
+        });
         setAnalysisProgress(100);
       })
       .catch((err) => {
@@ -7965,6 +8042,7 @@ export default function AnalysisPage() {
     enginePositions,
     analysisError,
     engineSettings.depth,
+    engineSettings.engineName,
   ]);
 
   const [currentPly, setCurrentPly] = useState(0);
@@ -8705,6 +8783,11 @@ export default function AnalysisPage() {
   useEffect(() => {
     if (currentPly !== 0) boardTouchedRef.current = true;
   }, [currentPly]);
+  // A piece moved from the start position, or a drill, is a touch too, even
+  // when the cursor never left the start.
+  useEffect(() => {
+    if (takeoverPreview || drillState) boardTouchedRef.current = true;
+  }, [takeoverPreview, drillState]);
   useEffect(() => {
     if (!ARRIVAL_JUMP || !sweepLanded || arrivalForRef.current === loadedGame)
       return;
@@ -8718,9 +8801,16 @@ export default function AnalysisPage() {
       puzzleMode: isPuzzleMode,
       decisivePly: decisive?.ply ?? null,
       ply: currentPly,
-      touched: boardTouchedRef.current,
+      // A reader already talking to the coach (the sweep can land late,
+      // after a failed engine was swapped) has arrived.
+      touched:
+        boardTouchedRef.current ||
+        messages.some((m) => m.role === "user" && !m.synthetic),
       boardBusy:
-        drillState !== null || takeoverPreview !== null || coachJump !== null,
+        drillState !== null ||
+        takeoverPreview !== null ||
+        coachJump !== null ||
+        isThinking,
       coachView: rightTab === "coach",
     });
     if (target === null || !decisive) return;
@@ -8734,6 +8824,10 @@ export default function AnalysisPage() {
   useEffect(() => {
     if (arrivalJump && arrivalJump.toPly !== currentPly) setArrivalJump(null);
   }, [currentPly, arrivalJump]);
+  // A new sweep (a depth or engine change) may tell another move.
+  useEffect(() => {
+    if (arrivalJump && !sweepLanded) setArrivalJump(null);
+  }, [arrivalJump, sweepLanded]);
   useEffect(() => {
     if (
       arrivalJump &&

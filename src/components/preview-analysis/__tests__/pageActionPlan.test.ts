@@ -724,7 +724,7 @@ describe("a standing side (PR 2.6, NEXT_PUBLIC_COACH_PERSPECTIVE)", () => {
   const on = (side: "w" | "b" | null, over: Partial<PageTurnState> = {}) =>
     state({
       playerSide: "w",
-      standing: { side, player: "w" },
+      standing: { side, player: "w", contextReady: true },
       ...over,
     });
 
@@ -788,20 +788,65 @@ describe("a standing side (PR 2.6, NEXT_PUBLIC_COACH_PERSPECTIVE)", () => {
     ).toEqual([{ type: "side", color: "b", remember: true }]);
   });
 
-  it("in a drill the side changes and the drill's board does not turn", () => {
+  it("in a drill the side changes and the board takes it when the drill is left", () => {
     const drill = { drill: { complete: false, savedPly: 4 } };
     expect(planPageTurn(wish("b"), on(null, drill))!.effects).toEqual([
       { type: "standing", side: "b" },
+      { type: "orientation", to: "black", afterDrill: true },
     ]);
     expect(
       planPageTurn(mySide, on("b", { ...drill, orientation: "black" }))!.effects
+    ).toEqual([
+      { type: "standing", side: "w" },
+      { type: "orientation", to: "white", afterDrill: true },
+    ]);
+  });
+
+  it("a switch adopted with the side unknown ends without turning the board or calling the guess yours", () => {
+    expect(
+      planPageTurn(mySide, on("b", { playerSide: null, orientation: "black" }))
+    ).toEqual({
+      effects: [{ type: "standing", side: "w" }],
+      ack: "Answers are about the whole game again. Which side did you play, White or Black?",
+      mood: "wave",
+    });
+  });
+
+  it("before the coach has answered, a wish sets the side the review is built for, as without a standing side", () => {
+    const fresh = on(null, {
+      standing: { side: null, player: "w", contextReady: false },
+    });
+    expect(planPageTurn(wish("b"), fresh)).toEqual({
+      effects: [{ type: "side", color: "b", remember: true }],
+      ack: "Coaching you as Black now.",
+      mood: "wave",
+    });
+    // A switch already standing still ends.
+    expect(
+      planPageTurn(mySide, {
+        ...fresh,
+        standing: { side: "b", player: "w", contextReady: false },
+      })!.effects
     ).toEqual([{ type: "standing", side: "w" }]);
   });
 
-  it("a switch adopted with the side unknown ends without turning the board", () => {
+  it("a switch ends in a set-up position or a puzzle too, where no side can be picked", () => {
+    const setUp = on("w", {
+      playerSide: null,
+      sideEligible: false,
+      standing: { side: "w", player: "b", contextReady: true },
+    });
+    expect(planPageTurn(mySide, setUp)).toMatchObject({
+      effects: [{ type: "standing", side: "b" }],
+    });
+    // Nothing standing: declined there, as before.
     expect(
-      planPageTurn(mySide, on("b", { playerSide: null, orientation: "black" }))
-    ).toMatchObject({ effects: [{ type: "standing", side: "w" }] });
+      planPageTurn(mySide, {
+        ...setUp,
+        standing: { side: null, player: "b", contextReady: true },
+      })
+    ).toBeNull();
+    expect(planPageTurn(wish("w"), setUp)).toBeNull();
   });
 
   it("go to move N reads the side it is given, which the page sets from the standing side", () => {

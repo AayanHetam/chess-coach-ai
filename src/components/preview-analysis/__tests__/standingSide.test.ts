@@ -113,6 +113,10 @@ describe("the sides the page reads", () => {
         "b"
       )
     ).toBeUndefined();
+    // The first person as the one asking keeps the standing side.
+    expect(
+      whatIfDefaultSide("Can we try Nd5 on move 4?", "w", true, "b")
+    ).toBe("b");
     expect(
       whatIfDefaultSide("what about move 8?", "w", true, null)
     ).toBeUndefined();
@@ -127,6 +131,8 @@ describe("the sides the page reads", () => {
       text: "Answers are about Black's moves",
       back: "Back to my side",
     });
+    // With the side unknown the page cannot say whose side "back" is.
+    expect(standingStripWords("b", false).back).toBe("Back");
   });
 });
 

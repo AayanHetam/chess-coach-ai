@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  aboutThePlayersPlay,
   asksAboutMistakes,
   perspectiveFromWords,
   readPerspectiveField,
@@ -414,5 +415,78 @@ describe("resolveTurnSubject", () => {
         field: "b",
       })
     ).toEqual({ side: "b", source: "field", rule: "field" });
+  });
+});
+
+describe("aboutThePlayersPlay: the player's own play, not the one asking", () => {
+  it("the player as the one who played, stood or owned it", () => {
+    for (const q of [
+      "why did I play move 8?",
+      "what did I do wrong on move 8?",
+      "Should I have played Nd5?",
+      "could I have taken the queen?",
+      "Where did we go wrong?",
+      "I went wrong somewhere around move 8",
+      "Was I better after move 8?",
+      "am I winning here?",
+      "I'm worse here, why?",
+      "I think I was winning after move 8",
+      "I blundered on move 8, why?",
+      "I lost my queen on move 8",
+      "we should have castled",
+      "did I punish the blunder?",
+      "what if I had played move 8 differently?",
+      "Was move 8 good for us?",
+      "Why was move 8 bad for me?",
+      "What went wrong for me on move 8?",
+      "why was my move 8 bad?",
+      "my 12th move",
+      "what were my mistakes?",
+      "back to my side, why was move 8 bad?",
+      "and White?",
+    ])
+      expect(aboutThePlayersPlay(q, "w"), q).toBe(true);
+  });
+
+  it("the first person as the one asking is not", () => {
+    for (const q of [
+      "Can we look at move 8?",
+      "Could we go over move 8?",
+      "Can I ask why move 8 was bad?",
+      "I'm confused, why was move 8 bad?",
+      "I'm lost, explain move 8",
+      "I still don't get move 8",
+      "I don't know why move 8 was bad",
+      "I did not understand move 8",
+      "I do not follow",
+      "I see, and move 9?",
+      "Sorry, I meant move 8",
+      "Sorry, my mistake, I meant move 8",
+      "I wonder why move 8 was bad",
+      "I think move 8 was bad",
+      "Can you explain move 8 for me?",
+      "show me move 8",
+      "why was move 8 bad?",
+      "what did Black do wrong?",
+    ])
+      expect(aboutThePlayersPlay(q, "w"), q).toBe(false);
+  });
+
+  it("a standing field yields to the player's play and to nothing else", () => {
+    const subject = (message: string) =>
+      resolveTurnSubject({
+        message,
+        field: "b",
+        player: "w",
+        sideConfirmed: true,
+      });
+    expect(subject("Can we look at move 8?")).toEqual({
+      side: "b",
+      source: "field",
+      rule: "field",
+    });
+    expect(subject("why did I play move 8?")).toMatchObject({
+      yielded: "words",
+    });
   });
 });

@@ -438,6 +438,46 @@ describe("a turn about the other side (validators on)", () => {
     expect(sent[0].messages.at(-1).content).not.toContain("This turn is about");
   });
 
+  it("the first person as the one asking keeps the standing field: move 8 is still Black's", async () => {
+    for (const question of [
+      "Can we look at move 8?",
+      "Could we go over move 8?",
+      "I'm confused, why was move 8 bad?",
+      "I still don't get move 8",
+      "I don't know why move 8 was bad",
+      "Sorry, I meant move 8",
+      "I wonder why move 8 was bad",
+    ]) {
+      provider(DRAFT);
+      const json = await (await ask(question, { perspective: "b" })).json();
+      expect(json.gameAnalysis.perspective, question).toEqual({
+        side: "b",
+        source: "field",
+        rule: "field",
+        version: "1",
+      });
+      expect(json.gameAnalysis.anchor, question).toMatchObject({
+        ply: 16,
+        san: "Kd8",
+      });
+    }
+  });
+
+  it("a judgement for the player gives the field way too", async () => {
+    for (const question of [
+      "What went wrong for me on move 8?",
+      "Why was move 8 bad for me?",
+    ]) {
+      provider(DRAFT);
+      const json = await (await ask(question, { perspective: "b" })).json();
+      expect(json.gameAnalysis.perspective?.yielded, question).toBe("words");
+      expect(json.gameAnalysis.anchor, question).toMatchObject({
+        ply: 15,
+        san: "Nc7+",
+      });
+    }
+  });
+
   it("the words win over the field: my move is the player's", async () => {
     const sent = provider(DRAFT);
     const json = await (

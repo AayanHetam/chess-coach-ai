@@ -70,11 +70,24 @@ export interface PageTurnState {
    * instead of the player's, with no re-review, and "back to my side" ends
    * it. Absent, the plan is as before.
    */
-  standing?: { side: "w" | "b" | null; player: "w" | "b" };
+  standing?: {
+    side: "w" | "b" | null;
+    player: "w" | "b";
+    /**
+     * The coach has a context the next follow-up goes to (/api/chat). A
+     * standing side rides only on that path: before the first answer the
+     * next question is the review itself, built for the player.
+     */
+    contextReady?: boolean;
+  };
 }
 
 export type PageEffect =
-  | { type: "orientation"; to: "white" | "black" }
+  /**
+   * `afterDrill`: a drill owns the board, so the side is the board's when
+   * the drill is left, not now.
+   */
+  | { type: "orientation"; to: "white" | "black"; afterDrill?: true }
   | { type: "exit_drill" }
   | { type: "clear_preview" }
   | { type: "clear_jump" }
@@ -298,25 +311,36 @@ function planAction(a: PageAction, s: PageTurnState): PagePlan {
 /**
  * A wish or "back to my side" under a standing side (standingSide.ts), or
  * null for the plan without one: a wish needs the player's side known
- * (with it unknown, "coach me as Black" answers the side ask, as before).
+ * (with it unknown, "coach me as Black" answers the side ask, as before)
+ * and a context its answers go to (before the first answer, the wish sets
+ * the side the review is built for, as before: there is no review to keep).
  */
 function planStanding(p: PagePreference, s: PageTurnState): PagePlan | null {
   const st = s.standing;
   if (!st) return null;
   const switched = st.side !== null && st.side !== st.player;
-  const backToPlayer = (): PagePlan => {
-    const mine = st.player === "w" ? "white" : "black";
-    return {
-      effects: [
-        { type: "standing", side: st.player },
-        ...(s.playerSide && !s.drill && s.orientation !== mine
-          ? [{ type: "orientation" as const, to: mine as "white" | "black" }]
-          : []),
-      ],
-      ack: "Answers are about your moves again.",
-      mood: "wave",
-    };
+  // The board takes the side now, or, in a drill, when the drill is left.
+  const turnBoard = (to: "w" | "b"): PageEffect[] => {
+    const side = to === "w" ? "white" : "black";
+    if (s.drill) return [{ type: "orientation", to: side, afterDrill: true }];
+    return s.orientation !== side ? [{ type: "orientation", to: side }] : [];
   };
+  const backToPlayer = (): PagePlan =>
+    s.playerSide
+      ? {
+          effects: [
+            { type: "standing", side: st.player },
+            ...turnBoard(st.player),
+          ],
+          ack: "Answers are about your moves again.",
+          mood: "wave",
+        }
+      : {
+          // The side the context was built for is a guess: it is not "yours".
+          effects: [{ type: "standing", side: st.player }],
+          ack: "Answers are about the whole game again. Which side did you play, White or Black?",
+          mood: "wave",
+        };
   if (p.kind === "my_side") return switched ? backToPlayer() : null;
   if (p.bare || p.declared || s.playerSide === null) return null;
   if (p.color === s.playerSide) return switched ? backToPlayer() : null;
@@ -327,25 +351,18 @@ function planStanding(p: PagePreference, s: PageTurnState): PagePlan | null {
       ack: `Answers are already about ${name}'s moves.`,
       mood: "wave",
     };
+  if (!st.contextReady) return null;
   return {
-    // A drill owns the board: the side changes, its orientation does not.
-    effects: [
-      { type: "standing", side: p.color },
-      ...(s.drill
-        ? []
-        : [
-            {
-              type: "orientation" as const,
-              to: (p.color === "w" ? "white" : "black") as "white" | "black",
-            },
-          ]),
-    ],
+    effects: [{ type: "standing", side: p.color }, ...turnBoard(p.color)],
     ack: `Answers are about ${name}'s moves now. You're still ${colorName(s.playerSide)}.`,
     mood: "wave",
   };
 }
 
 function planPreference(p: PagePreference, s: PageTurnState): PagePlan | null {
+  // A standing side ends wherever it was taken, a set-up position or a
+  // puzzle included, where no side can be picked.
+  if (p.kind === "my_side" && !s.sideEligible) return planStanding(p, s);
   if (!s.sideEligible) return null;
   const standing = planStanding(p, s);
   if (standing) return standing;

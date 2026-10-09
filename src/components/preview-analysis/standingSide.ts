@@ -17,7 +17,7 @@
  * Pure and client-safe.
  */
 import {
-  aboutThePlayer,
+  aboutThePlayersPlay,
   perspectiveFromWords,
   type Side,
 } from "@/lib/coach/questionPerspective";
@@ -118,15 +118,22 @@ export function whatIfDefaultSide(
 ): Side | undefined {
   const words = perspectiveFromWords(question, player, sideKnown);
   if (words) return words.side;
-  if (standing && standing !== player && !aboutThePlayer(question, player))
+  if (standing && standing !== player && !aboutThePlayersPlay(question, player))
     return standing;
   return undefined;
 }
 
 const NAME: Record<Side, string> = { w: "White", b: "Black" };
 
-/** The strip's words for a standing side. */
-export function standingStripWords(side: Side): {
+/**
+ * The strip's words for a standing side. With the player's side not yet
+ * known the way back is plain "Back": the page cannot say whose side that
+ * is.
+ */
+export function standingStripWords(
+  side: Side,
+  sideKnown = true
+): {
   label: string;
   text: string;
   back: string;
@@ -134,6 +141,6 @@ export function standingStripWords(side: Side): {
   return {
     label: `${NAME[side]}'s side`,
     text: `Answers are about ${NAME[side]}'s moves`,
-    back: "Back to my side",
+    back: sideKnown ? "Back to my side" : "Back",
   };
 }

@@ -120,6 +120,12 @@ export interface MoveAnalysisCardProps {
    * about. Same row, same height, so the board below never moves.
    */
   state?: React.ReactNode;
+  /**
+   * The state is a note about where the board is, not a way off the
+   * mainline (the side switch, the arrival at the move the game turned
+   * on): the step buttons stay beside it on a phone too.
+   */
+  stateKeepsControls?: boolean;
 }
 
 function questionFor(a: MoveAnalysis): string {
@@ -161,6 +167,7 @@ export function MoveAnalysisCard({
   nav,
   menu,
   state,
+  stateKeepsControls = false,
 }: MoveAnalysisCardProps) {
   const analysis = useMemo(
     () => analyzeMoveAt(gameSans, positions, ply, rootFen, playerColor),
@@ -200,10 +207,14 @@ export function MoveAnalysisCard({
         {/* On a phone the row cannot hold the step buttons AND a state
             with its way back, so while one shows the buttons yield the row
             to it; they are back the moment it goes. Beside a board there is
-            room for both. */}
+            room for both. A note that keeps the controls is short enough
+            for both everywhere. */}
         <Box
           sx={{
-            display: state ? { xs: "none", md: "contents" } : "contents",
+            display:
+              state && !stateKeepsControls
+                ? { xs: "none", md: "contents" }
+                : "contents",
           }}
         >
           {nav}

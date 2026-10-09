@@ -763,8 +763,11 @@ async function streamCoachReply(params: {
   // Group D: synthetic (UI-authored) and incomplete (truncated) turns are
   // filtered out here, in the ONE place history is assembled.
   const conversationHistory = buildConversationHistory(prevMessages);
-  // The standing side as this request carries it.
+  // The standing side as this request carries it, and the context it went
+  // to: a new game clears the context, so an answer from the old one is
+  // never read as this game's.
   const sentPerspective = perspectiveRef?.current ?? null;
+  const sentContextId = contextIdRef.current;
 
   const hasContext =
     contextIdRef.current !== null &&
@@ -812,11 +815,13 @@ async function streamCoachReply(params: {
         data.message ?? data.response ?? data.gameAnalysis?.analysis ?? "";
       // The coach's reading of the turn's side, before the anchor, so the
       // page takes a standing side in the same render as the answer.
-      // Not when the reader switched while it was on its way.
+      // Not when the reader switched, or loaded another game, while it was
+      // on its way.
       if (
         PERSPECTIVE &&
         data.gameAnalysis?.perspective !== undefined &&
-        (perspectiveRef?.current ?? null) === sentPerspective
+        (perspectiveRef?.current ?? null) === sentPerspective &&
+        contextIdRef.current === sentContextId
       )
         onPerspective?.(data.gameAnalysis.perspective);
       const anchor = data.gameAnalysis?.anchor;
@@ -3442,12 +3447,14 @@ function CoachJumpState({
  */
 function StandingStripState({
   side,
+  sideKnown,
   onBack,
 }: {
   side: StandingSide;
+  sideKnown: boolean;
   onBack: () => void;
 }) {
-  const words = standingStripWords(side);
+  const words = standingStripWords(side, sideKnown);
   return (
     <Box
       data-testid="standing-strip-state"
@@ -3495,7 +3502,15 @@ function StandingStripState({
         {words.text}
       </Typography>
       <Box sx={{ flex: { xs: 1, sm: "none" } }} />
-      <BackButton onClick={onBack}>{words.back}</BackButton>
+      {/* Beside the step buttons on a phone, the way back is one word. */}
+      <BackButton onClick={onBack} ariaLabel={words.back}>
+        <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+          {words.back}
+        </Box>
+        <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+          Back
+        </Box>
+      </BackButton>
     </Box>
   );
 }
@@ -3503,15 +3518,21 @@ function StandingStripState({
 function BackButton({
   onClick,
   tooltip,
+  ariaLabel,
   children,
 }: {
   onClick: () => void;
   tooltip?: string;
+  /** The button's name when its words are cut for a phone. */
+  ariaLabel?: string;
   children: ReactNode;
 }) {
   const button = (
     <Button
       onClick={onClick}
+      // Only when given: an explicit undefined would override the name a
+      // Tooltip gives its child.
+      {...(ariaLabel ? { "aria-label": ariaLabel } : {})}
       startIcon={<ArrowLeft size={12} />}
       sx={{
         flexShrink: 0,
@@ -8513,12 +8534,15 @@ export default function AnalysisPage() {
   // The strip's acknowledgement of a switch goes when the board moves, and
   // for good when anything else takes the strip: it never comes back stale
   // after that state's Back.
+  // Each sets state only when there is an acknowledgement to clear, so with
+  // the flag off (none ever) neither costs the page a render.
   useEffect(() => {
-    setStandingAck((a) => (a && a.atPly !== currentPly ? null : a));
-  }, [currentPly]);
+    if (standingAck && standingAck.atPly !== currentPly) setStandingAck(null);
+  }, [currentPly, standingAck]);
   useEffect(() => {
-    if (drillState || takeoverPreview || coachJump) setStandingAck(null);
-  }, [drillState, takeoverPreview, coachJump]);
+    if (standingAck && (drillState || takeoverPreview || coachJump))
+      setStandingAck(null);
+  }, [standingAck, drillState, takeoverPreview, coachJump]);
   const drillActive = drillState !== null && drillState.status !== "complete";
   // Bumped to force the board to re-sync to React-state FEN. Chessground
   // commits a drag visually before the move event fires, so a rejected
@@ -9891,6 +9915,13 @@ export default function AnalysisPage() {
             standing: {
               side: standingRef.current,
               player: coachContextColorRef.current ?? coachExtras.playerColor,
+              // What streamCoachReply's fast path needs: the next question
+              // goes to /api/chat, which is where a standing side rides.
+              contextReady:
+                coachContextIdRef.current !== null &&
+                buildConversationHistory(messages).some(
+                  (m) => m.role === "assistant"
+                ),
             },
           }
         : {}),
@@ -9903,7 +9934,9 @@ export default function AnalysisPage() {
     for (const e of effects) {
       switch (e.type) {
         case "orientation":
-          setBoardOrientation(e.to);
+          if (e.afterDrill)
+            setDrillState((d) => (d ? { ...d, savedOrientation: e.to } : d));
+          else setBoardOrientation(e.to);
           reveal = true;
           break;
         case "exit_drill":
@@ -11380,6 +11413,7 @@ export default function AnalysisPage() {
                     ) : standingAck ? (
                       <StandingStripState
                         side={standingAck.side}
+                        sideKnown={playerSide !== null}
                         onBack={() => {
                           // What "back to my side" does: the answers are
                           // the player's again, and the board is theirs.
@@ -11391,10 +11425,19 @@ export default function AnalysisPage() {
                             pageTurnStateRef.current()
                           );
                           if (plan) applyPageEffects(plan.effects);
+                          // Never hides the strip with the side still set.
+                          else
+                            setStanding(
+                              coachContextColorRef.current ??
+                                coachExtras.playerColor
+                            );
                           setStandingAck(null);
                         }}
                       />
                     ) : null
+                  }
+                  stateKeepsControls={
+                    !drillState && !takeoverPreview && !coachJump
                   }
                 />
               </Box>

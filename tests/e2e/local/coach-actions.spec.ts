@@ -278,24 +278,16 @@ test.describe("orders the page carries out itself", () => {
       "Coaching you as White (your choice)"
     );
     await expect(board).toHaveClass(/orientation-white/);
-    if (await perspectiveOn(page)) {
-      // A wish is a switch of the side the answers are about: the player
-      // stays White, and nothing is reviewed again (standingSide.ts).
-      await say(
-        "coach me as black",
-        "Answers are about Black's moves now. You're still White."
-      );
-      await expect(page.getByTestId("player-side-chip")).toContainText(
-        "Coaching you as White"
-      );
-      await say("back to my side", "Answers are about your moves again.");
-    } else {
-      await say("coach me as black", "Coaching you as Black now.");
-      await expect(page.getByTestId("player-side-chip")).toContainText(
-        "Coaching you as Black"
-      );
-      await say("back to my side", "Coaching you as White again.");
-    }
+    // Naming the side threw the coach's context away, so the next question
+    // is a review built for whichever side is set. A wish then sets the
+    // player's side, with the standing side on or off (standingSide.ts:
+    // a standing side rides only on a follow-up, and there is none to go
+    // to; the switch test below has one).
+    await say("coach me as black", "Coaching you as Black now.");
+    await expect(page.getByTestId("player-side-chip")).toContainText(
+      "Coaching you as Black"
+    );
+    await say("back to my side", "Coaching you as White again.");
     await expect(board).toHaveClass(/orientation-white/);
 
     // Still only the two requests the two questions made.

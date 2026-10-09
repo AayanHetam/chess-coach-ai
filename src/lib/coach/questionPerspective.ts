@@ -255,6 +255,61 @@ export function aboutThePlayer(message: string, player: Side): boolean {
   );
 }
 
+/**
+ * What the player did in the game, as a verb whose subject or object the
+ * player is: "did I play", "I blundered", "should we have taken".
+ */
+const PLAY_VERB =
+  "(?:play(?:ed|ing)?|mov(?:e|ed|ing)|blunder(?:ed|ing)?|miss(?:ed|ing)?|lose|losing|lost|win|winning|won|resign(?:ed)?|tak(?:e|en|ing)|took|trad(?:e|ed|ing)|sac(?:k|ked|rifice|rificed)?|castl(?:e|ed|ing)|push(?:ed)?|hang|hung|drop(?:ped)?|thr(?:ow|ew|own)|spoil(?:ed)?|ruin(?:ed)?|blow|blew|defend(?:ed)?|attack(?:ed)?|calculat(?:e|ed)|consider(?:ed)?|spot(?:ted)?|notic(?:e|ed)|f(?:ind|ound)|overlook(?:ed)?|allow(?:ed)?|punish(?:ed)?|exploit(?:ed)?|prevent(?:ed)?|stop(?:ped)?|avoid(?:ed)?|sav(?:e|ed)|gave|give|done|go\\s+wrong|went\\s+wrong|gone\\s+wrong|saw)";
+/** How the player stood: "was I winning", "I'm worse here". */
+const PLAY_STATE = "(?:winning|losing|better|worse|ahead|behind|in\\s+trouble)";
+/** Words between the person and the verb: "should not have", "really". */
+const BRIDGE =
+  "(?:(?:'m|'re|'ve|'d|n't|\\s+(?:am|are|was|were|have|had|has|should|could|would|might|must|did|do|does|will|not|just|then|also|really|probably|still|never|ever|even|already|actually|be|been))\\b){0,4}";
+/** "did I play", "what did I do wrong", "should we have taken", "was I winning". */
+const ASKED_OWN_RE = new RegExp(
+  `\\b(?:did|didn't|do|don't|does|should|shouldn't|could|couldn't|would|wouldn't|was|wasn't|were|weren't|am|have|haven't|had|hadn't|must|might|will)\\s+(?:i|we)${BRIDGE}\\s+(?:${PLAY_VERB}|do|did|see|seen|${PLAY_STATE})\\b`,
+  "i"
+);
+/**
+ * "I blundered", "we were winning", "I should have taken"; not "I'm lost"
+ * (confused), "I see" or "I did not understand" (the one asking).
+ */
+const SAID_OWN_RE = new RegExp(
+  `\\b(?:i|we)(?!(?:'m|\\s+am|'re|\\s+are)\\s+lost\\b)${BRIDGE}\\s+(?:${PLAY_VERB}|${PLAY_STATE})\\b`,
+  "i"
+);
+/** "bad for me", "went wrong for us"; not "explain it for me". */
+const JUDGED_FOR_ME_RE =
+  /\b(?:good|bad|better|worse|best|wrong|right|winning|losing|lost|dangerous|safe|strong|weak|fine|ok|okay)\s+(?:\w+\s+){0,3}?for\s+(?:me|us)\b/i;
+/** "my knight", "our 12th move", "my mistakes"; the player's own things in the game. */
+const OWN_THINGS_RE =
+  /\b(?:my|our)\s+(?:own\s+)?(?:(?:\d+(?:st|nd|rd|th)|last|first|next|best|worst|biggest)\s+)?(?:moves?|pieces?|pawns?|knights?|bishops?|rooks?|queens?|kings?|position|game|play|plan|side|colou?r|mistakes?|blunders?|errors?|inaccurac(?:y|ies)|turn|reply|response|attack|defen[cs]e|army|castling|opening|endgame|middlegame|clock|time|choice|idea|thinking|decisions?)\b/i;
+/** "Sorry, my mistake, I meant move 8": an apology, not the player's play. */
+const APOLOGY_RE = /\bmy\s+(?:bad|mistake)\s*[,.!;]/gi;
+
+/**
+ * Words about the player's own play in the game: the player as the one who
+ * played, stood or owned something in it ("did I", "I blundered", "was I
+ * winning", "my 12th move", "bad for me"), the player's own side ("back to
+ * my side") or the player's colour by name. Narrower than aboutThePlayer:
+ * the first person as the one asking ("can we look at move 8?", "I'm
+ * confused", "I meant move 8") is not about the player's play, and so does
+ * not set aside the side the page chose for the answers.
+ */
+export function aboutThePlayersPlay(message: string, player: Side): boolean {
+  const said = normalise(message ?? "");
+  const owned = said.replace(APOLOGY_RE, " ");
+  return (
+    ASKED_OWN_RE.test(said) ||
+    SAID_OWN_RE.test(said) ||
+    JUDGED_FOR_ME_RE.test(said) ||
+    OWN_THINGS_RE.test(owned) ||
+    PLAYER_RE.test(said) ||
+    namesColour(said, player)
+  );
+}
+
 /** The page's standing choice, as sent: "w", "b", "white" or "black"; anything else is no choice. */
 export function readPerspectiveField(raw: unknown): Side | null {
   if (typeof raw !== "string") return null;
@@ -344,7 +399,9 @@ export function resolveTurnSubject(input: {
   const field = readPerspectiveField(input.field);
   if (field) {
     if (field === input.player) return null;
-    return endsCarry(text)
+    // Set aside for words about the player's own play, never for the first
+    // person as the one asking ("can we look at move 8?").
+    return aboutThePlayersPlay(text, input.player)
       ? { side: field, source: "field", rule: "field", yielded: "words" }
       : { side: field, source: "field", rule: "field" };
   }

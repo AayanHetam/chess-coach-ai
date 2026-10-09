@@ -405,6 +405,12 @@ test.describe("the board's rectangle", () => {
     };
 
     await say("I was white", "Coaching you as White.");
+    // A switch rides on the follow-ups, so the review comes first.
+    await composer.fill("analyse this game");
+    await composer.press("Enter");
+    await expect(page.getByText("simply takes the queen on c1")).toBeVisible({
+      timeout: 30_000,
+    });
     const rest = await boardRect(page);
     const strip = page.getByTestId("move-analysis");
     const stripBox = (await strip.boundingBox())!;

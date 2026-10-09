@@ -261,6 +261,36 @@ const TURNS: Turn[] = [
     draft:
       "After 8. Qxc1, 8... Kd8 9. Qg5 keeps White a piece up. Instead of 8. Nc7+, 8. Qxc1 8... Kd8 9. Qg5 keeps the piece. Lesson: take what is hanging.",
   },
+  // Pathway 3.5a: two moves compared, generated before the compare
+  // existed, where the payload is dropped as "shape". With COACH_COMPARE
+  // off it still is.
+  {
+    name: "compare-payload",
+    body: {
+      userMessage: "8. Qxc1 or 8. Nd6+?",
+      clientEvals: {
+        index: 14,
+        fen: fenAfter(14),
+        depth: 12,
+        moves: [
+          {
+            role: "asked",
+            uci: "d1c1",
+            cp: 251,
+            depth: 12,
+            pv: ["d1c1", "a8b8"],
+          },
+          {
+            role: "compared",
+            uci: "b5d6",
+            cp: -130,
+            depth: 12,
+            pv: ["b5d6", "e7d6"],
+          },
+        ],
+      },
+    },
+  },
   { name: "never-played", body: { userMessage: "why was move 60 bad?" } },
   {
     name: "counted-pawns",

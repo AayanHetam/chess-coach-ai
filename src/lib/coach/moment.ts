@@ -16,9 +16,11 @@
  * pathway chose (MASTERMIND_CONTEXT/IDEAL_PRODUCT_PATHWAY.md, "moment")
  * is to keep every downstream consumer byte-identical by projecting a
  * fielded answer to the prose it reads today, so the projection here is
- * the contract the follow-up route will depend on, and the parsers are
- * what the turn-1 stream will use to lift each refereed card into a
- * moment later.
+ * the contract the follow-up route will depend on. The turn-1 stream
+ * lifts each refereed card in src/lib/contract/turnMoments.ts, built on
+ * the page's own cut (parseInsights, then splitInsightWhy).
+ * `momentFromCardBody` below is not that cut: it remains the reader of
+ * the moment replay script.
  *
  * Two shapes, on purpose:
  *   MomentEnvelope  what the model returns; every field present, idea and

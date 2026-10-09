@@ -35,9 +35,11 @@ import {
 import type { CoachChatPromptInput } from "@/lib/prompts/coachChatPrompt";
 import {
   generateContractCacheKey,
+  getCachedMoments,
   getCachedResponse,
   setCachedResponse,
 } from "@/lib/responseCache";
+import type { TurnMoment } from "@/lib/coach/turnMoment";
 import { getContractEnv } from "@/env";
 import { createEnforcedContractStream } from "./enforcedStream";
 import type { EnforcedStreamSummary } from "./enforcedStream";
@@ -124,6 +126,13 @@ export interface ContractServingArgs {
   category: string;
   /** SSE text emitter — receives client-bound text deltas. */
   emitText: (delta: string) => void;
+  /**
+   * SSE moment emitter, set under COACH_TURN1_MOMENTS (turnMoments.ts).
+   * Each card the ladder passed is sent as a moment just before its text,
+   * and a cache hit sends the entry's moments before the cached text.
+   * Absent, nothing is lifted, sent or stored.
+   */
+  emitMoment?: (moment: TurnMoment) => void;
   messageText: string | undefined;
   /** Prior user/assistant turns (conversation history pass-through). */
   priorMessages: LLMMessage[];
@@ -171,6 +180,9 @@ export async function serveContractAnalysis(
 
   const cachedText = getCachedResponse(cacheKey);
   if (cachedText) {
+    if (args.emitMoment) {
+      for (const m of getCachedMoments(cacheKey) ?? []) args.emitMoment(m);
+    }
     args.emitText(cachedText);
     return {
       analysisContent: cachedText,
@@ -223,6 +235,7 @@ export async function serveContractAnalysis(
     regenSystem: systemParts,
     armingTable: args.armingTable,
     deps: args.ladderDeps,
+    emitMoment: args.emitMoment,
   });
 
   const callLLMStream = args.callLLMStreamImpl ?? defaultCallLLMStream;
@@ -292,7 +305,13 @@ export async function serveContractAnalysis(
     !generationTruncated;
   if (allVerified) {
     // Referee-verified content — full score under the cache's ≥0.8 gate.
-    setCachedResponse(cacheKey, analysisContent, 1.0);
+    // The entry keeps the card's moments beside its text (flag on only).
+    setCachedResponse(
+      cacheKey,
+      analysisContent,
+      1.0,
+      args.emitMoment ? summary.moments : undefined
+    );
   }
 
   return {

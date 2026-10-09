@@ -113,6 +113,10 @@ import { CONTRACT_VERSION } from "@/lib/contract/types";
 // PR-CI-4: contract-mode enforced serving (verbalizer 4.0 + failure ladder).
 // Dead code until CONTRACT_CATEGORIES lists a category.
 import { serveContractAnalysis } from "@/lib/contract/contractServing";
+// Pathway 4.1: each card the ladder passed also goes out as a moment, behind
+// COACH_TURN1_MOMENTS. Off, the review's frames are what they were.
+import { isTurnMomentsEnabled } from "@/lib/contract/turnMoments";
+import { TURN_MOMENT_EVENT } from "@/lib/coach/turnMoment";
 // PR-CI-6a: the trimmed contract rides into AnalysisContext so /api/chat
 // follow-ups are grounded in the same facts the refereed first turn used.
 import { toCompactContract } from "@/lib/contract/followUp";
@@ -1090,11 +1094,15 @@ export async function POST(request: NextRequest) {
               uid: session.uid,
             });
             if (contractForShadowReferee && servingGate.armed) {
+              const turnMoments = isTurnMomentsEnabled();
               try {
                 const serving = await serveContractAnalysis({
                   contract: contractForShadowReferee,
                   category: prep.category,
                   emitText: (delta) => send({ type: "text", delta }),
+                  emitMoment: turnMoments
+                    ? (moment) => send({ type: TURN_MOMENT_EVENT, moment })
+                    : undefined,
                   messageText: messageText || undefined,
                   // Conversation history only — the contract user turn
                   // replaces the legacy final user message.

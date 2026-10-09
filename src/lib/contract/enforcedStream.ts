@@ -16,6 +16,8 @@
  *  - a block that anchors to NO contract insight (an off-plan card the
  *    model invented) ships fail-visible: citation-stripped raw + an
  *    unverified footnote — never silently dropped, never verified-washed.
+ *  - with COACH_TURN1_MOMENTS on, a card the ladder passed is also sent as
+ *    a moment (turnMoments.ts) just before its text, which does not change.
  */
 import { logger } from "@/lib/logging";
 import type { ContractCitationGranularity, ContractRefereeMode } from "@/env";
@@ -30,6 +32,8 @@ import { isSentinelBearingInsight } from "./sentinelGuard";
 import { refereeOverview } from "./overviewReferee";
 import type { OverviewRefereeResult } from "./overviewReferee";
 import { selectCardInsightsDetailed } from "@/lib/prompts/verbalizerPrompt";
+import type { TurnMoment } from "@/lib/coach/turnMoment";
+import { liftTurnMoment } from "./turnMoments";
 import type { CoachContract, InsightContract } from "./types";
 
 const log = logger.child({ module: "contract-enforce" });
@@ -62,10 +66,14 @@ export interface EnforcedStreamOpts {
   regenSystem: { stable: string; perUser: string };
   armingTable?: ArmingTable;
   deps?: LadderDeps;
+  /** Client-bound moment emitter, set under COACH_TURN1_MOMENTS. Absent, nothing is lifted. */
+  emitMoment?: (moment: TurnMoment) => void;
 }
 
 export interface EnforcedStreamSummary {
   cards: LadderCardResult[];
+  /** The moments sent, in card order, and [] when no emitter was given. */
+  moments: TurnMoment[];
   /** Everything emitted to the client, concatenated (the cacheable text). */
   finalText: string;
   ladderDistribution: Record<LadderStage, number>;
@@ -113,6 +121,7 @@ export function createEnforcedContractStream(
   const budgets = DEFAULT_LADDER_BUDGETS();
   const stripper = new CitationStripper();
   const cards: LadderCardResult[] = [];
+  const moments: TurnMoment[] = [];
   const citedUnion = new Set<string>();
   let finalText = "";
   let unclosedBlock = false;
@@ -285,6 +294,29 @@ export function createEnforcedContractStream(
           cards.push(result);
           costUsd += result.costUsd;
           for (const id of result.citedFactIds) citedUnion.add(id);
+          if (opts.emitMoment) {
+            // The moment goes just before its card. A lift that fails sends
+            // nothing and the card's text follows unchanged.
+            let moment: TurnMoment | null = null;
+            try {
+              moment = liftTurnMoment({
+                insight,
+                stage: result.stage,
+                finalText: result.finalText,
+              });
+            } catch (err) {
+              log.warn("contract_enforce_moment_failed", {
+                contractId: contract.contractId,
+                correlationId: opts.correlationId,
+                factIdPrefix: result.factIdPrefix,
+                err: err instanceof Error ? err.message : String(err),
+              });
+            }
+            if (moment) {
+              moments.push(moment);
+              opts.emitMoment(moment);
+            }
+          }
           emitTracked(result.finalText);
           if (firstCardEmitMs === null) firstCardEmitMs = now() - t0;
           log.info("contract_enforce_card", {
@@ -355,6 +387,7 @@ export function createEnforcedContractStream(
       const coverages = cards.map((c) => c.citationCoverage);
       const summary: EnforcedStreamSummary = {
         cards,
+        moments,
         finalText,
         ladderDistribution: distribution,
         citationCoverageMean:

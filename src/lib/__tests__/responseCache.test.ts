@@ -1,10 +1,12 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   generateCacheKey,
+  getCachedMoments,
   getCachedResponse,
   setCachedResponse,
   clearCache,
 } from "../responseCache";
+import type { TurnMoment } from "@/lib/coach/turnMoment";
 
 const FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -140,5 +142,82 @@ describe("generateCacheKey — move-history scoping (2026-07-05)", () => {
     const a = generateCacheKey(FEN2, "intermediate", "analyze", "p");
     const b = generateCacheKey(FEN2, "intermediate", "analyze", "p", []);
     expect(a).toBe(b);
+  });
+});
+
+describe("response cache moments (COACH_TURN1_MOMENTS)", () => {
+  const FEN8 = "r1b1kbnr/pp1ppppp/2n5/1N6/4P3/5N2/P1P2PPP/2qQKB1R w Kkq - 0 8";
+  const moment = {
+    idea: "You saw the knight fork on c7.",
+    happens: "The queen on c1 was free with 8. Qxc1.",
+    proof: { kind: "engine", moveNumber: 8, color: "w" },
+    lesson: null,
+    question: null,
+    more: null,
+    omitted: [],
+    ply: 14,
+    fen: FEN8,
+    move: {
+      san: "Nc7+",
+      moveNumber: 8,
+      color: "w",
+      verdict: "blunder",
+      evalBefore: "+2.84",
+      evalAfter: "-2.11",
+    },
+    annotations: [],
+    proofLine: null,
+    actions: [],
+    card: {
+      factIdPrefix: "M2",
+      moveNumber: 8,
+      color: "w",
+      playedSan: "Nc7+",
+      key: "0123abcd",
+    },
+  } as TurnMoment;
+
+  beforeEach(() => {
+    clearCache();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    clearCache();
+  });
+
+  it("is null for a missing entry and for one stored without moments", () => {
+    expect(getCachedMoments("not-stored")).toBeNull();
+    setCachedResponse("plain", "analysis body", 1.0);
+    expect(getCachedMoments("plain")).toBeNull();
+    setCachedResponse("empty", "analysis body", 1.0, []);
+    expect(getCachedMoments("empty")).toBeNull();
+  });
+
+  it("stores moments beside the text under the same key", () => {
+    setCachedResponse("k", "analysis body", 1.0, [moment]);
+    expect(getCachedResponse("k")).toBe("analysis body");
+    expect(getCachedMoments("k")).toEqual([moment]);
+  });
+
+  it("a later set without moments clears them", () => {
+    setCachedResponse("k", "analysis body", 1.0, [moment]);
+    setCachedResponse("k", "analysis body", 1.0);
+    expect(getCachedMoments("k")).toBeNull();
+    expect(getCachedResponse("k")).toBe("analysis body");
+  });
+
+  it("is null once the entry has expired", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-09T12:00:00Z"));
+    setCachedResponse("k", "analysis body", 1.0, [moment]);
+    expect(getCachedMoments("k")).toEqual([moment]);
+    vi.setSystemTime(new Date("2026-10-10T12:00:01Z"));
+    expect(getCachedMoments("k")).toBeNull();
+    expect(getCachedResponse("k")).toBeNull();
+  });
+
+  it("is not stored for a response the cache refuses", () => {
+    setCachedResponse("low", "analysis body", 0.5, [moment]);
+    expect(getCachedMoments("low")).toBeNull();
   });
 });

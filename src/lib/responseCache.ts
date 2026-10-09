@@ -7,12 +7,19 @@
 import { createHash } from "crypto";
 import { PROMPT_VERSION } from "@/lib/prompts/coachChatPrompt";
 import { VERBALIZER_PROMPT_VERSION } from "@/lib/prompts/verbalizerPrompt";
+import type { TurnMoment } from "@/lib/coach/turnMoment";
 
 interface CacheEntry {
   response: string;
   timestamp: number;
   validationScore: number;
   hitCount: number;
+  /**
+   * A contract review's key moments, kept beside its text under the same
+   * key (COACH_TURN1_MOMENTS). Absent on every other entry, and on a review
+   * cached with the flag off.
+   */
+  moments?: readonly TurnMoment[];
 }
 
 const MAX_CACHE_SIZE = 200;
@@ -169,13 +176,31 @@ export function getCachedResponse(cacheKey: string): string | null {
 }
 
 /**
+ * The key moments stored beside a cached response, read right after
+ * getCachedResponse. Null for a missing or expired entry, or one stored
+ * without moments. It does not log, count a hit or reorder the LRU.
+ */
+export function getCachedMoments(
+  cacheKey: string
+): readonly TurnMoment[] | null {
+  const entry = cache.get(cacheKey);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > CACHE_TTL_MS) return null;
+  if (entry.validationScore < 0.8) return null;
+  return entry.moments ?? null;
+}
+
+/**
  * Store a response in the cache.
  * Only caches responses with a validation score >= 0.8.
+ * `moments` are kept beside the response only when there are some, so a
+ * later set without them clears them.
  */
 export function setCachedResponse(
   cacheKey: string,
   response: string,
-  validationScore: number
+  validationScore: number,
+  moments?: readonly TurnMoment[]
 ): void {
   // Don't cache low-quality responses
   if (validationScore < 0.8) {
@@ -196,6 +221,7 @@ export function setCachedResponse(
     timestamp: Date.now(),
     validationScore,
     hitCount: 0,
+    ...(moments && moments.length > 0 ? { moments } : {}),
   });
 
   console.log(`📦 Cache SET for key: ${cacheKey.slice(0, 50)}... (size: ${cache.size})`);

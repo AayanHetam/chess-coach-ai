@@ -912,8 +912,21 @@ export function resolveCompare(
     playerColor: ctx.playerColor,
   });
   if (!tokens) return null;
-  const written = Array.from(question.matchAll(MOVE_TOKEN_RE));
-  if (written.length !== 2 || written.some((m, i) => m[3] !== tokens[i].san))
+  // The two moves named, and no third: a bare square elsewhere ("to control
+  // d5") is no move, and the same move named again ("I like Nf3") is the
+  // same move. Spelled as written, so "qxc1 or Nd6+" is not read.
+  const written = Array.from(question.matchAll(MOVE_TOKEN_RE)).filter((m) => {
+    const at = m.index ?? 0;
+    const isToken = tokens.some((t) => at >= t.start && at < t.end);
+    return isToken || m[1] !== undefined || !PAWN_PUSH_RE.test(m[3]);
+  });
+  const named = new Set(written.map((m) => m[3]));
+  if (
+    written.length < 2 ||
+    written[0][3] !== tokens[0].san ||
+    written[1][3] !== tokens[1].san ||
+    named.size !== 2
+  )
     return null;
   if (MOVE_NUMBER_RE.test(question)) return null;
   const moves: QuestionMove[] = tokens.map((t) => ({
@@ -928,9 +941,11 @@ export function resolveCompare(
   if (numbers.length === 0 && moves.some((m) => PAWN_PUSH_RE.test(m.san))) {
     const before = question.slice(0, first.start);
     if (PIECE_WORD_RE.test(before)) return null;
+    // A cue before the pair, beside either move, or "instead" after it.
     if (
       !PAWN_CUE_BEFORE_RE.test(before) &&
-      !moves.some((m) => nextCueBeside(question, m))
+      !moves.some((m) => nextCueBeside(question, m)) &&
+      !PAWN_CUE_AFTER_RE.test(question.slice(second.end))
     )
       return null;
   }

@@ -198,6 +198,20 @@ describe("resolveCompare: reading the two moves", () => {
     expect(where("should my bishop go e4 or d4 here?", pawns())).toBeNull();
     // Numbered, a pawn push is a move.
     expect(where("1. e4 or 1. d4?", pawns())).toBe("0 1w e4 / d4");
+    // "Instead" after the pair is a cue too: the move the strip names.
+    expect(where("e4 or d4 instead?", pawns({ viewedPly: 1 }))).toBe(
+      "0 1w e4 / d4"
+    );
+  });
+
+  it("a square or the same move named again is no third move", () => {
+    const open = pawns({ sans: ["e4", "e5"], viewedPly: 2 });
+    expect(where("Nf3 or Nc3 here, to control d5?", open)).toBe(
+      "2 2w Nf3 / Nc3"
+    );
+    expect(where("Nf3 or Nc3 here? I like Nf3", open)).toBe("2 2w Nf3 / Nc3");
+    // A third piece move is still a third move.
+    expect(where("Nf3 or Nc3 here, or Bc4?", open)).toBeNull();
   });
 
   it("one move may be the game's: it is the compared move, with no played part", () => {

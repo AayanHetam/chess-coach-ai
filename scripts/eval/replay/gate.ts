@@ -769,10 +769,16 @@ export async function runGate(
       activeFen: getFenAtHalfMove(fx.moveHistory, t.moveIndex),
       moveHistory: fx.moveHistory,
     });
-    const left = new Set(
-      readMoves(ref.text, table)
-        .filter((m) => m.cls === "illegal" || m.cls === "past")
-        .map((m) => `${m.mention}|${m.cls}`)
+    // Fixed only when HEAD's referee drops the sentence for a move in it.
+    // Its rerun lacks the turn's own licence (the anchor's lines, the
+    // context's figures), so a drop for any other reason says nothing
+    // about the move.
+    const norm = (x: string) =>
+      x.replace(/[*_`]/g, "").replace(/\s+/g, " ").trim();
+    const droppedForMove = new Set(
+      ref.dropped
+        .filter((d) => d.reason.startsWith("san:"))
+        .map((d) => norm(d.sentence))
     );
     for (const b of bad)
       findings.push({
@@ -780,7 +786,7 @@ export async function runGate(
         file: rd.run.file,
         turn: t.id,
         detail: `${b.mention}: ${b.cls}${b.detail ? `, ${b.detail}` : ""}`,
-        fixed: !left.has(`${b.mention}|${b.cls}`),
+        fixed: droppedForMove.has(norm(b.sentence)),
       });
   }
 

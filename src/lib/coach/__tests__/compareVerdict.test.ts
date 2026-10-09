@@ -298,4 +298,11 @@ describe("the words carry no figure, dash or semicolon", () => {
       expect(text, text).not.toMatch(/[+-]\d|\d\.\d\d|%/);
     }
   });
+
+  it("never in the review's verdict names, which grade against the best on another table", () => {
+    for (const text of said)
+      expect(text, text).not.toMatch(
+        /\b(?:best move|excellent|good move|inaccura\w*|mistake|blunder|brilliant|great move|miss(?:ed)?)\b/i
+      );
+  });
 });

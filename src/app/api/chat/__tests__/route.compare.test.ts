@@ -404,6 +404,16 @@ describe.each([
     expect(drops(wrong)).toEqual(["eval:-1.30"]);
   });
 
+  it("a piece claim about a compared move's own board is no 'may be inaccurate'", async () => {
+    // The knight stands on d6 only after 8. Nd6+, a board the anchor block
+    // shows: the light validator reads it there too.
+    answers.coach =
+      "8. Qxc1 takes the queen back. After 8. Nd6+, White's knight on d6 gives check, but exd6 takes it. Of the two, the engine prefers 8. Qxc1, by a wide margin.";
+    const t = await turn(Q, { clientEvals: PAYLOAD });
+    expect(t.ga.analysis).toContain("knight on d6");
+    expect(t.ga.analysis).not.toMatch(/may be inaccurate/i);
+  });
+
   it("two figures in one sentence that names both moves are dropped, swapped or not", async () => {
     answers.coach =
       "8. Qxc1 sits at -1.30 while 8. Nd6+ sits at +2.51 in this search, a swap. 8. Nd6+ gives a check, but exd6 takes the knight.";

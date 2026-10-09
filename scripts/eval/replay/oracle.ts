@@ -184,15 +184,20 @@ const RANK: Record<MoveClass, number> = {
 
 /**
  * Every move the text names in notation that the gate can judge, in reading
- * order. A numbered move is judged on the boards at its own ply. An
- * unnumbered one right after another (whitespace alone between them)
- * continues that line. Any other unnumbered move is left to the referee,
- * which owns bare mentions, and ends the line.
+ * order. A numbered move is judged on the boards at its own ply, and on the
+ * sentence's own line when that line has reached the same ply, as the
+ * referee walks a sentence ("8. Qxc1 Rb8 9. Qf4 Nf6 10. Bc4 Nxe4" leaves
+ * the stored lines at Nf6 and stays legal). An unnumbered one right after
+ * another (whitespace alone between them) continues that line. Any other
+ * unnumbered move is left to the referee, which owns bare mentions, and
+ * ends the line.
  */
 export function readMoves(text: string, t: PlyTable): MoveReading[] {
   const out: MoveReading[] = [];
   for (const sentence of splitProseSentences(proseOf(text))) {
     let running: Running[] | null = null;
+    /** The ply the running line's next move sits at, when it is known. */
+    let runningPly: number | null = null;
     let lastEnd = -1;
     for (const m of Array.from(sentence.matchAll(SAN_TOKEN_RE))) {
       const num = m[1] ?? m[4];
@@ -213,21 +218,28 @@ export function readMoves(text: string, t: PlyTable): MoveReading[] {
         mention = `${num}${dots} ${san}`;
         const ply = numberedPly(num, dots);
         const at = t.boards.get(ply);
-        if (!at) {
+        const own = running && runningPly === ply ? running : [];
+        if (!at && own.length === 0) {
           out.push({
             mention,
             sentence,
             cls: t.gameReplayed ? "past" : "unmeasured",
           });
           running = null;
+          runningPly = null;
           continue;
         }
-        from = Array.from(at).map((fen) => ({ fen, computed: true }));
+        const byFen = new Map<string, boolean>();
+        for (const fen of Array.from(at ?? [])) byFen.set(fen, true);
+        for (const b of own)
+          byFen.set(b.fen, (byFen.get(b.fen) ?? false) || b.computed);
+        from = Array.from(byFen, ([fen, computed]) => ({ fen, computed }));
       } else if (joined && running) {
         mention = san;
         from = running;
       } else {
         running = null;
+        runningPly = null;
         continue;
       }
 
@@ -263,9 +275,16 @@ export function readMoves(text: string, t: PlyTable): MoveReading[] {
           ...(detail ? { detail } : {}),
         });
         running = null;
+        runningPly = null;
         continue;
       }
       out.push({ mention, sentence, cls });
+      runningPly =
+        num !== undefined
+          ? numberedPly(num, dots) + 1
+          : runningPly === null
+            ? null
+            : runningPly + 1;
       running = next;
     }
   }

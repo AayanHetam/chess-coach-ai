@@ -314,6 +314,21 @@ describe("readMoves on 07", () => {
     ]);
   });
 
+  it("a numbered move on the sentence's own line is judged there, past the stored lines", () => {
+    // The stored line ends at Nf6 (with f7f6 played). The sentence keeps
+    // walking its own legal line, as the referee does.
+    const long = readMoves(
+      "Better was 8. Qxc1 Rb8 9. Qf4 Nf6 10. Bc4 Nxe4 11. O-O, with a big lead.",
+      T7
+    );
+    expect(long.filter((m) => m.cls === "illegal")).toEqual([]);
+    expect(
+      readMoves("After 8. Nxa7 Kd8 9. Nxc6+ the knight escapes.", T7).filter(
+        (m) => m.cls === "illegal"
+      )
+    ).toEqual([]);
+  });
+
   it("a numbered move past the game's end is past", () => {
     expect(classes("By 25. Kf2 it is over.")).toEqual([["25. Kf2", "past"]]);
   });
@@ -727,6 +742,24 @@ describe("legality", () => {
     );
   });
 
+  it("never counts a sentence dropped for another reason as the move fixed", async () => {
+    // The rerun lacks the turn's own licence, so a figure or a piece claim
+    // can drop a sentence that still holds the illegal move.
+    const forFigure = ((i: { reply: string }) => ({
+      text: "",
+      applied: true,
+      sentences: 1,
+      dropped: [
+        { sentence: i.reply.split(". ")[1] ?? i.reply, reason: "eval:+9.99" },
+      ],
+    })) as never;
+    const r = await runGate(run(turn({ seq: 1, served })), REPLAY_MANIFEST, {
+      referee: forFigure,
+    });
+    expect(r.fixedSinceHead).toEqual([]);
+    expect(failed(r, "legality")).toHaveLength(1);
+  });
+
   it("passes it acknowledged with a reason, and fails a stale acknowledgement", async () => {
     const ack: Acknowledgement = {
       file: FILE,
@@ -1137,7 +1170,7 @@ describe("the repo's own corpus, offline and with no key", () => {
         "HEAD's referee: 11 of 67 sentences dropped without stories, 0 of 65 with stories",
         "refereed: 57 computed, 1 alternative, 0 off the line, 0 illegal, 0 past",
         "alternatives: raw 8... Qxc1, 18... Re8, 19... d5, refereed 19... d5",
-        "eval figures in prose: 8 raw, 8 refereed",
+        "eval figures in prose: 9 raw, 9 refereed",
         "token lines: 0 raw",
         "words at rest: median 215 raw, 201 refereed (6 answers)",
         "tester csv, client-http clock, pre-pathway baseline: 24 turns, p50 5355 ms, p95 7573 ms",

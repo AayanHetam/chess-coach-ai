@@ -224,8 +224,9 @@ export function numberedPly(num: string, dots: string | undefined): number {
 }
 /** The text between two moves of a line when it is nothing but unnumbered pawn pushes ("g4"). */
 const BARE_PUSHES_GAP_RE = /^\s+(?:[a-h][1-8](?:=[NBRQ])?[+#]?\s+)+$/;
+/** An eval figure. A full stop after it ends the sentence, never the figure ("at -2.84."). */
 export const EVAL_RE =
-  /(?<![A-Za-z0-9.])([+-]\d+(?:\.\d{1,2})?|M[+-]?\d+)(?![A-Za-z0-9.%])/g;
+  /(?<![A-Za-z0-9.])([+-]\d+(?:\.\d{1,2})?|M[+-]?\d+)(?![A-Za-z0-9%]|\.\d)/g;
 /** "your queen on c1", "White's rook on a1", "the knight on f6", "Black's king at g8" */
 export const PIECE_ON_SQUARE_RE =
   /\b(?:(white|black|your|my|their|opponent'?s|the opponent'?s)\s+(?:own\s+)?)?(pawn|knight|bishop|rook|queen|king)\s+(?:on|at)\s+([a-h][1-8])\b/gi;
@@ -286,26 +287,27 @@ export function refereeFollowUp(
   ]
     .join(" | ")
     .toLowerCase();
+  // Moves keyed as written, case kept: Bxc4 is not bxc4.
   const sanPool = new Set<string>();
-  for (const m of moveHistory) sanPool.add(stripSan(m));
+  for (const m of moveHistory) sanPool.add(exactSan(m));
   const STORY_SAN_RE = new RegExp(
     `(?<![A-Za-z0-9])(?:\\d+\\.{1,3}\\s*)?(${SAN_CORE}|${PAWN_SAN})(?![A-Za-z0-9])`,
     "g"
   );
   for (const i of compact.insights) {
-    sanPool.add(stripSan(i.playedSan));
-    if (i.bestSan) sanPool.add(stripSan(i.bestSan));
-    for (const s of i.bestLineSan) sanPool.add(stripSan(s));
+    sanPool.add(exactSan(i.playedSan));
+    if (i.bestSan) sanPool.add(exactSan(i.bestSan));
+    for (const s of i.bestLineSan) sanPool.add(exactSan(s));
     for (const line of [...(i.bestLineStory ?? []), ...(i.gameStory ?? [])]) {
       for (const tok of Array.from(line.matchAll(STORY_SAN_RE)))
-        sanPool.add(stripSan(tok[1]));
+        sanPool.add(exactSan(tok[1]));
     }
   }
   // The anchor block's engine line and game continuation are licensed moves
   // too — the model was told to explain through them.
   for (const line of (input.extraLicensedText ?? "").split("\n")) {
     for (const tok of Array.from(line.matchAll(STORY_SAN_RE)))
-      sanPool.add(stripSan(tok[1]));
+      sanPool.add(exactSan(tok[1]));
   }
   // ── Lines as positions ───────────────────────────────────────────────────
   // Every licensed line laid out ply by ply: "<ply>:<san>" → the board after
@@ -333,7 +335,7 @@ export function refereeFollowUp(
       } catch {
         return;
       }
-      lineAfter.set(`${ply}:${stripSan(san)}`, g.fen());
+      lineAfter.set(`${ply}:${exactSan(san)}`, g.fen());
       ply += 1;
     }
   };
@@ -583,7 +585,7 @@ export function refereeFollowUp(
             const num = m[1] ?? m[4];
             const dots = m[2] ?? m[5];
             if (!san) continue;
-            const key = stripSan(san);
+            const key = exactSan(san);
             if (onSubjectRoot && BARE_PUSHES_GAP_RE.test(gap)) {
               for (const push of gap.trim().split(/\s+/)) {
                 const next = applySan(running.fen, push);
@@ -723,9 +725,23 @@ export function refereeFollowUp(
         const both =
           !!input.compared &&
           input.compared.every((s) => named.has(exactSan(s)));
+        // The compared moves this sentence names, alone.
+        const namedCompared = input.compared
+          ? input.compared.map(exactSan).filter((s) => named.has(s))
+          : [];
         for (const m of Array.from(sentence.matchAll(EVAL_RE))) {
           const k = evalKey(m[1]);
-          if (!k || evalPool.has(k)) continue;
+          if (!k) continue;
+          // On a compare, a figure tied to a compared move is decided by
+          // the tie before the pool, so the other move's number, also in
+          // the review's text, is never pinned on the move named.
+          const tied = tiedEvals.get(k);
+          if (tied && namedCompared.length > 0) {
+            if (!both && namedCompared.some((s) => tied.has(s))) continue;
+            reason = `eval:${m[1]}`;
+            break;
+          }
+          if (evalPool.has(k)) continue;
           const moves = tiedEvals.get(k);
           if (
             !both &&

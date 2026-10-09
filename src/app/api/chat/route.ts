@@ -361,7 +361,7 @@ function refereeInputFor(
   const evalSource = `${context.compactGameContext ?? ""}\n${anchorLicence?.text ?? ""}`;
   const licensedEvals = Array.from(
     evalSource.matchAll(
-      /(?<![A-Za-z0-9.])([+-]\d+(?:\.\d{1,2})?|M[+-]?\d+)(?![A-Za-z0-9.%])/g
+      /(?<![A-Za-z0-9.])([+-]\d+(?:\.\d{1,2})?|M[+-]?\d+)(?![A-Za-z0-9%]|\.\d)/g
     )
   ).map((m) => m[1]);
   return {
@@ -873,6 +873,15 @@ export async function POST(request: NextRequest) {
       } catch {
         // oracle failure — proceed without per-turn facts (legacy behavior)
       }
+      // The boards the light validator also reads a piece claim against:
+      // the subject's moments, and on a compare the board after each
+      // compared move that is not the game's, which the anchor block shows.
+      const lightBoards = [
+        ...(subjectMoments?.fens ?? []),
+        ...(compareVerified && anchor
+          ? compareAltFens(whatIf!, anchor.san)
+          : []),
+      ];
       // A turn about an idea, not this position: the board on screen is
       // kept for reference only.
       if (turnRoute?.factPack === "reference" && !subjectMoments)
@@ -1535,7 +1544,7 @@ export async function POST(request: NextRequest) {
           const validation = validateOnBoards(
             rawContent,
             activeFen,
-            subjectMoments?.fens ?? []
+            lightBoards
           );
           // The router's share of the turn, under COACH_INTENT_ROUTER.
           const routerFields = turnRoute
@@ -1726,11 +1735,7 @@ export async function POST(request: NextRequest) {
         "I couldn't generate a response.";
 
       // Light validation against the position under discussion
-      const validation = validateOnBoards(
-        rawContent,
-        activeFen,
-        subjectMoments?.fens ?? []
-      );
+      const validation = validateOnBoards(rawContent, activeFen, lightBoards);
 
       const refereeStartedAt = Date.now();
       const analysis = refereeChatReply(

@@ -15,8 +15,7 @@ import {
  * lines from their roots, each move's number tied to it, the boards after
  * both, and the two moves as `compared`. A figure tied to either move is
  * licensed only in a sentence that names one of them, so a sentence that
- * names both cannot swap their numbers. The figures sit mid-sentence: the
- * eval check does not read one at a sentence's end.
+ * names both cannot swap their numbers.
  */
 
 const MOVES =
@@ -79,8 +78,10 @@ const base = {
   licensedEvalsByMove: whatIfLicensedEvals(COMPARE),
 };
 const withCompared = { ...base, compared: ["Qxc1", "Nd6+"] as const };
-const reasons = (reply: string, input: typeof base = withCompared) =>
-  refereeFollowUp({ ...input, reply }).dropped.map((d) => d.reason);
+const reasons = (
+  reply: string,
+  input: typeof base & { licensedEvals?: string[] } = withCompared
+) => refereeFollowUp({ ...input, reply }).dropped.map((d) => d.reason);
 
 describe("refereeFollowUp: a compare's two numbers", () => {
   it("licenses each number in a sentence that names its own move", () => {
@@ -96,6 +97,20 @@ describe("refereeFollowUp: a compare's two numbers", () => {
     expect(reasons("8. Qxc1 leaves White at -1.30 here.", base)).toEqual([
       "eval:-1.30",
     ]);
+  });
+
+  it("decides a compared move's number by its tie even when the review's text holds it", () => {
+    // -1.30 is Nd6+'s, and also in the licence text: it is still never
+    // pinned on 8. Qxc1.
+    const withPool = { ...withCompared, licensedEvals: ["-1.30", "+2.51"] };
+    expect(reasons("8. Qxc1 leaves White at -1.30 here.", withPool)).toEqual([
+      "eval:-1.30",
+    ]);
+    expect(reasons("8. Nd6+ leaves White at -1.30 here.", withPool)).toEqual(
+      []
+    );
+    // A figure at a sentence's end is read too.
+    expect(reasons("8. Qxc1 leaves White at -1.30.")).toEqual(["eval:-1.30"]);
   });
 
   it("drops figures in a sentence naming both moves, swapped or not", () => {

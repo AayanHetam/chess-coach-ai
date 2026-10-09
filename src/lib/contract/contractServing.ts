@@ -14,6 +14,7 @@
  * sentence_drop / edited / regenerated) and the stream closed cleanly —
  * template cards and footnoted raw are degraded artifacts, never cached
  * (same posture as the route's "never cache non-answers" rule).
+ * A noted review (COACH_LADDER_NOTE) is cached under its own variant of the key.
  *
  * DEADLINE (tech-lead decision #4): ladder LLM stages fit inside
  * maxDuration 60s via requestStartMs + 55s (5s margin).
@@ -42,6 +43,7 @@ import {
 import type { TurnMoment } from "@/lib/coach/turnMoment";
 import { getContractEnv } from "@/env";
 import { createEnforcedContractStream } from "./enforcedStream";
+import { isLadderNoteEnabled, LADDER_NOTE_VERSION } from "./ladderNote";
 import type { EnforcedStreamSummary } from "./enforcedStream";
 import type { LadderDeps, LadderStage } from "./ladder";
 import type { ArmingTable } from "./armingConfig";
@@ -170,12 +172,15 @@ export async function serveContractAnalysis(
 ): Promise<ContractServingResult> {
   const env = getContractEnv();
   const { contract } = args;
+  // Read once per review, so the key and the stream always agree.
+  const ladderNote = isLadderNoteEnabled();
   const cacheKey = generateContractCacheKey(
     args.cacheInputs.currentFen,
     args.cacheInputs.skillLevel,
     args.cacheInputs.userMessage,
     args.cacheInputs.personaSignature,
-    args.cacheInputs.moveHistory
+    args.cacheInputs.moveHistory,
+    ladderNote ? LADDER_NOTE_VERSION : undefined
   );
 
   const cachedText = getCachedResponse(cacheKey);
@@ -236,6 +241,7 @@ export async function serveContractAnalysis(
     armingTable: args.armingTable,
     deps: args.ladderDeps,
     emitMoment: args.emitMoment,
+    ladderNote,
   });
 
   const callLLMStream = args.callLLMStreamImpl ?? defaultCallLLMStream;

@@ -10,7 +10,9 @@
  * Idea lines are the idea and the Problem lines what happens (a flowing
  * body's first paragraph is split at its first sentence), the closing
  * takeaway is the lesson, and Solution, Outcome and anything else the page
- * keeps behind its tap are `more`. The lede outside [WHY] is in no field.
+ * keeps behind its tap are `more`. The lede outside [WHY] is in no field,
+ * and nor is the line the ladder writes about what it left out
+ * (ladderNote.ts), even on a card with no [WHY].
  * `momentFromCardBody` (moment.ts) cuts a flowing body differently and is
  * not used here.
  *
@@ -109,6 +111,22 @@ export interface LiftTurnMomentArgs {
   stage: LadderStage;
   /** The card exactly as the stream emits it, header through close token. */
   finalText: string;
+  /**
+   * The line the ladder wrote on the card about what it left out
+   * (ladderNote.ts, COACH_LADDER_NOTE), when it wrote one. It is in no
+   * field: the prose is cut as if it were not there, and the key is still
+   * the card's exact text.
+   */
+  noteLine?: string;
+}
+
+/** The text with the first line that reads `line` taken out. */
+function withoutLine(text: string, line: string): string {
+  const lines = text.split("\n");
+  const at = lines.findIndex((l) => l.trim() === line);
+  return at < 0
+    ? text
+    : [...lines.slice(0, at), ...lines.slice(at + 1)].join("\n");
 }
 
 /** An eval as the header shows it, or null when there is no number to show. */
@@ -127,7 +145,9 @@ export function liftTurnMoment(args: LiftTurnMomentArgs): TurnMoment | null {
   // The page strips practice tags before it parses, so the text it keys
   // would not be this one.
   if (finalText.includes("[PRACTICE:")) return null;
-  const parsed = parseInsights(finalText).insights;
+  const parsed = parseInsights(
+    args.noteLine ? withoutLine(finalText, args.noteLine) : finalText
+  ).insights;
   if (parsed.length !== 1) return null;
   const card = parsed[0];
   if (

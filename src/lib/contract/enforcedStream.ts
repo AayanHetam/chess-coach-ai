@@ -68,6 +68,8 @@ export interface EnforcedStreamOpts {
   deps?: LadderDeps;
   /** Client-bound moment emitter, set under COACH_TURN1_MOMENTS. Absent, nothing is lifted. */
   emitMoment?: (moment: TurnMoment) => void;
+  /** COACH_LADDER_NOTE, read once per review by the caller. Omitted is off. */
+  ladderNote?: boolean;
 }
 
 export interface EnforcedStreamSummary {
@@ -288,6 +290,7 @@ export function createEnforcedContractStream(
               budgets,
               regenSystem: opts.regenSystem,
               deps: opts.deps,
+              ladderNote: opts.ladderNote,
             },
             opts.armingTable,
           );
@@ -303,6 +306,7 @@ export function createEnforcedContractStream(
                 insight,
                 stage: result.stage,
                 finalText: result.finalText,
+                noteLine: result.note?.text,
               });
             } catch (err) {
               log.warn("contract_enforce_moment_failed", {
@@ -331,6 +335,7 @@ export function createEnforcedContractStream(
             regensUsed: result.regensUsed,
             elapsedMs: result.elapsedMs,
             deadlineBreached: result.deadlineBreached,
+            ...(result.note ? { noteKinds: result.note.kinds } : {}),
           });
         });
       } else {

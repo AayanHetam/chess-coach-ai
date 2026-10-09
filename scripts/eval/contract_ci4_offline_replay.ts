@@ -75,6 +75,9 @@ async function main() {
     throw new Error("network disabled");
   });
   const { runInsightLadder } = await import("@/lib/contract/ladder");
+  const { isLadderNoteEnabled } = await import("@/lib/contract/ladderNote");
+  // COACH_LADDER_NOTE=1 turns the ladder's note on. Unset, the run is as before.
+  const ladderNote = isLadderNoteEnabled();
   const { CI4_GATE_ARMING_TABLE } = await import("./ci4GateTable");
   const table = process.env.ARM === "0" ? undefined : CI4_GATE_ARMING_TABLE;
   const { aggregateFidelity } = await import("@/lib/contract/refereeChecks");
@@ -83,6 +86,9 @@ async function main() {
   const j = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, SRC), "utf8"));
 
   const ladderDist: Record<string, number> = {};
+  let ladderNotes = 0;
+  let silentDrops = 0;
+  const noteKinds: Record<string, number> = {};
   const findingCats: Record<string, number> = {};
   let cards = 0;
   let stubs = 0;
@@ -116,9 +122,16 @@ async function main() {
         deadlineAtMs: Date.now() - 1,
         budgets: { editsRemaining: 0, regensRemaining: 0, relationalRemaining: 0 },
         regenSystem: { stable: "", perUser: "" },
+        ladderNote,
       }, table);
       cards++;
       ladderDist[res.stage] = (ladderDist[res.stage] ?? 0) + 1;
+      if (res.note) {
+        ladderNotes++;
+        for (const k of res.note.kinds) noteKinds[k] = (noteKinds[k] ?? 0) + 1;
+      } else if (res.stage === "sentence_drop") {
+        silentDrops++;
+      }
       for (const f of res.findings) findingCats[f.category] = (findingCats[f.category] ?? 0) + 1;
       coverages.push(res.citationCoverage);
       gameCov.push(res.citationCoverage);
@@ -126,7 +139,14 @@ async function main() {
       stubs += stubLines(shippedBody).length;
       emptySecs += emptySections(shippedBody).length;
       const rawProse = stripGrammarTokenLines(stripCitations(block.body)).replace(/\s+/g, " ").trim();
-      const shipProse = stripGrammarTokenLines(shippedBody).replace(/\s+/g, " ").trim();
+      // The note is the app's line, not the model's prose kept.
+      const modelBody = res.note
+        ? shippedBody
+            .split("\n")
+            .filter((l) => l.trim() !== res.note!.text)
+            .join("\n")
+        : shippedBody;
+      const shipProse = stripGrammarTokenLines(modelBody).replace(/\s+/g, " ").trim();
       charRaw += rawProse.length;
       charKept += shipProse.length;
       retNum++;
@@ -175,6 +195,9 @@ async function main() {
     `shipped fabrication (stripped footprint)=${report.fabricationRate.toFixed(2)}/100 (${report.fabricationCount}/${report.claimSentences})`,
   );
   console.log(`shipped fabrication categories=${JSON.stringify(fabCats)}`);
+  if (ladderNote) {
+    console.log(`ladderNotes=${ladderNotes} kinds=${JSON.stringify(noteKinds)} silentDrops=${silentDrops}`);
+  }
   if (process.env.DUMP) {
     const g = shippedByGame.find((x) => x.fixture.startsWith(process.env.DUMP!));
     if (g) console.log("\n" + g.text);

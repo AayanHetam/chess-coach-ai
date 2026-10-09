@@ -30,6 +30,8 @@ import { armFindings } from "./armingConfig";
 import type { ArmingTable, ServingFinding } from "./armingConfig";
 import { checkCitations, stripCitations, stripGrammarTokenLines } from "./citations";
 import { INSIGHT_CLOSE_TOKEN, renderInsightHeader } from "./insightGrammar";
+import { GRAMMAR_LINE_RE, insertLadderNote, ladderNoteFor, sectionAfter } from "./ladderNote";
+import type { CardSection, DroppedSentence, LadderNote } from "./ladderNote";
 import { splitLineSentences } from "./sentences";
 import { refereeInsight, refereeInsightRelational } from "./referee";
 import type { RefereeInsightOpts, RefereeRelationalOpts } from "./referee";
@@ -116,6 +118,8 @@ export interface LadderCardResult {
   costUsd: number;
   elapsedMs: number;
   deadlineBreached: boolean;
+  /** COACH_LADDER_NOTE: the line a sentence_drop card carries about what it left out. Absent otherwise. */
+  note?: LadderNote;
 }
 
 export interface LadderDeps {
@@ -139,6 +143,8 @@ export interface LadderCardOpts {
   /** Verbalizer system parts for the regen call (persona + charter). */
   regenSystem: { stable: string; perUser: string };
   deps?: LadderDeps;
+  /** COACH_LADDER_NOTE, read once per review by the caller. Omitted is off. */
+  ladderNote?: boolean;
 }
 
 // ── Internal: evaluate one candidate body against the full serving referee ──
@@ -227,7 +233,7 @@ async function evaluateBody(
 }
 
 // ── Internal: sentence-drop (stage a — deterministic span excision) ─────────
-const GRAMMAR_LINE_RE = /^\s*\[\/?[A-Z_]+(?::[^\]]*)?\]\s*$/;
+// GRAMMAR_LINE_RE lives in ladderNote.ts, which shares it.
 
 /** A teaching-spine label with nothing left after it ("Idea:", "- Problem:"). */
 const ORPHAN_LABEL_RE =
@@ -280,6 +286,8 @@ export interface SentenceDropResult {
   text: string;
   /** Prose characters removed / prose characters in the original body. */
   removedFraction: number;
+  /** The sentences removed for a violation span, each with the section it sat in. Tidy-up removals are not listed. */
+  dropped: DroppedSentence[];
 }
 
 /**
@@ -295,18 +303,29 @@ export function dropViolatingSentencesDetailed(
   body: string,
   spans: string[],
 ): SentenceDropResult | null {
-  if (spans.length === 0) return { text: body, removedFraction: 0 };
+  if (spans.length === 0) return { text: body, removedFraction: 0, dropped: [] };
   const lines = body.split("\n");
   const kept: string[] = [];
+  const dropped: DroppedSentence[] = [];
+  let section: CardSection | null = null;
   let droppedAny = false;
   for (const line of lines) {
-    if (GRAMMAR_LINE_RE.test(line) || !spans.some((s) => s && line.includes(s))) {
+    if (GRAMMAR_LINE_RE.test(line)) {
+      section = sectionAfter(line, section);
+      kept.push(line);
+      continue;
+    }
+    if (!spans.some((s) => s && line.includes(s))) {
       kept.push(line);
       continue;
     }
     // Split the line into sentences; drop only the offending ones.
     const sentences = splitLineSentences(line);
-    const keptSentences = sentences.filter((sen) => !spans.some((s) => s && sen.includes(s)));
+    const keptSentences: string[] = [];
+    for (const sen of sentences) {
+      if (spans.some((s) => s && sen.includes(s))) dropped.push({ text: sen, section });
+      else keptSentences.push(sen);
+    }
     droppedAny = true;
     if (keptSentences.length > 0) kept.push(keptSentences.join(" "));
   }
@@ -320,6 +339,7 @@ export function dropViolatingSentencesDetailed(
   return {
     text: result,
     removedFraction: before > 0 ? (before - after) / before : 0,
+    dropped,
   };
 }
 
@@ -430,6 +450,7 @@ export async function runInsightLadder(
     stage: LadderStage,
     finalText: string,
     initial: BodyEvaluation | null,
+    note: LadderNote | null = null,
   ): LadderCardResult => ({
     factIdPrefix: insight.factIdPrefix,
     stage,
@@ -447,6 +468,7 @@ export async function runInsightLadder(
     costUsd,
     elapsedMs: now() - t0,
     deadlineBreached,
+    ...(note ? { note } : {}),
   });
 
   let initial: BodyEvaluation;
@@ -473,6 +495,9 @@ export async function runInsightLadder(
     modelBody.trim(),
     initial.errors.map((f) => f.span),
   );
+  // COACH_LADDER_NOTE: what the drop below leaves out, said once on the card.
+  const note = opts.ladderNote && dropped !== null ? ladderNoteFor(dropped.dropped, initial.errors) : null;
+  const dropBody = (text: string) => (note ? insertLadderNote(text, note.text) : text);
   // GUTTING GUARD (gate recovery): excision is the cheap stage, but a drop
   // that takes most of the card leaves a stub — measurably the persona
   // killer. When the drop would remove more than HEAVY_DROP_FRACTION of the
@@ -494,7 +519,7 @@ export async function runInsightLadder(
       relationalParsesUsed += check.relationalParsesUsed;
       costUsd += check.costUsd;
       if (check.errors.length === 0) {
-        return finish("sentence_drop", wrapBlock(insight, dropped.text), initial);
+        return finish("sentence_drop", wrapBlock(insight, dropBody(dropped.text)), initial, note);
       }
     } catch {
       /* fall through the ladder */
@@ -543,7 +568,7 @@ export async function runInsightLadder(
       relationalParsesUsed += check.relationalParsesUsed;
       costUsd += check.costUsd;
       if (check.errors.length === 0) {
-        return finish("sentence_drop", wrapBlock(insight, dropped.text), initial);
+        return finish("sentence_drop", wrapBlock(insight, dropBody(dropped.text)), initial, note);
       }
     } catch {
       /* fall through the ladder */

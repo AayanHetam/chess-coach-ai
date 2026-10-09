@@ -1,0 +1,10 @@
+{
+  "stream": {
+    "default": "4702613c10a7a8ea301e9725ee483b5ae68aec75403e8bab63834a2621ea3e63",
+    "enforce": "3d406eb09a703a897c8563f7222af145d5c2ca5949c2d120cdc3cdb365ab9ce1"
+  },
+  "serving": {
+    "analysis": "cc83745d4d6971bbc6ae503492159ec49a9b20c5ae5346fd224c582950934f09",
+    "key": "c4.1|v3.7|3q2k1/6p1/8/8/3BP3/8/8/6K1 b - -|intermediate|b9528b6d986f|p3311842a74c4|m0a93f2848852"
+  }
+}

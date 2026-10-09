@@ -135,15 +135,19 @@ export const CONTRACT_CACHE_PREFIX = `c${VERBALIZER_PROMPT_VERSION}|`;
  * The ONLY key builder the contract serving path may use. Same inputs as
  * generateCacheKey (identical bucketing semantics) with the contract-mode
  * marker prepended.
+ *
+ * A variant keys a served-text setting apart, so one setting's text is never
+ * served under the other. Omitted, the key is unchanged.
  */
 export function generateContractCacheKey(
   fen: string,
   skillLevel: string,
   userMessage: string,
   personaSignature?: string,
-  moveHistory?: string[]
+  moveHistory?: string[],
+  variant?: string
 ): string {
-  return `${CONTRACT_CACHE_PREFIX}${generateCacheKey(fen, skillLevel, userMessage, personaSignature, moveHistory)}`;
+  return `${CONTRACT_CACHE_PREFIX}${generateCacheKey(fen, skillLevel, userMessage, personaSignature, moveHistory)}${variant ? `|${variant}` : ""}`;
 }
 
 /**

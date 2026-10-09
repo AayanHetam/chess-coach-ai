@@ -491,6 +491,7 @@ async function runLive(args: Args): Promise<void> {
     VERBALIZER_PROMPT_VERSION,
   } = await import("@/lib/prompts/verbalizerPrompt");
   const { isOneMasti } = await import("@/lib/prompts/mastiVoice");
+  const { isLadderNoteEnabled } = await import("@/lib/contract/ladderNote");
 
   const fixtures = loadFixtures(args.only);
   console.log(
@@ -605,6 +606,7 @@ async function runLive(args: Args): Promise<void> {
         deadlineAtMs: t0 + 55_000,
         regenSystem: vParts,
         armingTable: CI4_GATE_ARMING_TABLE,
+        ladderNote: isLadderNoteEnabled(),
       });
       for await (const evt of callLLMStream({
         tier: "flagship",
@@ -938,6 +940,8 @@ async function runLive(args: Args): Promise<void> {
     userMessage: USER_MESSAGE,
     refereeMode: "full",
     armingTable: CI4_GATE_ARMING_TABLE,
+    // A run with the ladder's note on is not comparable to one without it.
+    ladderNote: isLadderNoteEnabled(),
     gateThresholds: {
       personaPooled: GATE_PERSONA_POOLED,
       personaPerRun: GATE_PERSONA_PER_RUN,

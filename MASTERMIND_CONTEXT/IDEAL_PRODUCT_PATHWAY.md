@@ -377,6 +377,10 @@ Exit: a Progress answer names its window and a deleted account leaves no digest.
 2. **Moment type, text projection, field checker and the replay at no cost** (1.2, moment and accuracy, S). The pure foundation that the follow-up's accuracy change, the client renderer and the turn-1 moments all sit on, measured over saved answers before it serves anything.
 3. **Move-linker extraction, the strip's sentence tappable, and the board-rectangle guard** (1.5, phone and modes, S). The first monolith PR, byte-identical in behaviour, that establishes the pure-modules-plus-mounts rule and the guard every later client PR extends.
 
+### Open founder decision: turn 1's length (recorded by 4.8)
+
+Turn 1's length is bounded by numbers that move together: `maxDuration: 60` for every API route in vercel.json, the enforced review's 55 s ladder deadline and 45 s generation budget (contractServing.ts), and the card cap (`MAX_GAME_REVIEW_CARDS = 3`, cardWorthiness.ts). The first card takes 15 to 20 s and each further card about 10.5 s. Four cards measured 58.4 s in production on 2026-08-12 and fixture 07 shipped a truncated review, which is why the cap went from four to three. The review's budgets count from the moment its stream opens, after the contract build, so a slow build already spends seconds outside them. 4.8 takes the grounding wait off that path and leaves generation as it was, so it does not by itself make room for a fourth card. The options are to keep three cards inside 60 s, which changes nothing, or to raise the limit for the review route alone once the Vercel plan's ceiling is confirmed, then move both budgets and the cap together in one PR with a keyed CI-5 run at the new cap. Until the founder chooses, the cap stays at three.
+
 ### Totals
 
 | | Working days | Weeks |

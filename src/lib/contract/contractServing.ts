@@ -155,6 +155,12 @@ export interface ContractServingArgs {
   ) => AsyncGenerator<LLMStreamEvent, void, void>;
   ladderDeps?: LadderDeps;
   armingTable?: ArmingTable;
+  /**
+   * The contract the referee checks against, when the grounding fetches were
+   * still in flight as the prompt was built (COACH_TURN1_EARLY_STREAM, see
+   * enforcedStream.ts). Absent, `contract` is refereed.
+   */
+  refereeContract?: Promise<CoachContract>;
 }
 
 export interface ContractServingResult {
@@ -165,6 +171,12 @@ export interface ContractServingResult {
   contractMetadata: ContractDoneMetadata;
   summary: EnforcedStreamSummary | null;
   llmResult: LLMResult | null;
+  /**
+   * The contract the review was refereed against, for the follow-up's
+   * compact contract: `refereeContract` once it landed, else `contract`. A
+   * cache hit refereed nothing and never waits, so it is `contract`.
+   */
+  refereedContract: CoachContract;
 }
 
 export async function serveContractAnalysis(
@@ -220,6 +232,7 @@ export async function serveContractAnalysis(
       },
       summary: null,
       llmResult: null,
+      refereedContract: contract,
     };
   }
 
@@ -242,6 +255,7 @@ export async function serveContractAnalysis(
     deps: args.ladderDeps,
     emitMoment: args.emitMoment,
     ladderNote,
+    ...(args.refereeContract ? { refereeContract: args.refereeContract } : {}),
   });
 
   const callLLMStream = args.callLLMStreamImpl ?? defaultCallLLMStream;
@@ -293,6 +307,11 @@ export async function serveContractAnalysis(
   }
 
   const summary = await stream.end();
+  // A review with a card has already awaited it in the stream. Otherwise the
+  // wait is bounded by the settle cap, counted from the fetches' launch.
+  const refereedContract = args.refereeContract
+    ? await args.refereeContract.catch(() => contract)
+    : contract;
   let analysisContent = summary.finalText || "No analysis generated.";
   if (generationTruncated && !summary.unclosedBlock) {
     // Cut cleanly between cards — the block gate had nothing to footnote, so
@@ -349,5 +368,6 @@ export async function serveContractAnalysis(
     },
     summary,
     llmResult,
+    refereedContract,
   };
 }

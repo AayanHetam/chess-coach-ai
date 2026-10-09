@@ -28,11 +28,21 @@
  * `pass` and the fabrication gate vacuous); what it must never be is a
  * hand-copied mirror of the serving severities.
  *
+ * WITHHELD GROUNDING (pathway 4.8a, `--withhold-grounding`): the bound on
+ * what COACH_TURN1_EARLY_STREAM can cost. The model is prompted with the
+ * contract built as if no grounding source had answered in time (the shape
+ * an outage of all three produces), and the referee checks it against the
+ * contract with every source settled, as the route's `refereeContract` does.
+ * Coverage and fabrication are measured against the full contract. The
+ * payload's `turn1` records the arm and which sources were configured, so a
+ * run on a machine with no Lc0 or Maia is not read as one with them.
+ *
  * Run from the repo root:
  *   npx tsx scripts/eval/contract_ci4_gates.ts --dry-run
  *   npx tsx scripts/eval/contract_ci4_gates.ts [--samples 3] [--only 01,07,09]
  *                                              [--fixtures-real] [--label arm-name]
- *                                              [--legacy] [--output p.json]
+ *                                              [--legacy] [--withhold-grounding]
+ *                                              [--output p.json]
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -76,10 +86,21 @@ interface Args {
   fixturesReal: boolean;
   /** Free-text arm name stamped into the result (e.g. "story-4.1", "baseline-4.0"). */
   label: string | null;
+  /** Prompt with no grounding, referee against all of it (pathway 4.8a). */
+  withholdGrounding: boolean;
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { dryRun: false, only: null, output: null, samples: 3, legacy: false, fixturesReal: false, label: null };
+  const args: Args = {
+    dryRun: false,
+    only: null,
+    output: null,
+    samples: 3,
+    legacy: false,
+    fixturesReal: false,
+    label: null,
+    withholdGrounding: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--dry-run") args.dryRun = true;
     else if (argv[i] === "--legacy") args.legacy = true;
@@ -87,6 +108,7 @@ function parseArgs(argv: string[]): Args {
     else if (argv[i] === "--output") args.output = argv[++i] ?? null;
     else if (argv[i] === "--fixtures-real") args.fixturesReal = true;
     else if (argv[i] === "--label") args.label = argv[++i] ?? null;
+    else if (argv[i] === "--withhold-grounding") args.withholdGrounding = true;
     else if (argv[i] === "--samples") args.samples = Number.parseInt(argv[++i] ?? "3", 10);
     else {
       console.error(`unknown arg: ${argv[i]}`);
@@ -126,11 +148,10 @@ function loadApiKey(): string {
   process.exit(2);
 }
 
-async function buildContractFor(name: string, f: FixtureFile): Promise<CoachContract> {
-  const { buildCoachContract } = await import("@/lib/contract/builder");
+async function contractArgsFor(name: string, f: FixtureFile) {
   const { getFenAtHalfMove } = await import("@/lib/contract/chessFormat");
   const requestFen = getFenAtHalfMove(f.moveHistory, f.moveHistory.length);
-  return buildCoachContract({
+  return {
     moveHistory: f.moveHistory,
     gameEval: f.gameEval,
     playerColor: f.playerColor,
@@ -139,7 +160,32 @@ async function buildContractFor(name: string, f: FixtureFile): Promise<CoachCont
     gameHeaders: f.gameHeaders,
     uid: `ci4-gates-${name}`,
     identity: { fen: requestFen, playerColor: f.playerColor || "w" },
-  });
+  };
+}
+
+async function buildContractFor(name: string, f: FixtureFile): Promise<CoachContract> {
+  const { buildCoachContract } = await import("@/lib/contract/builder");
+  return buildCoachContract(await contractArgsFor(name, f));
+}
+
+/**
+ * The prompt's contract and the referee's. With grounding withheld, the
+ * prompt's is the contract over no answers at all and the referee's the one
+ * over every answer. Otherwise both are the ordinary build.
+ */
+async function buildContractsFor(
+  name: string,
+  f: FixtureFile,
+  withhold: boolean,
+): Promise<{ prompt: CoachContract; full: CoachContract }> {
+  if (!withhold) {
+    const contract = await buildContractFor(name, f);
+    return { prompt: contract, full: contract };
+  }
+  const { beginCoachContract, EMPTY_GROUNDING } = await import("@/lib/contract/builder");
+  const pending = beginCoachContract(await contractArgsFor(name, f), { breaker: false });
+  const full = pending.ground(await pending.within(Infinity));
+  return { prompt: pending.ground(EMPTY_GROUNDING), full };
 }
 
 interface ParsedBlock {
@@ -264,6 +310,29 @@ async function runDryRun(): Promise<void> {
   const report = aggregateFidelity([{ insight, prose: res.finalText } as FidelityEntry], contract);
   check("fidelity report has a claim-sentence denominator", report.claimSentences > 0, report);
 
+  // Pathway 4.8a: with the network off nothing answers, so the withheld arm's
+  // prompt contract must serialize exactly as the ordinary build does.
+  const { beginCoachContract, EMPTY_GROUNDING } = await import("@/lib/contract/builder");
+  const { serializeForVerbalizer } = await import("@/lib/contract/serialize");
+  const withheldChecks = [
+    { name: fixtures[0].name, fixture: fixtures[0].fixture, built: contract },
+    ...(await Promise.all(
+      loadFixtures("07", true).map(async ({ name, fixture }) => ({
+        name,
+        fixture,
+        built: await buildContractFor(name, fixture),
+      })),
+    )),
+  ];
+  for (const { name, fixture, built } of withheldChecks) {
+    const pending = beginCoachContract(await contractArgsFor(name, fixture), { breaker: false });
+    await pending.within(Infinity);
+    check(
+      `${name}: withheld-grounding prompt serializes as the network-off build`,
+      serializeForVerbalizer(pending.ground(EMPTY_GROUNDING)) === serializeForVerbalizer(built),
+    );
+  }
+
   console.log(`\n=== dry-run result: ${failures === 0 ? "GREEN" : `${failures} FAILURE(S)`} ===`);
   process.exit(failures === 0 ? 0 : 1);
 }
@@ -316,6 +385,8 @@ async function runLive(args: Args): Promise<void> {
   } = await import("@/lib/prompts/verbalizerPrompt");
   const { isOneMasti } = await import("@/lib/prompts/mastiVoice");
   const { isLadderNoteEnabled } = await import("@/lib/contract/ladderNote");
+  const { __isLc0Configured } = await import("@/lib/grounding/lc0");
+  const { __isMaiaConfigured } = await import("@/lib/grounding/maia");
 
   const fixtures = loadFixtures(args.only, args.fixturesReal);
   console.log(
@@ -359,7 +430,10 @@ async function runLive(args: Args): Promise<void> {
   };
 
   for (const { name, fixture } of fixtures) {
-    const contract = await buildContractFor(name, fixture);
+    // `contract` is what the model is prompted with, `full` what the referee
+    // and the measurements check against. They are one object unless
+    // --withhold-grounding is set.
+    const { prompt: contract, full } = await buildContractsFor(name, fixture, args.withholdGrounding);
     const promptInput = {
       personalityId: "friendly",
       userRating: fixture.userRating ?? 1500,
@@ -413,6 +487,7 @@ async function runLive(args: Args): Promise<void> {
         regenSystem: vParts,
         armingTable: CI4_GATE_ARMING_TABLE,
         ladderNote: isLadderNoteEnabled(),
+        ...(full !== contract ? { refereeContract: Promise.resolve(full) } : {}),
       });
       for await (const evt of callLLMStream({
         tier: "flagship",
@@ -447,7 +522,7 @@ async function runLive(args: Args): Promise<void> {
       const rawBlocks = parseInsightBlocks(rawText);
       const shippedBlocks = parseInsightBlocks(summary.finalText);
       for (const card of summary.cards) {
-        const insight = contract.insights.find((i) => i.factIdPrefix === card.factIdPrefix);
+        const insight = full.insights.find((i) => i.factIdPrefix === card.factIdPrefix);
         if (!insight) continue;
         const rawBlock = rawBlocks.find(
           (b) => b.moveNumber === insight.moveNumber && b.color === insight.color,
@@ -473,12 +548,12 @@ async function runLive(args: Args): Promise<void> {
       // ── Shipped fabrication (BEFORE-comparable machinery, this contract) ──
       const entries: FidelityEntry[] = [];
       for (const block of shippedBlocks) {
-        const insight = contract.insights.find(
+        const insight = full.insights.find(
           (i: InsightContract) => i.moveNumber === block.moveNumber && i.color === block.color,
         );
         if (insight) entries.push({ insight, prose: block.prose });
       }
-      const report = aggregateFidelity(entries, contract);
+      const report = aggregateFidelity(entries, full);
       const fabricationCategories: Record<string, number> = {};
       for (const [k, v] of Object.entries(report.violationsByCategory)) {
         if (v > 0) fabricationCategories[k] = v;
@@ -644,6 +719,13 @@ async function runLive(args: Args): Promise<void> {
     armingTable: CI4_GATE_ARMING_TABLE,
     // A run with the ladder's note on is not comparable to one without it.
     ladderNote: isLadderNoteEnabled(),
+    // Pathway 4.8a: whether the prompt saw the grounding, and which sources
+    // this machine could reach at all.
+    turn1: {
+      grounding: args.withholdGrounding ? "withheld" : "full",
+      lc0Configured: __isLc0Configured(),
+      maiaConfigured: __isMaiaConfigured(),
+    },
     gateThresholds: {
       personaPooled: GATE_PERSONA_POOLED,
       personaPerRun: GATE_PERSONA_PER_RUN,

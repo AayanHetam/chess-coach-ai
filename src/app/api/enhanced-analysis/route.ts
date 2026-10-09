@@ -117,6 +117,12 @@ import { serveContractAnalysis } from "@/lib/contract/contractServing";
 // COACH_TURN1_MOMENTS. Off, the review's frames are what they were.
 import { isTurnMomentsEnabled } from "@/lib/contract/turnMoments";
 import { TURN_MOMENT_EVENT } from "@/lib/coach/turnMoment";
+// Pathway 4.8a: the review's grounding fetches stop holding the prompt,
+// behind COACH_TURN1_EARLY_STREAM. Off, the build is what it was.
+import {
+  isTurn1EarlyStream,
+  TURN1_GROUNDING_WAIT_MS,
+} from "@/lib/contract/turn1Speed";
 // PR-CI-6a: the trimmed contract rides into AnalysisContext so /api/chat
 // follow-ups are grounded in the same facts the refereed first turn used.
 import { toCompactContract } from "@/lib/contract/followUp";
@@ -648,6 +654,10 @@ export async function POST(request: NextRequest) {
       // gate code entirely out of the path (the streaming branches see null
       // and their `refereeGate?.push` sites are no-ops).
       let contractForShadowReferee: CoachContract | null = null;
+      // Pathway 4.8a: the contract over the grounding that landed after the
+      // prompt was built, for the enforced review's referee. Null with the
+      // flag off, and whenever the contract does not ride along.
+      let refereeContractForServing: Promise<CoachContract> | null = null;
       // CI-5: request-scoped context for the content-free referee-outcome row.
       // Read the consent decision HERE, off the live request, because the
       // shadow gate's end() runs deep inside the stream controller where the
@@ -685,7 +695,8 @@ export async function POST(request: NextRequest) {
           // PR-CI-2: identity threading — the request-body fen + this route's
           // `playerColor || "w"` defaulting, so contractId ≡ contextId exactly.
           // Identity-only; the rendered prompt never reads these.
-          { fen, playerColor: playerColor || "w" }
+          { fen, playerColor: playerColor || "w" },
+          isTurn1EarlyStream() ? { waitMs: TURN1_GROUNDING_WAIT_MS } : undefined
         );
         gameContext = built.prompt;
         // B3 (SILENT_SUBSTITUTION_HANDOFF §3 Group B): if the user is looking at
@@ -715,6 +726,7 @@ export async function POST(request: NextRequest) {
           isContractServingConfigured()
         ) {
           contractForShadowReferee = built.contract;
+          refereeContractForServing = built.refereeContract ?? null;
         }
         // Intent shadow (I-1): with INTENT_FACTS_ENABLED on, the contract
         // carries intent facts that serializeForVerbalizer strips — without
@@ -1126,6 +1138,9 @@ export async function POST(request: NextRequest) {
                     personaSignature,
                     moveHistory,
                   },
+                  ...(refereeContractForServing
+                    ? { refereeContract: refereeContractForServing }
+                    : {}),
                 });
                 // CI-6: persist what the referee ACTUALLY caught on the served
                 // path. Arming CONTRACT_CATEGORIES routed traffic past the
@@ -1197,7 +1212,7 @@ export async function POST(request: NextRequest) {
                   // null (unknown), never [] (which would assert every insight
                   // was unseen).
                   compactContract: toCompactContract(
-                    contractForShadowReferee,
+                    serving.refereedContract,
                     serving.summary
                       ? serving.summary.cards.map((c) => c.factIdPrefix)
                       : null

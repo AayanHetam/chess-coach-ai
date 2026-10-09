@@ -18,6 +18,12 @@
  *    unverified footnote — never silently dropped, never verified-washed.
  *  - with COACH_TURN1_MOMENTS on, a card the ladder passed is also sent as
  *    a moment (turnMoments.ts) just before its text, which does not change.
+ *  - with COACH_TURN1_EARLY_STREAM on, `refereeContract` is the contract over
+ *    the grounding results that landed after the prompt was built. Each
+ *    card's ladder and the zero-card overview are refereed against it, while
+ *    header anchoring, the card plan and the sentinel refusal keep the
+ *    prompt's `contract` (headers are grounding-free). Without it nothing is
+ *    awaited.
  */
 import { logger } from "@/lib/logging";
 import type { ContractCitationGranularity, ContractRefereeMode } from "@/env";
@@ -70,6 +76,13 @@ export interface EnforcedStreamOpts {
   emitMoment?: (moment: TurnMoment) => void;
   /** COACH_LADDER_NOTE, read once per review by the caller. Omitted is off. */
   ladderNote?: boolean;
+  /**
+   * The contract the referee checks against, when it may hold grounding the
+   * prompt's contract did not (COACH_TURN1_EARLY_STREAM). Awaited before each
+   * card's ladder and before the zero-card overview. A rejection falls back
+   * to `contract`. Absent, `contract` is refereed and nothing is awaited.
+   */
+  refereeContract?: Promise<CoachContract>;
 }
 
 export interface EnforcedStreamSummary {
@@ -132,6 +145,17 @@ export function createEnforcedContractStream(
   let sentinelBlocksRefused = 0;
   let costUsd = 0;
   let firstCardEmitMs: number | null = null;
+  /** Time cards and the overview spent blocked on `refereeContract`. */
+  let refereeWaitMs = 0;
+
+  /** The contract to referee against: `refereeContract` once it lands, else the prompt's. */
+  const refereeContractFor = async (): Promise<CoachContract> => {
+    if (!opts.refereeContract) return contract;
+    const t = now();
+    const ref = await opts.refereeContract.catch(() => contract);
+    refereeWaitMs += now() - t;
+    return ref;
+  };
 
   /** Insights not yet claimed by a header match — order fallback anchor.
    * Sentinel-bearing insights are already refused by the card plan. */
@@ -274,11 +298,22 @@ export function createEnforcedContractStream(
             return;
           }
           const insight = anchor.insight;
+          // The header was anchored on the prompt's contract. The ladder
+          // checks the body against the referee's, the same insight by id.
+          const ref = opts.refereeContract
+            ? await refereeContractFor()
+            : contract;
+          const refInsight =
+            ref === contract
+              ? insight
+              : (ref.insights.find(
+                  (i) => i.factIdPrefix === insight.factIdPrefix
+                ) ?? insight);
           const result = await runInsightLadder(
             block.body,
             {
-              insight,
-              contract,
+              insight: refInsight,
+              contract: ref,
               refereeOpts: {
                 userRating,
                 correlationId: opts.correlationId,
@@ -303,7 +338,7 @@ export function createEnforcedContractStream(
             let moment: TurnMoment | null = null;
             try {
               moment = liftTurnMoment({
-                insight,
+                insight: refInsight,
                 stage: result.stage,
                 finalText: result.finalText,
                 noteLine: result.note?.text,
@@ -365,7 +400,10 @@ export function createEnforcedContractStream(
       await chain;
 
       if (zeroCardReview) {
-        const reviewed = refereeOverview(overviewBuffer, contract);
+        const ref = opts.refereeContract
+          ? await refereeContractFor()
+          : contract;
+        const reviewed = refereeOverview(overviewBuffer, ref);
         overviewOutcome = reviewed.outcome;
         overviewViolations = reviewed.violations.length;
         emitTracked(reviewed.text);
@@ -425,6 +463,7 @@ export function createEnforcedContractStream(
         sentinelBlocksRefused,
         costUsd: Number(costUsd.toFixed(4)),
         firstCardEmitMs,
+        ...(opts.refereeContract ? { refereeWaitMs } : {}),
       });
       return summary;
     },

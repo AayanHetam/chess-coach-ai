@@ -26,7 +26,13 @@
  */
 import { logger } from "@/lib/logging";
 import { getContractEnv } from "@/env";
-import { buildCoachContract } from "./builder";
+import {
+  beginCoachContract,
+  buildCoachContract,
+  TURN1_GROUNDING_SETTLE_CAP_MS,
+  type ContractGrounding,
+  type PendingCoachContract,
+} from "./builder";
 import { renderLegacyPrompt, serializeForVerbalizer } from "./serialize";
 import type { CoachContract } from "./types";
 import type { GameEvalInput, GameHeadersInput } from "./gameEvalSchema";
@@ -84,6 +90,15 @@ export async function buildGameContext(
  * PR-CI-3: same build, but the contract rides along for the route's shadow
  * referee (CONTRACT_REFEREE_SHADOW). The prompt string is byte-identical to
  * buildGameContext (it IS buildGameContext — one implementation).
+ *
+ * `early` (pathway 4.8a, COACH_TURN1_EARLY_STREAM): the grounding fetches go
+ * through the breaker, the grounding-free half is computed while they are in
+ * flight, and the prompt and `contract` are built from what has answered
+ * `early.waitMs` after launch. A source still in flight reads as unavailable,
+ * as its timeout would. `refereeContract` is the contract over every result
+ * that lands within TURN1_GROUNDING_SETTLE_CAP_MS of launch, for the enforced
+ * stream's referee. It never rejects, and when nothing was withheld it is
+ * `contract` itself. Without `early` the build is unchanged.
  */
 export async function buildGameContextWithContract(
   moveHistory: string[],
@@ -94,8 +109,13 @@ export async function buildGameContextWithContract(
   gameHeaders?: GameHeadersInput,
   uid?: string,
   identity?: { fen?: string; playerColor?: string },
-): Promise<{ prompt: string; contract: CoachContract }> {
-  const contract = await buildCoachContract({
+  early?: { waitMs: number }
+): Promise<{
+  prompt: string;
+  contract: CoachContract;
+  refereeContract?: Promise<CoachContract>;
+}> {
+  const args = {
     moveHistory,
     gameEval,
     playerColor,
@@ -104,7 +124,31 @@ export async function buildGameContextWithContract(
     gameHeaders,
     uid,
     identity,
-  });
+  };
+  let contract: CoachContract;
+  let refereeContract: Promise<CoachContract> | undefined;
+  if (early) {
+    const pending = beginCoachContract(args, { breaker: true });
+    await pending.prepare();
+    const earlyG = await pending.within(early.waitMs);
+    const promptWaitMs = Date.now() - pending.launchedAtMs;
+    contract = pending.ground(earlyG);
+    log.info("contract_grounding_prompt", {
+      contractId: contract.contractId,
+      promptWaitMs,
+      complete: earlyG.complete,
+      withheld: withheldCounts(pending, earlyG),
+    });
+    const promptContract = contract;
+    refereeContract = earlyG.complete
+      ? Promise.resolve(promptContract)
+      : pending
+          .within(TURN1_GROUNDING_SETTLE_CAP_MS)
+          .then((g) => pending.ground(g))
+          .catch(() => promptContract);
+  } else {
+    contract = await buildCoachContract(args);
+  }
 
   if (getContractEnv().shadowEnabled) {
     log.info("contract shadow build", {
@@ -116,5 +160,21 @@ export async function buildGameContextWithContract(
     });
   }
 
-  return { prompt: renderLegacyPrompt(contract), contract };
+  return {
+    prompt: renderLegacyPrompt(contract),
+    contract,
+    ...(refereeContract ? { refereeContract } : {}),
+  };
+}
+
+/** Fetches still in flight when the prompt's snapshot was taken, per source. */
+function withheldCounts(
+  pending: PendingCoachContract,
+  g: ContractGrounding
+): { chessdb: number; lc0: number; maia: number } {
+  return {
+    chessdb: pending.launched.chessdb - g.chessdb.size,
+    lc0: pending.launched.lc0 - g.lc0.size,
+    maia: pending.launched.maia - g.maia.size,
+  };
 }

@@ -16,6 +16,12 @@
 // State is module-level, so it is per warm serverless instance and resets on
 // cold start — which is the right scope: it only needs to dampen repeated
 // timeouts within one instance's lifetime, never to coordinate globally.
+//
+// Two callers record into it. The validator path records one event per fetch
+// (voterSnapshot.ts). The review's own grounding fetches, under
+// COACH_TURN1_EARLY_STREAM, record one event per source per review
+// (`recordFanOut`), so a review that sends a dozen fetches to one congested
+// source counts once, not a dozen times.
 
 export const BREAKER_THRESHOLD = 3;
 export const BREAKER_COOLDOWN_MS = 30_000;
@@ -47,6 +53,51 @@ export function recordFailure(key: string, nowMs: number): void {
     fails,
     openUntil: fails >= BREAKER_THRESHOLD ? nowMs + BREAKER_COOLDOWN_MS : null,
   });
+}
+
+/**
+ * Should this outcome count as a breaker failure?
+ *
+ * A null that consumed essentially the whole timeout budget is a timeout,
+ * whatever wrapper swallowed it. A null that came back fast is a healthy
+ * "no data". Pure, so the rule is testable without simulating a network.
+ */
+export function isBreakerFailure(
+  value: unknown,
+  elapsedMs: number,
+  timeoutMs: number
+): boolean {
+  if (value != null) return false;
+  return elapsedMs >= timeoutMs * TIMEOUT_ATTRIBUTION_RATIO;
+}
+
+/** How much of the budget a null must consume to be read as a timeout. */
+const TIMEOUT_ATTRIBUTION_RATIO = 0.9;
+
+/** One settled fetch of a fan-out. `threw` marks a rejection, which counts as a failure. */
+export interface FanOutOutcome {
+  value: unknown;
+  elapsedMs: number;
+  threw?: boolean;
+}
+
+/**
+ * One breaker event for a fan-out to one source: a failure only when every
+ * fetch timed out (or threw), a success when any fetch answered or came back
+ * empty in good time. An empty fan-out records nothing.
+ */
+export function recordFanOut(
+  key: string,
+  outcomes: ReadonlyArray<FanOutOutcome>,
+  timeoutMs: number,
+  nowMs: number
+): void {
+  if (outcomes.length === 0) return;
+  const allFailed = outcomes.every(
+    (o) => o.threw === true || isBreakerFailure(o.value, o.elapsedMs, timeoutMs)
+  );
+  if (allFailed) recordFailure(key, nowMs);
+  else recordSuccess(key);
 }
 
 /** Test-only: clear all breaker state. */

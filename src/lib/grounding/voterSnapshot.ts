@@ -59,6 +59,7 @@ import { detectMotifs } from "@/lib/tactics";
 import type { VoterSnapshot } from "@/lib/mastermind/validators";
 import { logger } from "@/lib/logging";
 import {
+  isBreakerFailure,
   isCircuitOpen,
   recordSuccess,
   recordFailure,
@@ -223,6 +224,11 @@ interface FetchOutcome<T> {
   ms: number;
 }
 
+// `isBreakerFailure`, the elapsed-time rule described below, lives in
+// circuitBreaker.ts, where the review's own fan-out records use it too.
+// Re-exported here so its callers and tests keep their import.
+export { isBreakerFailure } from "./circuitBreaker";
+
 /**
  * Run one gated, breaker-protected, timed grounding fetch. Never rejects.
  *
@@ -248,25 +254,6 @@ interface FetchOutcome<T> {
  *
  * So classify on ELAPSED TIME instead of on how the value arrived.
  */
-
-/**
- * Should this outcome count as a breaker failure?
- *
- * A null that consumed essentially the whole timeout budget is a timeout,
- * whatever wrapper swallowed it. A null that came back fast is a healthy
- * "no data". Pure, so the rule is testable without simulating a network.
- */
-export function isBreakerFailure(
-  value: unknown,
-  elapsedMs: number,
-  timeoutMs: number,
-): boolean {
-  if (value != null) return false;
-  return elapsedMs >= timeoutMs * TIMEOUT_ATTRIBUTION_RATIO;
-}
-
-/** How much of the budget a null must consume to be read as a timeout. */
-const TIMEOUT_ATTRIBUTION_RATIO = 0.9;
 
 async function fetchWithBreaker<T>(
   key: string,

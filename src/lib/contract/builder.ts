@@ -11,6 +11,14 @@
  * hidden latency and up to 3 redundant round-trips. Results are routed to
  * each insight exactly as legacy routed them (same gates, same inputs), so
  * the rendered text is unchanged — the snapshot suite proves it.
+ *
+ * PATHWAY 4.8a: the build is split around those fetches. `beginCoachContract`
+ * launches them, `prepare` computes everything that does not read them, and
+ * `ground` writes the contract over any snapshot of what has answered. A
+ * fetch still in flight reads as unavailable, exactly as a timeout reads.
+ * `buildCoachContract` waits for every fetch and grounds once, so its
+ * contract is byte for byte what it always was. COACH_TURN1_EARLY_STREAM
+ * grounds the prompt early (legacyGameContext.ts).
  */
 import { Chess } from "chess.js";
 import { annotatePosition, annotationToPromptContext } from "@/lib/positionAnnotator";
@@ -21,14 +29,23 @@ import { logger } from "@/lib/logging";
 const log = logger.child({ module: "contract-builder" });
 import type { AnyMotif } from "@/lib/tactics";
 import { buildMotifLicense } from "./motifScope";
-import { queryChessdb, type ChessdbResult } from "@/lib/grounding/chessdb";
+import { queryChessdb, FETCH_TIMEOUT_MS as CHESSDB_TIMEOUT_MS, type ChessdbResult } from "@/lib/grounding/chessdb";
+import { isCircuitOpen, recordFanOut, type FanOutOutcome } from "@/lib/grounding/circuitBreaker";
 import { compileVoterResult } from "@/lib/grounding/voter";
-import { queryLc0, shouldCallLc0, lc0AgreesWithSf, __isLc0Configured, type Lc0Result } from "@/lib/grounding/lc0";
+import {
+  queryLc0,
+  shouldCallLc0,
+  lc0AgreesWithSf,
+  __isLc0Configured,
+  FETCH_TIMEOUT_MS as LC0_TIMEOUT_MS,
+  type Lc0Result,
+} from "@/lib/grounding/lc0";
 import {
   queryMaiaAtRating,
   shouldCallMaia,
   probToVisibility,
   __isMaiaConfigured,
+  FETCH_TIMEOUT_MS as MAIA_TIMEOUT_MS,
   type MaiaProbResult,
 } from "@/lib/grounding/maia";
 import { buildRelationalFacts } from "@/lib/relational/relationalFactsBuilder";
@@ -243,8 +260,170 @@ function safeLineStory(fenStart: string, san: readonly string[], movedFrom: Read
 const STORY_MAX_PLIES = 6;
 
 
+// ── Grounding (pathway 4.8a) ────────────────────────────────────────────────
+/** The three sources the review grounds its insights on. */
+export type GroundingSource = "chessdb" | "lc0" | "maia";
+
+/**
+ * What the review's grounding fetches had answered at one moment. A key that
+ * is absent (a fetch still in flight, or one the breaker skipped) reads as
+ * unavailable, exactly as a fetch that timed out reads.
+ */
+export interface ContractGrounding {
+  /** By fenBefore. */
+  readonly chessdb: ReadonlyMap<string, ChessdbResult | null>;
+  /** By fenBefore, gated plies only. */
+  readonly lc0: ReadonlyMap<string, Lc0Result | null>;
+  /** By `${fenBefore}::${bestUci}`. */
+  readonly maia: ReadonlyMap<string, MaiaProbResult | null>;
+  /** Every fetch that was launched had settled. */
+  readonly complete: boolean;
+}
+
+/** Nothing answered: the prompt an outage of every source produces. */
+export const EMPTY_GROUNDING: ContractGrounding = {
+  chessdb: new Map(),
+  lc0: new Map(),
+  maia: new Map(),
+  complete: false,
+};
+
+/**
+ * How long a late grounding result may keep the referee waiting, counted from
+ * launch: the slowest client's own timeout plus one second. Every client
+ * aborts at its timeout and resolves null, so past this no fetch is left
+ * that could still answer.
+ */
+export const TURN1_GROUNDING_SETTLE_CAP_MS =
+  Math.max(CHESSDB_TIMEOUT_MS, LC0_TIMEOUT_MS, MAIA_TIMEOUT_MS) + 1000;
+
+export interface BeginCoachContractOpts {
+  /**
+   * Send the fetches through the per-source breaker (COACH_TURN1_EARLY_STREAM).
+   * A source whose breaker is open at launch is not fetched, and each source's
+   * fan-out is recorded as one breaker event once it settles. Off, the
+   * builder never consults the breaker.
+   */
+  breaker: boolean;
+}
+
+export interface PendingCoachContract {
+  /** Epoch ms at which the fetches were launched. */
+  readonly launchedAtMs: number;
+  /** Fetches actually sent, per source (deduped, breaker skips left out). */
+  readonly launched: Readonly<Record<GroundingSource, number>>;
+  /**
+   * What has answered `msFromLaunch` after launch, or as soon as every fetch
+   * has settled, whichever comes first. `Infinity` waits for all. Never rejects.
+   */
+  within(msFromLaunch: number): Promise<ContractGrounding>;
+  /** The grounding-free half, yielding between insights. Idempotent. */
+  prepare(): Promise<void>;
+  /**
+   * The contract over this grounding. Computes whatever of the half is left
+   * synchronously, returns fresh contract and insight objects on every call,
+   * and never mutates an earlier result.
+   */
+  ground(g: ContractGrounding): CoachContract;
+}
+
+/** One source's fan-out for one review. */
+interface SourceFanOut<T> {
+  readonly key: GroundingSource;
+  readonly timeoutMs: number;
+  /** Breaker open at launch: nothing is fetched. */
+  readonly open: boolean;
+  /** Every key the build asked for (deduped), fetched or not. */
+  readonly wanted: Set<string>;
+  readonly settled: Map<string, T | null>;
+  readonly outcomes: FanOutOutcome[];
+  readonly pending: Promise<void>[];
+  slowestMs: number;
+}
+
+function newFanOut<T>(key: GroundingSource, timeoutMs: number, open: boolean): SourceFanOut<T> {
+  return { key, timeoutMs, open, wanted: new Set(), settled: new Map(), outcomes: [], pending: [], slowestMs: 0 };
+}
+
+/** Launch one deduped fetch. A rejection settles as null, as `.catch(() => null)` always did. */
+function launchFetch<T>(src: SourceFanOut<T>, mapKey: string, fetchFn: () => Promise<T | null>): void {
+  if (src.wanted.has(mapKey)) return;
+  src.wanted.add(mapKey);
+  if (src.open) return;
+  const start = Date.now();
+  const settle = (value: T | null, threw: boolean) => {
+    const elapsedMs = Date.now() - start;
+    src.settled.set(mapKey, value);
+    src.outcomes.push({ value, elapsedMs, threw });
+    if (elapsedMs > src.slowestMs) src.slowestMs = elapsedMs;
+  };
+  src.pending.push(
+    fetchFn().then(
+      (value) => settle(value ?? null, false),
+      () => settle(null, true),
+    ),
+  );
+}
+
+/** Lets a ready network response be handled between two insights' CPU work. */
+function yieldToEventLoop(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof setImmediate === "function") setImmediate(resolve);
+    else setTimeout(resolve, 0);
+  });
+}
+
+interface PlyFetchPlan {
+  ply: number;
+  fenBefore: string;
+  sfCp: number | null;
+  bestUci: string | null;
+  lc0Gate: boolean;
+  maiaGate: boolean;
+}
+
+/** The insight keys whose values depend on the grounding fetches (the voter's four and the three sources). */
+type GroundedInsightKey =
+  | "allowedTacticalKeywords"
+  | "voterConfidence"
+  | "positionConfidence"
+  | "groundingContext"
+  | "chessdb"
+  | "lc0"
+  | "visibility";
+
+/** One insight's grounding-free half: everything but the grounded keys, and the voter's other inputs. */
+interface PreparedInsight {
+  plan: PlyFetchPlan;
+  fields: Omit<InsightContract, GroundedInsightKey | "syzygy">;
+  voterInputs: {
+    motifs: AnyMotif[];
+    bestMoveSan: string | null;
+    stockfishEvalCp: number | null;
+    stockfishBestMoveMate: number | null;
+  };
+}
+
 // ── The builder ─────────────────────────────────────────────────────────────
+/**
+ * The contract with every grounding fetch settled. Same order as it always
+ * had: the fetches settle, `contract_grounding_fetched` is logged, then the
+ * CPU work runs. Never consults the breaker.
+ */
 export async function buildCoachContract(args: BuildCoachContractArgs): Promise<CoachContract> {
+  const pending = beginCoachContract(args, { breaker: false });
+  return pending.ground(await pending.within(Infinity));
+}
+
+/**
+ * Starts a contract build: replays the game, selects the insights, builds the
+ * move table and launches every grounding fetch, then hands back the parts
+ * that wait on them. The grounding-free half (`prepare`) can run while the
+ * fetches are in flight, and `ground` turns any snapshot of them into a
+ * contract. With every fetch settled the contract is the one
+ * `buildCoachContract` returns.
+ */
+export function beginCoachContract(args: BuildCoachContractArgs, opts: BeginCoachContractOpts): PendingCoachContract {
   const { moveHistory, gameEval, playerColor, username, userRating, gameHeaders, uid, identity } = args;
   const t0 = Date.now();
 
@@ -267,6 +446,7 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
   // knight passing back through f1).
   const fromSquares = game.history({ verbose: true }).map((m) => m.from as string);
   const finalFen = game.fen();
+  const finalMaterial = getMaterialBalance(game);
   const resultText = game.isCheckmate()
     ? ("Checkmate" as const)
     : game.isStalemate()
@@ -382,22 +562,17 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
     new Set([...Array.from(topRankByPly.keys()), ...Array.from(intelRankByPly.keys())]),
   ).sort((a, b) => a - b);
 
-  // --- ONE Promise.all for every grounding fetch, deduped ---
+  // --- Every grounding fetch, launched at once and deduped ---
   // chessdb dedupes by FEN; Lc0 by FEN (gate inputs are identical for a given
   // ply's evalBefore, and identical FENs from repetition share the position);
-  // Maia by FEN+bestUci (the rating is constant per request).
-  const chessdbByFen = new Map<string, Promise<ChessdbResult | null>>();
-  const lc0ByFen = new Map<string, Promise<Lc0Result | null>>();
-  const maiaByKey = new Map<string, Promise<MaiaProbResult | null>>();
+  // Maia by FEN+bestUci (the rating is constant per request). With the
+  // breaker, a source whose breaker is open is skipped outright.
+  const nowAtLaunch = Date.now();
+  const openAtLaunch = (key: GroundingSource) => opts.breaker && isCircuitOpen(key, nowAtLaunch);
+  const chessdbFanOut = newFanOut<ChessdbResult>("chessdb", CHESSDB_TIMEOUT_MS, openAtLaunch("chessdb"));
+  const lc0FanOut = newFanOut<Lc0Result>("lc0", LC0_TIMEOUT_MS, openAtLaunch("lc0"));
+  const maiaFanOut = newFanOut<MaiaProbResult>("maia", MAIA_TIMEOUT_MS, openAtLaunch("maia"));
 
-  interface PlyFetchPlan {
-    ply: number;
-    fenBefore: string;
-    sfCp: number | null;
-    bestUci: string | null;
-    lc0Gate: boolean;
-    maiaGate: boolean;
-  }
   const plans = new Map<number, PlyFetchPlan>();
 
   for (const ply of unionPlies) {
@@ -409,31 +584,32 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
     const maiaGate = shouldCallMaia(userRating, bestUci);
     plans.set(ply, { ply, fenBefore, sfCp, bestUci, lc0Gate, maiaGate });
 
-    if (!chessdbByFen.has(fenBefore)) {
-      chessdbByFen.set(fenBefore, queryChessdb(fenBefore).catch(() => null));
-    }
-    if (lc0Gate && !lc0ByFen.has(fenBefore)) {
-      lc0ByFen.set(fenBefore, queryLc0(fenBefore).catch(() => null));
-    }
+    launchFetch(chessdbFanOut, fenBefore, () => queryChessdb(fenBefore));
+    if (lc0Gate) launchFetch(lc0FanOut, fenBefore, () => queryLc0(fenBefore));
     if (maiaGate) {
-      const key = `${fenBefore}::${bestUci}`;
-      if (!maiaByKey.has(key)) {
-        maiaByKey.set(key, queryMaiaAtRating(fenBefore, userRating!, bestUci!).catch(() => null));
-      }
+      launchFetch(maiaFanOut, `${fenBefore}::${bestUci}`, () =>
+        queryMaiaAtRating(fenBefore, userRating!, bestUci!),
+      );
     }
   }
 
   const tFetchStart = Date.now();
-  const [chessdbSettled, lc0Settled, maiaSettled] = await Promise.all([
-    Promise.all(Array.from(chessdbByFen.values())),
-    Promise.all(Array.from(lc0ByFen.values())),
-    Promise.all(Array.from(maiaByKey.values())),
-  ]);
-  const fetchWaitMs = Date.now() - tFetchStart;
+  const beginCpuMs = tFetchStart - t0;
+  const fanOuts = [chessdbFanOut, lc0FanOut, maiaFanOut] as const;
+  const launched = {
+    chessdb: chessdbFanOut.pending.length,
+    lc0: lc0FanOut.pending.length,
+    maia: maiaFanOut.pending.length,
+  };
+
+  const sourceSettled = <T>(src: SourceFanOut<T>): Promise<void> =>
+    Promise.all(src.pending).then(() => {
+      if (opts.breaker) recordFanOut(src.key, src.outcomes, src.timeoutMs, Date.now());
+    });
 
   // T4 (SILENT_SUBSTITUTION_HANDOFF §4): until this line existed, the
   // prompt-side grounding path was completely unobservable. Every fetch above
-  // is `.catch(() => null)`, so if chessdb started failing 100% tomorrow,
+  // settles a failure as null, so if chessdb started failing 100% tomorrow,
   // nothing in the logs would change, the prompt would just quietly get
   // thinner, and the measured +70pp tactical-accuracy result could not be
   // re-verified. (`stage9_async_grounding_fetched` covers only the VALIDATOR
@@ -441,26 +617,61 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
   //
   // A null here is not necessarily a failure: it is also how "no data for this
   // FEN" and "source not configured" arrive. The point is that a *change* in
-  // the ok/null ratio becomes visible at all.
-  const hitRate = (vals: Array<unknown>) => ({
-    requested: vals.length,
-    ok: vals.filter((v) => v != null).length,
-  });
-  log.info("contract_grounding_fetched", {
-    fetchWaitMs,
-    plies: unionPlies.length,
-    chessdb: hitRate(chessdbSettled),
-    lc0: hitRate(lc0Settled),
-    maia: hitRate(maiaSettled),
+  // the ok/null ratio becomes visible at all. `slowestMs` is what the prompt's
+  // wait (TURN1_GROUNDING_WAIT_MS) is set from. `requested` counts every
+  // position the build wanted, so a source the breaker skipped shows as asked
+  // and unanswered, with `circuitOpen` saying why.
+  const allSettled: Promise<void> = Promise.all(fanOuts.map((src) => sourceSettled<unknown>(src))).then(() => {
+    const fetchWaitMs = Date.now() - tFetchStart;
+    const hitRate = (src: SourceFanOut<unknown>) => ({
+      requested: src.wanted.size,
+      ok: Array.from(src.settled.values()).filter((v) => v != null).length,
+    });
+    log.info("contract_grounding_fetched", {
+      fetchWaitMs,
+      plies: unionPlies.length,
+      chessdb: hitRate(chessdbFanOut),
+      lc0: hitRate(lc0FanOut),
+      maia: hitRate(maiaFanOut),
+      slowestMs: {
+        chessdb: chessdbFanOut.slowestMs,
+        lc0: lc0FanOut.slowestMs,
+        maia: maiaFanOut.slowestMs,
+      },
+      ...(opts.breaker
+        ? {
+            circuitOpen: {
+              chessdb: chessdbFanOut.open ? chessdbFanOut.wanted.size : 0,
+              lc0: lc0FanOut.open ? lc0FanOut.wanted.size : 0,
+              maia: maiaFanOut.open ? maiaFanOut.wanted.size : 0,
+            },
+          }
+        : {}),
+    });
   });
 
-  // --- Build each insight ---
-  const insights: InsightContract[] = [];
-  for (const ply of unionPlies) {
+  const snapshot = (): ContractGrounding => ({
+    chessdb: new Map(chessdbFanOut.settled),
+    lc0: new Map(lc0FanOut.settled),
+    maia: new Map(maiaFanOut.settled),
+    complete: fanOuts.every((src) => src.settled.size === src.pending.length),
+  });
+
+  // --- The grounding-free half, one insight at a time ---
+  let cursor = 0;
+  const prepared: Array<PreparedInsight | null> = [];
+  let halfCpuMs = 0;
+  let finals: {
+    finalAnnotation: string | null;
+    finalRelational: RelationalFactsBlock | null;
+    intent: CoachContract["intent"] | null;
+  } | null = null;
+
+  const prepareAt = (ply: number): PreparedInsight | null => {
     const plan = plans.get(ply)!;
     const evalBefore = positions?.[ply];
     // Both legacy loops guaranteed lines[0] exists for selected plies.
-    if (!evalBefore?.lines?.[0]) continue;
+    if (!evalBefore?.lines?.[0]) return null;
     const lines = evalBefore.lines;
     const topRank = topRankByPly.get(ply) ?? null;
     const intelRank = intelRankByPly.get(ply) ?? null;
@@ -470,12 +681,6 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
     const playedSan = moveHistory[ply];
     const fenBefore = plan.fenBefore;
     const fenAfter = topCand?.fenAfter ?? fens[ply + 1];
-
-    const chessdbResult = (await chessdbByFen.get(fenBefore)!) ?? null;
-    const lc0Result = plan.lc0Gate ? ((await lc0ByFen.get(fenBefore)!) ?? null) : null;
-    const maiaResult = plan.maiaGate
-      ? ((await maiaByKey.get(`${fenBefore}::${plan.bestUci}`)!) ?? null)
-      : null;
 
     const bestPvLine = lines[0];
     const bestPvSan = bestPvLine?.pv ? convertPvToSan(fenBefore, bestPvLine.pv) : [];
@@ -498,15 +703,6 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
     } catch {
       motifLicense = [];
     }
-    const voter = compileVoterResult({
-      motifs,
-      chessdbResult,
-      lc0Result,
-      maiaResult,
-      bestMoveSan: bestPvSan[0] ?? null,
-      stockfishEvalCp: lines[0]?.cp ?? null,
-      stockfishBestMoveMate: lines[0]?.mate ?? null,
-    });
 
     const movedFrom = new Set(fromSquares.slice(0, ply));
     const lineFacts = buildLineFacts(topRank ? `M${topRank}` : `I${intelRank}`, fenBefore, playedSan, lines, movedFrom);
@@ -532,7 +728,7 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
       topCand?.cpAfterFlat ?? (evalAfterLine ? flattenEval(evalAfterLine) : null);
     if (cpBeforeFlat === null || cpAfterFlat === null) {
       log.info("contract_unscored_ply_skipped", { ply });
-      continue;
+      return null;
     }
     const dropCp = cand.dropCp;
 
@@ -616,127 +812,246 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
       }
     }
 
-    insights.push({
-      factIdPrefix: topRank ? `M${topRank}` : `I${intelRank}`,
-      ply,
-      moveNumber: cand.moveNumber,
-      color: ply % 2 === 0 ? "w" : "b",
-      colorName: cand.colorName,
-      playedSan,
-      bestSan: topCand ? topCand.bestSan : null,
-      classification: dropCp >= 300 ? "blunder" : dropCp >= 150 ? "mistake" : "inaccuracy",
-      severityDropPawns: dropCp / 100,
-      severityDropCp: dropCp,
-      cpBeforeFlat,
-      cpAfterFlat,
-      fenBefore,
-      fenAfter,
-      evalBefore: evalFactFromLine(lines[0]),
-      evalAfter: evalAfterLine ? evalFactFromLine(evalAfterLine) : evalFactFromLine(undefined),
-      lines: lineFacts,
-      gameStory,
-      branchPoint,
-      intelBranchPoint,
-      changeDescription: describeMoveChange(fenBefore, playedSan),
-      motifs,
-      motifLicense,
-      allowedTacticalKeywords: voter.allowedTacticalKeywords,
-      voterConfidence: voter.confidence,
-      positionConfidence: voter.positionConfidence,
-      groundingContext: voter.groundingContext,
-      sayables: buildSayables(motifs, relational),
-      concepts,
-      engineIdea,
-      relational,
-      featureDelta,
-      threats,
-      pieceRoleChanges: [],
-      chessdb: degradeChessdb(chessdbResult),
-      syzygy: SYZYGY_NOT_APPLICABLE,
-      lc0: degradeLc0(lc0Result, plan.lc0Gate, plan.sfCp),
-      visibility: degradeVisibility(maiaResult, plan.maiaGate),
-      topMistakeRank: topRank,
-      intelligenceRank: intelRank,
-    });
-  }
-
-  // --- Final-position facts ---
-  let finalAnnotation: string | null = null;
-  try {
-    finalAnnotation = annotationToPromptContext(annotatePosition(finalFen));
-  } catch {
-    finalAnnotation = null;
-  }
-  let finalRelational: RelationalFactsBlock | null = null;
-  try {
-    finalRelational = buildRelationalFacts(finalFen);
-  } catch {
-    finalRelational = null;
-  }
-
-  const contract: CoachContract = {
-    version: CONTRACT_VERSION,
-    // PR-CI-2 identity fix: computed with the route's request-body fen and
-    // its playerColor || "w" defaulting so contractId ≡ the route contextId
-    // exactly (see BuildCoachContractArgs.identity).
-    contractId: generateContextId(
-      moveHistory,
-      identity?.fen,
-      identity?.playerColor ?? (playerColor || "w"),
-      uid,
-    ),
-    builtAtMs: t0,
-    buildMs: 0, // patched below so the field reflects the full build
-    game: {
-      pgnHeaders,
-      playerColor,
-      moveCount: totalFullMoves,
-      totalHalfMoves,
-      replayedPlies,
-      historyTruncated,
-      resultText,
-      finalFen,
-      finalMaterial: getMaterialBalance(game),
-      skillLevel: userRating
-        ? userRating < 1000
-          ? "beginner"
-          : userRating < 1600
-            ? "intermediate"
-            : "advanced"
-        : "intermediate",
-      userRating: userRating ?? null,
-      username: username ?? null,
-      accuracy: gameEval?.accuracy ?? null,
-      estimatedElo: gameEval?.estimatedElo ?? null,
-      hasGameEval,
-      moveHistory,
-    },
-    evalIntegrity,
-    insights,
-    moveTable,
-    finalAnnotation,
-    finalRelational,
-    persona: { personalityId: null, ...(username ? { username } : {}) },
+    return {
+      plan,
+      voterInputs: {
+        motifs,
+        bestMoveSan: bestPvSan[0] ?? null,
+        stockfishEvalCp: lines[0]?.cp ?? null,
+        stockfishBestMoveMate: lines[0]?.mate ?? null,
+      },
+      fields: {
+        factIdPrefix: topRank ? `M${topRank}` : `I${intelRank}`,
+        ply,
+        moveNumber: cand.moveNumber,
+        color: ply % 2 === 0 ? "w" : "b",
+        colorName: cand.colorName,
+        playedSan,
+        bestSan: topCand ? topCand.bestSan : null,
+        classification: dropCp >= 300 ? "blunder" : dropCp >= 150 ? "mistake" : "inaccuracy",
+        severityDropPawns: dropCp / 100,
+        severityDropCp: dropCp,
+        cpBeforeFlat,
+        cpAfterFlat,
+        fenBefore,
+        fenAfter,
+        evalBefore: evalFactFromLine(lines[0]),
+        evalAfter: evalAfterLine ? evalFactFromLine(evalAfterLine) : evalFactFromLine(undefined),
+        lines: lineFacts,
+        gameStory,
+        branchPoint,
+        intelBranchPoint,
+        changeDescription: describeMoveChange(fenBefore, playedSan),
+        motifs,
+        motifLicense,
+        sayables: buildSayables(motifs, relational),
+        concepts,
+        engineIdea,
+        relational,
+        featureDelta,
+        threats,
+        pieceRoleChanges: [],
+        topMistakeRank: topRank,
+        intelligenceRank: intelRank,
+      },
+    };
   };
-  // INTENT FACTS — dark, additive, and gated on INTENT_FACTS_ENABLED.
-  //
-  // Attached for telemetry and offline comparison only: serializeForVerbalizer
-  // strips `intent`, so the verbalizer prompt, its cache prefix, and every
-  // byte-equality snapshot are identical whether this ran or not. Computed for
-  // carded plies alone (Tier 0 — no extra engine work), because a whole-game
-  // sweep would be waste and the null-move tier is not wired yet.
-  if (isIntentFactsEnabled() && gameEval && insights.length) {
-    const intent = intentFactsForPlies({
-      gameEval: gameEval as unknown as GameEval,
-      moves: moveHistory,
-      plies: insights.map((i) => i.ply),
-    });
-    if (intent.length) contract.intent = intent;
-  }
 
-  // Plan §5 gate definition: contract build time is CPU-only, measured OVER
-  // the shared grounding fetches (their network wait is excluded — it exists
-  // on the legacy path too and is now strictly smaller thanks to the dedup).
-  contract.buildMs = Date.now() - t0 - fetchWaitMs;
-  return contract;
+  const step = () => {
+    const t = Date.now();
+    prepared.push(prepareAt(unionPlies[cursor]));
+    cursor += 1;
+    halfCpuMs += Date.now() - t;
+  };
+
+  const finishHalf = () => {
+    if (finals) return;
+    const t = Date.now();
+    // --- Final-position facts ---
+    let finalAnnotation: string | null = null;
+    try {
+      finalAnnotation = annotationToPromptContext(annotatePosition(finalFen));
+    } catch {
+      finalAnnotation = null;
+    }
+    let finalRelational: RelationalFactsBlock | null = null;
+    try {
+      finalRelational = buildRelationalFacts(finalFen);
+    } catch {
+      finalRelational = null;
+    }
+    // INTENT FACTS — dark, additive, and gated on INTENT_FACTS_ENABLED.
+    //
+    // Attached for telemetry and offline comparison only: serializeForVerbalizer
+    // strips `intent`, so the verbalizer prompt, its cache prefix, and every
+    // byte-equality snapshot are identical whether this ran or not. Computed for
+    // carded plies alone (Tier 0 — no extra engine work), because a whole-game
+    // sweep would be waste and the null-move tier is not wired yet.
+    let intent: CoachContract["intent"] | null = null;
+    const pliesCarded = prepared.filter((p): p is PreparedInsight => p !== null).map((p) => p.fields.ply);
+    if (isIntentFactsEnabled() && gameEval && pliesCarded.length) {
+      const facts = intentFactsForPlies({
+        gameEval: gameEval as unknown as GameEval,
+        moves: moveHistory,
+        plies: pliesCarded,
+      });
+      if (facts.length) intent = facts;
+    }
+    finals = { finalAnnotation, finalRelational, intent };
+    halfCpuMs += Date.now() - t;
+  };
+
+  const completeHalf = () => {
+    while (cursor < unionPlies.length) step();
+    finishHalf();
+  };
+
+  let preparing: Promise<void> | null = null;
+  const prepare = (): Promise<void> => {
+    preparing ??= (async () => {
+      while (cursor < unionPlies.length) {
+        step();
+        if (cursor < unionPlies.length) await yieldToEventLoop();
+      }
+      finishHalf();
+    })();
+    return preparing;
+  };
+
+  const contractId = generateContextId(
+    moveHistory,
+    identity?.fen,
+    identity?.playerColor ?? (playerColor || "w"),
+    uid,
+  );
+
+  const ground = (g: ContractGrounding): CoachContract => {
+    completeHalf();
+    const tg = Date.now();
+    const insights: InsightContract[] = [];
+    for (const p of prepared) {
+      if (!p) continue;
+      const { plan, fields: f } = p;
+      const chessdbResult = g.chessdb.get(plan.fenBefore) ?? null;
+      const lc0Result = plan.lc0Gate ? (g.lc0.get(plan.fenBefore) ?? null) : null;
+      const maiaResult = plan.maiaGate ? (g.maia.get(`${plan.fenBefore}::${plan.bestUci}`) ?? null) : null;
+      const voter = compileVoterResult({
+        motifs: p.voterInputs.motifs,
+        chessdbResult,
+        lc0Result,
+        maiaResult,
+        bestMoveSan: p.voterInputs.bestMoveSan,
+        stockfishEvalCp: p.voterInputs.stockfishEvalCp,
+        stockfishBestMoveMate: p.voterInputs.stockfishBestMoveMate,
+      });
+      // Key order is the serialized order: keep it exactly as it was.
+      insights.push({
+        factIdPrefix: f.factIdPrefix,
+        ply: f.ply,
+        moveNumber: f.moveNumber,
+        color: f.color,
+        colorName: f.colorName,
+        playedSan: f.playedSan,
+        bestSan: f.bestSan,
+        classification: f.classification,
+        severityDropPawns: f.severityDropPawns,
+        severityDropCp: f.severityDropCp,
+        cpBeforeFlat: f.cpBeforeFlat,
+        cpAfterFlat: f.cpAfterFlat,
+        fenBefore: f.fenBefore,
+        fenAfter: f.fenAfter,
+        evalBefore: f.evalBefore,
+        evalAfter: f.evalAfter,
+        lines: f.lines,
+        gameStory: f.gameStory,
+        branchPoint: f.branchPoint,
+        intelBranchPoint: f.intelBranchPoint,
+        changeDescription: f.changeDescription,
+        motifs: f.motifs,
+        motifLicense: f.motifLicense,
+        allowedTacticalKeywords: voter.allowedTacticalKeywords,
+        voterConfidence: voter.confidence,
+        positionConfidence: voter.positionConfidence,
+        groundingContext: voter.groundingContext,
+        sayables: f.sayables,
+        concepts: f.concepts,
+        engineIdea: f.engineIdea,
+        relational: f.relational,
+        featureDelta: f.featureDelta,
+        threats: f.threats,
+        pieceRoleChanges: [],
+        chessdb: degradeChessdb(chessdbResult),
+        syzygy: SYZYGY_NOT_APPLICABLE,
+        lc0: degradeLc0(lc0Result, plan.lc0Gate, plan.sfCp),
+        visibility: degradeVisibility(maiaResult, plan.maiaGate),
+        topMistakeRank: f.topMistakeRank,
+        intelligenceRank: f.intelligenceRank,
+      });
+    }
+
+    const contract: CoachContract = {
+      version: CONTRACT_VERSION,
+      // PR-CI-2 identity fix: computed with the route's request-body fen and
+      // its playerColor || "w" defaulting so contractId ≡ the route contextId
+      // exactly (see BuildCoachContractArgs.identity).
+      contractId,
+      builtAtMs: t0,
+      buildMs: 0, // set below so the field reflects the CPU work
+      game: {
+        pgnHeaders: { ...pgnHeaders },
+        playerColor,
+        moveCount: totalFullMoves,
+        totalHalfMoves,
+        replayedPlies,
+        historyTruncated,
+        resultText,
+        finalFen,
+        finalMaterial,
+        skillLevel: userRating
+          ? userRating < 1000
+            ? "beginner"
+            : userRating < 1600
+              ? "intermediate"
+              : "advanced"
+          : "intermediate",
+        userRating: userRating ?? null,
+        username: username ?? null,
+        accuracy: gameEval?.accuracy ?? null,
+        estimatedElo: gameEval?.estimatedElo ?? null,
+        hasGameEval,
+        moveHistory,
+      },
+      evalIntegrity,
+      insights,
+      moveTable: moveTable.slice(),
+      finalAnnotation: finals!.finalAnnotation,
+      finalRelational: finals!.finalRelational,
+      persona: { personalityId: null, ...(username ? { username } : {}) },
+    };
+    if (finals!.intent) contract.intent = finals!.intent.slice();
+
+    // Plan §5 gate definition: contract build time is CPU-only. The network
+    // wait for the grounding fetches is excluded (it exists on the legacy
+    // path too), and so is any time the half spent yielding to the loop.
+    contract.buildMs = beginCpuMs + halfCpuMs + (Date.now() - tg);
+    return contract;
+  };
+
+  const within = (msFromLaunch: number): Promise<ContractGrounding> =>
+    new Promise((resolve) => {
+      let done = false;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        if (timer !== null) clearTimeout(timer);
+        resolve(snapshot());
+      };
+      allSettled.then(finish, finish);
+      if (Number.isFinite(msFromLaunch)) {
+        timer = setTimeout(finish, Math.max(0, tFetchStart + msFromLaunch - Date.now()));
+      }
+    });
+
+  return { launchedAtMs: tFetchStart, launched, within, prepare, ground };
 }

@@ -42,12 +42,12 @@ export const contentPageStyles = `
   margin-bottom: 0.4em;
 }
 .cm-content a {
-  color: #FF6B35;
+  color: #C2410C;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 .cm-content a:hover {
-  color: #e85d2c;
+  color: #9A3412;
 }
 .cm-content code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -76,7 +76,7 @@ export const contentPageStyles = `
   font-weight: 500;
 }
 .cm-content .cm-nav a:hover {
-  color: #FF6B35;
+  color: #C2410C;
 }
 .cm-content .cm-nav-sep {
   margin: 0 8px;

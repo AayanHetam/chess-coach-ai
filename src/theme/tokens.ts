@@ -88,6 +88,9 @@ export const MATERIAL_FALLBACK_SX = {
     backdropFilter: "none",
     WebkitBackdropFilter: "none",
   },
+  "@supports not (backdrop-filter: blur(1px))": {
+    background: SURFACE.overlay,
+  },
   "@media (prefers-contrast: more)": {
     background: SURFACE.overlay,
     backdropFilter: "none",
@@ -214,6 +217,10 @@ export const MOTION = {
 /** Global CSS the baseline injects: reduced motion and the press feedback. */
 export const GLOBAL_CSS = `
 @keyframes cmFadeIn { from { opacity: 0; } to { opacity: 1; } }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 6px; border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); border: 3px solid transparent; background-clip: padding-box; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;

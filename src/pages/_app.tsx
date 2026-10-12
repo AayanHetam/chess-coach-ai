@@ -13,6 +13,7 @@ import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 import ConsentBanner from "@/components/consent/ConsentBanner";
 import ConsentGatedAnalytics from "@/components/consent/ConsentGatedAnalytics";
 import ProgressSync from "@/components/curriculum/ProgressSync";
+import { MotionConfig } from "framer-motion";
 
 const queryClient = new QueryClient();
 
@@ -95,9 +96,13 @@ export default function MyApp({ Component, pageProps }: AppProps) {
                 so it renders fine outside the themed Layout below. */}
             <ConsentBanner />
             <ErrorBoundary name="app">
-              <Layout>
-                <Component {...pageProps} />
-              </Layout>
+              {/* Springs and slides cross-fade for anyone who asked for
+                  reduced motion; the theme's baseline does the same for CSS. */}
+              <MotionConfig reducedMotion="user">
+                <Layout>
+                  <Component {...pageProps} />
+                </Layout>
+              </MotionConfig>
             </ErrorBoundary>
           </AuthDialogProvider>
         </AuthProvider>

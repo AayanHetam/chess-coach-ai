@@ -3,6 +3,7 @@
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { buildChessMastiTheme } from "@/theme/chessMasti";
+import { MotionConfig } from "framer-motion";
 
 // The App Router tree is the content pages (SEO landings, legal, internship).
 // They read best on white, so this is the site theme in its light mode: the
@@ -17,7 +18,7 @@ export default function ThemeRegistry({
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      {children}
+      <MotionConfig reducedMotion="user">{children}</MotionConfig>
     </ThemeProvider>
   );
 }

@@ -2,6 +2,13 @@
 
 import { useEffect, useState, useRef } from "react";
 import { Box, Paper, Stack, Typography, Button } from "@mui/material";
+import {
+  MATERIAL,
+  MATERIAL_FALLBACK_SX,
+  RADIUS,
+  SHADOW,
+  TEXT,
+} from "@/theme/tokens";
 import NextLink from "next/link";
 import {
   getClientConsent,
@@ -111,12 +118,14 @@ export default function ConsentBanner() {
         mx: "auto",
         maxWidth: 720,
         p: { xs: 2, sm: 2.5 },
-        borderRadius: "1.25rem",
-        border: "1px solid rgba(255,255,255,0.08)",
-        backgroundColor: "rgba(20,20,22,0.72)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        color: "rgba(255,255,255,0.92)",
+        borderRadius: `${RADIUS.card}px`,
+        border: `1px solid ${MATERIAL.border}`,
+        backgroundColor: MATERIAL.background,
+        backdropFilter: MATERIAL.backdropFilter,
+        WebkitBackdropFilter: MATERIAL.backdropFilter,
+        boxShadow: SHADOW.floating,
+        color: TEXT.primary,
+        ...MATERIAL_FALLBACK_SX,
       }}
     >
       <Stack
@@ -136,34 +145,21 @@ export default function ConsentBanner() {
             component={NextLink}
             href="/privacy"
             variant="text"
-            sx={{
-              color: "rgba(255,255,255,0.7)",
-              whiteSpace: "nowrap",
-              textTransform: "none",
-            }}
+            sx={{ color: TEXT.secondary, whiteSpace: "nowrap" }}
           >
             Read more
           </Button>
           <Button
             onClick={decline}
             variant="text"
-            sx={{
-              color: "rgba(255,255,255,0.7)",
-              whiteSpace: "nowrap",
-              textTransform: "none",
-            }}
+            sx={{ color: TEXT.secondary, whiteSpace: "nowrap" }}
           >
             No thanks
           </Button>
           <Button
             onClick={agree}
             variant="contained"
-            sx={{
-              whiteSpace: "nowrap",
-              textTransform: "none",
-              backgroundColor: "#ff7a1a",
-              "&:hover": { backgroundColor: "#e96a0c" },
-            }}
+            sx={{ whiteSpace: "nowrap" }}
           >
             I agree
           </Button>

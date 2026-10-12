@@ -19,7 +19,15 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { surfaceAccent } from "./accents";
+import {
+  ACCENT,
+  LINE,
+  MATERIAL,
+  MATERIAL_FALLBACK_SX,
+  MOTION,
+  SHADOW,
+  TEXT,
+} from "@/theme/tokens";
 import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
 import { BrandMark } from "./BrandMark";
 import ChatHistoryList from "@/components/chat/ChatHistoryList";
@@ -137,32 +145,36 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
             style={{
               position: "fixed",
               inset: 0,
-              background: "rgba(0,0,0,0.6)",
-              backdropFilter: "blur(8px)",
-              WebkitBackdropFilter: "blur(8px)",
+              background: MATERIAL.scrim,
               zIndex: 2000,
             }}
           />
-          <motion.aside
+          {/* A sheet: it arrives and leaves along the same path, on a
+              critically damped spring, as a heavier material than the nav
+              because it is a structural region, and goes solid for anyone
+              who asked for reduced transparency. */}
+          <Box
+            component={motion.aside}
             initial={{ x: "-100%" }}
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
-            transition={{ duration: 0.32, ease: [0.22, 0.61, 0.36, 1] }}
-            style={{
+            transition={MOTION.springSheet}
+            sx={{
               position: "fixed",
               top: 0,
               left: 0,
               bottom: 0,
               width: "100%",
               maxWidth: 340,
-              background: "rgba(12,14,20,0.96)",
-              backdropFilter: "blur(20px) saturate(160%)",
-              WebkitBackdropFilter: "blur(20px) saturate(160%)",
-              borderRight: "1px solid rgba(255,255,255,0.08)",
-              boxShadow: "0 0 60px rgba(0,0,0,0.6), inset -1px 0 0 rgba(255,255,255,0.04)",
+              background: "rgba(28,28,30,0.9)",
+              backdropFilter: "saturate(180%) blur(24px)",
+              WebkitBackdropFilter: "saturate(180%) blur(24px)",
+              borderRight: `1px solid ${LINE.hairline}`,
+              boxShadow: SHADOW.modal,
               zIndex: 2001,
               display: "flex",
               flexDirection: "column",
+              ...MATERIAL_FALLBACK_SX,
             }}
           >
             {/* Header */}
@@ -198,12 +210,9 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                 ) : (
                   <Typography
                     sx={{
-                      fontSize: "0.7rem",
-                      color: "rgba(255,255,255,0.5)",
+                      fontSize: "0.8rem",
+                      color: TEXT.secondary,
                       mt: 0.25,
-                      letterSpacing: "0.12em",
-                      fontWeight: 600,
-                      textTransform: "uppercase",
                     }}
                   >
                     chessmasti.com
@@ -236,34 +245,20 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                 sx={{
                   px: 1.5,
                   pb: 1,
-                  fontSize: "0.66rem",
-                  fontWeight: 700,
-                  letterSpacing: "0.16em",
-                  color: "rgba(255,255,255,0.38)",
-                  textTransform: "uppercase",
+                  fontSize: "0.8125rem",
+                  fontWeight: 600,
+                  color: TEXT.secondary,
                 }}
               >
                 Navigation
               </Typography>
               <Stack spacing={0.5}>
-                {items.map((item, i) => {
+                {items.map((item) => {
                   const targetHref = item.href;
                   const active = resolvedActiveId === item.id;
                   const Icon = item.icon;
-                  // Mirrors NavPill: the active surface wears its identity
-                  // colour here too, so both navs speak the same language.
-                  const a = surfaceAccent(item.id);
                   return (
-                    <motion.div
-                      key={item.id}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{
-                        duration: 0.3,
-                        delay: 0.05 + i * 0.04,
-                        ease: [0.22, 0.61, 0.36, 1],
-                      }}
-                    >
+                    <Box key={item.id}>
                       <Box
                         component={Link}
                         href={targetHref}
@@ -278,47 +273,36 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                           borderRadius: "10px",
                           textDecoration: "none",
                           background: active
-                            ? `linear-gradient(135deg, ${a.soft}, ${a.tint})`
+                            ? "rgba(255,255,255,0.1)"
                             : "transparent",
-                          border: active
-                            ? `1px solid ${a.border}`
-                            : "1px solid transparent",
-                          color: active
-                            ? a.bright
-                            : "rgba(255,255,255,0.78)",
-                          transition: "all 180ms ease",
+                          color: active ? TEXT.primary : TEXT.secondary,
+                          transition:
+                            "background-color 160ms ease-out, color 160ms ease-out",
                           "&:hover": {
                             background: active
-                              ? `linear-gradient(135deg, ${a.soft}, ${a.soft})`
-                              : "rgba(255,255,255,0.04)",
-                            color: active ? a.bright : "rgba(255,255,255,0.95)",
-                            transform: "translateX(2px)",
+                              ? "rgba(255,255,255,0.12)"
+                              : "rgba(255,255,255,0.06)",
+                            color: TEXT.primary,
                           },
+                          "&:active": { transform: "scale(0.98)" },
                         }}
                       >
                         <Box
                           sx={{
                             width: 28,
                             height: 28,
-                            borderRadius: "8px",
-                            background: active
-                              ? a.soft
-                              : "rgba(255,255,255,0.04)",
-                            border: active
-                              ? `1px solid ${a.border}`
-                              : "1px solid rgba(255,255,255,0.06)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             flexShrink: 0,
                           }}
                         >
-                          <Icon size={14} />
+                          <Icon size={18} strokeWidth={1.75} />
                         </Box>
                         <Typography
                           sx={{
-                            fontSize: "0.92rem",
-                            fontWeight: active ? 700 : 500,
+                            fontSize: "1rem",
+                            fontWeight: active ? 600 : 500,
                             flex: 1,
                           }}
                         >
@@ -327,11 +311,8 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                         {item.comingSoon && (
                           <Typography
                             sx={{
-                              fontSize: "0.62rem",
-                              fontWeight: 700,
-                              letterSpacing: "0.14em",
-                              color: "rgba(255,255,255,0.35)",
-                              textTransform: "uppercase",
+                              fontSize: "0.8125rem",
+                              color: TEXT.tertiary,
                             }}
                           >
                             Soon
@@ -343,13 +324,12 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                               width: 6,
                               height: 6,
                               borderRadius: "50%",
-                              background: a.base,
-                              boxShadow: `0 0 8px ${a.border}`,
+                              background: TEXT.primary,
                             }}
                           />
                         )}
                       </Box>
-                    </motion.div>
+                    </Box>
                   );
                 })}
               </Stack>
@@ -374,43 +354,29 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                   py: 1.1,
                   borderRadius: "10px",
                   textDecoration: "none",
-                  background: "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
-                  color: "#0A0A0A",
-                  boxShadow: "0 4px 14px rgba(249,115,22,0.32)",
-                  transition: "all 180ms ease",
-                  "&:hover": {
-                    boxShadow: "0 6px 18px rgba(249,115,22,0.42)",
-                    transform: "translateX(2px)",
-                  },
+                  background: ACCENT.tint,
+                  color: ACCENT.hover,
+                  transition: "background-color 160ms ease-out",
+                  "&:hover": { background: "rgba(249,115,22,0.22)" },
+                  "&:active": { transform: "scale(0.98)" },
                 }}
               >
                 <Box
                   sx={{
                     width: 28,
                     height: 28,
-                    borderRadius: "8px",
-                    background: "rgba(0,0,0,0.16)",
-                    border: "1px solid rgba(0,0,0,0.2)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     flexShrink: 0,
                   }}
                 >
-                  <Heart size={14} />
+                  <Heart size={18} strokeWidth={1.75} />
                 </Box>
-                <Typography sx={{ fontSize: "0.92rem", fontWeight: 700, flex: 1 }}>
+                <Typography sx={{ fontSize: "1rem", fontWeight: 600, flex: 1 }}>
                   Donate
                 </Typography>
-                <Typography
-                  sx={{
-                    fontSize: "0.62rem",
-                    fontWeight: 700,
-                    letterSpacing: "0.14em",
-                    color: "rgba(10,10,10,0.55)",
-                    textTransform: "uppercase",
-                  }}
-                >
+                <Typography sx={{ fontSize: "0.8125rem", opacity: 0.75 }}>
                   Akanksha
                 </Typography>
               </Box>
@@ -440,20 +406,17 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                           textDecoration: "none",
                           background:
                             resolvedActiveId === "profile"
-                              ? "linear-gradient(135deg, rgba(249,115,22,0.16), rgba(234,88,12,0.08))"
+                              ? "rgba(255,255,255,0.1)"
                               : "transparent",
-                          border:
-                            resolvedActiveId === "profile"
-                              ? "1px solid rgba(249,115,22,0.32)"
-                              : "1px solid transparent",
                           color:
                             resolvedActiveId === "profile"
-                              ? "#FB923C"
-                              : "rgba(255,255,255,0.78)",
-                          transition: "all 180ms ease",
+                              ? TEXT.primary
+                              : TEXT.secondary,
+                          transition:
+                            "background-color 160ms ease-out, color 160ms ease-out",
                           "&:hover": {
-                            background: "rgba(255,255,255,0.04)",
-                            color: "rgba(255,255,255,0.95)",
+                            background: "rgba(255,255,255,0.06)",
+                            color: TEXT.primary,
                           },
                         }}
                       >
@@ -461,18 +424,17 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                           sx={{
                             width: 28,
                             height: 28,
-                            borderRadius: "8px",
-                            background: "rgba(255,255,255,0.04)",
-                            border: "1px solid rgba(255,255,255,0.06)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             flexShrink: 0,
                           }}
                         >
-                          <User size={14} />
+                          <User size={18} strokeWidth={1.75} />
                         </Box>
-                        <Typography sx={{ fontSize: "0.92rem", fontWeight: 500, flex: 1 }}>
+                        <Typography
+                          sx={{ fontSize: "1rem", fontWeight: 500, flex: 1 }}
+                        >
                           Profile
                         </Typography>
                       </Box>
@@ -504,18 +466,17 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                           sx={{
                             width: 28,
                             height: 28,
-                            borderRadius: "8px",
-                            background: "rgba(255,255,255,0.04)",
-                            border: "1px solid rgba(255,255,255,0.06)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             flexShrink: 0,
                           }}
                         >
-                          <LogOut size={14} />
+                          <LogOut size={18} strokeWidth={1.75} />
                         </Box>
-                        <Typography sx={{ fontSize: "0.92rem", fontWeight: 500, flex: 1 }}>
+                        <Typography
+                          sx={{ fontSize: "1rem", fontWeight: 500, flex: 1 }}
+                        >
                           Sign out
                         </Typography>
                       </Box>
@@ -534,36 +495,34 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                         px: 1.5,
                         py: 1.1,
                         borderRadius: "10px",
-                        border: "1px solid rgba(249,115,22,0.35)",
-                        background: "rgba(249,115,22,0.1)",
-                        color: "#FB923C",
+                        border: "none",
+                        background: ACCENT.tint,
+                        color: ACCENT.hover,
                         font: "inherit",
-                        fontWeight: 700,
+                        fontWeight: 600,
                         cursor: "pointer",
                         textAlign: "left",
                         width: "100%",
-                        transition: "all 180ms ease",
-                        "&:hover": {
-                          background: "rgba(249,115,22,0.16)",
-                        },
+                        transition: "background-color 160ms ease-out",
+                        "&:hover": { background: "rgba(249,115,22,0.22)" },
+                        "&:active": { transform: "scale(0.98)" },
                       }}
                     >
                       <Box
                         sx={{
                           width: 28,
                           height: 28,
-                          borderRadius: "8px",
-                          background: "rgba(249,115,22,0.16)",
-                          border: "1px solid rgba(249,115,22,0.32)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           flexShrink: 0,
                         }}
                       >
-                        <User size={14} />
+                        <User size={18} strokeWidth={1.75} />
                       </Box>
-                      <Typography sx={{ fontSize: "0.92rem", fontWeight: 700, flex: 1 }}>
+                      <Typography
+                        sx={{ fontSize: "1rem", fontWeight: 600, flex: 1 }}
+                      >
                         Sign in
                       </Typography>
                     </Box>
@@ -586,8 +545,7 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                 <ChatHistoryList onNavigate={onClose} />
               </Box>
             </Box>
-
-          </motion.aside>
+          </Box>
         </>
       )}
     </AnimatePresence>

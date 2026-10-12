@@ -1,77 +1,53 @@
 "use client";
 
 import { Box } from "@mui/material";
-import { motion, useInView } from "framer-motion";
-import { useRef, type CSSProperties, type ReactNode } from "react";
-import { BorderBeam } from "./BorderBeam";
-import { Spotlight } from "./Spotlight";
+import type { CSSProperties, ReactNode } from "react";
+import { LINE, RADIUS, SURFACE } from "@/theme/tokens";
 
 interface BentoCardProps {
   children: ReactNode;
   // Responsive sx values: pass "span 7" or { xs: "span 12", md: "span 7" }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   gridColumn?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   gridRow?: any;
+  /** Kept for callers; the card no longer draws a beam. */
   beam?: boolean;
   beamDelay?: number;
   padding?: number | string;
-  // If set, the card fades + lifts in when scrolled into view, with this delay (seconds).
-  // If undefined, the card is statically visible.
+  /** Kept for callers; the card no longer reveals on scroll. */
   revealDelay?: number;
   style?: CSSProperties;
 }
 
+/**
+ * A grid card: a solid raised surface with a hairline border. It does not
+ * move, lift, glow or reveal; it is a surface, not an object.
+ */
 export function BentoCard({
   children,
   gridColumn,
   gridRow,
-  beam = false,
-  beamDelay = 0,
   padding = 3.5,
-  revealDelay,
   style,
 }: BentoCardProps) {
-  const reveal = revealDelay !== undefined;
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-60px" });
-  const shouldShow = !reveal || inView;
-
   return (
-    <Box
-      ref={ref}
-      sx={{ gridColumn, gridRow, display: "flex", minWidth: 0 }}
-    >
-      <motion.div
-        initial={reveal ? { opacity: 0, y: 24 } : false}
-        animate={
-          shouldShow ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }
-        }
-        whileHover={{ scale: 1.012, y: -3 }}
-        transition={{
-          duration: 0.6,
-          delay: revealDelay ?? 0,
-          ease: [0.22, 0.61, 0.36, 1],
-        }}
-        style={{
+    <Box sx={{ gridColumn, gridRow, display: "flex", minWidth: 0 }}>
+      <Box
+        sx={{
           position: "relative",
           flex: 1,
-          borderRadius: "1.5rem",
-          background: "rgba(20, 22, 28, 0.55)",
-          backdropFilter: "blur(14px) saturate(140%)",
-          WebkitBackdropFilter: "blur(14px) saturate(140%)",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-          boxShadow:
-            "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+          borderRadius: `${RADIUS.card}px`,
+          background: SURFACE.raised,
+          border: `1px solid ${LINE.hairline}`,
           overflow: "hidden",
-          ...style,
         }}
+        style={style}
       >
-        {beam && <BorderBeam delay={beamDelay} />}
-        <Spotlight>
-          <Box sx={{ position: "relative", p: padding, height: "100%" }}>
-            {children}
-          </Box>
-        </Spotlight>
-      </motion.div>
+        <Box sx={{ position: "relative", p: padding, height: "100%" }}>
+          {children}
+        </Box>
+      </Box>
     </Box>
   );
 }

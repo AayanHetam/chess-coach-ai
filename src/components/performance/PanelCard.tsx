@@ -2,13 +2,13 @@
 
 import { Box, Typography } from "@mui/material";
 import type { ReactNode } from "react";
+import { LINE, RADIUS, SURFACE } from "@/theme/tokens";
 
 /**
  * The dashboard's card shell.
  *
- * Deliberately not `BentoCard` — that one lifts and scales on hover, which
- * reads as "clickable marketing tile". A dense dashboard where every card is
- * static content should sit still. Same glass tokens, no motion.
+ * A dense dashboard where every card is static content should sit still:
+ * a solid raised surface with a hairline border, no motion.
  *
  * Also exists to kill the copy-pasted 12-line `sx` blob that was repeated on
  * every panel of the old page.
@@ -25,13 +25,9 @@ interface PanelCardProps {
 }
 
 export const PANEL_SURFACE = {
-  borderRadius: "1.25rem",
-  background: "rgba(20,22,28,0.55)",
-  backdropFilter: "blur(14px) saturate(140%)",
-  WebkitBackdropFilter: "blur(14px) saturate(140%)",
-  border: "1px solid rgba(255,255,255,0.08)",
-  boxShadow:
-    "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+  borderRadius: `${RADIUS.card}px`,
+  background: SURFACE.raised,
+  border: `1px solid ${LINE.hairline}`,
 } as const;
 
 export function PanelCard({

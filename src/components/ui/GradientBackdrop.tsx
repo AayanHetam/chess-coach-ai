@@ -1,7 +1,17 @@
 "use client";
 
 import { Box } from "@mui/material";
+import { SURFACE } from "@/theme/tokens";
 
+/**
+ * A solid page background behind everything.
+ *
+ * This used to paint blurred gradient orbs and a dot grid; since the 2026-10
+ * redesign the page is one flat colour and the theme's baseline already sets
+ * it on <body>. The component stays as a fixed solid layer so the pages that
+ * still mount it keep rendering while they are migrated off it, after which
+ * it goes.
+ */
 export function GradientBackdrop() {
   return (
     <Box
@@ -10,47 +20,8 @@ export function GradientBackdrop() {
         position: "fixed",
         inset: 0,
         zIndex: -1,
-        background: "#08090C",
-        overflow: "hidden",
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          inset: 0,
-          backgroundImage:
-            "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.045) 1px, transparent 0)",
-          backgroundSize: "32px 32px",
-          WebkitMaskImage:
-            "radial-gradient(ellipse 80% 60% at 50% 25%, #000 30%, transparent 80%)",
-          maskImage:
-            "radial-gradient(ellipse 80% 60% at 50% 25%, #000 30%, transparent 80%)",
-        },
-        "&::after": {
-          content: '""',
-          position: "absolute",
-          width: "70vw",
-          height: "70vw",
-          top: "-25vw",
-          left: "-15vw",
-          borderRadius: "50%",
-          background:
-            "radial-gradient(circle, rgba(249,115,22,0.18), transparent 60%)",
-          filter: "blur(80px)",
-        },
+        background: SURFACE.page,
       }}
-    >
-      <Box
-        sx={{
-          position: "absolute",
-          width: "55vw",
-          height: "55vw",
-          bottom: "-20vw",
-          right: "-18vw",
-          borderRadius: "50%",
-          background:
-            "radial-gradient(circle, rgba(123, 97, 255, 0.16), transparent 60%)",
-          filter: "blur(80px)",
-        }}
-      />
-    </Box>
+    />
   );
 }

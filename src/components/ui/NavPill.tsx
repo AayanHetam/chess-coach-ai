@@ -17,7 +17,14 @@ import { useRouter } from "next/router";
 import { useState, type MouseEvent, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { Menu as MenuIcon, Heart, LogOut, User, Settings } from "lucide-react";
-import { surfaceAccent } from "./accents";
+import {
+  ACCENT,
+  LINE,
+  MATERIAL,
+  MATERIAL_FALLBACK_SX,
+  RADIUS,
+  TEXT,
+} from "@/theme/tokens";
 import { AppDrawer, type NavId } from "./AppDrawer";
 import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
 import { BrandMark } from "./BrandMark";
@@ -141,14 +148,15 @@ export function NavPill({
             px: { xs: 1.5, md: 2 },
             py: 1,
             mb: 3,
-            borderRadius: "999px",
-            background: "rgba(12,14,20,0.6)",
-            backdropFilter: "blur(16px) saturate(160%)",
-            WebkitBackdropFilter: "blur(16px) saturate(160%)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: `${RADIUS.card}px`,
+            background: MATERIAL.background,
+            backdropFilter: MATERIAL.backdropFilter,
+            WebkitBackdropFilter: MATERIAL.backdropFilter,
+            border: `1px solid ${MATERIAL.border}`,
             display: "flex",
             alignItems: "center",
             gap: 1.5,
+            ...MATERIAL_FALLBACK_SX,
           },
           ...(Array.isArray(sx) ? sx : [sx]),
         ]}
@@ -163,11 +171,9 @@ export function NavPill({
             background: "rgba(255,255,255,0.04)",
             border: "1px solid rgba(255,255,255,0.08)",
             color: "rgba(255,255,255,0.85)",
-            transition: "all 180ms ease",
             "&:hover": {
-              background: "rgba(249,115,22,0.12)",
-              borderColor: "rgba(249,115,22,0.35)",
-              color: "#FB923C",
+              background: "rgba(255,255,255,0.08)",
+              color: TEXT.primary,
             },
           }}
         >
@@ -224,9 +230,6 @@ export function NavPill({
               : { xs: "none", md: "flex" },
             position: "relative",
             flexShrink: 0,
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            borderRadius: "999px",
             p: 0.5,
           }}
           onMouseLeave={() => setHovered(null)}
@@ -234,10 +237,6 @@ export function NavPill({
           {NAV_LINKS.map((item) => {
             const isIndicated = indicatorTarget === item.id;
             const isActive = active === item.id;
-            // Each surface wears its own identity colour (see SURFACE_ACCENTS)
-            // so the nav itself teaches the site's colour language: the
-            // indicator previews the hovered surface's colour before you go.
-            const a = surfaceAccent(item.id);
             return (
               <Box
                 key={item.id}
@@ -250,31 +249,24 @@ export function NavPill({
                   px: 2.25,
                   py: 0.85,
                   fontSize: "0.85rem",
-                  fontWeight: isActive ? 700 : 500,
-                  color: isActive ? a.bright : "rgba(255,255,255,0.72)",
+                  fontWeight: isActive ? 600 : 500,
+                  color: isActive ? TEXT.primary : TEXT.secondary,
                   textDecoration: "none",
-                  transition: "color 220ms ease",
+                  transition: "color 160ms ease-out",
                   borderRadius: "999px",
                   zIndex: 1,
-                  "&:hover": { color: a.bright },
+                  "&:hover": { color: TEXT.primary },
                 }}
               >
                 {isIndicated && (
                   <motion.div
                     layoutId="navIndicator"
-                    transition={{
-                      type: "spring",
-                      stiffness: 380,
-                      damping: 32,
-                      mass: 0.8,
-                    }}
+                    transition={{ type: "spring", bounce: 0, duration: 0.35 }}
                     style={{
                       position: "absolute",
                       inset: 0,
                       borderRadius: "999px",
-                      background: `linear-gradient(135deg, ${a.soft}, ${a.tint})`,
-                      border: `1px solid ${a.border}`,
-                      boxShadow: `0 0 16px ${a.tint}, inset 0 1px 0 rgba(255,255,255,0.06)`,
+                      background: "rgba(255,255,255,0.1)",
                       zIndex: -1,
                     }}
                   />
@@ -304,19 +296,15 @@ export function NavPill({
             px: 1.75,
             py: 0.85,
             borderRadius: "999px",
-            background: "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
+            background: ACCENT.tint,
             border: "none",
-            color: "#0A0A0A",
-            fontWeight: 700,
+            color: ACCENT.hover,
+            fontWeight: 600,
             fontSize: "0.84rem",
-            letterSpacing: "0.01em",
             textDecoration: "none",
-            boxShadow: "0 4px 14px rgba(249,115,22,0.32)",
-            transition: "transform 180ms ease, box-shadow 180ms ease",
-            "&:hover": {
-              transform: "translateY(-1px)",
-              boxShadow: "0 6px 18px rgba(249,115,22,0.42)",
-            },
+            transition: "background-color 160ms ease-out",
+            "&:hover": { background: "rgba(249,115,22,0.22)" },
+            "&:active": { transform: "scale(0.97)" },
           }}
         >
           <Heart size={14} />
@@ -336,11 +324,9 @@ export function NavPill({
                   aria-label="Account menu"
                   sx={{
                     p: 0,
-                    border: "1px solid rgba(249,115,22,0.45)",
-                    boxShadow: "0 0 12px rgba(249,115,22,0.25)",
-                    "&:hover": {
-                      borderColor: "rgba(249,115,22,0.75)",
-                    },
+                    borderRadius: "50%",
+                    border: `1px solid ${LINE.strong}`,
+                    "&:hover": { borderColor: TEXT.secondary },
                   }}
                 >
                   <Avatar
@@ -348,11 +334,8 @@ export function NavPill({
                     sx={{
                       width: 34,
                       height: 34,
-                      bgcolor:
-                        "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
-                      background:
-                        "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
-                      color: "#0A0A0A",
+                      bgcolor: ACCENT.main,
+                      color: TEXT.onAccent,
                       fontSize: "0.85rem",
                       fontWeight: 700,
                     }}
@@ -366,20 +349,7 @@ export function NavPill({
                   onClose={handleMenuClose}
                   anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
                   transformOrigin={{ vertical: "top", horizontal: "right" }}
-                  slotProps={{
-                    paper: {
-                      sx: {
-                        mt: 1,
-                        background: "rgba(20,22,28,0.92)",
-                        backdropFilter: "blur(16px) saturate(160%)",
-                        WebkitBackdropFilter: "blur(16px) saturate(160%)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        borderRadius: "12px",
-                        minWidth: 220,
-                      },
-                    },
-                  }}
-                  MenuListProps={{ sx: { py: 0.5 } }}
+                  slotProps={{ paper: { sx: { minWidth: 220 } } }}
                 >
                   <Box
                     sx={{
@@ -425,10 +395,6 @@ export function NavPill({
                       gap: 1.25,
                       color: "rgba(255,255,255,0.85)",
                       fontSize: "0.86rem",
-                      "&:hover": {
-                        background: "rgba(249,115,22,0.1)",
-                        color: "#FB923C",
-                      },
                     }}
                   >
                     <User size={15} />
@@ -445,10 +411,6 @@ export function NavPill({
                       gap: 1.25,
                       color: "rgba(255,255,255,0.85)",
                       fontSize: "0.86rem",
-                      "&:hover": {
-                        background: "rgba(249,115,22,0.1)",
-                        color: "#FB923C",
-                      },
                     }}
                   >
                     <Settings size={15} />
@@ -462,10 +424,6 @@ export function NavPill({
                       gap: 1.25,
                       color: "rgba(255,255,255,0.85)",
                       fontSize: "0.86rem",
-                      "&:hover": {
-                        background: "rgba(249,115,22,0.1)",
-                        color: "#FB923C",
-                      },
                     }}
                   >
                     <LogOut size={15} />
@@ -494,17 +452,13 @@ export function NavPill({
                   px: 1.75,
                   py: 0.85,
                   borderRadius: "999px",
-                  background: "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
-                  color: "#0A0A0A",
-                  fontWeight: 700,
+                  background: ACCENT.main,
+                  color: TEXT.onAccent,
+                  fontWeight: 600,
                   fontSize: "0.84rem",
-                  letterSpacing: "0.01em",
-                  boxShadow: "0 4px 14px rgba(249,115,22,0.32)",
-                  transition: "transform 180ms ease, box-shadow 180ms ease",
-                  "&:hover": {
-                    transform: "translateY(-1px)",
-                    boxShadow: "0 6px 18px rgba(249,115,22,0.42)",
-                  },
+                  transition: "background-color 160ms ease-out",
+                  "&:hover": { background: ACCENT.hover },
+                  "&:active": { transform: "scale(0.97)" },
                 }}
               >
                 <User size={14} />

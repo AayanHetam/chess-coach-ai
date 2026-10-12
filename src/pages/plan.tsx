@@ -14,7 +14,6 @@ import {
   Microscope,
   Play,
   RotateCcw,
-  Sparkles,
   Target,
   Zap,
 } from "lucide-react";
@@ -44,19 +43,24 @@ import {
 import { resolveUserRating } from "@/lib/coach/userRating";
 import { firstNameOf } from "@/lib/auth/displayIdentity";
 import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
+import { themeAccent, type Accent } from "@/components/ui/accents";
 import {
-  ACCENTS,
-  themeAccent,
-  type Accent,
-  type AccentName,
-} from "@/components/ui/accents";
+  ACCENT,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 import { NavPill } from "@/components/ui/NavPill";
 import RatingTrends from "@/components/plan/RatingTrends";
 import { CHARTED_PERFS, type ChartedPerf } from "@/lib/rating/ratingHistory";
 import GoalProgressCard from "@/components/plan/GoalProgressCard";
 import EmailCard from "@/components/plan/EmailCard";
 import { hasCompleteGoal } from "@/lib/curriculum/goalPatch";
-import { NumberTicker } from "@/components/ui/NumberTicker";
+import { formatTickerValue } from "@/components/ui/NumberTicker";
 import SessionRunner from "@/components/curriculum/SessionRunner";
 import CurriculumMap from "@/components/curriculum/CurriculumMap";
 import GoalsCard from "@/components/curriculum/GoalsCard";
@@ -64,9 +68,6 @@ import ConceptLessonCard from "@/components/curriculum/ConceptLessonCard";
 import OpeningLineCard from "@/components/plan/OpeningLineCard";
 import { useRepertoireHole } from "@/lib/learn/useRepertoireHole";
 import { formatLine } from "@/lib/learn/repertoireHole";
-
-const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
-const ORANGE_HOVER = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
 
 /** Pretty-print a theme id (kebab) into a label, falling back to title-case. */
 function themeLabel(id: string): string {
@@ -78,21 +79,16 @@ function themeLabel(id: string): string {
     .join(" ");
 }
 
-function GlassCard({
+function PlanCard({
   children,
   highlight,
-  accent,
   onClick,
 }: {
   children: React.ReactNode;
+  /** The one card asking for the next step wears the accent's hairline. */
   highlight?: boolean;
-  /** Identity tint for the card's product area — colours the border, a top
-   *  hairline, and a faint wash. `highlight` (the ember CTA treatment) wins
-   *  when both are set. */
-  accent?: AccentName;
   onClick?: () => void;
 }) {
-  const a = !highlight && accent ? ACCENTS[accent] : undefined;
   return (
     <Box
       onClick={onClick}
@@ -100,34 +96,17 @@ function GlassCard({
         position: "relative",
         overflow: "hidden",
         p: { xs: 2.5, md: 3 },
-        borderRadius: "20px",
-        background: a
-          ? `radial-gradient(120% 55% at 50% 0%, ${a.tint}, transparent 70%), linear-gradient(180deg, rgba(20,22,28,0.92) 0%, rgba(12,14,20,0.92) 100%)`
-          : "linear-gradient(180deg, rgba(20,22,28,0.92) 0%, rgba(12,14,20,0.92) 100%)",
-        border: highlight
-          ? "1px solid rgba(249,115,22,0.5)"
-          : a
-            ? `1px solid ${a.border}`
-            : "1px solid rgba(255,255,255,0.08)",
-        boxShadow: highlight
-          ? "0 0 0 1px rgba(249,115,22,0.15), 0 20px 48px -24px rgba(249,115,22,0.4)"
-          : a
-            ? a.glow
-            : "none",
+        borderRadius: `${RADIUS.card}px`,
+        background: SURFACE.raised,
+        border: `1px solid ${highlight ? ACCENT.border : LINE.hairline}`,
         cursor: onClick ? "pointer" : "default",
-        transition: "border-color 180ms ease, box-shadow 180ms ease",
-        "&::before": a
+        transition: `border-color ${MOTION.hover}, transform ${MOTION.press}`,
+        ...(onClick
           ? {
-              content: '""',
-              position: "absolute",
-              top: 0,
-              left: "8%",
-              right: "8%",
-              height: "1.5px",
-              background: `linear-gradient(90deg, transparent, ${a.base}, transparent)`,
-              opacity: 0.65,
+              "&:hover": { borderColor: LINE.strong },
+              "&:active": { transform: MOTION.pressScale },
             }
-          : undefined,
+          : {}),
       }}
     >
       {children}
@@ -202,9 +181,7 @@ export default function PlanPage() {
     // Control-by-control goals, raw numbers — each panel draws its own line.
     const stored = profile?.perfGoals;
     const perfGoals = stored
-      ? Object.fromEntries(
-          Object.entries(stored).map(([p, g]) => [p, g.goal])
-        )
+      ? Object.fromEntries(Object.entries(stored).map(([p, g]) => [p, g.goal]))
       : undefined;
     return {
       targetDateMs,
@@ -243,9 +220,15 @@ export default function PlanPage() {
   // of these users link; either one answers the same question.
   const repertoireAccount = useMemo(() => {
     if (profile?.chesscomUsername)
-      return { platform: "chess.com" as const, username: profile.chesscomUsername };
+      return {
+        platform: "chess.com" as const,
+        username: profile.chesscomUsername,
+      };
     if (profile?.lichessUsername)
-      return { platform: "lichess" as const, username: profile.lichessUsername };
+      return {
+        platform: "lichess" as const,
+        username: profile.lichessUsername,
+      };
     return { platform: "chess.com" as const, username: null };
   }, [profile?.chesscomUsername, profile?.lichessUsername]);
 
@@ -384,19 +367,17 @@ export default function PlanPage() {
   if (!user) {
     return (
       <PlanShell>
-        <GlassCard>
-          <Typography
-            sx={{ color: "#fff", fontWeight: 800, fontSize: "1.5rem", mb: 1 }}
-          >
+        <PlanCard>
+          <Typography sx={{ ...TYPE.h3, color: TEXT.primary, mb: 1 }}>
             Your free chess plan
           </Typography>
-          <Typography sx={{ color: "rgba(255,255,255,0.6)", mb: 2.5 }}>
+          <Typography sx={{ color: TEXT.secondary, mb: 2.5 }}>
             A placement test, a daily calendar, and a coach that adapts to you.
           </Typography>
           <PrimaryButton onClick={() => router.push("/onboarding")}>
             Get started
           </PrimaryButton>
-        </GlassCard>
+        </PlanCard>
       </PlanShell>
     );
   }
@@ -404,9 +385,9 @@ export default function PlanPage() {
   if (inSession) {
     return (
       <PlanShell>
-        <GlassCard>
+        <PlanCard>
           <SessionRunner onExit={() => setInSession(false)} />
-        </GlassCard>
+        </PlanCard>
       </PlanShell>
     );
   }
@@ -426,23 +407,10 @@ export default function PlanPage() {
         <Box sx={{ minHeight: 56 }}>
           {firstName && (
             <>
-              <Typography
-                sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.85rem" }}
-              >
+              <Typography sx={{ color: TEXT.secondary, fontSize: "0.85rem" }}>
                 Welcome back,
               </Typography>
-              <Typography
-                sx={{
-                  fontWeight: 800,
-                  fontSize: "1.7rem",
-                  lineHeight: 1.1,
-                  background:
-                    "linear-gradient(100deg, #FDBA74 0%, #FDE047 100%)",
-                  backgroundClip: "text",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
+              <Typography sx={{ ...TYPE.h2, color: TEXT.primary }}>
                 {firstName}
               </Typography>
             </>
@@ -452,16 +420,15 @@ export default function PlanPage() {
           <StatTile
             label="Rating"
             sub={isUnrated ? "Unrated" : bandLabel(stats.rating)}
-            accent="gold"
           >
-            {isUnrated ? "—" : <NumberTicker value={stats.rating} />}
+            {isUnrated ? "—" : formatTickerValue(stats.rating)}
           </StatTile>
-          <StatTile label="Streak" sub={`best ${streak.best}`} accent="ember">
+          <StatTile label="Streak" sub={`best ${streak.best}`}>
             <Box
               sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}
             >
               {streak.current}
-              <Flame size={18} color="#FB923C" fill="#FB923C" />
+              <Flame size={18} color={ACCENT.hover} fill={ACCENT.hover} />
             </Box>
           </StatTile>
         </Box>
@@ -501,12 +468,10 @@ export default function PlanPage() {
             />
             <Box sx={{ mt: -1.5, mb: 2.5, textAlign: "right" }}>
               <Button
+                variant="text"
+                size="small"
                 onClick={() => router.push("/profile#goals")}
-                sx={{
-                  textTransform: "none",
-                  fontSize: "0.75rem",
-                  color: "rgba(255,255,255,0.45)",
-                }}
+                sx={{ color: TEXT.secondary }}
               >
                 Change goal
               </Button>
@@ -514,10 +479,7 @@ export default function PlanPage() {
           </>
         ) : (
           <Box sx={{ mb: 2.5 }}>
-            <GlassCard
-              accent="gold"
-              onClick={() => router.push("/profile#goals")}
-            >
+            <PlanCard onClick={() => router.push("/profile#goals")}>
               <Box
                 sx={{
                   display: "flex",
@@ -527,26 +489,26 @@ export default function PlanPage() {
                 }}
               >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                  <Target size={20} color="#FB923C" />
+                  <Target size={20} strokeWidth={1.75} color={ACCENT.main} />
                   <Box>
-                    <Typography sx={{ color: "#fff", fontWeight: 700 }}>
+                    <Typography sx={{ color: TEXT.primary, fontWeight: 600 }}>
                       Set a rating goal
                     </Typography>
                     <Typography
-                      sx={{
-                        color: "rgba(255,255,255,0.55)",
-                        fontSize: "0.82rem",
-                      }}
+                      sx={{ color: TEXT.secondary, fontSize: "0.82rem" }}
                     >
-                      Pick a target for bullet, blitz or rapid and we&apos;ll
-                      work out the date — and turn the daily session up to
-                      match.
+                      Pick a target for bullet, blitz or rapid. We&apos;ll work
+                      out the date and turn the daily session up to match.
                     </Typography>
                   </Box>
                 </Box>
-                <ChevronRight size={18} color="#FB923C" />
+                <ChevronRight
+                  size={18}
+                  strokeWidth={1.75}
+                  color={TEXT.secondary}
+                />
               </Box>
-            </GlassCard>
+            </PlanCard>
           </Box>
         ))}
 
@@ -557,7 +519,7 @@ export default function PlanPage() {
       </Box>
 
       {canResume && (
-        <GlassCard accent="cyan" onClick={() => router.push("/puzzles")}>
+        <PlanCard onClick={() => router.push("/puzzles")}>
           <Box
             sx={{
               display: "flex",
@@ -567,68 +529,41 @@ export default function PlanPage() {
             }}
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              <RotateCcw size={20} color="#67E8F9" />
+              <RotateCcw size={20} strokeWidth={1.75} color={ACCENT.main} />
               <Box>
-                <Typography sx={{ color: "#fff", fontWeight: 700 }}>
+                <Typography sx={{ color: TEXT.primary, fontWeight: 600 }}>
                   Continue where you left off
                 </Typography>
-                <Typography
-                  sx={{
-                    color: "rgba(255,255,255,0.55)",
-                    fontSize: "0.82rem",
-                  }}
-                >
+                <Typography sx={{ color: TEXT.secondary, fontSize: "0.82rem" }}>
                   Puzzle #{resume?.puzzle.id}
                   {resume?.puzzle.rating ? ` · ${resume.puzzle.rating}` : ""}
                 </Typography>
               </Box>
             </Box>
-            <Play size={18} color="#67E8F9" />
+            <Play size={18} strokeWidth={1.75} color={TEXT.secondary} />
           </Box>
-        </GlassCard>
+        </PlanCard>
       )}
 
       {/* Day-1 placement step */}
       {!hasPlacement && (
-        <GlassCard highlight>
-          <Typography
-            sx={{
-              color: "#FB923C",
-              fontWeight: 700,
-              fontSize: "0.75rem",
-              letterSpacing: "0.07em",
-              textTransform: "uppercase",
-              mb: 0.5,
-            }}
-          >
-            Step 1
+        <PlanCard highlight>
+          <Typography sx={{ ...TYPE.h4, color: TEXT.primary, mb: 0.5 }}>
+            Step 1: take your placement test
           </Typography>
-          <Typography
-            sx={{ color: "#fff", fontWeight: 700, fontSize: "1.2rem", mb: 0.5 }}
-          >
-            Take your placement test
-          </Typography>
-          <Typography
-            sx={{
-              color: "rgba(255,255,255,0.6)",
-              fontSize: "0.9rem",
-              mb: 2,
-            }}
-          >
+          <Typography sx={{ color: TEXT.secondary, fontSize: "0.9rem", mb: 2 }}>
             20 quick puzzles set your starting rating and tune every puzzle and
             coaching tip after.
           </Typography>
           <PrimaryButton onClick={() => router.push("/placement")}>
             Start placement (20 puzzles)
           </PrimaryButton>
-        </GlassCard>
+        </PlanCard>
       )}
 
       {/* 7-day calendar */}
       <Box>
-        <SectionLabel icon={<Sparkles size={13} color="#FFD1A8" />}>
-          Your week
-        </SectionLabel>
+        <SectionLabel>Your week</SectionLabel>
         <Box
           sx={{
             display: "grid",
@@ -650,7 +585,7 @@ export default function PlanPage() {
       {/* Today's training — a task list, not a sentence. Rows tick themselves
           off as the themes get trained on ANY surface, so /puzzles counts
           toward the plan rather than running beside it. */}
-      <GlassCard accent="violet">
+      <PlanCard>
         <Box
           sx={{
             display: "flex",
@@ -661,16 +596,15 @@ export default function PlanPage() {
             flexWrap: "wrap",
           }}
         >
-          <Typography
-            sx={{ color: "#fff", fontWeight: 700, fontSize: "1.2rem" }}
-          >
+          <Typography sx={{ ...TYPE.h4, color: TEXT.primary }}>
             Today&apos;s training
           </Typography>
           <Typography
             sx={{
-              color: goalMet ? "#4ade80" : "rgba(255,255,255,0.55)",
-              fontWeight: 700,
+              color: goalMet ? STATUS.success : TEXT.secondary,
+              fontWeight: 600,
               fontSize: "0.85rem",
+              fontVariantNumeric: "tabular-nums",
             }}
           >
             {puzzlesToday} of {dailyGoal} puzzles
@@ -679,16 +613,14 @@ export default function PlanPage() {
 
         <Box sx={{ mb: 2 }}>
           {todayTasks.length === 0 ? (
-            <Typography
-              sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.9rem" }}
-            >
+            <Typography sx={{ color: TEXT.secondary, fontSize: "0.9rem" }}>
               <MastiAvatar
                 mood="wave"
                 size={22}
                 ring={false}
                 style={{ verticalAlign: "middle", marginRight: 8 }}
               />
-              Nothing scheduled — open the puzzle trainer whenever you like.
+              Nothing scheduled. Open the puzzle trainer whenever you like.
             </Typography>
           ) : (
             todayTasks.map((task) => (
@@ -722,15 +654,15 @@ export default function PlanPage() {
             Open puzzle trainer
           </SecondaryButton>
         </Box>
-      </GlassCard>
+      </PlanCard>
 
       {hasPlacement && (
-        <GlassCard accent="gold">
+        <PlanCard>
           <ConceptLessonCard />
-        </GlassCard>
+        </PlanCard>
       )}
 
-      <GlassCard accent="rose">
+      <PlanCard>
         <OpeningLineCard
           phase={repertoire.phase}
           label={repertoire.label}
@@ -746,63 +678,26 @@ export default function PlanPage() {
           }
           onRun={repertoire.run}
         />
-      </GlassCard>
+      </PlanCard>
 
-      <GlassCard accent="jade">
+      <PlanCard>
         <GoalsCard />
-      </GlassCard>
+      </PlanCard>
 
-      <GlassCard>
+      <PlanCard>
         <CurriculumMap />
-      </GlassCard>
+      </PlanCard>
     </PlanShell>
   );
 }
 
-/** Page chrome: backdrop + nav + centered column. */
+/** Page chrome: nav + centered column. */
 function PlanShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Head>
-        <title key="title">Your plan — Chess Masti AI</title>
+        <title key="title">Your plan: Chess Masti AI</title>
       </Head>
-      {/* Page-local aurora: cyan and rose join the backdrop's ember and
-          violet, so the plan column sits in colour instead of flat charcoal.
-          Fixed and z-indexed with the backdrop — never over content. */}
-      <Box
-        aria-hidden
-        sx={{
-          position: "fixed",
-          inset: 0,
-          zIndex: -1,
-          overflow: "hidden",
-          pointerEvents: "none",
-          "&::before": {
-            content: '""',
-            position: "absolute",
-            width: "48vw",
-            height: "48vw",
-            top: "30vh",
-            left: "-20vw",
-            borderRadius: "50%",
-            background:
-              "radial-gradient(circle, rgba(34,211,238,0.10), transparent 60%)",
-            filter: "blur(80px)",
-          },
-          "&::after": {
-            content: '""',
-            position: "absolute",
-            width: "44vw",
-            height: "44vw",
-            top: "55vh",
-            right: "-16vw",
-            borderRadius: "50%",
-            background:
-              "radial-gradient(circle, rgba(251,113,133,0.09), transparent 60%)",
-            filter: "blur(80px)",
-          },
-        }}
-      />
       <Box sx={{ minHeight: "100vh", pt: 2, pb: 6, px: { xs: 2, md: 3 } }}>
         <NavPill active="plan" />
         <Box
@@ -831,9 +726,6 @@ function dayKeyForIndex(dayIndex: number): string {
 
 function SecondaryTaskRow({ task }: { task: DailyTask }) {
   const Icon = task.kind === "analyze" ? Microscope : BookOpen;
-  // Analysis wears the cyan of the analyse tooling, theory the gold of the
-  // course/lesson area — same identities those cards wear elsewhere on /plan.
-  const a = task.kind === "analyze" ? ACCENTS.cyan : ACCENTS.gold;
   return (
     <Box
       component="a"
@@ -849,53 +741,42 @@ function SecondaryTaskRow({ task }: { task: DailyTask }) {
         gap: 1.25,
         py: 0.85,
         textDecoration: "none",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        borderBottom: `1px solid ${LINE.separator}`,
         "&:last-of-type": { borderBottom: "none" },
-        "&:hover .task-label": { color: "#fff" },
+        "&:hover .task-label": { color: TEXT.primary },
       }}
     >
       <Box
         sx={{
-          mt: "2px",
+          mt: "3px",
           flexShrink: 0,
           width: 24,
-          height: 24,
-          borderRadius: "8px",
-          background: a.soft,
-          border: `1px solid ${a.border}`,
-          display: "grid",
-          placeItems: "center",
+          display: "flex",
+          justifyContent: "center",
+          color: TEXT.secondary,
         }}
       >
-        <Icon size={13} color={a.bright} strokeWidth={2.5} />
+        <Icon size={18} strokeWidth={1.75} />
       </Box>
       <Box sx={{ minWidth: 0 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
           <Typography
             className="task-label"
             sx={{
-              color: "rgba(255,255,255,0.85)",
+              color: TEXT.primary,
               fontSize: "0.92rem",
               fontWeight: 600,
             }}
           >
             {task.label}
           </Typography>
-          <Typography
-            sx={{ color: "rgba(255,255,255,0.35)", fontSize: "0.75rem" }}
-          >
+          <Typography sx={{ color: TEXT.tertiary, fontSize: "0.75rem" }}>
             ~{task.minutes} min
           </Typography>
-          {task.external && (
-            <ExternalLink size={12} color="rgba(255,255,255,0.35)" />
-          )}
+          {task.external && <ExternalLink size={12} color={TEXT.tertiary} />}
         </Box>
         <Typography
-          sx={{
-            color: "rgba(255,255,255,0.45)",
-            fontSize: "0.78rem",
-            mt: 0.25,
-          }}
+          sx={{ color: TEXT.secondary, fontSize: "0.78rem", mt: 0.25 }}
         >
           {task.detail}
         </Typography>
@@ -924,45 +805,29 @@ function TaskRow({
         alignItems: "center",
         gap: 1.25,
         py: 0.85,
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        borderBottom: `1px solid ${LINE.separator}`,
         "&:last-of-type": { borderBottom: "none" },
       }}
     >
-      {done ? (
-        <Box
-          sx={{
-            width: 24,
-            height: 24,
-            borderRadius: "8px",
-            background: "#4ade80",
-            display: "grid",
-            placeItems: "center",
-            flexShrink: 0,
-          }}
-        >
-          <Check size={13} color="#0A0907" strokeWidth={3.5} />
-        </Box>
-      ) : (
-        <Box
-          sx={{
-            width: 24,
-            height: 24,
-            borderRadius: "8px",
-            background: accent.soft,
-            border: `1px solid ${accent.border}`,
-            display: "grid",
-            placeItems: "center",
-            flexShrink: 0,
-          }}
-        >
-          <Icon size={13} color={accent.bright} strokeWidth={2.5} />
-        </Box>
-      )}
+      <Box
+        sx={{
+          width: 24,
+          flexShrink: 0,
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
+        {done ? (
+          <Check size={18} color={STATUS.success} strokeWidth={1.75} />
+        ) : (
+          <Icon size={18} color={accent.bright} strokeWidth={1.75} />
+        )}
+      </Box>
       <Typography
         sx={{
           fontSize: "0.92rem",
           fontWeight: done ? 500 : 600,
-          color: done ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.9)",
+          color: done ? TEXT.secondary : TEXT.primary,
           textDecoration: done ? "line-through" : "none",
         }}
       >
@@ -990,60 +855,66 @@ function DayCell({
       onClick={day.isToday ? onStart : undefined}
       sx={{
         p: 1.25,
-        borderRadius: "14px",
+        borderRadius: `${RADIUS.control}px`,
         minHeight: 104,
         display: "flex",
         flexDirection: "column",
         gap: 0.5,
         cursor: day.isToday ? "pointer" : "default",
-        // A trained day reads green whether or not it is today — the grid's
+        // A trained day reads green whether or not it is today: the grid's
         // whole job is showing what you have actually done, which it could
-        // never do before completion was recorded.
+        // never do before completion was recorded. Status tints only; the
+        // accent marks today, the one cell that is also a button.
         background: done
-          ? "linear-gradient(180deg, rgba(74,222,128,0.14), rgba(74,222,128,0.03))"
+          ? STATUS.successTint
           : day.isToday
-            ? "linear-gradient(180deg, rgba(249,115,22,0.16), rgba(249,115,22,0.04))"
+            ? ACCENT.tint
             : hasReviews
-              ? "linear-gradient(180deg, rgba(34,211,238,0.09), rgba(34,211,238,0.02))"
-              : "rgba(255,255,255,0.03)",
-        border: done
-          ? "1px solid rgba(74,222,128,0.45)"
-          : day.isToday
-            ? "1px solid rgba(249,115,22,0.5)"
-            : hasReviews
-              ? "1px solid rgba(34,211,238,0.28)"
-              : "1px solid rgba(255,255,255,0.07)",
+              ? STATUS.infoTint
+              : SURFACE.raised,
+        border: `1px solid ${day.isToday ? ACCENT.border : LINE.hairline}`,
+        transition: `border-color ${MOTION.hover}, transform ${MOTION.press}`,
+        ...(day.isToday
+          ? {
+              "&:hover": { borderColor: ACCENT.main },
+              "&:active": { transform: MOTION.pressScale },
+            }
+          : {}),
       }}
     >
       <Typography
         sx={{
-          fontSize: "0.68rem",
-          fontWeight: 700,
-          letterSpacing: "0.05em",
-          textTransform: "uppercase",
+          ...TYPE.label,
           color: done
-            ? "#86efac"
+            ? STATUS.success
             : day.isToday
-              ? "#FFD1A8"
+              ? ACCENT.hover
               : hasReviews
-                ? "rgba(103,232,249,0.85)"
-                : "rgba(255,255,255,0.45)",
+                ? STATUS.info
+                : TEXT.secondary,
           display: "flex",
           alignItems: "center",
           gap: 0.5,
         }}
       >
-        {done && <Check size={11} strokeWidth={3.5} />}
+        {done && <Check size={12} strokeWidth={2} />}
         {day.isToday ? "Today" : day.weekdayLabel}
       </Typography>
-      <Typography sx={{ color: "#fff", fontWeight: 800, fontSize: "1.15rem" }}>
+      <Typography
+        sx={{
+          color: TEXT.primary,
+          fontWeight: 700,
+          fontSize: "1.15rem",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
         {day.totalPuzzles}
       </Typography>
-      <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.66rem" }}>
+      <Typography sx={{ color: TEXT.secondary, fontSize: "0.75rem" }}>
         puzzles
       </Typography>
       <Box sx={{ flex: 1 }} />
-      <Typography sx={{ color: "rgba(255,255,255,0.42)", fontSize: "0.66rem" }}>
+      <Typography sx={{ color: TEXT.secondary, fontSize: "0.75rem" }}>
         {day.reviewThemes.length > 0
           ? `${day.reviewThemes.length} review${
               day.reviewThemes.length > 1 ? "s" : ""
@@ -1057,15 +928,12 @@ function DayCell({
 function StatTile({
   label,
   sub,
-  accent,
   children,
 }: {
   label: string;
   sub: string;
-  accent?: AccentName;
   children: React.ReactNode;
 }) {
-  const a = accent ? ACCENTS[accent] : undefined;
   return (
     <Box
       sx={{
@@ -1073,66 +941,37 @@ function StatTile({
         minWidth: 84,
         px: 1.5,
         py: 1,
-        borderRadius: "14px",
-        background: a
-          ? `linear-gradient(180deg, ${a.tint}, rgba(255,255,255,0.02))`
-          : "rgba(255,255,255,0.03)",
-        border: a
-          ? `1px solid ${a.border}`
-          : "1px solid rgba(255,255,255,0.07)",
+        borderRadius: `${RADIUS.control}px`,
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
-      <Typography
-        sx={{
-          color: "rgba(255,255,255,0.45)",
-          fontSize: "0.66rem",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-        }}
-      >
+      <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
         {label}
       </Typography>
       <Typography
         sx={{
-          color: a ? a.bright : "#fff",
-          fontWeight: 800,
+          color: TEXT.primary,
+          fontWeight: 700,
           fontSize: "1.4rem",
           lineHeight: 1.15,
+          fontVariantNumeric: "tabular-nums",
         }}
       >
         {children}
       </Typography>
-      <Typography sx={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem" }}>
+      <Typography sx={{ color: TEXT.tertiary, fontSize: "0.75rem" }}>
         {sub}
       </Typography>
     </Box>
   );
 }
 
-function SectionLabel({
-  icon,
-  children,
-}: {
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Box
-      sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1, ml: 0.5 }}
-    >
-      {icon}
-      <Typography
-        sx={{
-          fontSize: "0.7rem",
-          fontWeight: 700,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-          color: "rgba(255,240,224,0.6)",
-        }}
-      >
-        {children}
-      </Typography>
-    </Box>
+    <Typography sx={{ ...TYPE.label, color: TEXT.secondary, mb: 1, ml: 0.5 }}>
+      {children}
+    </Typography>
   );
 }
 
@@ -1146,25 +985,7 @@ function PrimaryButton({
   children: React.ReactNode;
 }) {
   return (
-    <Button
-      onClick={onClick}
-      disabled={disabled}
-      sx={{
-        py: 1.3,
-        px: 3.5,
-        borderRadius: "12px",
-        textTransform: "none",
-        fontWeight: 700,
-        fontSize: "1rem",
-        color: "#fff",
-        background: ORANGE,
-        "&:hover": { background: ORANGE_HOVER },
-        "&.Mui-disabled": {
-          color: "rgba(255,255,255,0.4)",
-          background: "rgba(255,255,255,0.06)",
-        },
-      }}
-    >
+    <Button variant="contained" onClick={onClick} disabled={disabled}>
       {children}
     </Button>
   );
@@ -1178,24 +999,7 @@ function SecondaryButton({
   children: React.ReactNode;
 }) {
   return (
-    <Button
-      onClick={onClick}
-      sx={{
-        py: 1.3,
-        px: 3,
-        borderRadius: "12px",
-        textTransform: "none",
-        fontWeight: 700,
-        fontSize: "0.95rem",
-        color: "rgba(255,255,255,0.85)",
-        background: "rgba(255,255,255,0.05)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        "&:hover": {
-          background: "rgba(255,255,255,0.09)",
-          borderColor: "rgba(249,115,22,0.4)",
-        },
-      }}
-    >
+    <Button variant="outlined" onClick={onClick}>
       {children}
     </Button>
   );

@@ -2,6 +2,7 @@
 
 import { Box } from "@mui/material";
 import { motion } from "framer-motion";
+import { ACCENT } from "@/theme/tokens";
 
 const EASE = [0.22, 0.61, 0.36, 1] as const;
 
@@ -30,7 +31,7 @@ export default function QuizProgress({ value }: { value: number }) {
         style={{
           height: "100%",
           borderRadius: 999,
-          background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
+          background: ACCENT.main,
         }}
       />
     </Box>

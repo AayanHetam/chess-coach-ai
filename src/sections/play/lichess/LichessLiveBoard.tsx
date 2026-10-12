@@ -12,7 +12,7 @@
 // back via the game stream, the authoritative state takes over.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -20,35 +20,56 @@ import {
   Stack,
   Tooltip,
   Typography,
-} from '@mui/material';
-import { Icon } from '@iconify/react';
-import { Chess } from 'chess.js';
-import { Chessboard } from 'react-chessboard';
+} from "@mui/material";
+import { Icon } from "@iconify/react";
+import { Chess } from "chess.js";
+import { Chessboard } from "react-chessboard";
 import type {
   CustomPieces,
   Piece,
   PromotionPieceOption,
   Square,
-} from 'react-chessboard/dist/chessboard/types';
-import { useAtomValue } from 'jotai';
-import { pieceSetAtom, boardHueAtom } from '@/components/board/states';
-import { useLostDragRecovery } from '@/hooks/useLostDragRecovery';
-import LiveClock from '@/components/play/LiveClock';
+} from "react-chessboard/dist/chessboard/types";
+import { useAtomValue } from "jotai";
+import { pieceSetAtom, boardHueAtom } from "@/components/board/states";
+import { useLostDragRecovery } from "@/hooks/useLostDragRecovery";
+import LiveClock from "@/components/play/LiveClock";
+import {
+  ACCENT,
+  LINE,
+  MATERIAL,
+  MATERIAL_FALLBACK_SX,
+  RADIUS,
+  SHADOW,
+  STATUS,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 import {
   LichessGameFull,
   LichessGameState,
   LichessPlayer,
-} from '@/types/lichessLive';
+} from "@/types/lichessLive";
 
 const PIECE_CODES: Piece[] = [
-  'wP', 'wB', 'wN', 'wR', 'wQ', 'wK',
-  'bP', 'bB', 'bN', 'bR', 'bQ', 'bK',
+  "wP",
+  "wB",
+  "wN",
+  "wR",
+  "wQ",
+  "wK",
+  "bP",
+  "bB",
+  "bN",
+  "bR",
+  "bQ",
+  "bK",
 ];
 
 export interface LichessLiveBoardProps {
   game: LichessGameFull;
   state: LichessGameState;
-  yourColor: 'white' | 'black';
+  yourColor: "white" | "black";
   boardSize: number;
   onMakeMove: (uci: string) => Promise<boolean>;
   onResign: () => Promise<boolean>;
@@ -60,7 +81,7 @@ export interface LichessLiveBoardProps {
 // Build a Chess instance from Lichess's move list + initialFen.
 function buildChess(game: LichessGameFull, movesStr: string): Chess {
   const chess =
-    game.initialFen && game.initialFen !== 'startpos'
+    game.initialFen && game.initialFen !== "startpos"
       ? new Chess(game.initialFen)
       : new Chess();
   if (!movesStr) return chess;
@@ -78,12 +99,12 @@ function buildChess(game: LichessGameFull, movesStr: string): Chess {
   return chess;
 }
 
-function playerLabel(p?: LichessPlayer, fallback = '…'): string {
+function playerLabel(p?: LichessPlayer, fallback = "…"): string {
   if (!p) return fallback;
   const name = p.name || (p.aiLevel ? `Stockfish lvl ${p.aiLevel}` : fallback);
   const rating =
-    p.rating != null ? ` (${p.rating}${p.provisional ? '?' : ''})` : '';
-  const title = p.title ? `${p.title} ` : '';
+    p.rating != null ? ` (${p.rating}${p.provisional ? "?" : ""})` : "";
+  const title = p.title ? `${p.title} ` : "";
   return `${title}${name}${rating}`;
 }
 
@@ -103,16 +124,23 @@ export default function LichessLiveBoard({
   useLostDragRecovery();
   const pieceSet = useAtomValue(pieceSetAtom);
   const boardHue = useAtomValue(boardHueAtom);
-  const [busy, setBusy] = useState<'resign' | 'abort' | 'draw' | null>(null);
+  const [busy, setBusy] = useState<"resign" | "abort" | "draw" | null>(null);
 
   // ── Derive a chess.js instance from the authoritative server move list.
-  const serverChess = useMemo(() => buildChess(game, state.moves), [game, state.moves]);
+  const serverChess = useMemo(
+    () => buildChess(game, state.moves),
+    [game, state.moves]
+  );
 
   // ── Optimistic move: applied locally so the board updates instantly.
   const [pendingUci, setPendingUci] = useState<string | null>(null);
 
   // ── Pre-move: queued while opponent is thinking, auto-fired on our turn.
-  const [premove, setPremove] = useState<{ from: Square; to: Square; promotion?: string } | null>(null);
+  const [premove, setPremove] = useState<{
+    from: Square;
+    to: Square;
+    promotion?: string;
+  } | null>(null);
   const premoveRef = useRef(premove);
   premoveRef.current = premove;
 
@@ -148,13 +176,18 @@ export default function LichessLiveBoard({
 
   // ── Auto-fire premove when it becomes our turn ──────────────────────────
   // Runs after serverChess is rebuilt from the new state.moves.
-  const submitMoveRef = useRef<((uci: string) => Promise<boolean>) | null>(null);
+  const submitMoveRef = useRef<((uci: string) => Promise<boolean>) | null>(
+    null
+  );
 
   useEffect(() => {
     const pm = premoveRef.current;
     if (!pm) return;
-    if (state.status !== 'started') { setPremove(null); return; }
-    const myTurn = serverChess.turn() === (yourColor === 'white' ? 'w' : 'b');
+    if (state.status !== "started") {
+      setPremove(null);
+      return;
+    }
+    const myTurn = serverChess.turn() === (yourColor === "white" ? "w" : "b");
     if (!myTurn) return;
 
     // Validate premove against the NEW position.
@@ -163,19 +196,22 @@ export default function LichessLiveBoard({
     setPremove(null);
     if (match) {
       const promo =
-        match.piece === 'p' && (pm.to[1] === '8' || pm.to[1] === '1')
-          ? (pm.promotion ?? 'q')
+        match.piece === "p" && (pm.to[1] === "8" || pm.to[1] === "1")
+          ? (pm.promotion ?? "q")
           : undefined;
-      const uci = `${pm.from}${pm.to}${promo ?? ''}`;
+      const uci = `${pm.from}${pm.to}${promo ?? ""}`;
       submitMoveRef.current?.(uci);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.moves]);
 
   // ── Move history navigation ────────────────────────────────────────────
   // null = live (showing latest), number = specific half-move index (0-based).
   const [viewMoveIndex, setViewMoveIndex] = useState<number | null>(null);
-  const allMoves = useMemo(() => state.moves.split(/\s+/).filter(Boolean), [state.moves]);
+  const allMoves = useMemo(
+    () => state.moves.split(/\s+/).filter(Boolean),
+    [state.moves]
+  );
   const totalMoves = allMoves.length;
 
   // When new moves arrive, snap back to live view.
@@ -187,15 +223,21 @@ export default function LichessLiveBoard({
   const viewChess = useMemo(() => {
     if (viewMoveIndex === null) return null; // live view
     const c =
-      game.initialFen && game.initialFen !== 'startpos'
+      game.initialFen && game.initialFen !== "startpos"
         ? new Chess(game.initialFen)
         : new Chess();
     for (let i = 0; i < viewMoveIndex; i++) {
       const uci = allMoves[i];
       if (!uci) break;
       try {
-        c.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.length > 4 ? uci[4] : undefined });
-      } catch { break; }
+        c.move({
+          from: uci.slice(0, 2),
+          to: uci.slice(2, 4),
+          promotion: uci.length > 4 ? uci[4] : undefined,
+        });
+      } catch {
+        break;
+      }
     }
     return c;
   }, [viewMoveIndex, allMoves, game.initialFen]);
@@ -224,20 +266,30 @@ export default function LichessLiveBoard({
   // Keyboard arrow keys for move navigation.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') { e.preventDefault(); goBack(); }
-      else if (e.key === 'ArrowRight') { e.preventDefault(); goForward(); }
-      else if (e.key === 'Home') { e.preventDefault(); goToStart(); }
-      else if (e.key === 'End') { e.preventDefault(); goToLive(); }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        goBack();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        goForward();
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        goToStart();
+      } else if (e.key === "End") {
+        e.preventDefault();
+        goToLive();
+      }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, [goBack, goForward, goToStart, goToLive]);
 
   // ── Last-move highlight (green) ────────────────────────────────────────
   const lastMove = useMemo<{ from: Square; to: Square } | null>(() => {
     const movesArr = allMoves;
     // Determine which move to show based on whether we're in history view.
-    const idx = viewMoveIndex !== null ? viewMoveIndex - 1 : movesArr.length - 1;
+    const idx =
+      viewMoveIndex !== null ? viewMoveIndex - 1 : movesArr.length - 1;
     if (idx < 0 || idx >= movesArr.length) return null;
     const uci = movesArr[idx];
     if (!uci || uci.length < 4) return null;
@@ -257,50 +309,53 @@ export default function LichessLiveBoard({
 
     // Last-move highlights (green) — lowest priority, everything else overrides.
     if (lastMove) {
-      styles[lastMove.from] = { backgroundColor: 'rgba(34, 197, 94, 0.35)' };
-      styles[lastMove.to] = { backgroundColor: 'rgba(34, 197, 94, 0.42)' };
+      styles[lastMove.from] = { backgroundColor: "rgba(34, 197, 94, 0.35)" };
+      styles[lastMove.to] = { backgroundColor: "rgba(34, 197, 94, 0.42)" };
     }
 
     // Premove highlights (blue)
     if (premove) {
-      styles[premove.from] = { backgroundColor: 'rgba(0, 150, 255, 0.45)' };
-      styles[premove.to] = { backgroundColor: 'rgba(0, 150, 255, 0.45)' };
+      styles[premove.from] = { backgroundColor: "rgba(0, 150, 255, 0.45)" };
+      styles[premove.to] = { backgroundColor: "rgba(0, 150, 255, 0.45)" };
     }
 
     // Selected piece origin square (orange) — so user can drop piece back.
     if (selectedSq) {
-      styles[selectedSq] = { backgroundColor: 'rgba(255, 107, 53, 0.45)' };
+      styles[selectedSq] = { backgroundColor: "rgba(255, 107, 53, 0.45)" };
     }
     // Legal move dots (orange)
     for (const m of legalMovesForSelected) {
-      const isCapture = m.captured || m.flags.includes('e');
+      const isCapture = m.captured || m.flags.includes("e");
       styles[m.to as string] = isCapture
         ? {
-            background: 'radial-gradient(transparent 50%, rgba(255,107,53,0.45) 50%)',
-            borderRadius: '50%',
+            background:
+              "radial-gradient(transparent 50%, rgba(255,107,53,0.45) 50%)",
+            borderRadius: "50%",
           }
         : {
-            background: 'radial-gradient(rgba(255,107,53,0.4) 22%, transparent 22%)',
-            borderRadius: '50%',
+            background:
+              "radial-gradient(rgba(255,107,53,0.4) 22%, transparent 22%)",
+            borderRadius: "50%",
           };
     }
     return styles;
   }, [selectedSq, legalMovesForSelected, premove, lastMove]);
 
   // ── Move validation & submission ─────────────────────────────────────────
-  const finished = state.status !== 'started' && state.status !== 'created';
+  const finished = state.status !== "started" && state.status !== "created";
 
   // Prevent moves while we're waiting for the server to confirm our optimistic move.
   const isYourTurn =
-    state.status === 'started' &&
+    state.status === "started" &&
     !pendingUci &&
-    serverChess.turn() === (yourColor === 'white' ? 'w' : 'b');
+    serverChess.turn() === (yourColor === "white" ? "w" : "b");
 
   const canPromotePiece = useCallback(
     (from: Square, to: Square): boolean => {
       const moves = serverChess.moves({ square: from, verbose: true });
       return moves.some(
-        (m) => m.to === to && m.piece === 'p' && (to[1] === '8' || to[1] === '1')
+        (m) =>
+          m.to === to && m.piece === "p" && (to[1] === "8" || to[1] === "1")
       );
     },
     [serverChess]
@@ -323,14 +378,16 @@ export default function LichessLiveBoard({
   );
 
   // Keep ref in sync so the premove effect can call submitMove.
-  useEffect(() => { submitMoveRef.current = submitMove; }, [submitMove]);
+  useEffect(() => {
+    submitMoveRef.current = submitMove;
+  }, [submitMove]);
 
   // Helper: does a square have one of our pieces?
   const isOurPiece = useCallback(
     (sq: Square): boolean => {
       const p = serverChess.get(sq as Parameters<typeof serverChess.get>[0]);
       if (!p) return false;
-      return yourColor === 'white' ? p.color === 'w' : p.color === 'b';
+      return yourColor === "white" ? p.color === "w" : p.color === "b";
     },
     [serverChess, yourColor]
   );
@@ -346,17 +403,17 @@ export default function LichessLiveBoard({
         if (!candidate) return false;
 
         const promotion =
-          candidate.piece === 'p' && (target[1] === '8' || target[1] === '1')
-            ? (piece[1]?.toLowerCase() ?? 'q')
+          candidate.piece === "p" && (target[1] === "8" || target[1] === "1")
+            ? (piece[1]?.toLowerCase() ?? "q")
             : undefined;
 
-        void submitMove(`${source}${target}${promotion ?? ''}`);
+        void submitMove(`${source}${target}${promotion ?? ""}`);
         return true;
       }
 
       // ── Opponent's turn → queue premove (always auto-queen)
       if (isOurPiece(source) && source !== target) {
-        setPremove({ from: source, to: target, promotion: 'q' });
+        setPremove({ from: source, to: target, promotion: "q" });
         setSelectedSq(null);
         return true; // tell react-chessboard the drop was accepted
       }
@@ -368,19 +425,26 @@ export default function LichessLiveBoard({
   // Click-to-move / click-to-premove
   const onSquareClick = useCallback(
     (square: Square) => {
-      if (finished) { setSelectedSq(null); return; }
+      if (finished) {
+        setSelectedSq(null);
+        return;
+      }
 
       // ── Your turn → normal click-to-move
       if (isYourTurn) {
         if (selectedSq) {
-          const legalMoves = serverChess.moves({ square: selectedSq, verbose: true });
+          const legalMoves = serverChess.moves({
+            square: selectedSq,
+            verbose: true,
+          });
           const candidate = legalMoves.find((m) => m.to === square);
           if (candidate) {
             const promotion =
-              candidate.piece === 'p' && (square[1] === '8' || square[1] === '1')
-                ? 'q'
+              candidate.piece === "p" &&
+              (square[1] === "8" || square[1] === "1")
+                ? "q"
                 : undefined;
-            void submitMove(`${selectedSq}${square}${promotion ?? ''}`);
+            void submitMove(`${selectedSq}${square}${promotion ?? ""}`);
             return;
           }
         }
@@ -395,7 +459,7 @@ export default function LichessLiveBoard({
 
       // ── Opponent's turn → click-to-premove
       if (selectedSq && isOurPiece(selectedSq) && square !== selectedSq) {
-        setPremove({ from: selectedSq, to: square, promotion: 'q' });
+        setPremove({ from: selectedSq, to: square, promotion: "q" });
         setSelectedSq(null);
         return;
       }
@@ -413,7 +477,7 @@ export default function LichessLiveBoard({
   const onPromotionPieceSelect = useCallback(
     (piece?: PromotionPieceOption, from?: Square, to?: Square): boolean => {
       if (!piece || !from || !to) return false;
-      const promo = piece[1]?.toLowerCase() ?? 'q';
+      const promo = piece[1]?.toLowerCase() ?? "q";
       void submitMove(`${from}${to}${promo}`);
       return true;
     },
@@ -430,7 +494,7 @@ export default function LichessLiveBoard({
             height={squareWidth}
             sx={{
               backgroundImage: `url(/piece/${pieceSet}/${code}.svg)`,
-              backgroundSize: 'contain',
+              backgroundSize: "contain",
             }}
           />
         );
@@ -441,8 +505,7 @@ export default function LichessLiveBoard({
 
   const customBoardStyle = useMemo(
     () => ({
-      borderRadius: '6px',
-      boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
+      borderRadius: "6px",
       ...(boardHue ? { filter: `hue-rotate(${boardHue}deg)` } : {}),
     }),
     [boardHue]
@@ -450,21 +513,24 @@ export default function LichessLiveBoard({
 
   // ── Status helpers ────────────────────────────────────────────────────────
   const resultLabel = finished ? describeResult(state, yourColor, game) : null;
-  const canAbort = !finished && state.moves.split(/\s+/).filter(Boolean).length < 2;
+  const canAbort =
+    !finished && state.moves.split(/\s+/).filter(Boolean).length < 2;
   void canPromotePiece;
 
   // ── Render ────────────────────────────────────────────────────────────────
-  const topPlayer = yourColor === 'white' ? game.black : game.white;
-  const bottomPlayer = yourColor === 'white' ? game.white : game.black;
-  const topClockMs = yourColor === 'white' ? state.btime : state.wtime;
-  const bottomClockMs = yourColor === 'white' ? state.wtime : state.btime;
-  const topActive = !finished && chess.turn() === (yourColor === 'white' ? 'b' : 'w');
-  const bottomActive = !finished && chess.turn() === (yourColor === 'white' ? 'w' : 'b');
-  const topColor: 'white' | 'black' = yourColor === 'white' ? 'black' : 'white';
-  const bottomColor: 'white' | 'black' = yourColor;
+  const topPlayer = yourColor === "white" ? game.black : game.white;
+  const bottomPlayer = yourColor === "white" ? game.white : game.black;
+  const topClockMs = yourColor === "white" ? state.btime : state.wtime;
+  const bottomClockMs = yourColor === "white" ? state.wtime : state.btime;
+  const topActive =
+    !finished && chess.turn() === (yourColor === "white" ? "b" : "w");
+  const bottomActive =
+    !finished && chess.turn() === (yourColor === "white" ? "w" : "b");
+  const topColor: "white" | "black" = yourColor === "white" ? "black" : "white";
+  const bottomColor: "white" | "black" = yourColor;
 
   return (
-    <Stack spacing={0} alignItems="center" sx={{ width: '100%' }}>
+    <Stack spacing={0} alignItems="center" sx={{ width: "100%" }}>
       {/* Top player row (opponent) */}
       <PlayerRow
         player={topPlayer}
@@ -481,7 +547,7 @@ export default function LichessLiveBoard({
       <Box
         sx={{
           width: boardSize,
-          position: 'relative',
+          position: "relative",
         }}
       >
         <Chessboard
@@ -498,39 +564,40 @@ export default function LichessLiveBoard({
           animationDuration={150}
           arePiecesDraggable={!finished && !isViewingHistory}
           onPieceDragBegin={(_piece: string, sq: Square) => setSelectedSq(sq)}
-          onPieceDragEnd={() => { /* selectedSq cleared by onPieceDrop or onSquareClick */ }}
+          onPieceDragEnd={() => {
+            /* selectedSq cleared by onPieceDrop or onSquareClick */
+          }}
         />
         {finished && resultLabel && (
           <Box
             sx={{
-              position: 'absolute',
+              position: "absolute",
               inset: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'rgba(20,22,28,0.7)',
-              backdropFilter: 'blur(14px) saturate(140%)',
-              WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: '12px',
-              color: '#fff',
-              textAlign: 'center',
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              // A result sheet floating over the finished board: the one
+              // translucent surface here, with the solid fallbacks for
+              // reduced transparency and more contrast.
+              background: MATERIAL.background,
+              backdropFilter: MATERIAL.backdropFilter,
+              WebkitBackdropFilter: MATERIAL.backdropFilter,
+              border: `1px solid ${MATERIAL.border}`,
+              borderRadius: `${RADIUS.control}px`,
+              boxShadow: SHADOW.modal,
+              color: TEXT.primary,
+              textAlign: "center",
               p: 3,
+              ...MATERIAL_FALLBACK_SX,
             }}
           >
             <Icon
               icon={resultLabel.icon}
-              width={56}
-              style={{
-                color: resultLabel.color,
-                marginBottom: 10,
-                filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))',
-              }}
+              width={48}
+              style={{ color: resultLabel.color, marginBottom: 10 }}
             />
-            <Typography sx={{ fontWeight: 900, fontSize: '1.6rem', lineHeight: 1.1 }}>
-              {resultLabel.title}
-            </Typography>
+            <Typography sx={TYPE.h2}>{resultLabel.title}</Typography>
             <Typography variant="body2" sx={{ opacity: 0.85, mt: 0.5 }}>
               {resultLabel.subtitle}
             </Typography>
@@ -542,17 +609,6 @@ export default function LichessLiveBoard({
                 size="small"
                 onClick={onExit}
                 startIcon={<Icon icon="mdi:refresh" />}
-                sx={{
-                  borderRadius: '12px',
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  px: 2.5,
-                  bgcolor: '#F97316',
-                  color: '#0A0A0A',
-                  boxShadow: '0 0 0 1px rgba(249,115,22,0.5), 0 8px 32px rgba(249,115,22,0.25)',
-                  transition: 'all 180ms ease',
-                  '&:hover': { bgcolor: '#FB923C', transform: 'translateY(-1px)' },
-                }}
               >
                 Play again
               </Button>
@@ -563,23 +619,13 @@ export default function LichessLiveBoard({
                   // Store the game PGN so the analysis page picks it up.
                   const pgn = chess.pgn({ maxWidth: 80 });
                   if (pgn) {
-                    localStorage.setItem('lichess-review-pgn', pgn);
+                    localStorage.setItem("lichess-review-pgn", pgn);
                   }
-                  window.location.href = '/analysis?lichessReview=1';
+                  window.location.href = "/analysis?lichessReview=1";
                 }}
                 startIcon={<Icon icon="mdi:chart-line" />}
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 700,
-                  borderRadius: '12px',
-                  px: 2.5,
-                  borderColor: 'rgba(255,255,255,0.2)',
-                  color: 'rgba(255,255,255,0.94)',
-                  transition: 'all 180ms ease',
-                  '&:hover': { borderColor: 'rgba(255,255,255,0.4)', bgcolor: 'rgba(255,255,255,0.07)' },
-                }}
               >
-                Analyze with Coach
+                Analyze
               </Button>
             </Stack>
           </Box>
@@ -596,8 +642,12 @@ export default function LichessLiveBoard({
         isYou
         canAbort={canAbort && !finished}
         onAbort={async () => {
-          setBusy('abort');
-          try { await onAbort(); } finally { setBusy(null); }
+          setBusy("abort");
+          try {
+            await onAbort();
+          } finally {
+            setBusy(null);
+          }
         }}
         fen={chess.fen()}
         materialSide={bottomColor}
@@ -616,9 +666,12 @@ export default function LichessLiveBoard({
           <span>
             <IconButton
               size="small"
-              disabled={viewMoveIndex === 0 || (viewMoveIndex === null && totalMoves === 0)}
+              disabled={
+                viewMoveIndex === 0 ||
+                (viewMoveIndex === null && totalMoves === 0)
+              }
               onClick={goToStart}
-              sx={{ color: 'rgba(255,255,255,0.62)', '&:hover': { color: 'rgba(255,255,255,0.94)', bgcolor: 'rgba(255,255,255,0.07)' } }}
+              sx={{ color: TEXT.secondary, "&:hover": { color: TEXT.primary } }}
             >
               <Icon icon="mdi:chevron-double-left" width={22} />
             </IconButton>
@@ -628,9 +681,12 @@ export default function LichessLiveBoard({
           <span>
             <IconButton
               size="small"
-              disabled={viewMoveIndex === 0 || (viewMoveIndex === null && totalMoves === 0)}
+              disabled={
+                viewMoveIndex === 0 ||
+                (viewMoveIndex === null && totalMoves === 0)
+              }
               onClick={goBack}
-              sx={{ color: 'rgba(255,255,255,0.62)', '&:hover': { color: 'rgba(255,255,255,0.94)', bgcolor: 'rgba(255,255,255,0.07)' } }}
+              sx={{ color: TEXT.secondary, "&:hover": { color: TEXT.primary } }}
             >
               <Icon icon="mdi:chevron-left" width={22} />
             </IconButton>
@@ -642,7 +698,7 @@ export default function LichessLiveBoard({
               size="small"
               disabled={viewMoveIndex === null}
               onClick={goForward}
-              sx={{ color: 'rgba(255,255,255,0.62)', '&:hover': { color: 'rgba(255,255,255,0.94)', bgcolor: 'rgba(255,255,255,0.07)' } }}
+              sx={{ color: TEXT.secondary, "&:hover": { color: TEXT.primary } }}
             >
               <Icon icon="mdi:chevron-right" width={22} />
             </IconButton>
@@ -655,8 +711,8 @@ export default function LichessLiveBoard({
               disabled={viewMoveIndex === null}
               onClick={goToLive}
               sx={{
-                color: viewMoveIndex !== null ? '#FB923C' : 'rgba(255,255,255,0.62)',
-                '&:hover': { color: '#FB923C', bgcolor: 'rgba(255,255,255,0.07)' },
+                color: viewMoveIndex !== null ? ACCENT.hover : TEXT.secondary,
+                "&:hover": { color: ACCENT.hover },
               }}
             >
               <Icon icon="mdi:chevron-double-right" width={22} />
@@ -676,12 +732,16 @@ export default function LichessLiveBoard({
                   size="small"
                   disabled={busy !== null}
                   onClick={async () => {
-                    setBusy('draw');
-                    try { await onOfferDraw(); } finally { setBusy(null); }
+                    setBusy("draw");
+                    try {
+                      await onOfferDraw();
+                    } finally {
+                      setBusy(null);
+                    }
                   }}
                   sx={{
-                    color: 'rgba(255,255,255,0.62)',
-                    '&:hover': { color: 'rgba(255,255,255,0.94)', bgcolor: 'rgba(255,255,255,0.07)' },
+                    color: TEXT.secondary,
+                    "&:hover": { color: TEXT.primary },
                   }}
                 >
                   <Icon icon="mdi:handshake-outline" width={20} />
@@ -694,12 +754,19 @@ export default function LichessLiveBoard({
                   size="small"
                   disabled={busy !== null}
                   onClick={async () => {
-                    setBusy('resign');
-                    try { await onResign(); } finally { setBusy(null); }
+                    setBusy("resign");
+                    try {
+                      await onResign();
+                    } finally {
+                      setBusy(null);
+                    }
                   }}
                   sx={{
-                    color: 'rgba(255,255,255,0.62)',
-                    '&:hover': { color: '#fca5a5', bgcolor: 'rgba(239,68,68,0.12)' },
+                    color: TEXT.secondary,
+                    "&:hover": {
+                      color: STATUS.error,
+                      bgcolor: STATUS.errorTint,
+                    },
                   }}
                 >
                   <Icon icon="mdi:flag-outline" width={20} />
@@ -718,10 +785,24 @@ export default function LichessLiveBoard({
 /* ── Material helpers ──────────────────────────────────────────────────────── */
 const PIECE_VALUES: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9 };
 const PIECE_UNICODE: Record<string, string> = {
-  wp: '♙', wn: '♘', wb: '♗', wr: '♖', wq: '♕',
-  bp: '♟', bn: '♞', bb: '♝', br: '♜', bq: '♛',
+  wp: "♙",
+  wn: "♘",
+  wb: "♗",
+  wr: "♖",
+  wq: "♕",
+  bp: "♟",
+  bn: "♞",
+  bb: "♝",
+  br: "♜",
+  bq: "♛",
 };
-const STARTING_COUNTS: Record<string, number> = { p: 8, n: 2, b: 2, r: 2, q: 1 };
+const STARTING_COUNTS: Record<string, number> = {
+  p: 8,
+  n: 2,
+  b: 2,
+  r: 2,
+  q: 1,
+};
 
 function computeMaterial(fen: string): {
   white: Record<string, number>;
@@ -729,7 +810,7 @@ function computeMaterial(fen: string): {
   whiteScore: number;
   blackScore: number;
 } {
-  const board = fen.split(' ')[0];
+  const board = fen.split(" ")[0];
   const wCounts: Record<string, number> = { p: 0, n: 0, b: 0, r: 0, q: 0 };
   const bCounts: Record<string, number> = { p: 0, n: 0, b: 0, r: 0, q: 0 };
   for (const ch of board) {
@@ -755,26 +836,61 @@ function computeMaterial(fen: string): {
   return { white: wCaptured, black: bCaptured, whiteScore, blackScore };
 }
 
-function CapturedPieces({ fen, side }: { fen: string; side: 'white' | 'black' }) {
-  const { white, black, whiteScore, blackScore } = useMemo(() => computeMaterial(fen), [fen]);
-  const captured = side === 'white' ? white : black;
-  const advantage = side === 'white' ? whiteScore - blackScore : blackScore - whiteScore;
-  const order = ['q', 'r', 'b', 'n', 'p'];
-  const opponentColor = side === 'white' ? 'b' : 'w';
+function CapturedPieces({
+  fen,
+  side,
+}: {
+  fen: string;
+  side: "white" | "black";
+}) {
+  const { white, black, whiteScore, blackScore } = useMemo(
+    () => computeMaterial(fen),
+    [fen]
+  );
+  const captured = side === "white" ? white : black;
+  const advantage =
+    side === "white" ? whiteScore - blackScore : blackScore - whiteScore;
+  const order = ["q", "r", "b", "n", "p"];
+  const opponentColor = side === "white" ? "b" : "w";
 
   return (
-    <Stack direction="row" alignItems="center" spacing={0} sx={{ minHeight: 20, flexWrap: 'wrap' }}>
+    <Stack
+      direction="row"
+      alignItems="center"
+      spacing={0}
+      sx={{ minHeight: 20, flexWrap: "wrap" }}
+    >
       {order.map((p) => {
         const count = captured[p] ?? 0;
         if (count === 0) return null;
         return (
-          <Typography key={p} component="span" sx={{ fontSize: '0.95rem', lineHeight: 1, opacity: 0.85, letterSpacing: '-1px' }}>
-            {Array.from({ length: count }, () => PIECE_UNICODE[`${opponentColor}${p}`]).join('')}
+          <Typography
+            key={p}
+            component="span"
+            sx={{
+              fontSize: "0.95rem",
+              lineHeight: 1,
+              opacity: 0.85,
+              letterSpacing: "-1px",
+            }}
+          >
+            {Array.from(
+              { length: count },
+              () => PIECE_UNICODE[`${opponentColor}${p}`]
+            ).join("")}
           </Typography>
         );
       })}
       {advantage > 0 && (
-        <Typography component="span" sx={{ fontSize: '0.72rem', fontWeight: 700, color: 'text.secondary', ml: 0.5 }}>
+        <Typography
+          component="span"
+          sx={{
+            fontSize: "0.72rem",
+            fontWeight: 700,
+            color: "text.secondary",
+            ml: 0.5,
+          }}
+        >
           +{advantage}
         </Typography>
       )}
@@ -795,7 +911,7 @@ function PlayerRow({
   materialSide,
 }: {
   player?: LichessPlayer;
-  color: 'white' | 'black';
+  color: "white" | "black";
   clockMs: number;
   clockActive: boolean;
   serverAt: number;
@@ -803,14 +919,14 @@ function PlayerRow({
   canAbort?: boolean;
   onAbort?: () => void;
   fen: string;
-  materialSide: 'white' | 'black';
+  materialSide: "white" | "black";
 }) {
   return (
     <Stack
       direction="row"
       alignItems="center"
       justifyContent="space-between"
-      sx={{ width: '100%', maxWidth: 720, px: 0.5, py: 0.75 }}
+      sx={{ width: "100%", maxWidth: 720, px: 0.5, py: 0.75 }}
     >
       <Stack direction="row" spacing={1.5} alignItems="center">
         {/* Avatar */}
@@ -818,25 +934,27 @@ function PlayerRow({
           sx={{
             width: 36,
             height: 36,
-            borderRadius: '50%',
-            bgcolor: color === 'white' ? 'rgba(232,232,232,0.9)' : 'rgba(40,42,48,1)',
-            border: '2px solid',
-            borderColor: isYou ? '#F97316' : 'rgba(255,255,255,0.12)',
-            boxShadow: isYou ? '0 0 12px rgba(249,115,22,0.25)' : 'none',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '0.85rem',
-            fontWeight: 800,
-            color: color === 'white' ? '#333' : '#e8e8e8',
+            borderRadius: "50%",
+            bgcolor:
+              color === "white" ? "rgba(232,232,232,0.9)" : "rgba(40,42,48,1)",
+            border: "2px solid",
+            borderColor: isYou ? ACCENT.main : LINE.hairline,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "0.85rem",
+            fontWeight: 700,
+            color: color === "white" ? "#333" : "#e8e8e8",
           }}
         >
-          {(player?.name ?? '?')[0].toUpperCase()}
+          {(player?.name ?? "?")[0].toUpperCase()}
         </Box>
         <Box>
           <Stack direction="row" alignItems="center" spacing={0.5}>
-            <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', lineHeight: 1.1 }}>
-              {playerLabel(player, 'Opponent')}
+            <Typography
+              sx={{ fontWeight: 700, fontSize: "0.9rem", lineHeight: 1.1 }}
+            >
+              {playerLabel(player, "Opponent")}
             </Typography>
           </Stack>
           <CapturedPieces fen={fen} side={materialSide} />
@@ -845,11 +963,11 @@ function PlayerRow({
               component="span"
               onClick={onAbort}
               sx={{
-                fontSize: '0.7rem',
+                fontSize: "0.7rem",
                 fontWeight: 600,
-                color: 'text.secondary',
-                cursor: 'pointer',
-                '&:hover': { color: 'error.main' },
+                color: "text.secondary",
+                cursor: "pointer",
+                "&:hover": { color: "error.main" },
               }}
             >
               Abort
@@ -865,48 +983,52 @@ function PlayerRow({
 /** Map Lichess game-end status to a human-readable result label. */
 function describeResult(
   state: LichessGameState,
-  yourColor: 'white' | 'black',
+  yourColor: "white" | "black",
   game: LichessGameFull
 ): { title: string; subtitle: string; icon: string; color: string } {
   const youWon = state.winner === yourColor;
-  const drawn = !state.winner && (state.status === 'draw' || state.status === 'stalemate');
-  const opponent = yourColor === 'white' ? game.black.name : game.white.name;
+  const drawn =
+    !state.winner && (state.status === "draw" || state.status === "stalemate");
+  const opponent = yourColor === "white" ? game.black.name : game.white.name;
 
   if (drawn) {
     return {
-      title: 'Draw',
-      subtitle: state.status === 'stalemate' ? 'Stalemate.' : 'Agreed draw.',
-      icon: 'mdi:equal',
-      color: '#94a3b8',
+      title: "Draw",
+      subtitle: state.status === "stalemate" ? "Stalemate." : "Agreed draw.",
+      icon: "mdi:equal",
+      color: TEXT.secondary,
     };
   }
-  if (state.status === 'aborted' || state.status === 'nostart') {
+  if (state.status === "aborted" || state.status === "nostart") {
     return {
-      title: 'Aborted',
-      subtitle: 'Game aborted — no rating change.',
-      icon: 'mdi:cancel',
-      color: '#94a3b8',
+      title: "Aborted",
+      subtitle: "Game aborted. No rating change.",
+      icon: "mdi:cancel",
+      color: TEXT.secondary,
     };
   }
   if (youWon) {
     return {
-      title: 'You win!',
-      subtitle: state.status === 'mate' ? 'Checkmate.' : `${opponent ?? 'Opponent'} ${state.status}.`,
-      icon: 'mdi:trophy',
-      color: '#22c55e',
+      title: "You win",
+      subtitle:
+        state.status === "mate"
+          ? "Checkmate."
+          : `${opponent ?? "Opponent"} ${state.status}.`,
+      icon: "mdi:trophy",
+      color: STATUS.success,
     };
   }
   return {
-    title: 'You lose',
+    title: "You lose",
     subtitle:
-      state.status === 'mate'
-        ? 'Checkmated.'
-        : state.status === 'outoftime'
-        ? 'Flagged on time.'
-        : state.status === 'resign'
-        ? 'You resigned.'
-        : 'Game ended.',
-    icon: 'mdi:close-octagon',
-    color: '#ef4444',
+      state.status === "mate"
+        ? "Checkmated."
+        : state.status === "outoftime"
+          ? "Flagged on time."
+          : state.status === "resign"
+            ? "You resigned."
+            : "Game ended.",
+    icon: "mdi:close-octagon",
+    color: STATUS.error,
   };
 }

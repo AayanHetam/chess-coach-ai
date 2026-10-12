@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { Box, Paper, Stack, Typography, Button, Chip } from "@mui/material";
 import { useViewer } from "@/hooks/useViewer";
-import { INTERN_THEME_COLOR, INTERN_THEME_COLOR_DARK } from "@/constants";
+import { INTERN_THEME_COLOR_LIGHT } from "@/constants";
+import { LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 
 /**
  * Homepage hero replacement for logged-in interns.
@@ -28,68 +29,73 @@ export function InternalHomeCard() {
         elevation={0}
         sx={{
           p: { xs: 3, md: 4 },
-          borderRadius: 2,
-          border: "1px solid",
-          borderColor: "divider",
-          background: `linear-gradient(135deg, ${INTERN_THEME_COLOR_DARK} 0%, ${INTERN_THEME_COLOR} 100%)`,
-          color: "#FFFFFF",
+          borderRadius: `${RADIUS.card}px`,
+          border: `1px solid ${LINE.hairline}`,
+          background: SURFACE.raised,
+          color: TEXT.primary,
         }}
       >
         <Stack spacing={2.5}>
           <Stack direction="row" spacing={1} alignItems="center">
             <Chip
-              label="EMPLOYEE"
+              label="Employee"
               size="small"
               sx={{
-                backgroundColor: "rgba(255,255,255,0.18)",
-                color: "#FFFFFF",
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                fontSize: "0.7rem",
+                backgroundColor: `${INTERN_THEME_COLOR_LIGHT}24`,
+                color: INTERN_THEME_COLOR_LIGHT,
                 height: 22,
               }}
             />
-            <Typography variant="caption" sx={{ opacity: 0.85, letterSpacing: "0.04em" }}>
-              CHESS MASTI · INTERNAL
+            <Typography variant="caption" sx={{ color: TEXT.secondary }}>
+              Chess Masti, internal
             </Typography>
           </Stack>
 
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-              Welcome, {firstName}.
-            </Typography>
-            <Typography variant="body1" sx={{ mt: 1.5, opacity: 0.92, maxWidth: 620 }}>
+            <Typography variant="h4">Welcome, {firstName}.</Typography>
+            <Typography
+              variant="body1"
+              sx={{ mt: 1.5, color: TEXT.secondary, maxWidth: 620 }}
+            >
               You&apos;re viewing chessmasti.com as an employee, not a customer.
               The full feedback loop is live: dogfood the coach, flag any
-              response that&apos;s wrong / inaccurate / incomplete, and track
-              your weekly progress on your dashboard. Target: 10 submissions
-              per week once the program starts on June 30.
+              response that&apos;s wrong, inaccurate or incomplete, and track
+              your weekly progress on your dashboard. Target: 10 submissions per
+              week once the program starts on June 30.
             </Typography>
           </Box>
 
           <Box
             sx={{
-              backgroundColor: "rgba(255,255,255,0.10)",
-              borderRadius: 1.5,
+              backgroundColor: SURFACE.raisedSecondary,
+              borderRadius: `${RADIUS.control}px`,
               p: 2,
-              border: "1px solid rgba(255,255,255,0.18)",
+              border: `1px solid ${LINE.hairline}`,
             }}
           >
             <Typography
-              variant="caption"
-              sx={{ display: "block", opacity: 0.75, letterSpacing: "0.06em", mb: 1 }}
+              sx={{
+                display: "block",
+                ...TYPE.label,
+                color: TEXT.secondary,
+                mb: 1,
+              }}
             >
-              HOW IT WORKS
+              How it works
             </Typography>
             <Stack spacing={0.75}>
               <Typography variant="body2">
-                <strong>1.</strong> Use the coach normally on <code>/analysis</code> — analyze your games, ask questions.
+                <strong>1.</strong> Use the coach normally on{" "}
+                <code>/analysis</code>: analyze your games, ask questions.
               </Typography>
               <Typography variant="body2">
-                <strong>2.</strong> When you spot a bad response, hit the 🚩 Flag button on that message. Write a short &quot;why it&apos;s wrong&quot; and what the ideal response would have been.
+                <strong>2.</strong> When you spot a bad response, hit the Flag
+                button on that message. Write a short &quot;why it&apos;s
+                wrong&quot; and what the ideal response would have been.
               </Typography>
               <Typography variant="body2">
-                <strong>3.</strong> Check <code>/intern</code> any time to see your pacing for the week + every submission you&apos;ve made.
+                <strong>3.</strong> Check <code>/intern</code> any time to see
+                your pacing for the week and every submission you&apos;ve made.
               </Typography>
             </Stack>
           </Box>
@@ -100,31 +106,14 @@ export function InternalHomeCard() {
               href="/analysis"
               variant="contained"
               size="large"
-              sx={{
-                backgroundColor: "#FFFFFF",
-                color: INTERN_THEME_COLOR_DARK,
-                fontWeight: 600,
-                textTransform: "none",
-                "&:hover": { backgroundColor: "#F5F5F5" },
-              }}
             >
-              Open the chess coach →
+              Open the chess coach
             </Button>
             <Button
               component={Link}
               href="/intern"
               variant="outlined"
               size="large"
-              sx={{
-                borderColor: "rgba(255,255,255,0.6)",
-                color: "#FFFFFF",
-                fontWeight: 600,
-                textTransform: "none",
-                "&:hover": {
-                  borderColor: "#FFFFFF",
-                  backgroundColor: "rgba(255,255,255,0.08)",
-                },
-              }}
             >
               Open intern dashboard
             </Button>

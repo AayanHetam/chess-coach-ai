@@ -9,6 +9,7 @@ import {
   type PerfDraftFields,
   type PerfDrafts,
 } from "@/lib/curriculum/perfGoalDrafts";
+import { ACCENT, LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 
 /**
  * "Your current and goal ratings" — bullet, blitz and rapid, each as a
@@ -25,8 +26,8 @@ import {
  * control is a clearer promise than one abstract number.
  */
 
-const EMBER = "#F97316";
-const EMBER_BRIGHT = "#FB923C";
+const EMBER = ACCENT.main;
+const EMBER_BRIGHT = ACCENT.hover;
 
 interface PerfGoalFieldsProps {
   drafts: PerfDrafts;
@@ -88,23 +89,15 @@ function PerfGoalRow({
     <Box
       sx={{
         p: 1.5,
-        borderRadius: "14px",
-        background: "rgba(255,255,255,0.03)",
+        borderRadius: `${RADIUS.card}px`,
+        background: SURFACE.raised,
         border: error
           ? "1px solid rgba(251,191,36,0.45)"
-          : "1px solid rgba(255,255,255,0.08)",
+          : `1px solid ${LINE.hairline}`,
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-        <Typography
-          sx={{
-            color: "rgba(255,255,255,0.65)",
-            fontSize: "0.72rem",
-            fontWeight: 700,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-          }}
-        >
+        <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
           {PERF_LABEL[perf]}
         </Typography>
         <Box sx={{ flex: 1 }} />
@@ -175,16 +168,15 @@ function RatingField({
         flex: "1 1 130px",
         px: 1.25,
         py: 0.75,
-        borderRadius: "12px",
-        background: "rgba(255,255,255,0.04)",
-        // Ember as glow, never fill — the goal field carries the accent.
+        borderRadius: `${RADIUS.control}px`,
+        background: SURFACE.raisedSecondary,
+        // Ember as a hairline, never a fill: the goal field carries the accent.
         border: emphasis
-          ? "1px solid rgba(249,115,22,0.5)"
-          : "1px solid rgba(255,255,255,0.1)",
-        boxShadow: emphasis ? "0 0 0 3px rgba(249,115,22,0.10)" : "none",
-        transition: "border-color 180ms ease, box-shadow 180ms ease",
+          ? `1px solid ${ACCENT.border}`
+          : `1px solid ${LINE.hairline}`,
+        transition: "border-color 160ms ease-out",
         "&:focus-within": {
-          borderColor: emphasis ? EMBER_BRIGHT : "rgba(255,255,255,0.3)",
+          borderColor: emphasis ? EMBER_BRIGHT : LINE.strong,
         },
       }}
     >
@@ -275,7 +267,7 @@ function JourneyBar({ start, goal }: { start?: number; goal?: number }) {
             background: "rgba(255,255,255,0.08)",
           }}
         />
-        {/* the journey: hatched ember from current to goal */}
+        {/* the journey: ember from current to goal */}
         {startPct !== undefined &&
           goalPct !== undefined &&
           goalPct > startPct && (
@@ -287,7 +279,7 @@ function JourneyBar({ start, goal }: { start?: number; goal?: number }) {
                 bottom: 6,
                 height: 5,
                 borderRadius: 3,
-                background: `repeating-linear-gradient(45deg, ${EMBER} 0 5px, rgba(249,115,22,0.35) 5px 10px)`,
+                background: EMBER,
               }}
             />
           )}
@@ -306,7 +298,7 @@ function JourneyBar({ start, goal }: { start?: number; goal?: number }) {
             }}
           />
         )}
-        {/* goal dot, glowing */}
+        {/* goal dot */}
         {goalPct !== undefined && (
           <Box
             sx={{
@@ -318,7 +310,6 @@ function JourneyBar({ start, goal }: { start?: number; goal?: number }) {
               height: 13,
               borderRadius: "999px",
               background: EMBER_BRIGHT,
-              boxShadow: "0 0 0 4px rgba(249,115,22,0.22)",
             }}
           />
         )}

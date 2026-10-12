@@ -8,6 +8,7 @@ import {
 import {
   Box,
   Button,
+  CircularProgress,
   IconButton,
   Menu,
   Modal,
@@ -19,6 +20,19 @@ import {
 } from "@mui/material";
 import { ThemeProvider, createTheme, useTheme } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  ACCENT,
+  FONT_SANS,
+  LINE,
+  MATERIAL,
+  MOTION,
+  RADIUS,
+  SHADOW,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 import {
   MasterGamesPanel,
   buildCandidatesFromApi,
@@ -82,9 +96,7 @@ import {
   Send,
   Share2,
   ShieldCheck,
-  Sparkles,
   Target,
-  Zap,
 } from "lucide-react";
 import {
   Masti,
@@ -206,34 +218,119 @@ const ChessgroundBoard = dynamic(
 // Theme
 // ───────────────────────────────────────────────────────────────────────────────
 
+// The page keeps its own theme object (the layout below is measured by a
+// CLS budget, so the site theme's button and tab heights are not pulled in),
+// but every value is a token and the surfaces are flat: no ripple, press
+// feedback on pointer-down, solid menus, popovers and tooltips with a
+// neutral floating shadow, and no gradient or elevation on any paper.
 const analysisTheme = createTheme({
   palette: {
     mode: "dark",
-    primary: { main: "#F97316" },
-    secondary: { main: "#FB923C" },
+    primary: {
+      main: ACCENT.main,
+      light: ACCENT.hover,
+      dark: ACCENT.active,
+      contrastText: TEXT.onAccent,
+    },
+    secondary: { main: TEXT.secondary },
     background: {
-      default: "#08090C",
-      paper: "rgba(20,22,28,0.6)",
+      default: SURFACE.page,
+      paper: SURFACE.raised,
     },
     text: {
-      primary: "rgba(255,255,255,0.94)",
-      secondary: "rgba(255,255,255,0.62)",
+      primary: TEXT.primary,
+      secondary: TEXT.secondary,
+      disabled: TEXT.tertiary,
     },
-    divider: "rgba(255,255,255,0.08)",
-    success: { main: "#22c55e" },
-    error: { main: "#ef4444" },
-    warning: { main: "#EA580C" },
+    divider: LINE.hairline,
+    success: { main: STATUS.success },
+    error: { main: STATUS.error },
+    warning: { main: STATUS.warning },
+    info: { main: STATUS.info },
+    action: {
+      hover: "rgba(255,255,255,0.06)",
+      selected: "rgba(255,255,255,0.10)",
+      focus: "rgba(255,255,255,0.10)",
+    },
   },
   typography: {
-    fontFamily:
-      "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    h1: { fontWeight: 800, letterSpacing: "-0.03em" },
-    h2: { fontWeight: 700, letterSpacing: "-0.02em" },
-    h3: { fontWeight: 700, letterSpacing: "-0.015em" },
+    fontFamily: FONT_SANS,
+    h1: TYPE.h1,
+    h2: TYPE.h2,
+    h3: TYPE.h3,
     button: {
       textTransform: "none",
       fontWeight: 600,
-      letterSpacing: "0.005em",
+      letterSpacing: 0,
+    },
+  },
+  components: {
+    MuiButtonBase: {
+      defaultProps: { disableRipple: true, disableTouchRipple: true },
+      styleOverrides: {
+        root: {
+          transition: `transform ${MOTION.press}, background-color ${MOTION.hover}, color ${MOTION.hover}, border-color ${MOTION.hover}, opacity ${MOTION.hover}`,
+          "&:active": { transform: MOTION.pressScale },
+          "&.Mui-focusVisible": {
+            outline: `2px solid ${TEXT.primary}`,
+            outlineOffset: 2,
+          },
+        },
+      },
+    },
+    MuiButton: {
+      defaultProps: { disableElevation: true },
+      styleOverrides: {
+        root: { boxShadow: "none", "&:hover": { boxShadow: "none" } },
+      },
+    },
+    MuiPaper: {
+      defaultProps: { elevation: 0 },
+      styleOverrides: { root: { backgroundImage: "none" } },
+    },
+    MuiMenu: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: SURFACE.overlay,
+          backgroundImage: "none",
+          border: `1px solid ${LINE.hairline}`,
+          borderRadius: RADIUS.control,
+          boxShadow: SHADOW.floating,
+        },
+      },
+    },
+    MuiPopover: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: SURFACE.overlay,
+          backgroundImage: "none",
+          border: `1px solid ${LINE.hairline}`,
+          borderRadius: RADIUS.control,
+          boxShadow: SHADOW.floating,
+        },
+      },
+    },
+    MuiTooltip: {
+      styleOverrides: {
+        tooltip: {
+          backgroundColor: SURFACE.raisedTertiary,
+          color: TEXT.primary,
+          fontSize: TYPE.caption.fontSize,
+          lineHeight: TYPE.caption.lineHeight,
+          borderRadius: RADIUS.small,
+          padding: "6px 10px",
+          boxShadow: SHADOW.floating,
+        },
+        arrow: { color: SURFACE.raisedTertiary },
+      },
+    },
+    MuiBackdrop: {
+      styleOverrides: {
+        root: {
+          backgroundColor: MATERIAL.scrim,
+          "&.MuiBackdrop-invisible": { backgroundColor: "transparent" },
+        },
+      },
     },
   },
 });
@@ -414,7 +511,7 @@ async function fetchPuzzlesForTheme(
     const code = res.status;
     throw new Error(
       code === 503
-        ? "puzzle store offline (Neo4j unconfigured)"
+        ? "puzzle store offline"
         : `puzzle store returned HTTP ${code}`
     );
   }
@@ -1108,117 +1205,6 @@ const formatEval = (cp: number): string => {
 // Components
 // ───────────────────────────────────────────────────────────────────────────────
 
-function NavPill() {
-  return (
-    <Box
-      component="header"
-      sx={{
-        position: "sticky",
-        top: 16,
-        zIndex: 50,
-        mx: "auto",
-        maxWidth: 1680,
-        px: { xs: 2, md: 3 },
-        py: 1.25,
-        mb: 3,
-        borderRadius: "999px",
-        background: "rgba(12,14,20,0.6)",
-        backdropFilter: "blur(16px) saturate(160%)",
-        WebkitBackdropFilter: "blur(16px) saturate(160%)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        display: "flex",
-        alignItems: "center",
-        gap: 2,
-      }}
-    >
-      <Box
-        component={Link}
-        href="/"
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 1,
-          fontWeight: 800,
-          color: "rgba(255,255,255,0.94)",
-          letterSpacing: "-0.02em",
-          textDecoration: "none",
-        }}
-      >
-        <Box
-          sx={{
-            width: 26,
-            height: 26,
-            borderRadius: "8px",
-            background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "0 0 16px rgba(249,115,22,0.4)",
-          }}
-        >
-          <Sparkles size={14} color="#0A0A0A" />
-        </Box>
-        Chess Masti
-      </Box>
-
-      <Box sx={{ flex: 1 }} />
-
-      <Stack
-        direction="row"
-        spacing={3}
-        sx={{ display: { xs: "none", md: "flex" } }}
-      >
-        {[
-          { label: "Play", href: "/play" },
-          { label: "Practice", href: "/practice" },
-          { label: "Scout", href: "/scout" },
-        ].map((item) => (
-          <Typography
-            key={item.label}
-            component={Link}
-            href={item.href}
-            sx={{
-              fontSize: "0.88rem",
-              fontWeight: 500,
-              color: "rgba(255,255,255,0.7)",
-              textDecoration: "none",
-              "&:hover": { color: "rgba(255,255,255,1)" },
-            }}
-          >
-            {item.label}
-          </Typography>
-        ))}
-      </Stack>
-
-      <Box
-        sx={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 0.75,
-          px: 1.5,
-          py: 0.5,
-          borderRadius: "999px",
-          background: "rgba(249,115,22,0.12)",
-          border: "1px solid rgba(249,115,22,0.3)",
-        }}
-      >
-        <Zap size={12} color="#F97316" />
-        <Typography
-          sx={{
-            fontSize: "0.7rem",
-            fontWeight: 700,
-            letterSpacing: "0.14em",
-            color: "#FB923C",
-            textTransform: "uppercase",
-          }}
-        >
-          Analysis
-        </Typography>
-      </Box>
-    </Box>
-  );
-}
-
 /**
  * The loaded game's identity, rendered INSIDE the nav pill.
  *
@@ -1419,7 +1405,7 @@ function GameActions({
     px: 1.25,
     py: 0.6,
     minWidth: 0,
-    borderRadius: "10px",
+    borderRadius: `${RADIUS.control}px`,
     fontSize: "0.76rem",
     fontWeight: 700,
     textTransform: "none" as const,
@@ -1434,7 +1420,7 @@ function GameActions({
       sx={{ flexShrink: 0 }}
     >
       {onOpenPalette && (
-        <Tooltip title="Command palette — jump to a move, flip, ask Masti">
+        <Tooltip title="Command palette: jump to a move, flip, ask Masti">
           <Box
             component="button"
             type="button"
@@ -1467,7 +1453,7 @@ function GameActions({
       )}
 
       {engineDepth !== undefined && (
-        <Tooltip title="Stockfish engine settings — depth and variant">
+        <Tooltip title="Engine settings: depth and variant">
           <Button
             onClick={(e) => setEnginePopoverAnchor(e.currentTarget)}
             sx={{
@@ -1495,14 +1481,12 @@ function GameActions({
             startIcon={<RefreshCw size={13} />}
             sx={{
               ...actionSx,
-              background:
-                "linear-gradient(135deg, rgba(249,115,22,0.18), rgba(251,146,60,0.12))",
-              border: "1px solid rgba(249,115,22,0.35)",
-              color: "#FB923C",
+              background: ACCENT.tint,
+              border: `1px solid ${ACCENT.border}`,
+              color: ACCENT.hover,
               "&:hover": {
-                background:
-                  "linear-gradient(135deg, rgba(249,115,22,0.28), rgba(251,146,60,0.18))",
-                borderColor: "rgba(249,115,22,0.55)",
+                background: "rgba(249,115,22,0.22)",
+                borderColor: ACCENT.main,
               },
             }}
           >
@@ -1519,7 +1503,7 @@ function GameActions({
               : saveState === "saving"
                 ? "Saving…"
                 : saveState === "error"
-                  ? "Save failed — check sign-in"
+                  ? "Save failed. Check sign-in."
                   : "Save this game to your library"
           }
         >
@@ -1591,18 +1575,7 @@ function EngineSettingsPopover({
 }) {
   if (!anchorEl) return null;
   return (
-    <Modal
-      open={Boolean(anchorEl)}
-      onClose={onClose}
-      slotProps={{
-        backdrop: {
-          sx: {
-            backgroundColor: "rgba(8,9,12,0.55)",
-            backdropFilter: "blur(4px)",
-          },
-        },
-      }}
-    >
+    <Modal open={Boolean(anchorEl)} onClose={onClose}>
       <Box
         sx={{
           position: "fixed",
@@ -1612,13 +1585,10 @@ function EngineSettingsPopover({
           width: 360,
           maxWidth: "92vw",
           p: 2.5,
-          borderRadius: "1.25rem",
-          background:
-            "linear-gradient(180deg, rgba(20,22,28,0.94), rgba(12,14,20,0.94))",
-          backdropFilter: "blur(20px) saturate(150%)",
-          WebkitBackdropFilter: "blur(20px) saturate(150%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
+          borderRadius: `${RADIUS.sheet}px`,
+          background: SURFACE.overlay,
+          border: `1px solid ${LINE.hairline}`,
+          boxShadow: SHADOW.modal,
           outline: "none",
         }}
       >
@@ -1626,11 +1596,8 @@ function EngineSettingsPopover({
           <Box>
             <Typography
               sx={{
-                fontSize: "0.7rem",
-                fontWeight: 700,
-                letterSpacing: "0.14em",
-                color: "rgba(255,255,255,0.55)",
-                textTransform: "uppercase",
+                ...TYPE.label,
+                color: TEXT.secondary,
                 mb: 0.75,
               }}
             >
@@ -1658,20 +1625,21 @@ function EngineSettingsPopover({
                       flex: 1,
                       px: 1.5,
                       py: 1,
-                      borderRadius: "10px",
+                      borderRadius: `${RADIUS.control}px`,
                       cursor: onEngineNameChange ? "pointer" : "default",
                       background: isActive
-                        ? "linear-gradient(135deg, rgba(249,115,22,0.18), rgba(251,146,60,0.12))"
-                        : "rgba(255,255,255,0.03)",
+                        ? ACCENT.tint
+                        : SURFACE.raisedSecondary,
                       border: isActive
-                        ? "1px solid rgba(249,115,22,0.4)"
-                        : "1px solid rgba(255,255,255,0.08)",
-                      transition: "all 160ms ease",
+                        ? `1px solid ${ACCENT.border}`
+                        : `1px solid ${LINE.hairline}`,
+                      transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
                       "&:hover": {
                         background: isActive
-                          ? "linear-gradient(135deg, rgba(249,115,22,0.24), rgba(251,146,60,0.16))"
-                          : "rgba(255,255,255,0.06)",
+                          ? "rgba(249,115,22,0.22)"
+                          : SURFACE.raisedTertiary,
                       },
+                      "&:active": { transform: MOTION.pressScale },
                     }}
                   >
                     <Typography
@@ -1709,11 +1677,8 @@ function EngineSettingsPopover({
             >
               <Typography
                 sx={{
-                  fontSize: "0.7rem",
-                  fontWeight: 700,
-                  letterSpacing: "0.14em",
-                  color: "rgba(255,255,255,0.55)",
-                  textTransform: "uppercase",
+                  ...TYPE.label,
+                  color: TEXT.secondary,
                 }}
               >
                 Depth
@@ -1741,24 +1706,26 @@ function EngineSettingsPopover({
                       flex: 1,
                       py: 0.85,
                       textAlign: "center",
-                      borderRadius: "8px",
+                      borderRadius: `${RADIUS.small}px`,
                       cursor: onDepthChange ? "pointer" : "default",
                       background: isActive
-                        ? "linear-gradient(135deg, #F97316, #FB923C)"
-                        : "rgba(255,255,255,0.03)",
+                        ? ACCENT.main
+                        : SURFACE.raisedSecondary,
                       border: isActive
-                        ? "1px solid rgba(249,115,22,0.5)"
-                        : "1px solid rgba(255,255,255,0.08)",
-                      color: isActive ? "#0A0A0A" : "rgba(255,255,255,0.78)",
+                        ? `1px solid ${ACCENT.main}`
+                        : `1px solid ${LINE.hairline}`,
+                      color: isActive ? TEXT.onAccent : TEXT.primary,
                       fontSize: "0.82rem",
                       fontWeight: 700,
                       fontFamily: "Monaco, Menlo, monospace",
-                      transition: "all 160ms ease",
+                      fontVariantNumeric: "tabular-nums",
+                      transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
                       "&:hover": {
                         background: isActive
-                          ? "linear-gradient(135deg, #FB923C, #FCD34D)"
-                          : "rgba(255,255,255,0.06)",
+                          ? ACCENT.hover
+                          : SURFACE.raisedTertiary,
                       },
+                      "&:active": { transform: MOTION.pressScale },
                     }}
                   >
                     {d}
@@ -1801,46 +1768,25 @@ function DrillBanner({
   const isWrong = state.status === "wrong";
   const isSolved = state.status === "solved";
 
-  // Accent color shifts with status — purple = drill, green = solved, red = wrong
+  // Status colour on the icon and the label only: green = solved, red =
+  // wrong; the drill itself wears the one accent.
   const accent = isComplete
-    ? "#22c55e"
+    ? STATUS.success
     : isSolved
-      ? "#22c55e"
+      ? STATUS.success
       : isWrong
-        ? "#ef4444"
-        : "#A855F7";
-  const accentSoft = isComplete
-    ? "rgba(34,197,94,0.12)"
-    : isSolved
-      ? "rgba(34,197,94,0.12)"
-      : isWrong
-        ? "rgba(239,68,68,0.12)"
-        : "rgba(168,85,247,0.12)";
-  const accentBorder = isComplete
-    ? "rgba(34,197,94,0.35)"
-    : isSolved
-      ? "rgba(34,197,94,0.35)"
-      : isWrong
-        ? "rgba(239,68,68,0.4)"
-        : "rgba(168,85,247,0.35)";
+        ? STATUS.error
+        : ACCENT.main;
 
   return (
-    <motion.div
-      key="drill-banner"
-      initial={{ opacity: 0, y: -6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.28, ease: [0.22, 0.61, 0.36, 1] }}
-      style={{ marginBottom: 12 }}
-    >
+    <Box style={{ marginBottom: 12 }}>
       <Box
         sx={{
           px: 2,
           py: 1.5,
-          borderRadius: "1rem",
-          background: `linear-gradient(135deg, ${accentSoft}, rgba(20,22,28,0.6))`,
-          backdropFilter: "blur(12px) saturate(150%)",
-          WebkitBackdropFilter: "blur(12px) saturate(150%)",
-          border: `1px solid ${accentBorder}`,
+          borderRadius: `${RADIUS.card}px`,
+          background: SURFACE.raised,
+          border: `1px solid ${LINE.hairline}`,
           display: "flex",
           alignItems: "center",
           gap: 1.5,
@@ -1852,18 +1798,15 @@ function DrillBanner({
             width: 32,
             height: 32,
             flexShrink: 0,
-            borderRadius: "10px",
-            background: accentSoft,
-            border: `1px solid ${accentBorder}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
           {isComplete ? (
-            <Flame size={16} color={accent} />
+            <Flame size={18} strokeWidth={1.75} color={accent} />
           ) : (
-            <Lightbulb size={16} color={accent} />
+            <Lightbulb size={18} strokeWidth={1.75} color={accent} />
           )}
         </Box>
 
@@ -1871,10 +1814,7 @@ function DrillBanner({
           <Stack direction="row" spacing={1.5} alignItems="center">
             <Typography
               sx={{
-                fontSize: "0.7rem",
-                fontWeight: 700,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
+                ...TYPE.label,
                 color: accent,
                 lineHeight: 1,
               }}
@@ -1894,7 +1834,7 @@ function DrillBanner({
                       borderRadius: "50%",
                       background:
                         i < state.currentIndex
-                          ? "#22c55e"
+                          ? STATUS.success
                           : i === state.currentIndex
                             ? accent
                             : "rgba(255,255,255,0.18)",
@@ -1914,11 +1854,11 @@ function DrillBanner({
             }}
           >
             {isComplete
-              ? "Three for three — nice work."
+              ? "Three for three. Nice work."
               : isSolved
-                ? `${puzzle?.title ?? "Puzzle"} — solved`
+                ? `${puzzle?.title ?? "Puzzle"}: solved`
                 : isWrong
-                  ? "Not the move — try again."
+                  ? "Not the move. Try again."
                   : (puzzle?.title ?? "Puzzle")}
           </Typography>
           {!isComplete && puzzle && state.status === "solving" && (
@@ -1940,7 +1880,7 @@ function DrillBanner({
                 sx={{
                   mt: 0.25,
                   fontSize: "0.72rem",
-                  color: "rgba(239,68,68,0.85)",
+                  color: STATUS.error,
                   fontStyle: "italic",
                 }}
               >
@@ -2006,12 +1946,12 @@ function DrillBanner({
                 borderRadius: "0.6rem",
                 fontSize: "0.78rem",
                 fontWeight: 700,
-                background: "rgba(168,85,247,0.18)",
-                border: "1px solid rgba(168,85,247,0.4)",
-                color: "#E9D5FF",
+                background: ACCENT.tint,
+                border: `1px solid ${ACCENT.border}`,
+                color: ACCENT.hover,
                 "&:hover": {
-                  background: "rgba(168,85,247,0.3)",
-                  borderColor: "rgba(168,85,247,0.6)",
+                  background: "rgba(249,115,22,0.22)",
+                  borderColor: ACCENT.main,
                 },
               }}
             >
@@ -2028,16 +1968,14 @@ function DrillBanner({
               borderRadius: "0.6rem",
               fontSize: "0.78rem",
               fontWeight: 700,
-              background: isComplete
-                ? "linear-gradient(135deg, #F97316, #FB923C)"
-                : "rgba(255,255,255,0.05)",
+              background: isComplete ? ACCENT.main : "rgba(255,255,255,0.05)",
               border: isComplete
-                ? "1px solid rgba(249,115,22,0.4)"
-                : "1px solid rgba(255,255,255,0.12)",
-              color: isComplete ? "#0A0A0A" : "rgba(255,255,255,0.92)",
+                ? `1px solid ${ACCENT.main}`
+                : `1px solid ${LINE.strong}`,
+              color: isComplete ? TEXT.onAccent : TEXT.primary,
               "&:hover": {
                 background: isComplete
-                  ? "linear-gradient(135deg, #FB923C, #FCD34D)"
+                  ? ACCENT.hover
                   : "rgba(255,255,255,0.08)",
               },
             }}
@@ -2046,7 +1984,7 @@ function DrillBanner({
           </Button>
         </Stack>
       </Box>
-    </motion.div>
+    </Box>
   );
 }
 
@@ -2103,12 +2041,9 @@ function GlassEvalBar({
           : { alignSelf: "stretch" }),
         borderRadius: "10px",
         overflow: "hidden",
-        border: "1px solid rgba(255,255,255,0.08)",
+        border: `1px solid ${LINE.hairline}`,
         // Black's side of the bar — the white segment paints over it.
-        background:
-          "linear-gradient(180deg, rgba(30,32,40,0.96), rgba(12,13,17,0.96))",
-        boxShadow:
-          "inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.35)",
+        background: "#1E2028",
       }}
     >
       <Box
@@ -2118,7 +2053,7 @@ function GlassEvalBar({
           right: 0,
           [whiteOnTop ? "top" : "bottom"]: 0,
           height: `${whiteShare}%`,
-          background: "linear-gradient(180deg, #FBFAF7, #E9E6DE)",
+          background: "#FBFAF7",
           transition: "height 220ms cubic-bezier(0.33, 1, 0.68, 1)",
         }}
       />
@@ -2140,13 +2075,7 @@ function GlassEvalBar({
           sx={{
             position: "absolute",
             inset: 0,
-            background:
-              "linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.10))",
-            animation: "cmEvalBarPulse 1.8s ease-in-out infinite",
-            "@keyframes cmEvalBarPulse": {
-              "0%, 100%": { opacity: 0.35 },
-              "50%": { opacity: 1 },
-            },
+            background: "rgba(255,255,255,0.06)",
             zIndex: 1,
           }}
         />
@@ -2251,14 +2180,9 @@ function BoardArea({
     <Box
       sx={{
         position: "relative",
-        borderRadius: "1.5rem",
-        background:
-          "linear-gradient(135deg, rgba(249,115,22,0.04), rgba(20,22,28,0.4))",
-        backdropFilter: "blur(12px) saturate(140%)",
-        WebkitBackdropFilter: "blur(12px) saturate(140%)",
-        border: "1px solid rgba(255,255,255,0.07)",
-        boxShadow:
-          "0 24px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)",
+        borderRadius: `${RADIUS.card}px`,
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
         p: { xs: 1.5, md: 1.75 },
         // At lg the board is the column's flexible element: it takes whatever
         // height is left after the strip below it, and the square sizes off
@@ -2309,8 +2233,6 @@ function BoardArea({
               flexShrink: 0,
               borderRadius: "14px",
               overflow: "hidden",
-              boxShadow:
-                "0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
             }}
           >
             <ChessgroundBoard
@@ -2339,7 +2261,6 @@ function BoardArea({
                   textAlign: "center",
                   px: 3,
                   background: "rgba(8,9,12,0.72)",
-                  backdropFilter: "blur(2px)",
                   pointerEvents: onLoadGameClick ? "auto" : "none",
                   cursor: onLoadGameClick ? "pointer" : undefined,
                   "&:hover": onLoadGameClick
@@ -2490,9 +2411,9 @@ function EvalSparkline({
       sx={{
         px: 0.9,
         py: 0.15,
-        borderRadius: "999px",
-        background: "rgba(12,14,20,0.85)",
-        border: "1px solid rgba(249,115,22,0.3)",
+        borderRadius: `${RADIUS.pill}px`,
+        background: SURFACE.raisedSecondary,
+        border: `1px solid ${ACCENT.border}`,
       }}
     >
       <Box
@@ -2500,20 +2421,16 @@ function EvalSparkline({
           width: 5,
           height: 5,
           borderRadius: "50%",
-          background: "#F97316",
-          animation: "pulse 1.4s ease-in-out infinite",
-          "@keyframes pulse": {
-            "0%, 100%": { opacity: 0.4, transform: "scale(0.85)" },
-            "50%": { opacity: 1, transform: "scale(1)" },
-          },
+          background: ACCENT.main,
         }}
       />
       <Typography
         sx={{
           fontSize: "0.64rem",
           fontWeight: 700,
-          color: "#FB923C",
+          color: ACCENT.hover,
           fontFamily: "Monaco, Menlo, monospace",
+          fontVariantNumeric: "tabular-nums",
         }}
       >
         Stockfish · {Math.round(progress)}%
@@ -2524,12 +2441,12 @@ function EvalSparkline({
       sx={{
         px: 0.9,
         py: 0.15,
-        borderRadius: "999px",
-        background: "rgba(12,14,20,0.85)",
-        border: "1px solid rgba(239,68,68,0.25)",
+        borderRadius: `${RADIUS.pill}px`,
+        background: SURFACE.raisedSecondary,
+        border: `1px solid ${LINE.hairline}`,
         fontSize: "0.64rem",
         fontWeight: 700,
-        color: "#fca5a5",
+        color: STATUS.error,
         fontFamily: "Monaco, Menlo, monospace",
       }}
     >
@@ -2551,11 +2468,8 @@ function EvalSparkline({
       >
         <Typography
           sx={{
-            fontSize: "0.7rem",
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            fontWeight: 700,
-            color: "rgba(255,255,255,0.24)",
+            ...TYPE.label,
+            color: TEXT.tertiary,
           }}
         >
           Evaluation arc
@@ -2629,7 +2543,7 @@ function EvalSparkline({
                     ? "#F97316"
                     : "rgba(255,255,255,0.4)"
             }
-            stroke="#08090C"
+            stroke={SURFACE.raised}
             strokeWidth={1.5}
             style={{ cursor: "pointer" }}
             onClick={(e) => {
@@ -2654,7 +2568,7 @@ function EvalSparkline({
           cy={yFor(series[currentPly] ?? 0)}
           r={5}
           fill="#F97316"
-          stroke="#08090C"
+          stroke={SURFACE.raised}
           strokeWidth={2}
         />
       </svg>
@@ -2776,11 +2690,9 @@ function TabStrip({
         alignItems: "center",
         gap: 0.5,
         p: 0.5,
-        borderRadius: "1rem",
-        background: "rgba(20,22,28,0.6)",
-        backdropFilter: "blur(16px) saturate(150%)",
-        WebkitBackdropFilter: "blur(16px) saturate(150%)",
-        border: "1px solid rgba(255,255,255,0.07)",
+        borderRadius: `${RADIUS.card}px`,
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
         mb: 1.25,
       }}
     >
@@ -2802,16 +2714,16 @@ function TabStrip({
               // clipped on a phone.
               px: { xs: 0.5, sm: 1.5 },
               py: 1,
-              borderRadius: "0.65rem",
+              borderRadius: `${RADIUS.control}px`,
               cursor: "pointer",
-              color: isActive ? "#0A0A0A" : "rgba(255,255,255,0.62)",
+              color: isActive ? TEXT.primary : TEXT.secondary,
               fontSize: { xs: "0.76rem", sm: "0.84rem" },
-              fontWeight: 700,
-              letterSpacing: "0.01em",
-              transition: "color 180ms ease, background 180ms ease",
+              fontWeight: 600,
+              transition: `color ${MOTION.hover}, background-color ${MOTION.hover}, transform ${MOTION.press}`,
               "&:hover": {
-                color: isActive ? "#0A0A0A" : "rgba(255,255,255,0.92)",
+                color: TEXT.primary,
               },
+              "&:active": { transform: MOTION.pressScale },
             }}
           >
             {isActive && (
@@ -2825,10 +2737,8 @@ function TabStrip({
                 style={{
                   position: "absolute",
                   inset: 0,
-                  borderRadius: "0.65rem",
-                  background:
-                    "linear-gradient(135deg, #F97316 0%, #FB923C 100%)",
-                  boxShadow: "0 4px 16px rgba(249,115,22,0.35)",
+                  borderRadius: RADIUS.control,
+                  background: "rgba(255,255,255,0.10)",
                 }}
               />
             )}
@@ -2850,9 +2760,9 @@ function TabStrip({
                     display: { xs: "none", sm: "inline" },
                     px: 0.7,
                     py: 0.1,
-                    borderRadius: "999px",
+                    borderRadius: `${RADIUS.pill}px`,
                     background: isActive
-                      ? "rgba(10,10,10,0.18)"
+                      ? "rgba(255,255,255,0.14)"
                       : "rgba(255,255,255,0.08)",
                     fontSize: "0.66rem",
                     fontFamily: "Monaco, Menlo, monospace",
@@ -2977,11 +2887,9 @@ function MovesListPanel({
             py: 0.75,
             borderRadius: "0.45rem",
             cursor: "pointer",
-            background: isCurrent
-              ? "linear-gradient(135deg, rgba(249,115,22,0.22), rgba(251,146,60,0.12))"
-              : "transparent",
+            background: isCurrent ? ACCENT.tint : "transparent",
             border: isCurrent
-              ? "1px solid rgba(249,115,22,0.45)"
+              ? `1px solid ${ACCENT.border}`
               : "1px solid transparent",
             color,
             fontSize: "0.86rem",
@@ -2991,8 +2899,8 @@ function MovesListPanel({
             position: "relative",
             "&:hover": {
               background: isCurrent
-                ? "linear-gradient(135deg, rgba(249,115,22,0.3), rgba(251,146,60,0.18))"
-                : "rgba(255,255,255,0.04)",
+                ? "rgba(249,115,22,0.22)"
+                : "rgba(255,255,255,0.06)",
               "& .ask-coach-btn": { opacity: 1 },
             },
           }}
@@ -3060,13 +2968,9 @@ function MovesListPanel({
       sx={{
         height: "100%",
         width: "100%",
-        borderRadius: "1.5rem",
-        background: "rgba(20,22,28,0.6)",
-        backdropFilter: "blur(16px) saturate(150%)",
-        WebkitBackdropFilter: "blur(16px) saturate(150%)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        boxShadow:
-          "0 16px 48px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)",
+        borderRadius: `${RADIUS.card}px`,
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -3079,23 +2983,19 @@ function MovesListPanel({
         sx={{
           px: 3,
           py: 2,
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          borderBottom: `1px solid ${LINE.hairline}`,
         }}
       >
         <Box
           sx={{
             width: 32,
             height: 32,
-            borderRadius: "10px",
-            background:
-              "linear-gradient(135deg, rgba(249,115,22,0.18), rgba(251,146,60,0.18))",
-            border: "1px solid rgba(249,115,22,0.32)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <ListIcon size={14} color="#FB923C" />
+          <ListIcon size={18} strokeWidth={1.75} color={TEXT.secondary} />
         </Box>
         <Box sx={{ flex: 1 }}>
           <Typography
@@ -3322,10 +3222,9 @@ function ExplorationBanner({
         mb: 1.25,
         px: 1.5,
         py: 0.85,
-        borderRadius: "0.9rem",
-        background:
-          "linear-gradient(135deg, rgba(251,191,36,0.12), rgba(20,22,28,0.6))",
-        border: "1px solid rgba(251,191,36,0.32)",
+        borderRadius: `${RADIUS.control}px`,
+        background: STATUS.warningTint,
+        border: `1px solid ${LINE.hairline}`,
         display: "flex",
         alignItems: "center",
         gap: 1.25,
@@ -3339,14 +3238,11 @@ function ExplorationBanner({
         alignItems="center"
         sx={{ flexShrink: 0 }}
       >
-        <GitBranch size={13} color="#FBBF24" />
+        <GitBranch size={16} strokeWidth={1.75} color={STATUS.warning} />
         <Typography
           sx={{
-            fontSize: "0.66rem",
-            fontWeight: 700,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            color: "#FBBF24",
+            ...TYPE.label,
+            color: TEXT.primary,
           }}
         >
           Exploring
@@ -3472,19 +3368,15 @@ function LinesControls({
           fontSize: "0.72rem",
           fontWeight: 700,
           lineHeight: 1.4,
-          background: active
-            ? "linear-gradient(135deg, rgba(249,115,22,0.22), rgba(251,146,60,0.14))"
-            : "rgba(255,255,255,0.04)",
+          background: active ? ACCENT.tint : "rgba(255,255,255,0.04)",
           border: active
-            ? "1px solid rgba(249,115,22,0.45)"
-            : "1px solid rgba(255,255,255,0.1)",
-          color: active ? "#FB923C" : "rgba(255,255,255,0.7)",
-          transition: "all 150ms ease",
+            ? `1px solid ${ACCENT.border}`
+            : `1px solid ${LINE.hairline}`,
+          color: active ? ACCENT.hover : TEXT.secondary,
+          transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, color ${MOTION.hover}`,
           "&:hover": {
-            borderColor: active
-              ? "rgba(249,115,22,0.65)"
-              : "rgba(255,255,255,0.24)",
-            color: active ? "#FB923C" : "rgba(255,255,255,0.95)",
+            borderColor: active ? ACCENT.main : LINE.strong,
+            color: active ? ACCENT.hover : TEXT.primary,
           },
         }}
       >
@@ -3496,11 +3388,8 @@ function LinesControls({
   const label = (text: string) => (
     <Typography
       sx={{
-        fontSize: "0.64rem",
-        fontWeight: 700,
-        letterSpacing: "0.12em",
-        textTransform: "uppercase",
-        color: "rgba(255,255,255,0.4)",
+        ...TYPE.label,
+        color: TEXT.secondary,
         minWidth: 44,
       }}
     >
@@ -3593,7 +3482,7 @@ function LinesControls({
                 settings.depth === d,
                 () => onChange({ ...settings, depth: d }),
                 d >= 22
-                  ? "Deeper and slower — seconds per position in a browser"
+                  ? "Deeper and slower: seconds per position in a browser"
                   : undefined
               )
             )}
@@ -3624,13 +3513,13 @@ function LinesControls({
               "17 Lite",
               engineName === EngineName.Stockfish17Lite,
               () => onEngineNameChange?.(EngineName.Stockfish17Lite),
-              "Single-threaded — fastest to start, works on restricted networks"
+              "Single-threaded: fastest to start, works on restricted networks"
             )}
             {chip(
               "17 Full",
               engineName === EngineName.Stockfish17,
               () => onEngineNameChange?.(EngineName.Stockfish17),
-              "NNUE — stronger per depth, heavier to load"
+              "NNUE: stronger per depth, heavier to load"
             )}
           </Stack>
 
@@ -3815,7 +3704,7 @@ function EngineLinesPanel({
 
   const emptyMessage =
     status === "terminal"
-      ? "Game over in this position — nothing to search."
+      ? "Game over in this position. Nothing to search."
       : status === "unsupported"
         ? "This browser can't run Stockfish (WebAssembly is unavailable here)."
         : status === "failed"
@@ -3832,11 +3721,9 @@ function EngineLinesPanel({
       sx={{
         height: "100%",
         overflowY: "auto",
-        background: "rgba(20,22,28,0.55)",
-        backdropFilter: "blur(16px) saturate(150%)",
-        WebkitBackdropFilter: "blur(16px) saturate(150%)",
-        border: "1px solid rgba(255,255,255,0.07)",
-        borderRadius: "1rem",
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
+        borderRadius: `${RADIUS.card}px`,
         p: 2,
       }}
     >
@@ -3866,12 +3753,7 @@ function EngineLinesPanel({
                 width: 6,
                 height: 6,
                 borderRadius: "50%",
-                background: "#F97316",
-                animation: "pulse 1.4s ease-in-out infinite",
-                "@keyframes pulse": {
-                  "0%, 100%": { opacity: 0.4, transform: "scale(0.85)" },
-                  "50%": { opacity: 1, transform: "scale(1)" },
-                },
+                background: ACCENT.main,
               }}
             />
           )}
@@ -3886,16 +3768,14 @@ function EngineLinesPanel({
             describeChild
             title={
               fromCloud
-                ? `Lichess cloud analysis, depth ${reachedDepth} — deeper than this browser would reach. Turn on "Use my engine" below to force ${engineName}.`
+                ? `Lichess cloud analysis, depth ${reachedDepth}: deeper than this browser would reach. Turn on "Use my engine" below to force ${engineName}.`
                 : `Computed in your browser by ${engineName}`
             }
           >
             <Box
               sx={{
-                color: fromCloud ? "#93C5FD" : "rgba(255,255,255,0.42)",
-                fontSize: "0.72rem",
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
+                ...TYPE.caption,
+                color: fromCloud ? STATUS.info : TEXT.secondary,
                 whiteSpace: "nowrap",
                 cursor: "help",
               }}
@@ -3925,18 +3805,15 @@ function EngineLinesPanel({
             mb: 1.5,
             px: 1.25,
             py: 0.85,
-            borderRadius: "0.6rem",
-            background: "rgba(251,191,36,0.08)",
-            border: "1px solid rgba(251,191,36,0.28)",
+            borderRadius: `${RADIUS.control}px`,
+            background: STATUS.warningTint,
+            border: `1px solid ${LINE.hairline}`,
           }}
         >
           <Typography
             sx={{
-              fontSize: "0.68rem",
-              fontWeight: 700,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              color: "#FBBF24",
+              ...TYPE.label,
+              color: TEXT.primary,
               mb: 0.4,
             }}
           >
@@ -4081,13 +3958,13 @@ function PlayerSideAsk({
         fontSize: "0.82rem",
         fontWeight: 700,
         fontFamily: "inherit",
-        transition: "all 180ms ease",
+        transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
         "&:hover": {
-          background: "rgba(249,115,22,0.14)",
-          borderColor: "rgba(249,115,22,0.5)",
-          color: "#FB923C",
-          transform: "translateY(-1px)",
+          background: ACCENT.tint,
+          borderColor: ACCENT.border,
+          color: ACCENT.hover,
         },
+        "&:active": { transform: MOTION.pressScale },
       }}
     >
       <Box
@@ -4105,12 +3982,9 @@ function PlayerSideAsk({
       data-testid="player-side-ask"
       sx={{
         alignSelf: "stretch",
-        borderRadius: "1rem",
-        background: "rgba(20,22,28,0.55)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
+        borderRadius: `${RADIUS.card}px`,
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
         px: 2,
         py: 1.75,
       }}
@@ -4123,7 +3997,7 @@ function PlayerSideAsk({
           mb: 1.25,
         }}
       >
-        Quick check — which side were you playing?
+        Quick check: which side were you playing?
       </Typography>
       <Stack direction="row" spacing={1.25}>
         {sideButton("white")}
@@ -4137,8 +4011,8 @@ function PlayerSideAsk({
           lineHeight: 1.4,
         }}
       >
-        The coach tailors its analysis to your side — mistakes, plans, and
-        praise all depend on it.
+        The coach tailors its analysis to your side: mistakes, plans, and praise
+        all depend on it.
       </Typography>
     </Box>
   );
@@ -4162,7 +4036,7 @@ function PlayerSideChip({
         ? "remembered from last time"
         : "your choice";
   return (
-    <Tooltip title={`Side ${sourceLabel} — click to switch to ${other}`}>
+    <Tooltip title={`Side ${sourceLabel}. Click to switch to ${other}`}>
       <Box
         data-testid="player-side-chip"
         onClick={() => onChoose?.(other)}
@@ -4251,7 +4125,7 @@ interface CoachCommand {
   description: string;
   /** Longer text shown the first time it is used. */
   help: string;
-  icon: typeof Sparkles;
+  icon: typeof Target;
 }
 
 const COACH_COMMANDS: CoachCommand[] = [
@@ -4262,7 +4136,7 @@ const COACH_COMMANDS: CoachCommand[] = [
     help:
       "Finds puzzles that share the tactical pattern of the position you're " +
       "looking at, then opens them as a practice run. Works best when you're " +
-      "sitting on a mistake — navigate to one first, or name a pattern " +
+      "sitting on a mistake: navigate to one first, or name a pattern " +
       "yourself with /puzzle-generation fork.",
     icon: Target,
   },
@@ -4315,13 +4189,11 @@ function SlashCommandMenu({
         left: 0,
         right: 0,
         zIndex: 20,
-        borderRadius: "0.85rem",
+        borderRadius: `${RADIUS.control}px`,
         overflow: "hidden",
-        background: "rgba(16,18,24,0.97)",
-        backdropFilter: "blur(18px) saturate(150%)",
-        WebkitBackdropFilter: "blur(18px) saturate(150%)",
-        border: "1px solid rgba(249,115,22,0.28)",
-        boxShadow: "0 18px 48px rgba(0,0,0,0.6)",
+        background: SURFACE.overlay,
+        border: `1px solid ${LINE.hairline}`,
+        boxShadow: SHADOW.floating,
       }}
     >
       {commands.map((c, i) => {
@@ -4577,19 +4449,14 @@ function CoachPanel({
         // Height now controlled by the parent wrapper so swaps inherit it.
         height: "100%",
         width: "100%",
-        borderRadius: "1.5rem",
-        background: "rgba(20,22,28,0.6)",
-        backdropFilter: "blur(16px) saturate(150%)",
-        WebkitBackdropFilter: "blur(16px) saturate(150%)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        boxShadow:
-          "0 16px 48px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)",
+        borderRadius: `${RADIUS.card}px`,
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
       }}
     >
-
       {/* Header */}
       <Box
         sx={{
@@ -4637,18 +4504,17 @@ function CoachPanel({
                 width: 6,
                 height: 6,
                 borderRadius: "50%",
-                background: "#22c55e",
-                boxShadow: "0 0 8px rgba(34,197,94,0.6)",
+                background: STATUS.success,
               }}
             />
             <Typography
               sx={{
                 fontSize: "0.72rem",
-                color: "rgba(255,255,255,0.5)",
+                color: TEXT.secondary,
                 fontFamily: "Monaco, Menlo, monospace",
               }}
             >
-              Stockfish-grounded · Engine-validated
+              Every claim is checked against the engine
             </Typography>
           </Stack>
         </Box>
@@ -4712,15 +4578,8 @@ function CoachPanel({
             paper: {
               sx: {
                 mt: 1,
-                background: "rgba(20,22,28,0.92)",
-                backdropFilter: "blur(16px) saturate(150%)",
-                WebkitBackdropFilter: "blur(16px) saturate(150%)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: "12px",
                 minWidth: 280,
                 maxWidth: 320,
-                boxShadow:
-                  "0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
               },
             },
           }}
@@ -4731,11 +4590,8 @@ function CoachPanel({
               px: 1.75,
               pt: 1,
               pb: 0.5,
-              fontSize: "0.62rem",
-              fontWeight: 800,
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              color: "rgba(255,255,255,0.42)",
+              ...TYPE.label,
+              color: TEXT.secondary,
             }}
           >
             Masti&apos;s attitude
@@ -4884,9 +4740,9 @@ function CoachPanel({
             {messages.map((msg, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, ease: [0.22, 0.61, 0.36, 1] }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
                 style={{
                   alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
                   maxWidth: "90%",
@@ -4914,9 +4770,9 @@ function CoachPanel({
           </AnimatePresence>
           {sideUiEligible && !playerSide && onChoosePlayerSide && (
             <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, ease: [0.22, 0.61, 0.36, 1] }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
               style={{ alignSelf: "stretch" }}
             >
               <PlayerSideAsk onChoose={onChoosePlayerSide} />
@@ -4924,8 +4780,9 @@ function CoachPanel({
           )}
           {isThinking && (
             <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
               style={{ alignSelf: "flex-start", maxWidth: "60%" }}
             >
               <ThinkingBubble />
@@ -4975,9 +4832,8 @@ function CoachPanel({
                   background: s.pinned
                     ? "rgba(249,115,22,0.22)"
                     : "rgba(249,115,22,0.12)",
-                  borderColor: "rgba(249,115,22,0.45)",
-                  color: "#FB923C",
-                  transform: "translateY(-1px)",
+                  borderColor: ACCENT.border,
+                  color: ACCENT.hover,
                 },
               }}
             >
@@ -5085,16 +4941,15 @@ function CoachPanel({
                 fontSize: "0.78rem",
                 px: 1.5,
                 py: 0.4,
-                borderRadius: "10px",
-                color: "#0A0A0A",
-                background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
+                borderRadius: `${RADIUS.pill}px`,
+                color: TEXT.onAccent,
+                background: ACCENT.main,
                 "&:hover": {
-                  background:
-                    "linear-gradient(135deg, #FB923C 0%, #F97316 100%)",
+                  background: ACCENT.hover,
                 },
               }}
             >
-              Sign in — free
+              Sign in for free
             </Button>
           </Box>
         )}
@@ -5157,13 +5012,13 @@ function CoachPanel({
             }}
             placeholder={
               AI_DISABLED
-                ? "AI coaching is paused — see the note above."
+                ? "Coaching is paused. See the note above."
                 : signedOut
-                  ? "Sign in to ask the coach — free account, no card."
+                  ? "Sign in to ask the coach: free account, no card."
                   : analysisActive
-                    ? "Analyzing your game… coach unlocks when Stockfish finishes."
+                    ? "Analyzing your game. Ask the coach when the engine finishes."
                     : engineDataUnavailable
-                      ? "Ask anything — answering without engine analysis."
+                      ? "Ask anything. The answer comes without engine analysis."
                       : "Ask anything about this position..."
             }
             disabled={AI_DISABLED || analysisActive}
@@ -5199,20 +5054,15 @@ function CoachPanel({
             sx={{
               width: 44,
               height: 44,
-              borderRadius: "12px",
-              background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
-              color: "#0A0A0A",
-              boxShadow: "0 6px 18px rgba(249,115,22,0.4)",
-              transition: "all 200ms ease",
+              borderRadius: `${RADIUS.control}px`,
+              background: ACCENT.main,
+              color: TEXT.onAccent,
               "&:hover": {
-                background: "linear-gradient(135deg, #FB923C 0%, #F97316 100%)",
-                transform: "translateY(-1px)",
-                boxShadow: "0 8px 24px rgba(249,115,22,0.55)",
+                background: ACCENT.hover,
               },
               "&.Mui-disabled": {
                 background: "rgba(255,255,255,0.05)",
-                color: "rgba(255,255,255,0.2)",
-                boxShadow: "none",
+                color: TEXT.tertiary,
               },
             }}
           >
@@ -5361,25 +5211,27 @@ function InlinePuzzleSolver({
 
   const statusLabel =
     status === "wrong"
-      ? "Not the move — try again."
+      ? "Not the move. Try again."
       : status === "solved"
-        ? "Solved!"
+        ? "Solved"
         : turn === "white"
           ? "White to move"
           : "Black to move";
   const statusColor =
     status === "wrong"
-      ? "#fca5a5"
+      ? STATUS.error
       : status === "solved"
-        ? "#86efac"
-        : "rgba(255,255,255,0.7)";
+        ? STATUS.success
+        : TEXT.secondary;
 
-  const flashShadow =
+  // Right or wrong is shown as a ring around the board: a status colour, at
+  // the moment it applies, and no shadow.
+  const flashColor =
     flash === "green"
-      ? "0 0 0 4px rgba(34,197,94,0.55)"
+      ? STATUS.success
       : flash === "red"
-        ? "0 0 0 4px rgba(239,68,68,0.55)"
-        : "0 0 0 0 rgba(0,0,0,0)";
+        ? STATUS.error
+        : "transparent";
 
   return (
     <Box
@@ -5387,9 +5239,9 @@ function InlinePuzzleSolver({
         mt: 1,
         px: 1.25,
         py: 1.25,
-        borderRadius: "0.6rem",
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(168,85,247,0.18)",
+        borderRadius: `${RADIUS.control}px`,
+        background: SURFACE.raisedSecondary,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       <Box
@@ -5398,8 +5250,9 @@ function InlinePuzzleSolver({
           maxWidth: 280,
           mx: "auto",
           borderRadius: "10px",
-          boxShadow: flashShadow,
-          transition: "box-shadow 400ms ease",
+          outline: "3px solid",
+          outlineColor: flashColor,
+          transition: "outline-color 400ms ease",
           overflow: "hidden",
         }}
       >
@@ -5529,21 +5382,17 @@ function CoachPuzzleCard({
       sx={{
         mt: 1,
         p: 1.5,
-        borderRadius: "0.85rem",
-        background:
-          "linear-gradient(135deg, rgba(168,85,247,0.08), rgba(168,85,247,0.02))",
-        border: "1px solid rgba(168,85,247,0.25)",
+        borderRadius: `${RADIUS.control}px`,
+        background: SURFACE.raisedSecondary,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.25 }}>
-        <Lightbulb size={14} color="#C084FC" />
+        <Lightbulb size={16} strokeWidth={1.75} color={TEXT.secondary} />
         <Typography
           sx={{
-            fontSize: "0.76rem",
-            fontWeight: 700,
-            letterSpacing: "0.08em",
-            color: "#E9D5FF",
-            textTransform: "uppercase",
+            ...TYPE.label,
+            color: TEXT.primary,
           }}
         >
           {pack.displayTheme}
@@ -5570,15 +5419,8 @@ function CoachPuzzleCard({
               key={i}
               sx={{
                 height: 48,
-                borderRadius: "0.6rem",
-                background:
-                  "linear-gradient(90deg, rgba(168,85,247,0.05) 0%, rgba(168,85,247,0.12) 50%, rgba(168,85,247,0.05) 100%)",
-                backgroundSize: "200% 100%",
-                animation: "shimmer 1.6s ease-in-out infinite",
-                "@keyframes shimmer": {
-                  "0%": { backgroundPosition: "200% 0" },
-                  "100%": { backgroundPosition: "-200% 0" },
-                },
+                borderRadius: `${RADIUS.small}px`,
+                background: "rgba(255,255,255,0.06)",
               }}
             />
           ))}
@@ -5602,7 +5444,7 @@ function CoachPuzzleCard({
             }}
           >
             Couldn't reach the puzzle store
-            {pack.error ? ` — ${pack.error}` : ""}.
+            {pack.error ? `: ${pack.error}` : ""}.
           </Typography>
         </Box>
       )}
@@ -5790,12 +5632,10 @@ function ContinuationPill({
         px: 0.85,
         py: 0.25,
         mx: 0.4,
-        borderRadius: "999px",
+        borderRadius: `${RADIUS.pill}px`,
         fontSize: "0.68rem",
-        fontWeight: 700,
-        letterSpacing: "0.04em",
-        textTransform: "uppercase",
-        color: isMaia ? "#C4B5FD" : "#FB923C",
+        fontWeight: 600,
+        color: isMaia ? "#C4B5FD" : ACCENT.hover,
         background: isMaia ? "rgba(196,181,253,0.08)" : "rgba(251,146,60,0.08)",
         border: isMaia
           ? "1px solid rgba(196,181,253,0.28)"
@@ -5954,10 +5794,7 @@ function InsightContinuationInline({
             display: "flex",
             alignItems: "center",
             gap: 0.6,
-            fontSize: "0.66rem",
-            fontWeight: 800,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
+            ...TYPE.label,
             color: accent,
           }}
         >
@@ -6126,11 +5963,8 @@ function InsightBodyText({
             >
               <Box
                 sx={{
-                  fontSize: "0.62rem",
-                  fontWeight: 800,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: "#FB923C",
+                  ...TYPE.label,
+                  color: TEXT.secondary,
                   whiteSpace: "nowrap",
                   pt: 0.15,
                 }}
@@ -6304,25 +6138,23 @@ function DarkInsightCard({
         cursor: "pointer",
         px: 1.25,
         py: 0.45,
-        borderRadius: "999px",
+        borderRadius: `${RADIUS.pill}px`,
         fontSize: "0.72rem",
         fontWeight: 600,
-        letterSpacing: "0.02em",
-        color: active ? "#0A0A0A" : "rgba(255,255,255,0.78)",
-        background: active
-          ? "linear-gradient(135deg,#F97316 0%,#EA580C 100%)"
-          : "rgba(255,255,255,0.05)",
+        color: active ? ACCENT.hover : TEXT.secondary,
+        background: active ? ACCENT.tint : "rgba(255,255,255,0.05)",
         border: active
-          ? "1px solid rgba(249,115,22,0.6)"
-          : "1px solid rgba(255,255,255,0.08)",
-        transition: "all 180ms ease",
+          ? `1px solid ${ACCENT.border}`
+          : `1px solid ${LINE.hairline}`,
+        transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
         "&:hover": active
           ? {}
           : {
-              background: "rgba(249,115,22,0.1)",
-              borderColor: "rgba(249,115,22,0.35)",
-              color: "#FB923C",
+              background: "rgba(255,255,255,0.08)",
+              borderColor: LINE.strong,
+              color: TEXT.primary,
             },
+        "&:active": { transform: MOTION.pressScale },
       }}
     >
       {label}
@@ -6358,11 +6190,8 @@ function DarkInsightCard({
       >
         <Typography
           sx={{
-            fontSize: "0.7rem",
-            fontWeight: 700,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            color: "rgba(255,255,255,0.55)",
+            ...TYPE.label,
+            color: TEXT.secondary,
           }}
         >
           {title}
@@ -6394,12 +6223,9 @@ function DarkInsightCard({
       sx={{
         mt: 1.25,
         p: 1.5,
-        borderRadius: "0.75rem",
-        background: "rgba(20,22,28,0.55)",
-        backdropFilter: "blur(14px) saturate(150%)",
-        WebkitBackdropFilter: "blur(14px) saturate(150%)",
-        border: `1px solid ${color}33`,
-        boxShadow: `0 4px 16px ${color}1f`,
+        borderRadius: `${RADIUS.control}px`,
+        background: SURFACE.raisedSecondary,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       {/* Header: move ref + classification chip + eval delta */}
@@ -6541,21 +6367,18 @@ function DarkInsightCard({
             gap: 0.65,
             px: 1.6,
             py: 0.7,
-            borderRadius: "999px",
-            background: "linear-gradient(135deg,#F97316 0%,#EA580C 100%)",
-            color: "#0A0A0A",
-            fontWeight: 700,
+            borderRadius: `${RADIUS.pill}px`,
+            background: ACCENT.main,
+            color: TEXT.onAccent,
+            fontWeight: 600,
             fontSize: "0.78rem",
-            letterSpacing: "0.02em",
-            boxShadow: "0 4px 14px rgba(249,115,22,0.32)",
-            transition: "transform 180ms ease, box-shadow 180ms ease",
+            transition: `background-color ${MOTION.hover}, transform ${MOTION.press}`,
             "&:hover": {
-              transform: "translateY(-1px)",
-              boxShadow: "0 6px 18px rgba(249,115,22,0.42)",
+              background: ACCENT.hover,
             },
+            "&:active": { transform: MOTION.pressScale },
           }}
         >
-          <Sparkles size={13} />
           Practice {insight.conceptName.toLowerCase()}
         </Box>
       )}
@@ -6656,17 +6479,14 @@ function DarkInsightCarousel({
       onKeyDown={handleKey}
       sx={{
         mt: 1.5,
-        borderRadius: "1rem",
-        background:
-          "linear-gradient(180deg, rgba(20,22,28,0.6) 0%, rgba(20,22,28,0.4) 100%)",
-        backdropFilter: "blur(18px) saturate(160%)",
-        WebkitBackdropFilter: "blur(18px) saturate(160%)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: `${RADIUS.card}px`,
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
         overflow: "hidden",
         outline: "none",
         "&:focus-visible": {
-          borderColor: "rgba(249,115,22,0.5)",
-          boxShadow: "0 0 0 2px rgba(249,115,22,0.18)",
+          outline: `2px solid ${TEXT.primary}`,
+          outlineOffset: 2,
         },
       }}
     >
@@ -6688,14 +6508,11 @@ function DarkInsightCarousel({
             gap: 0.85,
           }}
         >
-          <Flame size={12} color="#FB923C" />
+          <Flame size={16} strokeWidth={1.75} color={TEXT.secondary} />
           <Box
             sx={{
-              fontSize: "0.66rem",
-              fontWeight: 800,
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              color: "rgba(255,255,255,0.62)",
+              ...TYPE.label,
+              color: TEXT.secondary,
             }}
           >
             Key moments
@@ -6794,8 +6611,7 @@ function DarkInsightCarousel({
             top: 0,
             bottom: 0,
             left: 0,
-            background: "linear-gradient(90deg, #F97316 0%, #FB923C 100%)",
-            boxShadow: "0 0 12px rgba(249,115,22,0.45)",
+            background: ACCENT.main,
           }}
         />
       </Box>
@@ -6849,12 +6665,9 @@ function DarkInsightCarousel({
                   cursor: "pointer",
                   width: active ? 18 : 6,
                   height: 6,
-                  borderRadius: "999px",
-                  background: active
-                    ? "linear-gradient(135deg,#F97316,#EA580C)"
-                    : "rgba(255,255,255,0.18)",
-                  boxShadow: active ? "0 0 10px rgba(249,115,22,0.45)" : "none",
-                  transition: "all 220ms ease",
+                  borderRadius: `${RADIUS.pill}px`,
+                  background: active ? ACCENT.main : "rgba(255,255,255,0.18)",
+                  transition: `width ${MOTION.hover}, background-color ${MOTION.hover}`,
                   "&:hover": active
                     ? {}
                     : { background: "rgba(255,255,255,0.32)" },
@@ -6896,12 +6709,10 @@ function PuzzleSetCard({
     <Box
       sx={{
         mt: 1.25,
-        borderRadius: "1rem",
+        borderRadius: `${RADIUS.card}px`,
         overflow: "hidden",
-        background:
-          "linear-gradient(135deg, rgba(249,115,22,0.10), rgba(20,22,28,0.75))",
-        border: "1px solid rgba(249,115,22,0.32)",
-        boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       <Box
@@ -6918,16 +6729,12 @@ function PuzzleSetCard({
             width: 38,
             height: 38,
             flexShrink: 0,
-            borderRadius: "11px",
-            background:
-              "linear-gradient(135deg, rgba(249,115,22,0.9), rgba(234,88,12,0.9))",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            boxShadow: "0 0 18px rgba(249,115,22,0.35)",
           }}
         >
-          <Target size={19} color="#0A0A0A" />
+          <Target size={20} strokeWidth={1.75} color={ACCENT.main} />
         </Box>
 
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -6962,19 +6769,14 @@ function PuzzleSetCard({
             flexShrink: 0,
             px: 2,
             py: 0.9,
-            borderRadius: "10px",
+            borderRadius: `${RADIUS.pill}px`,
             fontSize: "0.84rem",
-            fontWeight: 800,
-            letterSpacing: "0.01em",
+            fontWeight: 600,
             textTransform: "none",
-            color: "#0A0A0A",
-            background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)",
-            boxShadow: "0 6px 18px rgba(249,115,22,0.4)",
-            transition: "transform 180ms ease, box-shadow 180ms ease",
+            color: TEXT.onAccent,
+            background: ACCENT.main,
             "&:hover": {
-              background: "linear-gradient(135deg, #FB923C 0%, #F97316 100%)",
-              transform: "translateY(-1px)",
-              boxShadow: "0 9px 24px rgba(249,115,22,0.5)",
+              background: ACCENT.hover,
             },
           }}
         >
@@ -7108,7 +6910,7 @@ function CoachBubble({
               onClick={() => onMoveRefClick(ply, playSan)}
               title={
                 hypothetical
-                  ? `Alternative: ${ref.san} — shows the position after it`
+                  ? `Alternative: ${ref.san}. Shows the position after it`
                   : `Jump to ${ref.moveNumber}${
                       ref.isBlack ? "..." : "."
                     } ${ref.san}`
@@ -7137,7 +6939,6 @@ function CoachBubble({
                 },
               }}
             >
-              {hypothetical ? "🔍 " : ""}
               {ref.full}
             </Box>
           );
@@ -7370,112 +7171,106 @@ function CoachBubble({
       {/* The row holds only the face and the bubble; the fragment banner,
           insight cards and puzzle cards below stay block siblings under it. */}
       <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1 }}>
-      {/* Every coach bubble gets Masti's face, expression by what the turn
+        {/* Every coach bubble gets Masti's face, expression by what the turn
           is: a greeting waves, a fragment is nervous, an error is dizzy, an
           answer is an idea. Stills only; twelve loops down a transcript
           would be noise. */}
-      {!isUser && (
-        <MastiAvatar
-          mood={msg.mascot ?? (msg.incomplete ? "nervous" : "idea")}
-          size={26}
-          ring={false}
-          style={{ marginBottom: 2 }}
-        />
-      )}
-      <Box
-        sx={{
-          minWidth: 0,
-          flex: 1,
-          px: 2.25,
-          py: 1.5,
-          borderRadius: "1rem",
-          background: isUser
-            ? "linear-gradient(135deg, #F97316 0%, #FB923C 100%)"
-            : "rgba(255,255,255,0.04)",
-          border: isUser
-            ? "1px solid rgba(255,255,255,0.18)"
-            : "1px solid rgba(255,255,255,0.08)",
-          color: isUser ? "#0A0A0A" : "rgba(255,255,255,0.92)",
-          fontSize: "0.92rem",
-          lineHeight: 1.55,
-          fontWeight: isUser ? 600 : 400,
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
-          boxShadow: isUser
-            ? "0 4px 16px rgba(249,115,22,0.25)"
-            : "0 2px 8px rgba(0,0,0,0.2)",
-          "&:hover .coach-share-btn": { opacity: 1 },
-        }}
-      >
-        {(() => {
-          // Strip PRACTICE tags first (they're for puzzle attach), then
-          // parse INSIGHT/WHY/THREATS/ROLES/CONCEPT blocks via production's
-          // shared parseInsights. When present we render prefix prose +
-          // DarkInsightCard per insight + suffix prose. When absent we
-          // fall back to the original raw-text inline rendering.
-          if (isUser) return renderInline(msg.content);
-          const practiceStripped = extractPracticeTags(msg.content).stripped;
-          const { prefix, insights, suffix } = parseInsights(practiceStripped);
-          if (insights.length === 0) {
-            return renderMarkdownProse(practiceStripped);
-          }
-          return (
-            <>
-              {prefix.trim() && renderMarkdownProse(prefix)}
-              <DarkInsightCarousel
-                insights={insights}
-                renderInline={renderInline}
-                onMoveClick={(moveNum, isBlack) => {
-                  if (!allMoves) return;
-                  const ply = isBlack ? moveNum * 2 : moveNum * 2 - 1;
-                  if (ply >= 0 && ply <= allMoves.length) {
-                    onMoveRefClick?.(ply);
-                  }
-                }}
-                onPracticeConcept={
-                  onPracticeConcept && messageIndex !== undefined
-                    ? (theme, name) =>
-                        onPracticeConcept(theme, name, messageIndex)
-                    : undefined
-                }
-                enginePositions={enginePositions}
-                loadedGame={loadedGame}
-                onJumpToPly={onMoveRefClick}
-              />
-              {suffix.trim() && renderMarkdownProse(suffix)}
-            </>
-          );
-        })()}
-        {shareable && (
-          <Tooltip title="Share this insight (link + PNG)">
-            <IconButton
-              className="coach-share-btn"
-              onClick={() => onShare?.(msg)}
-              sx={{
-                position: "absolute",
-                top: 6,
-                right: 6,
-                width: 24,
-                height: 24,
-                p: 0,
-                borderRadius: "8px",
-                opacity: 0,
-                color: "rgba(255,255,255,0.55)",
-                background: "rgba(20,22,28,0.7)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                transition: "all 160ms ease",
-                "&:hover": {
-                  color: "#FB923C",
-                  background: "rgba(249,115,22,0.18)",
-                  borderColor: "rgba(249,115,22,0.4)",
-                },
-              }}
-            >
-              <Share2 size={12} />
-            </IconButton>
-          </Tooltip>
+        {!isUser && (
+          <MastiAvatar
+            mood={msg.mascot ?? (msg.incomplete ? "nervous" : "idea")}
+            size={26}
+            ring={false}
+            style={{ marginBottom: 2 }}
+          />
         )}
-      </Box>
+        <Box
+          sx={{
+            minWidth: 0,
+            flex: 1,
+            px: 2.25,
+            py: 1.5,
+            borderRadius: `${RADIUS.card}px`,
+            background: isUser ? ACCENT.main : SURFACE.raisedSecondary,
+            border: isUser
+              ? "1px solid transparent"
+              : `1px solid ${LINE.hairline}`,
+            color: isUser ? TEXT.onAccent : TEXT.primary,
+            fontSize: "0.92rem",
+            lineHeight: 1.55,
+            fontWeight: isUser ? 600 : 400,
+            "&:hover .coach-share-btn": { opacity: 1 },
+          }}
+        >
+          {(() => {
+            // Strip PRACTICE tags first (they're for puzzle attach), then
+            // parse INSIGHT/WHY/THREATS/ROLES/CONCEPT blocks via production's
+            // shared parseInsights. When present we render prefix prose +
+            // DarkInsightCard per insight + suffix prose. When absent we
+            // fall back to the original raw-text inline rendering.
+            if (isUser) return renderInline(msg.content);
+            const practiceStripped = extractPracticeTags(msg.content).stripped;
+            const { prefix, insights, suffix } =
+              parseInsights(practiceStripped);
+            if (insights.length === 0) {
+              return renderMarkdownProse(practiceStripped);
+            }
+            return (
+              <>
+                {prefix.trim() && renderMarkdownProse(prefix)}
+                <DarkInsightCarousel
+                  insights={insights}
+                  renderInline={renderInline}
+                  onMoveClick={(moveNum, isBlack) => {
+                    if (!allMoves) return;
+                    const ply = isBlack ? moveNum * 2 : moveNum * 2 - 1;
+                    if (ply >= 0 && ply <= allMoves.length) {
+                      onMoveRefClick?.(ply);
+                    }
+                  }}
+                  onPracticeConcept={
+                    onPracticeConcept && messageIndex !== undefined
+                      ? (theme, name) =>
+                          onPracticeConcept(theme, name, messageIndex)
+                      : undefined
+                  }
+                  enginePositions={enginePositions}
+                  loadedGame={loadedGame}
+                  onJumpToPly={onMoveRefClick}
+                />
+                {suffix.trim() && renderMarkdownProse(suffix)}
+              </>
+            );
+          })()}
+          {shareable && (
+            <Tooltip title="Share this insight (link + PNG)">
+              <IconButton
+                className="coach-share-btn"
+                onClick={() => onShare?.(msg)}
+                sx={{
+                  position: "absolute",
+                  top: 6,
+                  right: 6,
+                  width: 24,
+                  height: 24,
+                  p: 0,
+                  borderRadius: "8px",
+                  opacity: 0,
+                  color: TEXT.secondary,
+                  background: SURFACE.raisedTertiary,
+                  border: `1px solid ${LINE.hairline}`,
+                  transition: `opacity ${MOTION.hover}, color ${MOTION.hover}, background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
+                  "&:hover": {
+                    color: ACCENT.hover,
+                    background: ACCENT.tint,
+                    borderColor: ACCENT.border,
+                  },
+                }}
+              >
+                <Share2 size={12} />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
       </Box>
       {msg.incomplete && !isUser && (
         // D4 / T5 (SILENT_SUBSTITUTION_HANDOFF §3 Group D, §4): this answer is
@@ -7503,8 +7298,8 @@ function CoachBubble({
         >
           <AlertTriangle size={13} style={{ flexShrink: 0 }} />
           <span>
-            This answer was cut off before it finished — treat it as partial,
-            and ask again for the full explanation.
+            This answer was cut off before it finished. Treat it as partial, and
+            ask again for the full explanation.
           </span>
         </Box>
       )}
@@ -7513,16 +7308,15 @@ function CoachBubble({
           sx={{
             mt: 1,
             p: 1.5,
-            borderRadius: "0.75rem",
-            background:
-              "linear-gradient(135deg, rgba(34,197,94,0.08), rgba(34,197,94,0.02))",
-            border: "1px solid rgba(34,197,94,0.25)",
+            borderRadius: `${RADIUS.control}px`,
+            background: STATUS.successTint,
+            border: `1px solid ${LINE.hairline}`,
             display: "flex",
             alignItems: "center",
             gap: 1.5,
           }}
         >
-          <Flame size={16} color="#22c55e" />
+          <Flame size={18} strokeWidth={1.75} color={STATUS.success} />
           <Box sx={{ flex: 1 }}>
             <Typography
               sx={{
@@ -7616,25 +7410,11 @@ function ThinkingBubble() {
       >
         Coach is thinking
       </Typography>
-      <Stack direction="row" spacing={0.4}>
-        {[0, 1, 2].map((i) => (
-          <Box
-            key={i}
-            sx={{
-              width: 4,
-              height: 4,
-              borderRadius: "50%",
-              background: "#F97316",
-              animation: "bounce 1.2s ease-in-out infinite",
-              animationDelay: `${i * 0.15}s`,
-              "@keyframes bounce": {
-                "0%, 80%, 100%": { transform: "translateY(0)", opacity: 0.4 },
-                "40%": { transform: "translateY(-3px)", opacity: 1 },
-              },
-            }}
-          />
-        ))}
-      </Stack>
+      <CircularProgress
+        size={14}
+        thickness={5}
+        sx={{ color: TEXT.secondary, flexShrink: 0 }}
+      />
     </Box>
   );
 }
@@ -7779,10 +7559,6 @@ function MoveNavigator({
                   borderRadius: "50%",
                   background: disp.color === "white" ? "#F0D9B5" : "#1A1814",
                   border: "1px solid rgba(255,255,255,0.3)",
-                  boxShadow:
-                    disp.color === "white"
-                      ? "0 0 6px rgba(240,217,181,0.4)"
-                      : "inset 0 1px 0 rgba(255,255,255,0.1)",
                   flexShrink: 0,
                 }}
               />
@@ -7826,14 +7602,12 @@ function MoveNavigator({
               width: 34,
               height: 34,
               borderRadius: "9px",
-              background:
-                "linear-gradient(135deg, rgba(249,115,22,0.18), rgba(234,88,12,0.18))",
-              border: "1px solid rgba(249,115,22,0.35)",
-              color: "#FB923C",
+              background: ACCENT.tint,
+              border: `1px solid ${ACCENT.border}`,
+              color: ACCENT.hover,
               "&:hover": {
-                background:
-                  "linear-gradient(135deg, rgba(249,115,22,0.28), rgba(234,88,12,0.28))",
-                color: "#FED7AA",
+                background: "rgba(249,115,22,0.22)",
+                color: ACCENT.hover,
               },
             }}
           >
@@ -9512,7 +9286,7 @@ export default function AnalysisPage() {
         );
         const errorText =
           err instanceof CoachAuthError
-            ? "**Sign-in required** — the coach needs a free account. Use **Sign in** above and ask again."
+            ? "**Sign-in required.** The coach needs a free account. Use **Sign in** above and ask again."
             : err instanceof CoachApiError
               ? `**Coach is offline** (HTTP ${err.status}).`
               : "**Network error** reaching the coach.";
@@ -10101,7 +9875,7 @@ export default function AnalysisPage() {
         );
         const errorText =
           err instanceof CoachAuthError
-            ? "**Sign-in required** — the coach needs a free account. Use **Sign in** above and ask again."
+            ? "**Sign-in required.** The coach needs a free account. Use **Sign in** above and ask again."
             : err instanceof CoachApiError
               ? `**Coach is offline** (HTTP ${err.status}).`
               : "**Network error** reaching the coach.";
@@ -10267,9 +10041,9 @@ export default function AnalysisPage() {
         );
         const errorText =
           err instanceof CoachAuthError
-            ? "**Sign-in required** — the coach endpoint is auth-gated. Sign in on chessmasti.com and refresh."
+            ? "**Sign-in required.** The coach needs a free account. Sign in on chessmasti.com and refresh."
             : err instanceof CoachApiError
-              ? `**Coach is offline** (HTTP ${err.status}). The LLM provider returned an error — try again in a moment.`
+              ? `**Coach is offline** (HTTP ${err.status}). Try again in a moment.`
               : "**Network error** reaching the coach. Try again?";
         setMessages((prev) => {
           if (prev.length === 0) return prev;
@@ -10657,17 +10431,17 @@ export default function AnalysisPage() {
   return (
     <ThemeProvider theme={analysisTheme}>
       <Head>
-        <title>Chess Masti — Analyze your game</title>
+        <title>Analyze your game · Chess Masti</title>
         <meta
           name="description"
-          content="Stockfish 17 evaluates, an AI coach explains, a validator checks every claim. Engine-grounded chess coaching, free for players aged 13 and older."
+          content="The engine evaluates, Masti explains, and every claim is checked. Chess coaching, free for players aged 13 and older."
         />
         <meta name="color-scheme" content="dark" />
-        <meta name="theme-color" content="#08090C" />
+        <meta name="theme-color" content={SURFACE.page} />
         <style>{`
-          html, body { background-color: #08090C; color-scheme: dark; margin: 0; }
+          html, body { background-color: ${SURFACE.page}; color-scheme: dark; margin: 0; }
           ::-webkit-scrollbar { width: 10px; height: 10px; }
-          ::-webkit-scrollbar-track { background: #08090C; }
+          ::-webkit-scrollbar-track { background: ${SURFACE.page}; }
           ::-webkit-scrollbar-thumb { background: rgba(249,115,22,0.18); border-radius: 5px; }
           ::-webkit-scrollbar-thumb:hover { background: rgba(249,115,22,0.32); }
         `}</style>
@@ -10710,39 +10484,39 @@ export default function AnalysisPage() {
 
       <OnboardingHelp
         storageKey="cm-tour-analysis-v1"
-        title="Welcome to the Analyze surface"
-        subtitle="A few things power users discover late"
+        title="Welcome to Analyze"
+        subtitle="A few things people find late"
         tips={[
           {
             icon: Command,
-            iconColor: "#F97316",
+            iconColor: ACCENT.main,
             title: "Command palette",
             shortcut: "⌘K",
-            body: "Jump to any move, flip the board, or fire a question to the coach without taking your hands off the keyboard.",
+            body: "Jump to any move, flip the board, or ask the coach a question without taking your hands off the keyboard.",
           },
           {
             icon: BookOpen,
-            iconColor: "#22c55e",
-            title: "Takeover the master database",
-            body: "Click the green Takeover button under the eval arc. The right panel swaps to a live browser of millions of master-game positions — filter by player, click any move to preview on the board.",
+            iconColor: ACCENT.main,
+            title: "Take over the master database",
+            body: "Click the Takeover button under the eval arc. The right panel swaps to a live browser of millions of master-game positions. Filter by player, click any move to preview it on the board.",
           },
           {
             icon: MousePointerClick,
-            iconColor: "#A855F7",
+            iconColor: ACCENT.main,
             title: "Drag pieces freely in Takeover",
-            body: "Once in Takeover, the board becomes interactive. Drag any piece to explore variations — the master-DB panel re-queries the new position automatically.",
+            body: "Once in Takeover, the board becomes interactive. Drag any piece to explore variations. The master games panel updates to the new position automatically.",
           },
           {
             icon: Activity,
-            iconColor: "#FB923C",
-            title: "Toggle 4 arrow overlays",
-            body: "Above the eval sparkline: Engine best · Most common · Game played · Maia (with ELO slider). Mix and match to see what humans, masters, and engines disagree about.",
+            iconColor: ACCENT.main,
+            title: "Toggle the four arrow overlays",
+            body: "Above the eval sparkline: Engine best, Most common, Game played and Maia (with a rating slider). Mix and match to see where humans, masters and engines disagree.",
           },
           {
             icon: Eye,
-            iconColor: "#FBBF24",
+            iconColor: ACCENT.main,
             title: "Scrub the evaluation arc",
-            body: "Click anywhere on the sparkline below the board to jump to that ply. The dots are key moments — click for instant navigation.",
+            body: "Click anywhere on the sparkline below the board to jump to that ply. The dots are key moments: click one to jump there.",
           },
         ]}
       />
@@ -10935,11 +10709,9 @@ export default function AnalysisPage() {
                   mt: { xs: 2, lg: 1.25 },
                   flexShrink: 0,
                   p: { xs: 1.5, lg: 1.25 },
-                  borderRadius: "1.25rem",
-                  background: "rgba(20,22,28,0.55)",
-                  backdropFilter: "blur(12px)",
-                  WebkitBackdropFilter: "blur(12px)",
-                  border: "1px solid rgba(255,255,255,0.07)",
+                  borderRadius: `${RADIUS.card}px`,
+                  background: SURFACE.raised,
+                  border: `1px solid ${LINE.hairline}`,
                   display: "flex",
                   flexDirection: "column",
                   gap: 1,
@@ -11030,13 +10802,10 @@ export default function AnalysisPage() {
                     {rightTab === "coach" && (
                       <motion.div
                         key="coach"
-                        initial={{ opacity: 0, x: -32, scale: 0.98 }}
-                        animate={{ opacity: 1, x: 0, scale: 1 }}
-                        exit={{ opacity: 0, x: -32, scale: 0.98 }}
-                        transition={{
-                          duration: 0.32,
-                          ease: [0.22, 0.61, 0.36, 1],
-                        }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
                         style={{ position: "absolute", inset: 0 }}
                       >
                         <CoachPanel
@@ -11086,13 +10855,10 @@ export default function AnalysisPage() {
                     {rightTab === "masters" && (
                       <motion.div
                         key="masters"
-                        initial={{ opacity: 0, x: 32, scale: 0.98 }}
-                        animate={{ opacity: 1, x: 0, scale: 1 }}
-                        exit={{ opacity: 0, x: 32, scale: 0.98 }}
-                        transition={{
-                          duration: 0.32,
-                          ease: [0.22, 0.61, 0.36, 1],
-                        }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
                         style={{ position: "absolute", inset: 0 }}
                       >
                         <MasterGamesPanel
@@ -11118,13 +10884,10 @@ export default function AnalysisPage() {
                     {rightTab === "moves" && (
                       <motion.div
                         key="moves"
-                        initial={{ opacity: 0, x: 32, scale: 0.98 }}
-                        animate={{ opacity: 1, x: 0, scale: 1 }}
-                        exit={{ opacity: 0, x: 32, scale: 0.98 }}
-                        transition={{
-                          duration: 0.32,
-                          ease: [0.22, 0.61, 0.36, 1],
-                        }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
                         style={{ position: "absolute", inset: 0 }}
                       >
                         <MovesListPanel
@@ -11140,13 +10903,10 @@ export default function AnalysisPage() {
                     {rightTab === "lines" && (
                       <motion.div
                         key="lines"
-                        initial={{ opacity: 0, x: 32, scale: 0.98 }}
-                        animate={{ opacity: 1, x: 0, scale: 1 }}
-                        exit={{ opacity: 0, x: 32, scale: 0.98 }}
-                        transition={{
-                          duration: 0.32,
-                          ease: [0.22, 0.61, 0.36, 1],
-                        }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
                         style={{ position: "absolute", inset: 0 }}
                       >
                         <EngineLinesPanel
@@ -11241,7 +11001,7 @@ export default function AnalysisPage() {
               </Stack>
             </Stack>
             <Stack direction="row" spacing={2.5} alignItems="center">
-              <Box>Engine-grounded by</Box>
+              <Box>Analysis by</Box>
               <Box sx={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
                 Stockfish 17
               </Box>

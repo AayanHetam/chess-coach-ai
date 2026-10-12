@@ -10,10 +10,7 @@ import {
   puzzleBoardStatusAtom,
   blindModeAtom,
 } from "@/sections/practice/states";
-import {
-  puzzleStatsAtom,
-  updatePuzzleStats,
-} from "@/lib/puzzleRating";
+import { puzzleStatsAtom, updatePuzzleStats } from "@/lib/puzzleRating";
 import { useScreenSize } from "@/hooks/useScreenSize";
 import { useLostDragRecovery } from "@/hooks/useLostDragRecovery";
 import { pieceSetAtom } from "@/components/board/states";
@@ -26,8 +23,18 @@ import {
 import { FlashOverlay } from "@/components/puzzle/FlashOverlay";
 
 const PIECE_CODES: Piece[] = [
-  "wP", "wB", "wN", "wR", "wQ", "wK",
-  "bP", "bB", "bN", "bR", "bQ", "bK",
+  "wP",
+  "wB",
+  "wN",
+  "wR",
+  "wQ",
+  "wK",
+  "bP",
+  "bB",
+  "bN",
+  "bR",
+  "bQ",
+  "bK",
 ];
 
 // Re-export the hook's status type so existing consumers
@@ -82,7 +89,7 @@ export default function PracticeChessBoard() {
           timeMs: Date.now() - puzzleStartTimeRef.current,
           theme: currentPuzzle.themes?.[0] || "unknown",
           timestamp: Date.now(),
-        }),
+        })
       );
       const setId = router.query.setId as string | undefined;
       const conceptName = router.query.theme as string | undefined;
@@ -93,13 +100,13 @@ export default function PracticeChessBoard() {
         success: true,
         movesPlayed: userMoves,
         timeSpentSeconds: Math.round(
-          (Date.now() - puzzleStartTimeRef.current) / 1000,
+          (Date.now() - puzzleStartTimeRef.current) / 1000
         ),
         hintsUsed: 0,
         conceptName,
       });
     },
-    [currentPuzzle, router.query, setSolvedStatus, setGlobalStats, userMoves],
+    [currentPuzzle, router.query, setSolvedStatus, setGlobalStats, userMoves]
   );
 
   const recordFailedAttempt = useCallback(
@@ -113,10 +120,10 @@ export default function PracticeChessBoard() {
           timeMs: Date.now() - puzzleStartTimeRef.current,
           theme: currentPuzzle.themes?.[0] || "unknown",
           timestamp: Date.now(),
-        }),
+        })
       );
     },
-    [currentPuzzle, setGlobalStats],
+    [currentPuzzle, setGlobalStats]
   );
 
   const board = usePuzzleBoardState({
@@ -192,7 +199,7 @@ export default function PracticeChessBoard() {
       setSelectedSquare(null);
       setLegalMoveSquares([]);
     },
-    [board, selectedSquare],
+    [board, selectedSquare]
   );
 
   // Custom pieces — SVG piece sets, invisible in blind mode.
@@ -215,7 +222,7 @@ export default function PracticeChessBoard() {
         );
         return acc;
       }, {}),
-    [pieceSet, blindMode],
+    [pieceSet, blindMode]
   );
 
   // Compose the hook's customSquareStyles with the click-to-move
@@ -232,17 +239,18 @@ export default function PracticeChessBoard() {
       const existing = styles[sq] || {};
       styles[sq] = {
         ...existing,
-        background: `${existing.backgroundColor || ""} radial-gradient(circle, rgba(0,0,0,0.15) 25%, transparent 25%)`.trim(),
+        background:
+          `${existing.backgroundColor || ""} radial-gradient(circle, rgba(0,0,0,0.15) 25%, transparent 25%)`.trim(),
       };
     }
     return styles;
   }, [board.customSquareStyles, selectedSquare, legalMoveSquares]);
 
   const statusText = useMemo(() => {
-    if (board.puzzleError) return `Puzzle data error — ${board.puzzleError}`;
+    if (board.puzzleError) return `Puzzle data error: ${board.puzzleError}`;
     if (board.status === "loading") return "Loading puzzle...";
-    if (board.status === "solved") return "Puzzle solved!";
-    if (board.status === "wrong") return "That's not right — try again.";
+    if (board.status === "solved") return "Puzzle solved.";
+    if (board.status === "wrong") return "That's not right. Try again.";
     const turn = board.game.turn();
     return turn === "w" ? "White to move" : "Black to move";
   }, [board.status, board.game, board.puzzleError]);

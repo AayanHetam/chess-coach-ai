@@ -3,6 +3,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Masti } from "./Masti";
 import type { MastiMood } from "./manifest";
+import { LINE, SURFACE, TEXT } from "@/theme/tokens";
 
 export interface MastiSaysProps {
   mood: MastiMood;
@@ -30,10 +31,12 @@ const TONES: Record<
   NonNullable<MastiSaysProps["tone"]>,
   { background: string; border: string; color: string }
 > = {
+  // "glass" is the historical name of the neutral tone; the bubble is a
+  // solid surface now.
   glass: {
-    background: "rgba(20,22,28,0.72)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    color: "rgba(255,255,255,0.92)",
+    background: SURFACE.raised,
+    border: `1px solid ${LINE.hairline}`,
+    color: TEXT.primary,
   },
   ember: {
     background: "rgba(249,115,22,0.14)",
@@ -53,9 +56,9 @@ const TONES: Record<
 };
 
 /**
- * Masti with a speech bubble. The bubble is a plain glass box with a tail
- * drawn as a rotated square, all inline styles, so it renders identically on
- * the server and inside MUI-free pages. Without children only the figure
+ * Masti with a speech bubble. The bubble is a plain box with a tail drawn
+ * as a rotated square, all inline styles, so it renders identically on the
+ * server and inside MUI-free pages. Without children only the figure
  * renders, which is what the `thinking` mood wants: a chin-stroking Masti
  * says "give me a minute" on his own.
  */
@@ -113,9 +116,6 @@ export function MastiSays({
             background: t.background,
             border: t.border,
             color: t.color,
-            backdropFilter: "blur(12px) saturate(140%)",
-            WebkitBackdropFilter: "blur(12px) saturate(140%)",
-            boxShadow: "0 8px 28px rgba(0,0,0,0.32)",
             fontSize: "0.94rem",
             lineHeight: 1.5,
             marginBottom: align === "flex-end" ? Math.round(size * 0.18) : 0,

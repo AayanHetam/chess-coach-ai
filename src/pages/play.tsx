@@ -8,8 +8,8 @@ import { Icon } from "@iconify/react";
 import { useState } from "react";
 import { chessMastiDarkTheme } from "@/theme/chessMasti";
 import { NavPill } from "@/components/ui/NavPill";
-import { ACCENTS } from "@/components/ui/accents";
 import { MastiSays } from "@/components/masti";
+import { LINE, SURFACE, TEXT } from "@/theme/tokens";
 
 type PlayMode = "lichess" | "chesscom";
 
@@ -21,15 +21,14 @@ export default function Play() {
       <PageTitle title="Chess Masti AI - Play" />
       <Head>
         <meta name="color-scheme" content="dark" />
-        <meta name="theme-color" content="#08090C" />
-        <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:rgba(249,115,22,0.18);border-radius:5px;}`}</style>
+        <meta name="theme-color" content={SURFACE.page} />
+        <style>{`html,body{background-color:${SURFACE.page};color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:${SURFACE.page};}::-webkit-scrollbar-thumb{background:${LINE.strong};border-radius:5px;}`}</style>
       </Head>
-
 
       <Box
         sx={{
           minHeight: "100vh",
-          color: "rgba(255,255,255,0.94)",
+          color: TEXT.primary,
           pt: 2,
           pb: 4,
           px: { xs: 2, md: 3 },
@@ -38,12 +37,11 @@ export default function Play() {
         <NavPill active="play" />
 
         <Box sx={{ width: "100%", maxWidth: 1280, mx: "auto", mt: 2 }}>
-          {/* Tab switcher — glass segmented track; jade-tinted active pill,
-              Play's surface identity (see SURFACE_ACCENTS). Masti stands at
-              the end of the row from sm up; on phones every pixel under the
-              nav belongs to the live board, so he sits this one out. The page
-              never sees the game phase (that lives in the section's hook), so
-              he greets rather than reacts to a result. */}
+          {/* Tab switcher: the theme's tabs. Masti stands at the end of the
+              row from sm up; on phones every pixel under the nav belongs to
+              the live board, so he sits this one out. The page never sees the
+              game phase (that lives in the section's hook), so he greets
+              rather than reacts to a result. */}
           <Box
             sx={{
               display: "flex",
@@ -60,41 +58,6 @@ export default function Play() {
               variant="scrollable"
               scrollButtons="auto"
               allowScrollButtonsMobile
-              sx={{
-                minHeight: 0,
-                "& .MuiTabs-flexContainer": {
-                  gap: 0.5,
-                  background: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: "999px",
-                  p: 0.5,
-                  width: "fit-content",
-                },
-                "& .MuiTab-root": {
-                  textTransform: "none",
-                  fontWeight: 700,
-                  fontSize: "0.92rem",
-                  minHeight: 0,
-                  py: 0.85,
-                  px: 2.25,
-                  borderRadius: "999px",
-                  color: "rgba(255,255,255,0.62)",
-                  transition: "color 180ms ease",
-                  zIndex: 1,
-                  "&:hover": { color: "rgba(255,255,255,0.92)" },
-                },
-                "& .Mui-selected": {
-                  color: `${ACCENTS.jade.bright} !important`,
-                },
-                "& .MuiTabs-indicator": {
-                  height: "100%",
-                  borderRadius: "999px",
-                  background: ACCENTS.jade.soft,
-                  border: `1px solid ${ACCENTS.jade.border}`,
-                  boxShadow: `0 0 0 1px ${ACCENTS.jade.tint}`,
-                  zIndex: 0,
-                },
-              }}
             >
               <Tab
                 value="lichess"

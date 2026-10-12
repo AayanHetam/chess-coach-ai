@@ -6,6 +6,15 @@ import { Chess } from "chess.js";
 import dynamic from "next/dynamic";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 import { ChessgroundBoardPlaceholder } from "@/components/ui/ChessgroundBoardPlaceholder";
+import {
+  FONT_MONO,
+  LINE,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 const ChessgroundBoard = dynamic(
   () =>
@@ -31,9 +40,11 @@ const ChessgroundBoard = dynamic(
  * the component renders a small placeholder rather than crashing — the
  * coach has hallucinated a move, the user should see something graceful.
  *
- * Design: glass surface, ember accent ring, follows /preview/move-reveal
- * tokens (12px blur, rgba(22,18,14,0.55) fill, #FF7A1A accent).
+ * Design: a solid tertiary surface inside the coach bubble with a hairline;
+ * the error state swaps the hairline for a status-coloured one.
  */
+
+const ERROR_BORDER = "rgba(255,69,58,0.45)";
 
 interface PuzzleCoachMiniboardProps {
   /** Starting FEN to apply the moves from. Typically the puzzle's
@@ -84,32 +95,26 @@ export function PuzzleCoachMiniboard({
     }
   }, [startFen, moves]);
 
-  const shapes: DrawShape[] = result.ok && result.lastMove
-    ? [
-        {
-          orig: result.lastMove[0],
-          dest: result.lastMove[1],
-          brush: "gold",
-        },
-      ]
-    : [];
+  const shapes: DrawShape[] =
+    result.ok && result.lastMove
+      ? [
+          {
+            orig: result.lastMove[0],
+            dest: result.lastMove[1],
+            brush: "gold",
+          },
+        ]
+      : [];
 
   return (
     <Box
       sx={{
         my: 1.25,
         maxWidth: 240,
-        borderRadius: "0.85rem",
-        background: "rgba(22,18,14,0.55)",
-        border: result.ok
-          ? "1px solid rgba(255,122,26,0.22)"
-          : "1px solid rgba(239,68,68,0.32)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
+        borderRadius: `${RADIUS.control}px`,
+        background: SURFACE.raisedTertiary,
+        border: `1px solid ${result.ok ? LINE.hairline : ERROR_BORDER}`,
         p: 1,
-        boxShadow: result.ok
-          ? "0 8px 24px -10px rgba(255,122,26,0.18), inset 0 1px 0 rgba(255,255,255,0.04)"
-          : "0 8px 24px -10px rgba(239,68,68,0.18)",
       }}
     >
       {caption && (
@@ -117,10 +122,8 @@ export function PuzzleCoachMiniboard({
           variant="caption"
           sx={{
             display: "block",
-            color: "rgba(255,240,224,0.7)",
-            fontSize: "0.7rem",
-            fontWeight: 600,
-            letterSpacing: "0.04em",
+            ...TYPE.label,
+            color: TEXT.secondary,
             mb: 0.75,
             px: 0.5,
           }}
@@ -133,9 +136,8 @@ export function PuzzleCoachMiniboard({
         <>
           <Box
             sx={{
-              borderRadius: "0.5rem",
+              borderRadius: `${RADIUS.small}px`,
               overflow: "hidden",
-              boxShadow: "0 0 0 1px rgba(255,255,255,0.06)",
             }}
           >
             <ChessgroundBoard
@@ -152,9 +154,9 @@ export function PuzzleCoachMiniboard({
                 display: "block",
                 mt: 0.75,
                 px: 0.5,
-                color: "rgba(255,240,224,0.55)",
+                color: TEXT.secondary,
                 fontSize: "0.7rem",
-                fontFamily: "Monaco, Menlo, monospace",
+                fontFamily: FONT_MONO,
               }}
             >
               after: {moves.join(" ")}
@@ -167,7 +169,7 @@ export function PuzzleCoachMiniboard({
             variant="caption"
             sx={{
               display: "block",
-              color: "#fca5a5",
+              color: STATUS.error,
               fontSize: "0.72rem",
               fontWeight: 600,
               mb: 0.5,
@@ -179,9 +181,9 @@ export function PuzzleCoachMiniboard({
             variant="caption"
             sx={{
               display: "block",
-              color: "rgba(255,255,255,0.45)",
+              color: TEXT.secondary,
               fontSize: "0.7rem",
-              fontFamily: "Monaco, Menlo, monospace",
+              fontFamily: FONT_MONO,
             }}
           >
             {result.error}

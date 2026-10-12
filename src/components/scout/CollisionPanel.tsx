@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Box,
   Button,
@@ -9,16 +9,25 @@ import {
   Tabs,
   Tooltip,
   Typography,
-} from '@mui/material';
-import { Icon } from '@iconify/react';
-import { DossierPanel, FieldLabel, ROSE } from './dossier';
-import { CollisionLine, Collisions } from '@/types/scout';
-import { formatMoveSequence } from '@/lib/scoutService';
+} from "@mui/material";
+import { Icon } from "@iconify/react";
+import { DossierPanel } from "./dossier";
+import { CollisionLine, Collisions } from "@/types/scout";
+import { formatMoveSequence } from "@/lib/scoutService";
+import {
+  ACCENT,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+} from "@/theme/tokens";
 
 export interface CollisionPanelProps {
   collisions: Collisions;
   targetUsername: string;
-  onExplore: (moves: string[], asColor: 'white' | 'black') => void;
+  onExplore: (moves: string[], asColor: "white" | "black") => void;
 }
 
 export default function CollisionPanel({
@@ -26,9 +35,11 @@ export default function CollisionPanel({
   targetUsername,
   onExplore,
 }: CollisionPanelProps) {
-  const [color, setColor] = useState<'white' | 'black'>('white');
+  const [color, setColor] = useState<"white" | "black">("white");
   const lines =
-    color === 'white' ? collisions.whenYouPlayWhite : collisions.whenYouPlayBlack;
+    color === "white"
+      ? collisions.whenYouPlayWhite
+      : collisions.whenYouPlayBlack;
   const empty =
     collisions.whenYouPlayWhite.length === 0 &&
     collisions.whenYouPlayBlack.length === 0;
@@ -36,16 +47,16 @@ export default function CollisionPanel({
   return (
     <DossierPanel label={`Collisions · you vs ${targetUsername}`}>
       <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        direction={{ xs: "column", sm: "row" }}
+        alignItems={{ xs: "flex-start", sm: "center" }}
         justifyContent="space-between"
         spacing={1.5}
         sx={{ mb: 2 }}
       >
         <Box>
           <Typography variant="caption" color="text.secondary">
-            Lines where <strong>your</strong> repertoire meets <strong>their</strong> weakness.
-            Ranked by overall edge.
+            Lines where <strong>your</strong> repertoire meets{" "}
+            <strong>their</strong> weakness. Ranked by overall edge.
           </Typography>
         </Box>
 
@@ -54,16 +65,7 @@ export default function CollisionPanel({
           onChange={(_, v) => setColor(v)}
           sx={{
             minHeight: 36,
-            '& .MuiTab-root': {
-              minHeight: 36,
-              textTransform: 'none',
-              fontWeight: 700,
-              fontSize: '0.82rem',
-              px: 2,
-              color: 'rgba(255,255,255,0.62)',
-            },
-            '& .Mui-selected': { color: `${ROSE.bright} !important` },
-            '& .MuiTabs-indicator': { background: ROSE.bright, height: 3, borderRadius: 2 },
+            "& .MuiTab-root": { minHeight: 36, fontSize: "0.82rem", px: 2 },
           }}
         >
           <Tab
@@ -74,9 +76,9 @@ export default function CollisionPanel({
                   sx={{
                     width: 12,
                     height: 12,
-                    borderRadius: '50%',
-                    bgcolor: '#fff',
-                    border: '1px solid #999',
+                    borderRadius: "50%",
+                    bgcolor: "#fff",
+                    border: "1px solid #999",
                   }}
                 />
                 <span>you as White</span>
@@ -87,7 +89,15 @@ export default function CollisionPanel({
             value="black"
             label={
               <Stack direction="row" spacing={0.75} alignItems="center">
-                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#3a3a3a', border: '1px solid rgba(255,255,255,0.2)' }} />
+                <Box
+                  sx={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: "50%",
+                    bgcolor: "#3a3a3a",
+                    border: `1px solid ${LINE.strong}`,
+                  }}
+                />
                 <span>you as Black</span>
               </Stack>
             }
@@ -99,12 +109,17 @@ export default function CollisionPanel({
         <EmptyState yourGames={collisions.yourGames} />
       ) : (
         <>
-          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1.5 }}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1.5}
+            sx={{ mb: 1.5 }}
+          >
             <Typography variant="caption" color="text.secondary">
-              Your overall win rate:{' '}
-              <strong style={{ color: '#22c55e' }}>
+              Your overall win rate:{" "}
+              <strong style={{ color: STATUS.success }}>
                 {(collisions.yourWinRate * 100).toFixed(0)}%
-              </strong>{' '}
+              </strong>{" "}
               across {collisions.yourGames} games
             </Typography>
           </Stack>
@@ -112,13 +127,16 @@ export default function CollisionPanel({
           {lines.length === 0 ? (
             <EmptyState
               yourGames={collisions.yourGames}
-              message="No significant edges on this side — their weaknesses don't overlap with your repertoire."
+              message="No significant edges on this side: their weaknesses don't overlap with your repertoire."
             />
           ) : (
             <Grid container spacing={1.5}>
               {lines.map((line, i) => (
                 <Grid size={{ xs: 12, md: 6 }} key={`${line.eco}-${i}`}>
-                  <CollisionCard line={line} onExplore={() => onExplore(line.moves, color)} />
+                  <CollisionCard
+                    line={line}
+                    onExplore={() => onExplore(line.moves, color)}
+                  />
                 </Grid>
               ))}
             </Grid>
@@ -140,17 +158,17 @@ function EmptyState({
     <Box
       sx={{
         p: 3,
-        textAlign: 'center',
-        color: 'text.secondary',
-        borderRadius: 2,
-        border: '1px dashed rgba(255,255,255,0.12)',
+        textAlign: "center",
+        color: "text.secondary",
+        borderRadius: `${RADIUS.control}px`,
+        border: `1px dashed ${LINE.strong}`,
       }}
     >
       <Icon icon="mdi:crosshairs-off" width={36} style={{ opacity: 0.4 }} />
       <Typography variant="body2" sx={{ mt: 1 }}>
         {message ??
           (yourGames === 0
-            ? 'No games found for your username yet.'
+            ? "No games found for your username yet."
             : "Your repertoire and theirs don't overlap on enough shared lines yet.")}
       </Typography>
     </Box>
@@ -169,16 +187,13 @@ function CollisionCard({
       onClick={onExplore}
       sx={{
         p: 1.5,
-        borderRadius: '12px',
-        border: '1px solid rgba(255,255,255,0.08)',
-        bgcolor: 'rgba(255,255,255,0.03)',
-        cursor: 'pointer',
-        transition: 'all 180ms ease',
-        '&:hover': {
-          border: `1px solid ${ROSE.border}`,
-          boxShadow: ROSE.glow,
-          transform: 'translateY(-1px)',
-        },
+        borderRadius: `${RADIUS.control}px`,
+        border: `1px solid ${LINE.hairline}`,
+        bgcolor: SURFACE.raisedSecondary,
+        cursor: "pointer",
+        transition: `border-color ${MOTION.hover}, transform ${MOTION.press}`,
+        "&:hover": { borderColor: LINE.strong },
+        "&:active": { transform: MOTION.pressScale },
       }}
     >
       <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mb: 1 }}>
@@ -186,19 +201,29 @@ function CollisionCard({
           label={line.eco}
           size="small"
           sx={{
-            bgcolor: 'rgba(255,255,255,0.08)',
-            color: 'rgba(255,255,255,0.94)',
-            fontFamily: 'monospace',
+            bgcolor: "rgba(255,255,255,0.08)",
+            color: TEXT.primary,
+            fontFamily: "monospace",
             fontWeight: 700,
-            fontSize: '0.72rem',
+            fontSize: "0.72rem",
             height: 22,
           }}
         />
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 700, fontSize: '0.88rem', lineHeight: 1.3, color: 'rgba(255,255,255,0.94)' }}>
+          <Typography
+            sx={{
+              fontWeight: 700,
+              fontSize: "0.88rem",
+              lineHeight: 1.3,
+              color: TEXT.primary,
+            }}
+          >
             {line.name}
             {line.variation && (
-              <Box component="span" sx={{ color: 'text.secondary', fontWeight: 500, ml: 0.5 }}>
+              <Box
+                component="span"
+                sx={{ color: "text.secondary", fontWeight: 500, ml: 0.5 }}
+              >
                 {line.variation}
               </Box>
             )}
@@ -206,60 +231,59 @@ function CollisionCard({
           <Typography
             variant="caption"
             sx={{
-              fontFamily: 'monospace',
-              color: 'text.secondary',
-              fontSize: '0.7rem',
+              fontFamily: "monospace",
+              color: "text.secondary",
+              fontSize: "0.75rem",
             }}
           >
             {formatMoveSequence(line.moves.slice(0, 8))}
-            {line.moves.length > 8 ? '…' : ''}
+            {line.moves.length > 8 ? "…" : ""}
           </Typography>
         </Box>
       </Stack>
 
-      {/* YOU vs THEM bars */}
+      {/* You vs them bars */}
       <Stack spacing={0.75}>
         <EdgeBar
-          label="YOU"
+          label="You"
           games={line.yourGames}
           score={line.yourScorePct}
-          color="#22c55e"
+          color={STATUS.success}
           strong
         />
         <EdgeBar
-          label="THEM"
+          label="Them"
           games={line.theirGames}
           score={line.theirScorePct}
-          color="#ef4444"
+          color={STATUS.error}
         />
       </Stack>
 
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 1.25 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ mt: 1.25 }}
+      >
         <Tooltip title="Higher edge = better your-vs-them differential scaled by sample confidence.">
           <Chip
             icon={<Icon icon="mdi:trending-up" width={12} />}
             label={`+${Math.round(line.edge)}`}
             size="small"
             sx={{
-              fontSize: '0.7rem',
-              fontWeight: 800,
+              fontSize: "0.75rem",
+              fontWeight: 600,
               height: 22,
-              bgcolor: 'rgba(34,197,94,0.15)',
-              color: '#22c55e',
-              '& .MuiChip-icon': { color: '#22c55e' },
+              bgcolor: STATUS.successTint,
+              color: STATUS.success,
+              "& .MuiChip-icon": { color: STATUS.success },
             }}
           />
         </Tooltip>
         <Button
           size="small"
           startIcon={<Icon icon="mdi:play-circle-outline" width={14} />}
-          sx={{
-            textTransform: 'none',
-            fontWeight: 700,
-            fontSize: '0.72rem',
-            color: '#FB923C',
-            '&:hover': { bgcolor: 'rgba(249,115,22,0.08)' },
-          }}
+          sx={{ fontWeight: 600, fontSize: "0.75rem", color: ACCENT.main }}
         >
           Explore line
         </Button>
@@ -283,35 +307,53 @@ function EdgeBar({
 }) {
   return (
     <Box>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.25 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ mb: 0.25 }}
+      >
         <Typography
           variant="caption"
-          sx={{
-            fontWeight: strong ? 800 : 700,
-            fontSize: '0.68rem',
-            letterSpacing: 1,
-            color,
-          }}
+          sx={{ fontWeight: strong ? 700 : 600, fontSize: "0.75rem", color }}
         >
           {label}
         </Typography>
         <Stack direction="row" spacing={0.75} alignItems="baseline">
-          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ fontSize: "0.75rem" }}
+          >
             {games} games
           </Typography>
-          <Typography sx={{ fontWeight: 800, fontSize: '0.82rem', color }}>
+          <Typography
+            sx={{
+              fontWeight: 800,
+              fontSize: "0.82rem",
+              color,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
             {score.toFixed(0)}%
           </Typography>
         </Stack>
       </Stack>
-      <Box sx={{ height: 5, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+      <Box
+        sx={{
+          height: 5,
+          borderRadius: 2,
+          bgcolor: "rgba(255,255,255,0.08)",
+          overflow: "hidden",
+        }}
+      >
         <Box
           sx={{
             width: `${Math.max(3, Math.min(100, score))}%`,
-            height: '100%',
+            height: "100%",
             borderRadius: 2,
             bgcolor: color,
-            transition: 'width 0.4s ease',
+            transition: "width 0.4s ease",
           }}
         />
       </Box>

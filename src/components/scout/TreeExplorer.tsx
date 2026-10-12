@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Chip,
@@ -10,26 +10,44 @@ import {
   Stack,
   Tooltip,
   Typography,
-} from '@mui/material';
-import { Icon } from '@iconify/react';
-import { Chessboard } from 'react-chessboard';
-import { CustomPieces, Piece } from 'react-chessboard/dist/chessboard/types';
-import { OpeningTreeNode } from '@/types/scout';
-import { getNodeScore } from '@/lib/scoutService';
-import { getLichessEval } from '@/lib/lichess';
-import { ROSE } from './dossier';
+} from "@mui/material";
+import { Icon } from "@iconify/react";
+import { Chessboard } from "react-chessboard";
+import { CustomPieces, Piece } from "react-chessboard/dist/chessboard/types";
+import { OpeningTreeNode } from "@/types/scout";
+import { getNodeScore } from "@/lib/scoutService";
+import { getLichessEval } from "@/lib/lichess";
+import {
+  ACCENT,
+  LINE,
+  MOTION,
+  RADIUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
-const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 const PIECE_CODES: Piece[] = [
-  'wP', 'wB', 'wN', 'wR', 'wQ', 'wK',
-  'bP', 'bB', 'bN', 'bR', 'bQ', 'bK',
+  "wP",
+  "wB",
+  "wN",
+  "wR",
+  "wQ",
+  "wK",
+  "bP",
+  "bB",
+  "bN",
+  "bR",
+  "bQ",
+  "bK",
 ];
 
 export interface TreeExplorerProps {
   tree: OpeningTreeNode;
   currentPath: string[];
-  orientation: 'white' | 'black';
+  orientation: "white" | "black";
   pieceSet: string;
   boardSize: number;
   minGames: number;
@@ -60,7 +78,9 @@ export default function TreeExplorer({
   const currentNode = useMemo(() => {
     let node: OpeningTreeNode | null = tree;
     for (const mv of currentPath) {
-      const child: OpeningTreeNode | undefined = node?.children.find(c => c.move === mv);
+      const child: OpeningTreeNode | undefined = node?.children.find(
+        (c) => c.move === mv
+      );
       if (!child) return tree;
       node = child;
     }
@@ -70,11 +90,14 @@ export default function TreeExplorer({
   const boardFen = currentNode?.fen || STARTING_FEN;
 
   const turn = useMemo(() => {
-    const parts = boardFen.split(' ');
-    return parts[1] || 'w';
+    const parts = boardFen.split(" ");
+    return parts[1] || "w";
   }, [boardFen]);
 
-  const [cloudEval, setCloudEval] = useState<{ cp?: number; mate?: number } | null>(null);
+  const [cloudEval, setCloudEval] = useState<{
+    cp?: number;
+    mate?: number;
+  } | null>(null);
   const [evalLoading, setEvalLoading] = useState(false);
 
   useEffect(() => {
@@ -85,7 +108,7 @@ export default function TreeExplorer({
     let cancelled = false;
     setEvalLoading(true);
     getLichessEval(currentNode.fen, 1)
-      .then(result => {
+      .then((result) => {
         if (cancelled) return;
         if (result.lines.length > 0) {
           setCloudEval({ cp: result.lines[0].cp, mate: result.lines[0].mate });
@@ -93,8 +116,12 @@ export default function TreeExplorer({
           setCloudEval(null);
         }
       })
-      .catch(() => { if (!cancelled) setCloudEval(null); })
-      .finally(() => { if (!cancelled) setEvalLoading(false); });
+      .catch(() => {
+        if (!cancelled) setCloudEval(null);
+      })
+      .finally(() => {
+        if (!cancelled) setEvalLoading(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -109,7 +136,7 @@ export default function TreeExplorer({
             height={squareWidth}
             sx={{
               backgroundImage: `url(/piece/${pieceSet}/${piece}.svg)`,
-              backgroundSize: 'contain',
+              backgroundSize: "contain",
             }}
           />
         );
@@ -118,10 +145,13 @@ export default function TreeExplorer({
     [pieceSet]
   );
 
-  const formatEval = (ev: { cp?: number; mate?: number } | null): string | null => {
+  const formatEval = (
+    ev: { cp?: number; mate?: number } | null
+  ): string | null => {
     if (!ev) return null;
     if (ev.mate !== undefined && ev.mate !== null) return `M${ev.mate}`;
-    if (ev.cp !== undefined && ev.cp !== null) return `${ev.cp >= 0 ? '+' : ''}${(ev.cp / 100).toFixed(1)}`;
+    if (ev.cp !== undefined && ev.cp !== null)
+      return `${ev.cp >= 0 ? "+" : ""}${(ev.cp / 100).toFixed(1)}`;
     return null;
   };
 
@@ -133,16 +163,13 @@ export default function TreeExplorer({
           elevation={0}
           sx={{
             p: 2,
-            borderRadius: '1.5rem',
-            background: 'rgba(20,22,28,0.55)',
-            backdropFilter: 'blur(14px) saturate(140%)',
-            WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-            overflow: 'hidden',
+            borderRadius: `${RADIUS.card}px`,
+            background: SURFACE.raised,
+            border: `1px solid ${LINE.hairline}`,
+            overflow: "hidden",
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 1 }}>
             <Tooltip title="Starting position (Home)">
               <span>
                 <IconButton
@@ -150,9 +177,9 @@ export default function TreeExplorer({
                   onClick={onReset}
                   disabled={currentPath.length === 0}
                   sx={{
-                    color: 'rgba(255,255,255,0.7)',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
-                    '&.Mui-disabled': { color: 'rgba(255,255,255,0.25)' },
+                    color: "rgba(255,255,255,0.7)",
+                    "&:hover": { bgcolor: "rgba(255,255,255,0.04)" },
+                    "&.Mui-disabled": { color: "rgba(255,255,255,0.25)" },
                   }}
                 >
                   <Icon icon="mdi:home" />
@@ -166,9 +193,9 @@ export default function TreeExplorer({
                   onClick={onBack}
                   disabled={historyLen === 0}
                   sx={{
-                    color: 'rgba(255,255,255,0.7)',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
-                    '&.Mui-disabled': { color: 'rgba(255,255,255,0.25)' },
+                    color: "rgba(255,255,255,0.7)",
+                    "&:hover": { bgcolor: "rgba(255,255,255,0.04)" },
+                    "&.Mui-disabled": { color: "rgba(255,255,255,0.25)" },
                   }}
                 >
                   <Icon icon="mdi:arrow-left" />
@@ -182,9 +209,9 @@ export default function TreeExplorer({
                   onClick={onForward}
                   disabled={futureLen === 0}
                   sx={{
-                    color: 'rgba(255,255,255,0.7)',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
-                    '&.Mui-disabled': { color: 'rgba(255,255,255,0.25)' },
+                    color: "rgba(255,255,255,0.7)",
+                    "&:hover": { bgcolor: "rgba(255,255,255,0.04)" },
+                    "&.Mui-disabled": { color: "rgba(255,255,255,0.25)" },
                   }}
                 >
                   <Icon icon="mdi:arrow-right" />
@@ -192,7 +219,11 @@ export default function TreeExplorer({
               </span>
             </Tooltip>
             <Box sx={{ flex: 1 }} />
-            <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ fontFamily: "monospace" }}
+            >
               ply {currentPath.length}
             </Typography>
           </Box>
@@ -203,26 +234,26 @@ export default function TreeExplorer({
               mb: 1.5,
               px: 0.75,
               py: 0.75,
-              borderRadius: '12px',
-              bgcolor: 'rgba(255,255,255,0.04)',
+              borderRadius: "12px",
+              bgcolor: "rgba(255,255,255,0.04)",
               minHeight: 32,
-              display: 'flex',
-              alignItems: 'center',
-              flexWrap: 'wrap',
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
               gap: 0.25,
             }}
           >
             <MuiLink
               component="button"
-              underline={currentPath.length === 0 ? 'none' : 'hover'}
+              underline={currentPath.length === 0 ? "none" : "hover"}
               onClick={() => onBreadcrumbClick(-1)}
               sx={{
-                fontFamily: 'monospace',
-                fontSize: '0.85rem',
+                fontFamily: "monospace",
+                fontSize: "0.85rem",
                 fontWeight: 700,
-                color: currentPath.length === 0 ? ROSE.bright : 'rgba(255,255,255,0.62)',
-                textDecoration: 'none',
-                cursor: 'pointer',
+                color: currentPath.length === 0 ? ACCENT.main : TEXT.secondary,
+                textDecoration: "none",
+                cursor: "pointer",
                 px: 0.5,
               }}
             >
@@ -233,9 +264,15 @@ export default function TreeExplorer({
               const moveNumber = Math.floor(i / 2) + 1;
               const isLast = i === currentPath.length - 1;
               return (
-                <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                <Box
+                  key={i}
+                  sx={{ display: "flex", alignItems: "center", gap: 0.25 }}
+                >
                   {isWhiteMove && (
-                    <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ fontFamily: "monospace", color: "text.secondary" }}
+                    >
                       {moveNumber}.
                     </Typography>
                   )}
@@ -244,15 +281,15 @@ export default function TreeExplorer({
                     underline="hover"
                     onClick={() => onBreadcrumbClick(i)}
                     sx={{
-                      fontFamily: 'monospace',
-                      fontSize: '0.85rem',
+                      fontFamily: "monospace",
+                      fontSize: "0.85rem",
                       fontWeight: 700,
-                      color: isLast ? ROSE.bright : 'rgba(255,255,255,0.94)',
-                      textDecoration: 'none',
-                      cursor: 'pointer',
+                      color: isLast ? ACCENT.main : TEXT.primary,
+                      textDecoration: "none",
+                      cursor: "pointer",
                       px: 0.25,
                       borderRadius: 0.5,
-                      '&:hover': { bgcolor: ROSE.soft },
+                      "&:hover": { bgcolor: "rgba(255,255,255,0.06)" },
                     }}
                   >
                     {mv}
@@ -262,14 +299,17 @@ export default function TreeExplorer({
             })}
           </Box>
 
-          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <Box sx={{ display: "flex", justifyContent: "center" }}>
             <Chessboard
               id="ScoutBoard"
               position={boardFen}
               boardOrientation={orientation}
               boardWidth={boardSize}
               arePiecesDraggable={false}
-              customBoardStyle={{ borderRadius: '4px', boxShadow: '0 2px 10px rgba(0,0,0,0.3)' }}
+              customBoardStyle={{
+                borderRadius: "4px",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.3)",
+              }}
               customPieces={customPieces}
             />
           </Box>
@@ -283,7 +323,7 @@ export default function TreeExplorer({
             sx={{ mt: 1.5 }}
           >
             <Typography variant="caption" color="text.secondary">
-              {turn === 'w' ? 'White' : 'Black'} to move
+              {turn === "w" ? "White" : "Black"} to move
             </Typography>
             {evalLoading && <CircularProgress size={12} />}
             {cloudEval && !evalLoading && (
@@ -294,16 +334,16 @@ export default function TreeExplorer({
                   fontWeight: 700,
                   bgcolor:
                     cloudEval.cp !== undefined && cloudEval.cp > 0
-                      ? 'rgba(34,197,94,0.16)'
+                      ? "rgba(34,197,94,0.16)"
                       : cloudEval.cp !== undefined && cloudEval.cp < 0
-                      ? 'rgba(239,68,68,0.16)'
-                      : 'rgba(255,255,255,0.08)',
+                        ? "rgba(239,68,68,0.16)"
+                        : "rgba(255,255,255,0.08)",
                   color:
                     cloudEval.cp !== undefined && cloudEval.cp > 0
-                      ? '#22c55e'
+                      ? "#22c55e"
                       : cloudEval.cp !== undefined && cloudEval.cp < 0
-                      ? '#ef4444'
-                      : 'rgba(255,255,255,0.8)',
+                        ? "#ef4444"
+                        : "rgba(255,255,255,0.8)",
                 }}
               />
             )}
@@ -311,8 +351,13 @@ export default function TreeExplorer({
 
           {currentNode && currentNode.totalGames > 0 && (
             <Box sx={{ mt: 1.5 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-                Opponent&apos;s record in this position ({currentNode.totalGames} games):
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ mb: 0.5, display: "block" }}
+              >
+                Opponent&apos;s record in this position (
+                {currentNode.totalGames} games):
               </Typography>
               <WinDrawLossBar
                 wins={currentNode.wins}
@@ -320,7 +365,11 @@ export default function TreeExplorer({
                 losses={currentNode.losses}
                 total={currentNode.totalGames}
               />
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ mt: 0.5, display: "block" }}
+              >
                 Score: {getNodeScore(currentNode).toFixed(0)}%
               </Typography>
             </Box>
@@ -334,106 +383,151 @@ export default function TreeExplorer({
           elevation={0}
           sx={{
             p: 2,
-            borderRadius: '1.5rem',
-            background: 'rgba(20,22,28,0.55)',
-            backdropFilter: 'blur(14px) saturate(140%)',
-            WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-            overflow: 'hidden',
+            borderRadius: `${RADIUS.card}px`,
+            background: SURFACE.raised,
+            border: `1px solid ${LINE.hairline}`,
+            overflow: "hidden",
             minHeight: 400,
-            display: 'flex',
-            flexDirection: 'column',
+            display: "flex",
+            flexDirection: "column",
           }}
         >
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ mb: 1.5 }}
+          >
             <Stack direction="row" spacing={1} alignItems="center">
-              <Icon icon="mdi:file-tree" width={20} style={{ color: ROSE.bright }} />
-              <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'rgba(255,255,255,0.94)' }}>Opening Tree</Typography>
+              <Icon
+                icon="mdi:file-tree"
+                width={20}
+                style={{ color: TEXT.secondary }}
+              />
+              <Typography sx={{ ...TYPE.h5, color: TEXT.primary }}>
+                Opening tree
+              </Typography>
             </Stack>
             {currentNode && currentNode.children.length > 0 && (
               <Chip
                 size="small"
                 label={`${currentNode.children.length} continuation${
-                  currentNode.children.length === 1 ? '' : 's'
+                  currentNode.children.length === 1 ? "" : "s"
                 }`}
                 variant="outlined"
-                sx={{
-                  fontWeight: 600,
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: 'rgba(255,255,255,0.62)',
-                }}
+                sx={{ color: TEXT.secondary }}
               />
             )}
           </Stack>
 
           {currentNode && currentNode.children.length > 0 ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, maxHeight: 520 }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                minHeight: 0,
+                maxHeight: 520,
+              }}
+            >
               <Box
                 sx={{
-                  display: 'grid',
-                  gridTemplateColumns: '80px 90px 1fr 60px',
+                  display: "grid",
+                  gridTemplateColumns: "80px 90px 1fr 60px",
                   gap: 1,
                   px: 1,
                   py: 0.75,
-                  borderBottom: '2px solid rgba(255,255,255,0.1)',
+                  borderBottom: `1px solid ${LINE.strong}`,
                   mb: 0.5,
-                  position: 'sticky',
+                  position: "sticky",
                   top: 0,
-                  bgcolor: 'rgba(20,22,28,0.92)',
+                  bgcolor: SURFACE.raised,
                   zIndex: 1,
                 }}
               >
-                <Typography variant="caption" sx={{ fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.5 }}>
-                  MOVE
+                <Typography
+                  variant="caption"
+                  sx={{ ...TYPE.label, color: TEXT.secondary }}
+                >
+                  Move
                 </Typography>
-                <Typography variant="caption" sx={{ fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.5 }}>
-                  GAMES
+                <Typography
+                  variant="caption"
+                  sx={{ ...TYPE.label, color: TEXT.secondary }}
+                >
+                  Games
                 </Typography>
-                <Typography variant="caption" sx={{ fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.5 }}>
+                <Typography
+                  variant="caption"
+                  sx={{ ...TYPE.label, color: TEXT.secondary }}
+                >
                   W / D / L
                 </Typography>
                 <Typography
                   variant="caption"
-                  sx={{ fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.5, textAlign: 'right' }}
+                  sx={{
+                    ...TYPE.label,
+                    color: TEXT.secondary,
+                    textAlign: "right",
+                  }}
                 >
-                  SCORE
+                  Score
                 </Typography>
               </Box>
 
-              <Box sx={{ overflowY: 'auto', flex: 1, pr: 0.5 }}>
+              <Box sx={{ overflowY: "auto", flex: 1, pr: 0.5 }}>
                 {currentNode.children.map((child, idx) => {
                   const score = getNodeScore(child);
-                  const pct = ((child.totalGames / currentNode.totalGames) * 100).toFixed(0);
+                  const pct = (
+                    (child.totalGames / currentNode.totalGames) *
+                    100
+                  ).toFixed(0);
                   return (
                     <Box
                       key={child.move}
                       onClick={() => onMoveClick(child.move)}
                       sx={{
-                        display: 'grid',
-                        gridTemplateColumns: '80px 90px 1fr 60px',
+                        display: "grid",
+                        gridTemplateColumns: "80px 90px 1fr 60px",
                         gap: 1,
                         px: 1,
                         py: 0.85,
-                        cursor: 'pointer',
-                        borderRadius: 1,
-                        bgcolor: idx % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent',
-                        '&:hover': {
-                          bgcolor: ROSE.tint,
-                          transform: 'translateX(2px)',
-                        },
-                        transition: 'all 0.15s',
-                        alignItems: 'center',
+                        cursor: "pointer",
+                        borderRadius: `${RADIUS.small}px`,
+                        bgcolor:
+                          idx % 2 === 0
+                            ? "rgba(255,255,255,0.03)"
+                            : "transparent",
+                        "&:hover": { bgcolor: "rgba(255,255,255,0.06)" },
+                        "&:active": { transform: MOTION.pressScale },
+                        transition: `background-color ${MOTION.hover}, transform ${MOTION.press}`,
+                        alignItems: "center",
                       }}
                     >
                       <Typography
                         variant="body2"
-                        sx={{ fontWeight: 700, fontFamily: 'monospace', color: ROSE.bright }}
+                        sx={{
+                          fontWeight: 700,
+                          fontFamily: "monospace",
+                          color: ACCENT.main,
+                        }}
                       >
                         {child.move}
                       </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'rgba(255,255,255,0.94)' }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "baseline",
+                          gap: 0.5,
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: 600,
+                            color: TEXT.primary,
+                            fontVariantNumeric: "tabular-nums",
+                          }}
+                        >
                           {child.totalGames}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -449,9 +543,14 @@ export default function TreeExplorer({
                       <Typography
                         variant="body2"
                         sx={{
-                          textAlign: 'right',
+                          textAlign: "right",
                           fontWeight: 800,
-                          color: score >= 55 ? '#22c55e' : score <= 45 ? '#ef4444' : 'text.primary',
+                          color:
+                            score >= 55
+                              ? "#22c55e"
+                              : score <= 45
+                                ? "#ef4444"
+                                : "text.primary",
                         }}
                       >
                         {score.toFixed(0)}%
@@ -462,12 +561,16 @@ export default function TreeExplorer({
               </Box>
             </Box>
           ) : (
-            <Box sx={{ textAlign: 'center', py: 4 }}>
-              <Icon icon="mdi:leaf" width={40} style={{ color: 'rgba(255,255,255,0.35)', marginBottom: 8 }} />
+            <Box sx={{ textAlign: "center", py: 4 }}>
+              <Icon
+                icon="mdi:leaf"
+                width={40}
+                style={{ color: "rgba(255,255,255,0.35)", marginBottom: 8 }}
+              />
               <Typography color="text.secondary">
                 {minGames > 1
                   ? `No continuations with \u2265 ${minGames} games. Lower the minimum to see more.`
-                  : 'End of line — no further games from this position.'}
+                  : "End of line: no further games from this position."}
               </Typography>
             </Box>
           )}
@@ -496,19 +599,31 @@ function WinDrawLossBar({
     <Tooltip
       title={`W: ${wins} (${wPct.toFixed(0)}%) | D: ${draws} (${dPct.toFixed(0)}%) | L: ${losses} (${lPct.toFixed(0)}%)`}
     >
-      <Box sx={{ display: 'flex', height: 18, borderRadius: 1, overflow: 'hidden', minWidth: 120, width: '100%' }}>
+      <Box
+        sx={{
+          display: "flex",
+          height: 18,
+          borderRadius: 1,
+          overflow: "hidden",
+          minWidth: 120,
+          width: "100%",
+        }}
+      >
         {wPct > 0 && (
           <Box
             sx={{
               width: `${wPct}%`,
-              bgcolor: '#22c55e',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              bgcolor: "#22c55e",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             {wPct >= 15 && (
-              <Typography variant="caption" sx={{ color: '#fff', fontSize: '0.65rem', fontWeight: 700 }}>
+              <Typography
+                variant="caption"
+                sx={{ color: "#fff", fontSize: "0.65rem", fontWeight: 700 }}
+              >
                 {wPct.toFixed(0)}%
               </Typography>
             )}
@@ -518,14 +633,17 @@ function WinDrawLossBar({
           <Box
             sx={{
               width: `${dPct}%`,
-              bgcolor: '#9ca3af',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              bgcolor: "#9ca3af",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             {dPct >= 15 && (
-              <Typography variant="caption" sx={{ color: '#fff', fontSize: '0.65rem', fontWeight: 700 }}>
+              <Typography
+                variant="caption"
+                sx={{ color: "#fff", fontSize: "0.65rem", fontWeight: 700 }}
+              >
                 {dPct.toFixed(0)}%
               </Typography>
             )}
@@ -535,14 +653,17 @@ function WinDrawLossBar({
           <Box
             sx={{
               width: `${lPct}%`,
-              bgcolor: '#ef4444',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              bgcolor: "#ef4444",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             {lPct >= 15 && (
-              <Typography variant="caption" sx={{ color: '#fff', fontSize: '0.65rem', fontWeight: 700 }}>
+              <Typography
+                variant="caption"
+                sx={{ color: "#fff", fontSize: "0.65rem", fontWeight: 700 }}
+              >
                 {lPct.toFixed(0)}%
               </Typography>
             )}

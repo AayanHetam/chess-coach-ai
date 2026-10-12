@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -10,16 +10,21 @@ import {
   Switch,
   Tooltip,
   Typography,
-} from '@mui/material';
-import { Icon } from '@iconify/react';
-import { Chess } from 'chess.js';
-import { Chessboard } from 'react-chessboard';
-import { CustomPieces, Piece, Square } from 'react-chessboard/dist/chessboard/types';
-import { EngineName } from '@/types/enums';
-import { useEngine } from '@/hooks/useEngine';
-import { useLostDragRecovery } from '@/hooks/useLostDragRecovery';
-import { getTwinBotMove, TwinBotMove } from '@/lib/twinBot';
-import { OpeningTreeNode, Platform, ProfileSnapshot } from '@/types/scout';
+} from "@mui/material";
+import { Icon } from "@iconify/react";
+import { Chess } from "chess.js";
+import { Chessboard } from "react-chessboard";
+import {
+  CustomPieces,
+  Piece,
+  Square,
+} from "react-chessboard/dist/chessboard/types";
+import { EngineName } from "@/types/enums";
+import { useEngine } from "@/hooks/useEngine";
+import { useLostDragRecovery } from "@/hooks/useLostDragRecovery";
+import { getTwinBotMove, TwinBotMove } from "@/lib/twinBot";
+import { OpeningTreeNode, Platform, ProfileSnapshot } from "@/types/scout";
+import { RADIUS, STATUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 
 /** Proper chess.js clone preserving full move history. */
 function cloneGame(g: Chess): Chess {
@@ -34,8 +39,18 @@ function cloneGame(g: Chess): Chess {
 }
 
 const PIECE_CODES: Piece[] = [
-  'wP', 'wB', 'wN', 'wR', 'wQ', 'wK',
-  'bP', 'bB', 'bN', 'bR', 'bQ', 'bK',
+  "wP",
+  "wB",
+  "wN",
+  "wR",
+  "wQ",
+  "wK",
+  "bP",
+  "bB",
+  "bN",
+  "bR",
+  "bQ",
+  "bK",
 ];
 
 export interface TwinBotGameProps {
@@ -48,7 +63,7 @@ export interface TwinBotGameProps {
   /** The opponent's opening tree filtered to the color THEY play. */
   opponentTree: OpeningTreeNode;
   /** The color YOU chose. */
-  yourColor: 'white' | 'black';
+  yourColor: "white" | "black";
   /** Top weakness summary (for the side panel). */
   topWeakness?: {
     eco: string;
@@ -69,10 +84,10 @@ interface HistoryRow {
 }
 
 type GameResult =
-  | { type: 'checkmate'; winner: 'white' | 'black' }
-  | { type: 'stalemate' }
-  | { type: 'resign'; winner: 'white' | 'black' }
-  | { type: 'draw' };
+  | { type: "checkmate"; winner: "white" | "black" }
+  | { type: "stalemate" }
+  | { type: "resign"; winner: "white" | "black" }
+  | { type: "draw" };
 
 export default function TwinBotGame({
   open,
@@ -96,10 +111,13 @@ export default function TwinBotGame({
   const [botThinking, setBotThinking] = useState(false);
   const [result, setResult] = useState<GameResult | null>(null);
   const [evalMode, setEvalMode] = useState(false);
-  const [lastBotMove, setLastBotMove] = useState<{ from: Square; to: Square } | null>(null);
+  const [lastBotMove, setLastBotMove] = useState<{
+    from: Square;
+    to: Square;
+  } | null>(null);
 
-  const botColor: 'white' | 'black' = yourColor === 'white' ? 'black' : 'white';
-  const botIsWhite = botColor === 'white';
+  const botColor: "white" | "black" = yourColor === "white" ? "black" : "white";
+  const botIsWhite = botColor === "white";
 
   // Reset when opened.
   useEffect(() => {
@@ -114,12 +132,12 @@ export default function TwinBotGame({
   // TTS on open (say usernames).
   useEffect(() => {
     if (!open) return;
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     // Only speak once.
     const timer = setTimeout(() => {
       try {
         const utter = new SpeechSynthesisUtterance(
-          `Twin Bot of ${username} versus ${yourUsername || 'you'}.`
+          `Twin Bot of ${username} versus ${yourUsername || "you"}.`
         );
         utter.rate = 0.95;
         utter.volume = 0.6;
@@ -176,12 +194,12 @@ export default function TwinBotGame({
   useEffect(() => {
     if (!open || result) return;
     if (game.isCheckmate()) {
-      const winner = game.turn() === 'w' ? 'black' : 'white';
-      setResult({ type: 'checkmate', winner });
+      const winner = game.turn() === "w" ? "black" : "white";
+      setResult({ type: "checkmate", winner });
     } else if (game.isStalemate()) {
-      setResult({ type: 'stalemate' });
+      setResult({ type: "stalemate" });
     } else if (game.isDraw()) {
-      setResult({ type: 'draw' });
+      setResult({ type: "draw" });
     }
   }, [game, open, result]);
 
@@ -192,7 +210,7 @@ export default function TwinBotGame({
   const runBotMove = useCallback(async () => {
     if (result) return;
     if (game.isGameOver()) return;
-    const isBotTurn = (game.turn() === 'w') === botIsWhite;
+    const isBotTurn = (game.turn() === "w") === botIsWhite;
     if (!isBotTurn) return;
     if (botInFlightRef.current) return;
     botInFlightRef.current = true;
@@ -213,7 +231,7 @@ export default function TwinBotGame({
       if (snapFen !== game.fen()) return;
 
       const next = cloneGame(game);
-      let applied: ReturnType<Chess['move']> | null = null;
+      let applied: ReturnType<Chess["move"]> | null = null;
       try {
         applied = next.move(move.san);
       } catch {
@@ -222,8 +240,11 @@ export default function TwinBotGame({
       if (!applied) return;
 
       setGame(next);
-      setLastBotMove({ from: applied.from as Square, to: applied.to as Square });
-      setHistoryMeta(prev => [...prev, move]);
+      setLastBotMove({
+        from: applied.from as Square,
+        to: applied.to as Square,
+      });
+      setHistoryMeta((prev) => [...prev, move]);
     } finally {
       botInFlightRef.current = false;
       setBotThinking(false);
@@ -234,7 +255,7 @@ export default function TwinBotGame({
   useEffect(() => {
     if (!open) return;
     if (result) return;
-    const isBotTurn = (game.turn() === 'w') === botIsWhite;
+    const isBotTurn = (game.turn() === "w") === botIsWhite;
     if (isBotTurn) {
       runBotMove();
     }
@@ -244,11 +265,13 @@ export default function TwinBotGame({
   const onPieceDrop = useCallback(
     (source: string, target: string, piece: string): boolean => {
       if (result) return false;
-      const isUserTurn = (game.turn() === 'w') === (yourColor === 'white');
+      const isUserTurn = (game.turn() === "w") === (yourColor === "white");
       if (!isUserTurn) return false;
-      const promotion = piece?.[1]?.toLowerCase() === 'p' && (target[1] === '8' || target[1] === '1')
-        ? (piece?.[2]?.toLowerCase() ?? 'q')
-        : undefined;
+      const promotion =
+        piece?.[1]?.toLowerCase() === "p" &&
+        (target[1] === "8" || target[1] === "1")
+          ? (piece?.[2]?.toLowerCase() ?? "q")
+          : undefined;
       const next = cloneGame(game);
       let san: string | null = null;
       try {
@@ -261,9 +284,13 @@ export default function TwinBotGame({
       setGame(next);
       // Tag user moves distinctly so the history panel can style them neutrally
       // (they're not bot book/engine moves).
-      setHistoryMeta(prev => [
+      setHistoryMeta((prev) => [
         ...prev,
-        { san, uci: source + target + (promotion ?? ''), source: 'book' as const },
+        {
+          san,
+          uci: source + target + (promotion ?? ""),
+          source: "book" as const,
+        },
       ]);
       setLastBotMove(null);
       return true;
@@ -274,7 +301,7 @@ export default function TwinBotGame({
   // Controls
   const handleResign = useCallback(() => {
     if (result) return;
-    setResult({ type: 'resign', winner: botColor });
+    setResult({ type: "resign", winner: botColor });
   }, [botColor, result]);
 
   const handleNew = useCallback(() => {
@@ -286,12 +313,12 @@ export default function TwinBotGame({
 
   const handleBack = useCallback(() => {
     // Undo the last two plies (bot + user), or just one if only one.
-    setGame(prev => {
+    setGame((prev) => {
       const next = cloneGame(prev);
       const h = next.history();
       const undoCount = Math.min(2, h.length);
       for (let i = 0; i < undoCount; i++) next.undo();
-      setHistoryMeta(m => m.slice(0, Math.max(0, m.length - undoCount)));
+      setHistoryMeta((m) => m.slice(0, Math.max(0, m.length - undoCount)));
       return next;
     });
     setResult(null);
@@ -306,7 +333,10 @@ export default function TwinBotGame({
           <Box
             width={squareWidth}
             height={squareWidth}
-            sx={{ backgroundImage: `url(/piece/${pieceSet}/${p}.svg)`, backgroundSize: 'contain' }}
+            sx={{
+              backgroundImage: `url(/piece/${pieceSet}/${p}.svg)`,
+              backgroundSize: "contain",
+            }}
           />
         );
         return acc;
@@ -316,36 +346,37 @@ export default function TwinBotGame({
 
   const customArrows = useMemo<[Square, Square, string?][]>(() => {
     if (!lastBotMove) return [];
-    return [[lastBotMove.from, lastBotMove.to, 'rgba(34, 197, 94, 0.7)']];
+    return [[lastBotMove.from, lastBotMove.to, "rgba(34, 197, 94, 0.7)"]];
   }, [lastBotMove]);
 
   const isUserTurn = useMemo(() => {
-    return (game.turn() === 'w') === (yourColor === 'white');
+    return (game.turn() === "w") === (yourColor === "white");
   }, [game, yourColor]);
 
   const currentMoveNumber = Math.floor(sanHistory.length / 2) + 1;
-  const showBotLine = historyMeta.slice(-6).filter(m => m.source === 'book');
+  const showBotLine = historyMeta.slice(-6).filter((m) => m.source === "book");
   const bestLineText = showBotLine
     .slice(-6)
     .map((m, i) => {
-      const num = Math.floor((sanHistory.length - showBotLine.length + i) / 2) + 1;
+      const num =
+        Math.floor((sanHistory.length - showBotLine.length + i) / 2) + 1;
       return i % 2 === 0 ? `${num}. ${m.san}` : m.san;
     })
-    .join(' ');
+    .join(" ");
 
   if (!open) return null;
 
   return (
     <Box
       sx={{
-        position: 'fixed',
+        position: "fixed",
         inset: 0,
-        zIndex: theme => theme.zIndex.modal + 5,
-        bgcolor: '#0b1120',
-        color: '#fff',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
+        zIndex: (theme) => theme.zIndex.modal + 5,
+        bgcolor: "#0b1120",
+        color: "#fff",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
       }}
     >
       {/* Top bar */}
@@ -353,31 +384,27 @@ export default function TwinBotGame({
         direction="row"
         alignItems="center"
         justifyContent="space-between"
-        sx={{ px: 2, py: 1.25, borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+        sx={{
+          px: 2,
+          py: 1.25,
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+        }}
       >
         <Stack direction="row" spacing={1.25} alignItems="center">
-          <Box
-            sx={{
-              width: 30,
-              height: 30,
-              borderRadius: 1.5,
-              background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Icon icon="mdi:robot-outline" width={18} />
+          <Box sx={{ display: "flex", color: TEXT.secondary }}>
+            <Icon icon="mdi:robot-outline" width={20} />
           </Box>
-          <Typography sx={{ fontWeight: 800, fontSize: '0.95rem' }}>Twin Bot</Typography>
+          <Typography sx={{ fontWeight: 600, fontSize: "0.95rem" }}>
+            Twin bot
+          </Typography>
           <Chip
             size="small"
-            label={`v ${yourUsername || 'you'}`}
+            label={`v ${yourUsername || "you"}`}
             sx={{
-              fontSize: '0.68rem',
+              fontSize: "0.68rem",
               fontWeight: 700,
-              bgcolor: 'rgba(255,255,255,0.08)',
-              color: 'rgba(255,255,255,0.8)',
+              bgcolor: "rgba(255,255,255,0.08)",
+              color: "rgba(255,255,255,0.8)",
               letterSpacing: 0.5,
               height: 20,
             }}
@@ -388,29 +415,39 @@ export default function TwinBotGame({
             size="small"
             icon={
               isUserTurn ? (
-                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#22c55e' }} />
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    bgcolor: "#22c55e",
+                  }}
+                />
               ) : (
-                <CircularProgress size={10} sx={{ color: '#f59e0b' }} />
+                <CircularProgress size={10} sx={{ color: "#f59e0b" }} />
               )
             }
             label={
               result
-                ? 'Game over'
+                ? "Game over"
                 : isUserTurn
-                ? `Your turn · Move ${currentMoveNumber}`
-                : `${username} thinking…`
+                  ? `Your turn · Move ${currentMoveNumber}`
+                  : `${username} thinking…`
             }
             sx={{
-              bgcolor: 'rgba(255,255,255,0.05)',
-              color: '#fff',
+              bgcolor: "rgba(255,255,255,0.05)",
+              color: "#fff",
               fontWeight: 700,
-              fontSize: '0.78rem',
+              fontSize: "0.78rem",
             }}
           />
           <IconButton
             size="small"
             onClick={onClose}
-            sx={{ color: 'rgba(255,255,255,0.6)', '&:hover': { color: '#fff' } }}
+            sx={{
+              color: "rgba(255,255,255,0.6)",
+              "&:hover": { color: "#fff" },
+            }}
           >
             <Icon icon="mdi:close" width={20} />
           </IconButton>
@@ -421,22 +458,22 @@ export default function TwinBotGame({
       <Box
         sx={{
           flex: 1,
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', lg: '260px 1fr 280px' },
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", lg: "260px 1fr 280px" },
           minHeight: 0,
-          overflow: 'hidden',
+          overflow: "hidden",
         }}
       >
         {/* ── Left panel ── */}
         <Box
           sx={{
-            display: { xs: 'none', lg: 'flex' },
-            flexDirection: 'column',
-            borderRight: '1px solid rgba(255,255,255,0.06)',
-            bgcolor: 'rgba(255,255,255,0.02)',
+            display: { xs: "none", lg: "flex" },
+            flexDirection: "column",
+            borderRight: "1px solid rgba(255,255,255,0.06)",
+            bgcolor: "rgba(255,255,255,0.02)",
             p: 1.5,
             gap: 1.5,
-            overflowY: 'auto',
+            overflowY: "auto",
           }}
         >
           <Paper
@@ -444,9 +481,9 @@ export default function TwinBotGame({
             sx={{
               p: 1.5,
               borderRadius: 2,
-              bgcolor: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              color: '#fff',
+              bgcolor: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              color: "#fff",
             }}
           >
             <Stack direction="row" spacing={1.5} alignItems="center">
@@ -454,19 +491,21 @@ export default function TwinBotGame({
                 sx={{
                   width: 42,
                   height: 42,
-                  borderRadius: 1.5,
-                  background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 800,
-                  color: '#22c55e',
+                  borderRadius: `${RADIUS.control}px`,
+                  bgcolor: SURFACE.raisedTertiary,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 700,
+                  color: TEXT.primary,
                 }}
               >
-                {username.charAt(0).toUpperCase() || '?'}
+                {username.charAt(0).toUpperCase() || "?"}
               </Box>
               <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography sx={{ fontWeight: 700, fontSize: '0.88rem', color: '#fff' }}>
+                <Typography
+                  sx={{ fontWeight: 700, fontSize: "0.88rem", color: "#fff" }}
+                >
                   {username}
                 </Typography>
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -474,14 +513,17 @@ export default function TwinBotGame({
                     label={`${profile.phaseElo.baseline}`}
                     size="small"
                     sx={{
-                      fontSize: '0.65rem',
+                      fontSize: "0.65rem",
                       height: 18,
                       fontWeight: 700,
-                      bgcolor: 'rgba(234, 179, 8, 0.15)',
-                      color: '#facc15',
+                      bgcolor: "rgba(234, 179, 8, 0.15)",
+                      color: "#facc15",
                     }}
                   />
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.7rem' }}>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.7rem" }}
+                  >
                     {profile.totalGames.toLocaleString()} games
                   </Typography>
                 </Stack>
@@ -493,24 +535,19 @@ export default function TwinBotGame({
                 mt: 1.25,
                 p: 1,
                 borderRadius: 1,
-                bgcolor: 'rgba(234, 179, 8, 0.08)',
-                border: '1px solid rgba(234, 179, 8, 0.2)',
+                bgcolor: "rgba(234, 179, 8, 0.08)",
+                border: "1px solid rgba(234, 179, 8, 0.2)",
               }}
             >
               <Typography
                 variant="caption"
-                sx={{
-                  color: 'rgba(255,255,255,0.5)',
-                  letterSpacing: 1,
-                  fontSize: '0.6rem',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  display: 'block',
-                }}
+                sx={{ ...TYPE.label, color: TEXT.secondary, display: "block" }}
               >
                 Archetype
               </Typography>
-              <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', color: '#facc15' }}>
+              <Typography
+                sx={{ fontWeight: 800, fontSize: "0.85rem", color: "#facc15" }}
+              >
                 {profile.archetype}
               </Typography>
             </Box>
@@ -522,15 +559,29 @@ export default function TwinBotGame({
               sx={{
                 p: 1.5,
                 borderRadius: 2,
-                bgcolor: 'rgba(239, 68, 68, 0.08)',
-                border: '1px solid rgba(239, 68, 68, 0.18)',
+                bgcolor: "rgba(239, 68, 68, 0.08)",
+                border: "1px solid rgba(239, 68, 68, 0.18)",
               }}
             >
-              <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.75 }}>
-                <Icon icon="mdi:shield-alert-outline" width={14} style={{ color: '#f87171' }} />
+              <Stack
+                direction="row"
+                spacing={0.75}
+                alignItems="center"
+                sx={{ mb: 0.75 }}
+              >
+                <Icon
+                  icon="mdi:shield-alert-outline"
+                  width={14}
+                  style={{ color: "#f87171" }}
+                />
                 <Typography
                   variant="caption"
-                  sx={{ color: '#f87171', fontWeight: 800, letterSpacing: 0.5, fontSize: '0.68rem' }}
+                  sx={{
+                    color: "#f87171",
+                    fontWeight: 800,
+                    letterSpacing: 0.5,
+                    fontSize: "0.68rem",
+                  }}
                 >
                   WEAKNESS WITH {botColor.toUpperCase()}
                 </Typography>
@@ -539,20 +590,26 @@ export default function TwinBotGame({
                 label={topWeakness.eco}
                 size="small"
                 sx={{
-                  bgcolor: '#0b1120',
-                  color: '#fff',
+                  bgcolor: "#0b1120",
+                  color: "#fff",
                   fontWeight: 700,
-                  fontFamily: 'monospace',
+                  fontFamily: "monospace",
                   height: 20,
-                  fontSize: '0.65rem',
+                  fontSize: "0.65rem",
                   mb: 0.5,
                 }}
               />
-              <Typography sx={{ fontWeight: 700, fontSize: '0.78rem', lineHeight: 1.3 }}>
+              <Typography
+                sx={{ fontWeight: 700, fontSize: "0.78rem", lineHeight: 1.3 }}
+              >
                 {topWeakness.name}
               </Typography>
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.7rem' }}>
-                {topWeakness.totalGames} games · {(100 - topWeakness.scorePct).toFixed(0)}% losses
+              <Typography
+                variant="caption"
+                sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.7rem" }}
+              >
+                {topWeakness.totalGames} games ·{" "}
+                {(100 - topWeakness.scorePct).toFixed(0)}% losses
               </Typography>
             </Paper>
           )}
@@ -562,25 +619,28 @@ export default function TwinBotGame({
             sx={{
               p: 1.5,
               borderRadius: 2,
-              bgcolor: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              bgcolor: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
             }}
           >
             <Typography
               variant="caption"
               sx={{
-                color: 'rgba(255,255,255,0.55)',
+                color: "rgba(255,255,255,0.55)",
                 letterSpacing: 1,
                 fontWeight: 700,
-                fontSize: '0.65rem',
-                display: 'block',
+                fontSize: "0.65rem",
+                display: "block",
                 mb: 0.5,
               }}
             >
               BOT REPERTOIRE
             </Typography>
             {opponentTree.children.length === 0 ? (
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+              <Typography
+                variant="caption"
+                sx={{ color: "rgba(255,255,255,0.4)" }}
+              >
                 No book available
               </Typography>
             ) : (
@@ -588,23 +648,36 @@ export default function TwinBotGame({
                 {[...opponentTree.children]
                   .sort((a, b) => b.totalGames - a.totalGames)
                   .slice(0, 5)
-                  .map(c => {
-                    const pct = ((c.totalGames / opponentTree.totalGames) * 100).toFixed(0);
+                  .map((c) => {
+                    const pct = (
+                      (c.totalGames / opponentTree.totalGames) *
+                      100
+                    ).toFixed(0);
                     return (
                       <Box
                         key={c.move}
                         sx={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          fontFamily: 'monospace',
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          fontFamily: "monospace",
                         }}
                       >
-                        <Typography sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#fff' }}>
+                        <Typography
+                          sx={{
+                            fontWeight: 700,
+                            fontSize: "0.75rem",
+                            color: "#fff",
+                          }}
+                        >
                           {c.move}
                         </Typography>
                         <Typography
-                          sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)', fontWeight: 700 }}
+                          sx={{
+                            fontSize: "0.7rem",
+                            color: "rgba(255,255,255,0.6)",
+                            fontWeight: 700,
+                          }}
                         >
                           {pct}%
                         </Typography>
@@ -623,10 +696,10 @@ export default function TwinBotGame({
             sx={{
               p: 1,
               borderRadius: 1.5,
-              bgcolor: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              display: 'flex',
-              alignItems: 'center',
+              bgcolor: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              display: "flex",
+              alignItems: "center",
               gap: 1,
             }}
           >
@@ -634,13 +707,15 @@ export default function TwinBotGame({
               sx={{
                 width: 8,
                 height: 8,
-                borderRadius: '50%',
-                bgcolor: '#22c55e',
-                boxShadow: '0 0 6px #22c55e',
+                borderRadius: "50%",
+                bgcolor: STATUS.success,
               }}
             />
-            <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '0.7rem' }}>
-              Maia-proxy · {profile.phaseElo.baseline}
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: 700, fontSize: "0.7rem" }}
+            >
+              Human-like opponent · {profile.phaseElo.baseline}
             </Typography>
           </Paper>
         </Box>
@@ -648,16 +723,24 @@ export default function TwinBotGame({
         {/* ── Center: board ── */}
         <Box
           sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
             p: 2,
             minWidth: 0,
-            overflowY: 'auto',
+            overflowY: "auto",
           }}
         >
-          <Box sx={{ width: '100%', maxWidth: 560, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Box
+            sx={{
+              width: "100%",
+              maxWidth: 560,
+              display: "flex",
+              flexDirection: "column",
+              gap: 1,
+            }}
+          >
             {/* Opponent banner */}
             <PlayerBanner
               side="opponent"
@@ -680,37 +763,42 @@ export default function TwinBotGame({
                 customPieces={customPieces}
                 customBoardStyle={{
                   borderRadius: 6,
-                  boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
+                  boxShadow: "0 10px 40px rgba(0,0,0,0.4)",
                 }}
-                customDarkSquareStyle={{ backgroundColor: '#6b8e5a' }}
-                customLightSquareStyle={{ backgroundColor: '#eeeed2' }}
+                customDarkSquareStyle={{ backgroundColor: "#6b8e5a" }}
+                customLightSquareStyle={{ backgroundColor: "#eeeed2" }}
               />
             </BoardWrapper>
 
             {/* You banner */}
             <PlayerBanner
               side="you"
-              name={yourUsername || 'You'}
+              name={yourUsername || "You"}
               color={yourColor}
               platform={platform}
               active={isUserTurn && !result}
             />
 
             {/* Controls row */}
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 1 }}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              sx={{ mt: 1 }}
+            >
               <Chip
                 size="small"
                 label={
                   result
                     ? formatResult(result, botColor)
                     : isUserTurn
-                    ? 'Your turn · White'
-                    : `${username} · Black`
+                      ? "Your turn · White"
+                      : `${username} · Black`
                 }
                 sx={{
-                  bgcolor: 'rgba(255,255,255,0.06)',
-                  color: '#fff',
-                  fontSize: '0.72rem',
+                  bgcolor: "rgba(255,255,255,0.06)",
+                  color: "#fff",
+                  fontSize: "0.72rem",
                   fontWeight: 700,
                 }}
               />
@@ -722,12 +810,18 @@ export default function TwinBotGame({
                   onClick={handleBack}
                   disabled={sanHistory.length === 0}
                   sx={{
-                    textTransform: 'none',
+                    textTransform: "none",
                     fontWeight: 700,
-                    color: '#fff',
-                    borderColor: 'rgba(255,255,255,0.2)',
-                    '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.04)' },
-                    '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)', borderColor: 'rgba(255,255,255,0.08)' },
+                    color: "#fff",
+                    borderColor: "rgba(255,255,255,0.2)",
+                    "&:hover": {
+                      borderColor: "#fff",
+                      bgcolor: "rgba(255,255,255,0.04)",
+                    },
+                    "&.Mui-disabled": {
+                      color: "rgba(255,255,255,0.3)",
+                      borderColor: "rgba(255,255,255,0.08)",
+                    },
                   }}
                 >
                   Back
@@ -738,11 +832,14 @@ export default function TwinBotGame({
                   startIcon={<Icon icon="mdi:refresh" width={14} />}
                   onClick={handleNew}
                   sx={{
-                    textTransform: 'none',
+                    textTransform: "none",
                     fontWeight: 700,
-                    color: '#fff',
-                    borderColor: 'rgba(255,255,255,0.2)',
-                    '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.04)' },
+                    color: "#fff",
+                    borderColor: "rgba(255,255,255,0.2)",
+                    "&:hover": {
+                      borderColor: "#fff",
+                      bgcolor: "rgba(255,255,255,0.04)",
+                    },
                   }}
                 >
                   New
@@ -754,10 +851,10 @@ export default function TwinBotGame({
                   onClick={handleResign}
                   disabled={!!result}
                   sx={{
-                    textTransform: 'none',
+                    textTransform: "none",
                     fontWeight: 700,
-                    bgcolor: '#ef4444',
-                    '&:hover': { bgcolor: '#dc2626' },
+                    bgcolor: "#ef4444",
+                    "&:hover": { bgcolor: "#dc2626" },
                   }}
                 >
                   Resign
@@ -772,13 +869,13 @@ export default function TwinBotGame({
                   mt: 1,
                   p: 1.5,
                   borderRadius: 2,
-                  bgcolor: 'rgba(34, 197, 94, 0.1)',
-                  border: '1px solid rgba(34,197,94,0.3)',
-                  color: '#fff',
-                  textAlign: 'center',
+                  bgcolor: "rgba(34, 197, 94, 0.1)",
+                  border: "1px solid rgba(34,197,94,0.3)",
+                  color: "#fff",
+                  textAlign: "center",
                 }}
               >
-                <Typography sx={{ fontWeight: 800, fontSize: '1rem' }}>
+                <Typography sx={{ fontWeight: 800, fontSize: "1rem" }}>
                   {formatResult(result, botColor, true)}
                 </Typography>
               </Paper>
@@ -789,10 +886,10 @@ export default function TwinBotGame({
         {/* ── Right: history ── */}
         <Box
           sx={{
-            display: { xs: 'none', lg: 'flex' },
-            flexDirection: 'column',
-            borderLeft: '1px solid rgba(255,255,255,0.06)',
-            bgcolor: 'rgba(255,255,255,0.02)',
+            display: { xs: "none", lg: "flex" },
+            flexDirection: "column",
+            borderLeft: "1px solid rgba(255,255,255,0.06)",
+            bgcolor: "rgba(255,255,255,0.02)",
             minHeight: 0,
           }}
         >
@@ -800,67 +897,134 @@ export default function TwinBotGame({
             direction="row"
             alignItems="center"
             justifyContent="space-between"
-            sx={{ px: 1.5, py: 1, borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+            sx={{
+              px: 1.5,
+              py: 1,
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+            }}
           >
-            <Typography variant="caption" sx={{ fontWeight: 800, letterSpacing: 1, fontSize: '0.7rem' }}>
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: 800, letterSpacing: 1, fontSize: "0.7rem" }}
+            >
               HISTORY
             </Typography>
             <Stack direction="row" spacing={0.5} alignItems="center">
-              <Typography variant="caption" sx={{ color: evalMode ? '#22c55e' : 'rgba(255,255,255,0.5)', fontSize: '0.65rem', fontWeight: 700 }}>
-                {evalMode ? 'ON' : 'OFF'}
+              <Typography
+                variant="caption"
+                sx={{
+                  color: evalMode ? "#22c55e" : "rgba(255,255,255,0.5)",
+                  fontSize: "0.65rem",
+                  fontWeight: 700,
+                }}
+              >
+                {evalMode ? "ON" : "OFF"}
               </Typography>
               <Switch
                 size="small"
                 checked={evalMode}
-                onChange={e => setEvalMode(e.target.checked)}
+                onChange={(e) => setEvalMode(e.target.checked)}
                 sx={{
-                  '& .MuiSwitch-switchBase.Mui-checked': { color: '#22c55e' },
-                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: '#22c55e' },
+                  "& .MuiSwitch-switchBase.Mui-checked": { color: "#22c55e" },
+                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                    bgcolor: "#22c55e",
+                  },
                 }}
               />
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.65rem', fontWeight: 700 }}>
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "rgba(255,255,255,0.45)",
+                  fontSize: "0.65rem",
+                  fontWeight: 700,
+                }}
+              >
                 {sanHistory.length}
               </Typography>
             </Stack>
           </Stack>
 
           {evalMode && bestLineText && (
-            <Box sx={{ px: 1.5, py: 1, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: 1, display: 'block', mb: 0.25 }}>
+            <Box
+              sx={{
+                px: 1.5,
+                py: 1,
+                borderBottom: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "rgba(255,255,255,0.45)",
+                  fontSize: "0.65rem",
+                  fontWeight: 700,
+                  letterSpacing: 1,
+                  display: "block",
+                  mb: 0.25,
+                }}
+              >
                 BEST LINE
               </Typography>
-              <Typography sx={{ fontFamily: 'monospace', fontSize: '0.72rem', color: 'rgba(255,255,255,0.85)', lineHeight: 1.4 }}>
+              <Typography
+                sx={{
+                  fontFamily: "monospace",
+                  fontSize: "0.72rem",
+                  color: "rgba(255,255,255,0.85)",
+                  lineHeight: 1.4,
+                }}
+              >
                 {bestLineText}…
               </Typography>
             </Box>
           )}
 
-          <Box sx={{ flex: 1, overflowY: 'auto', px: 1, py: 0.5 }}>
+          <Box sx={{ flex: 1, overflowY: "auto", px: 1, py: 0.5 }}>
             {rows.length === 0 && (
-              <Box sx={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', mt: 3, fontSize: '0.8rem' }}>
-                No moves yet. {isUserTurn ? 'Your move.' : 'Bot thinking…'}
+              <Box
+                sx={{
+                  textAlign: "center",
+                  color: "rgba(255,255,255,0.4)",
+                  mt: 3,
+                  fontSize: "0.8rem",
+                }}
+              >
+                No moves yet. {isUserTurn ? "Your move." : "Bot thinking…"}
               </Box>
             )}
-            {rows.map(r => (
+            {rows.map((r) => (
               <Box
                 key={r.ply}
                 sx={{
-                  display: 'grid',
-                  gridTemplateColumns: '28px 1fr 1fr',
+                  display: "grid",
+                  gridTemplateColumns: "28px 1fr 1fr",
                   gap: 0.5,
-                  alignItems: 'center',
+                  alignItems: "center",
                   px: 0.5,
                   py: 0.5,
-                  fontFamily: 'monospace',
+                  fontFamily: "monospace",
                   borderRadius: 0.75,
-                  '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
+                  "&:hover": { bgcolor: "rgba(255,255,255,0.04)" },
                 }}
               >
-                <Typography sx={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: 700 }}>
+                <Typography
+                  sx={{
+                    fontSize: "0.72rem",
+                    color: "rgba(255,255,255,0.45)",
+                    fontWeight: 700,
+                  }}
+                >
                   {r.moveNumber}.
                 </Typography>
-                <MoveCell san={r.whiteSan} meta={r.whiteMeta} isBot={botIsWhite} />
-                <MoveCell san={r.blackSan} meta={r.blackMeta} isBot={!botIsWhite} />
+                <MoveCell
+                  san={r.whiteSan}
+                  meta={r.whiteMeta}
+                  isBot={botIsWhite}
+                />
+                <MoveCell
+                  san={r.blackSan}
+                  meta={r.blackMeta}
+                  isBot={!botIsWhite}
+                />
               </Box>
             ))}
           </Box>
@@ -870,29 +1034,35 @@ export default function TwinBotGame({
   );
 }
 
-function formatResult(r: GameResult, botColor: 'white' | 'black', verbose = false): string {
-  if (r.type === 'checkmate') {
-    const you = botColor === 'white' ? r.winner === 'black' : r.winner === 'white';
+function formatResult(
+  r: GameResult,
+  botColor: "white" | "black",
+  verbose = false
+): string {
+  if (r.type === "checkmate") {
+    const you =
+      botColor === "white" ? r.winner === "black" : r.winner === "white";
     return verbose
-      ? `${you ? 'You win' : 'Bot wins'} by checkmate!`
+      ? `${you ? "You win" : "Bot wins"} by checkmate!`
       : you
-      ? 'You win · Mate'
-      : 'Bot wins · Mate';
+        ? "You win · Mate"
+        : "Bot wins · Mate";
   }
-  if (r.type === 'resign') {
+  if (r.type === "resign") {
     const you = r.winner !== botColor;
     return verbose
-      ? `${you ? 'Bot resigned' : 'You resigned'}`
+      ? `${you ? "Bot resigned" : "You resigned"}`
       : you
-      ? 'Bot resigned'
-      : 'You resigned';
+        ? "Bot resigned"
+        : "You resigned";
   }
-  if (r.type === 'stalemate') return verbose ? 'Draw by stalemate' : 'Draw · Stalemate';
-  return verbose ? 'Draw' : 'Draw';
+  if (r.type === "stalemate")
+    return verbose ? "Draw by stalemate" : "Draw · Stalemate";
+  return verbose ? "Draw" : "Draw";
 }
 
 function BoardWrapper({ children }: { children: React.ReactNode }) {
-  return <Box sx={{ width: '100%' }}>{children}</Box>;
+  return <Box sx={{ width: "100%" }}>{children}</Box>;
 }
 
 function PlayerBanner({
@@ -904,10 +1074,10 @@ function PlayerBanner({
   active,
   thinking,
 }: {
-  side: 'opponent' | 'you';
+  side: "opponent" | "you";
   name: string;
   rating?: number;
-  color: 'white' | 'black';
+  color: "white" | "black";
   platform: Platform;
   active: boolean;
   thinking?: boolean;
@@ -918,36 +1088,50 @@ function PlayerBanner({
       sx={{
         p: 1,
         borderRadius: 1.5,
-        bgcolor: 'rgba(255,255,255,0.04)',
-        border: '1px solid',
-        borderColor: active ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.06)',
-        color: '#fff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        transition: 'border-color 0.2s',
+        bgcolor: "rgba(255,255,255,0.04)",
+        border: "1px solid",
+        borderColor: active ? "rgba(34,197,94,0.4)" : "rgba(255,255,255,0.06)",
+        color: "#fff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        transition: "border-color 0.2s",
       }}
     >
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        sx={{ minWidth: 0 }}
+      >
         <Box
           sx={{
             width: 28,
             height: 28,
             borderRadius: 1,
-            background: side === 'opponent'
-              ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)'
-              : 'linear-gradient(135deg, #334155 0%, #475569 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#22c55e',
-            fontWeight: 800,
+            bgcolor:
+              side === "opponent"
+                ? SURFACE.raisedTertiary
+                : SURFACE.raisedSecondary,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: TEXT.primary,
+            fontWeight: 700,
             fontSize: 14,
           }}
         >
           {name.charAt(0).toUpperCase()}
         </Box>
-        <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+        <Typography
+          sx={{
+            fontWeight: 700,
+            fontSize: "0.85rem",
+            textOverflow: "ellipsis",
+            overflow: "hidden",
+            whiteSpace: "nowrap",
+          }}
+        >
           {name}
         </Typography>
         {rating !== undefined && (
@@ -955,74 +1139,103 @@ function PlayerBanner({
             label={rating}
             size="small"
             sx={{
-              fontSize: '0.65rem',
+              fontSize: "0.65rem",
               height: 18,
               fontWeight: 700,
-              bgcolor: 'rgba(234, 179, 8, 0.15)',
-              color: '#facc15',
+              bgcolor: "rgba(234, 179, 8, 0.15)",
+              color: "#facc15",
             }}
           />
         )}
-        {thinking && <CircularProgress size={10} sx={{ color: '#f59e0b' }} />}
+        {thinking && <CircularProgress size={10} sx={{ color: "#f59e0b" }} />}
       </Stack>
       <Stack direction="row" spacing={0.5} alignItems="center">
-        <Box sx={{ width: 8, height: 8, borderRadius: 1, bgcolor: color === 'white' ? '#fff' : '#111', border: color === 'white' ? '1px solid #999' : 'none' }} />
-        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.7rem', fontWeight: 700 }}>
-          {color === 'white' ? 'White' : 'Black'}
+        <Box
+          sx={{
+            width: 8,
+            height: 8,
+            borderRadius: 1,
+            bgcolor: color === "white" ? "#fff" : "#111",
+            border: color === "white" ? "1px solid #999" : "none",
+          }}
+        />
+        <Typography
+          variant="caption"
+          sx={{
+            color: "rgba(255,255,255,0.55)",
+            fontSize: "0.7rem",
+            fontWeight: 700,
+          }}
+        >
+          {color === "white" ? "White" : "Black"}
         </Typography>
       </Stack>
     </Paper>
   );
 }
 
-function MoveCell({ san, meta, isBot }: { san?: string; meta?: TwinBotMove; isBot: boolean }) {
+function MoveCell({
+  san,
+  meta,
+  isBot,
+}: {
+  san?: string;
+  meta?: TwinBotMove;
+  isBot: boolean;
+}) {
   if (!san) return <Box />;
-  const isBookBot = isBot && meta?.source === 'book';
-  const isEngineBot = isBot && meta?.source === 'engine';
+  const isBookBot = isBot && meta?.source === "book";
+  const isEngineBot = isBot && meta?.source === "engine";
   const confidence = meta?.confidence;
   const bgColor = isBookBot
-    ? 'rgba(34, 197, 94, 0.18)'
+    ? "rgba(34, 197, 94, 0.18)"
     : isEngineBot
-    ? 'rgba(239, 68, 68, 0.18)'
-    : 'transparent';
-  const fgColor = isBookBot ? '#22c55e' : isEngineBot ? '#f87171' : 'rgba(255,255,255,0.6)';
+      ? "rgba(239, 68, 68, 0.18)"
+      : "transparent";
+  const fgColor = isBookBot
+    ? "#22c55e"
+    : isEngineBot
+      ? "#f87171"
+      : "rgba(255,255,255,0.6)";
   return (
     <Tooltip
       title={
         isBookBot
           ? `Book move · played in ${meta?.bookGames}/${meta?.parentGames} games (${confidence?.toFixed(0)}%)`
           : isEngineBot
-          ? `Out of theory · Maia-proxy @ ${meta?.engineElo} (depth ${meta?.engineDepth}, ${meta?.phase})`
-          : ''
+            ? `Out of theory · human-like opponent at ${meta?.engineElo} (depth ${meta?.engineDepth}, ${meta?.phase})`
+            : ""
       }
       arrow
       placement="top"
     >
       <Box
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
           gap: 0.5,
           px: 0.75,
           py: 0.25,
           borderRadius: 0.75,
-          bgcolor: 'transparent',
-          cursor: isBot ? 'help' : 'default',
+          bgcolor: "transparent",
+          cursor: isBot ? "help" : "default",
         }}
       >
-        <Typography sx={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff' }}>{san}</Typography>
+        <Typography sx={{ fontWeight: 700, fontSize: "0.8rem", color: "#fff" }}>
+          {san}
+        </Typography>
         {isBookBot && confidence !== undefined && (
           <Chip
             label={`${Math.round(confidence)}%`}
             size="small"
             sx={{
-              fontSize: '0.6rem',
+              fontSize: "0.6rem",
               height: 16,
               fontWeight: 800,
               bgcolor: bgColor,
               color: fgColor,
-              '& .MuiChip-label': { px: 0.5 },
+              "& .MuiChip-label": { px: 0.5 },
             }}
           />
         )}
@@ -1031,7 +1244,7 @@ function MoveCell({ san, meta, isBot }: { san?: string; meta?: TwinBotMove; isBo
             sx={{
               width: 6,
               height: 6,
-              borderRadius: '50%',
+              borderRadius: "50%",
               bgcolor: fgColor,
             }}
           />

@@ -1,9 +1,12 @@
 import { Box } from "@mui/material";
 import { keyframes, styled } from "@mui/material/styles";
+import { STATUS } from "@/theme/tokens";
 
 /**
- * Shared flash animation overlay for puzzle boards. Box-shadow pulse
- * ringing the board on solved (green) and wrong (red).
+ * Shared flash overlay for puzzle boards: a ring that lands around the board
+ * once and fades, green on solved and red on wrong. It is an outline rather
+ * than a spread shadow because nothing on the page glows; a ring that
+ * arrives and leaves is feedback at the moment it applies, not decoration.
  *
  * Positioned absolutely with pointer-events: none so it doesn't block
  * drag-and-drop on the underlying Chessboard. Critical: callers MUST
@@ -19,15 +22,15 @@ import { keyframes, styled } from "@mui/material/styles";
  */
 
 const flashGreen = keyframes`
-  0%   { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
-  20%  { box-shadow: 0 0 0 8px rgba(76, 175, 80, 0.55); }
-  100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+  0%   { outline-color: transparent; }
+  20%  { outline-color: ${STATUS.success}; }
+  100% { outline-color: transparent; }
 `;
 
 const flashRed = keyframes`
-  0%   { box-shadow: 0 0 0 0 rgba(220, 50, 50, 0); }
-  20%  { box-shadow: 0 0 0 8px rgba(220, 50, 50, 0.65); }
-  100% { box-shadow: 0 0 0 0 rgba(220, 50, 50, 0); }
+  0%   { outline-color: transparent; }
+  20%  { outline-color: ${STATUS.error}; }
+  100% { outline-color: transparent; }
 `;
 
 export type FlashState = "idle" | "green" | "red";
@@ -40,6 +43,8 @@ export const FlashOverlay = styled(Box, {
   pointerEvents: "none",
   borderRadius: "8px",
   zIndex: 2,
+  outline: "3px solid transparent",
+  outlineOffset: 2,
   animation:
     flash === "green"
       ? `${flashGreen} 700ms ease-out`

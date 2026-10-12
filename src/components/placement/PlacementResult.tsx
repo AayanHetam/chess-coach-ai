@@ -9,14 +9,12 @@ import type {
 } from "@/lib/placement/placementTest";
 import { bandLabel } from "@/components/onboarding/quizConfig";
 import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
-
-const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
-const ORANGE_HOVER = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
+import { TEXT, TYPE } from "@/theme/tokens";
 
 const CONFIDENCE_COPY: Record<string, string> = {
   high: "We're confident in this number.",
-  medium: "A solid estimate — it'll sharpen as you train.",
-  low: "A rough first read — retake it anytime for a sharper number.",
+  medium: "A solid estimate. It'll sharpen as you train.",
+  low: "A rough first read. Retake it anytime for a sharper number.",
 };
 
 /** kebab theme id → human label, with a title-case fallback. */
@@ -52,7 +50,7 @@ export default function PlacementResult({
 
   // Per-theme strength, weakest first. Only themes we actually tested.
   const strengths: Array<[string, ThemeStrength]> = Object.entries(
-    result.themeStrength,
+    result.themeStrength
   )
     .filter(([, s]) => s.seen > 0)
     .sort((a, b) => a[1].score - b[1].score || b[1].seen - a[1].seen);
@@ -61,25 +59,16 @@ export default function PlacementResult({
 
   return (
     <Box sx={{ textAlign: "center" }}>
-      <Typography
-        sx={{
-          color: "#FB923C",
-          fontWeight: 700,
-          fontSize: "0.78rem",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          mb: 1,
-        }}
-      >
+      <Typography sx={{ ...TYPE.label, color: TEXT.secondary, mb: 1 }}>
         Your starting rating
       </Typography>
 
       <Typography
         sx={{
-          color: "#fff",
-          fontWeight: 800,
-          fontSize: "3.5rem",
+          ...TYPE.display,
+          color: TEXT.primary,
           lineHeight: 1,
+          fontVariantNumeric: "tabular-nums",
         }}
       >
         {result.finalRating}
@@ -94,7 +83,7 @@ export default function PlacementResult({
       >
         {CONFIDENCE_COPY[result.confidence]}
         {result.hitRail
-          ? " (you topped out the range — a retake will place you higher.)"
+          ? " (You topped out the range; a retake will place you higher.)"
           : ""}
       </Typography>
 
@@ -108,7 +97,7 @@ export default function PlacementResult({
               textAlign: "center",
             }}
           >
-            Where you stand — tap a weak area to drill it now.
+            Where you stand. Tap a weak area to drill it now.
           </Typography>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 0.9 }}>
             {strengths.map(([id, s]) => {
@@ -120,7 +109,7 @@ export default function PlacementResult({
                     isWeak
                       ? () =>
                           router.push(
-                            `/puzzles?theme=${encodeURIComponent(id)}`,
+                            `/puzzles?theme=${encodeURIComponent(id)}`
                           )
                       : undefined
                   }
@@ -138,7 +127,8 @@ export default function PlacementResult({
                     border: isWeak
                       ? "1px solid rgba(249,115,22,0.3)"
                       : "1px solid rgba(255,255,255,0.06)",
-                    transition: "background 160ms ease, border-color 160ms ease",
+                    transition:
+                      "background 160ms ease, border-color 160ms ease",
                     "&:hover": isWeak
                       ? {
                           background: "rgba(249,115,22,0.14)",
@@ -209,18 +199,9 @@ export default function PlacementResult({
 
       <Button
         fullWidth
+        variant="contained"
         onClick={onContinue}
-        sx={{
-          mt: 4,
-          py: 1.4,
-          borderRadius: "12px",
-          textTransform: "none",
-          fontWeight: 700,
-          fontSize: "1rem",
-          color: "#fff",
-          background: ORANGE,
-          "&:hover": { background: ORANGE_HOVER },
-        }}
+        sx={{ mt: 4, py: 1.4, fontSize: TYPE.body.fontSize }}
       >
         Start my training plan
       </Button>

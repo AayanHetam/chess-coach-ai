@@ -22,6 +22,7 @@ import {
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/contexts/AuthContext";
 import PlatformRatingCard from "./PlatformRatingCard";
+import { LINE, SURFACE, TEXT } from "@/theme/tokens";
 import type {
   CoachTone,
   PlayingStyle,
@@ -57,7 +58,7 @@ const COACH_TONES: { value: CoachTone; label: string; hint: string }[] = [
   {
     value: "masti",
     label: "Masti",
-    hint: "Playful & spirited — Chess Masti's house style.",
+    hint: "Playful and spirited, Chess Masti's house style.",
   },
 ];
 
@@ -75,7 +76,7 @@ const PLAYING_STYLES: { value: PlayingStyle; label: string; hint: string }[] = [
   {
     value: "balanced",
     label: "Balanced",
-    hint: "Mix both — pick the right tool per position.",
+    hint: "Mix both: pick the right tool per position.",
   },
 ];
 
@@ -291,25 +292,26 @@ export default function ProfileDialog({
       onClose={onClose}
       maxWidth="sm"
       fullWidth
-      PaperProps={{ sx: { borderRadius: 4, overflow: "hidden" } }}
+      PaperProps={{ sx: { overflow: "hidden" } }}
     >
       {/* Header */}
       <Box
         sx={{
-          background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
           py: 3,
           px: 3,
           position: "relative",
+          borderBottom: `1px solid ${LINE.hairline}`,
         }}
       >
         <IconButton
           onClick={onClose}
+          aria-label="Close"
           sx={{
             position: "absolute",
             top: 8,
             right: 8,
-            color: "rgba(255,255,255,0.7)",
-            "&:hover": { color: "#fff" },
+            color: TEXT.secondary,
+            "&:hover": { color: TEXT.primary },
           }}
         >
           <Icon icon="mdi:close" />
@@ -322,23 +324,17 @@ export default function ProfileDialog({
             sx={{
               width: 56,
               height: 56,
-              bgcolor: "rgba(255,255,255,0.2)",
-              backdropFilter: "blur(10px)",
+              bgcolor: SURFACE.raisedSecondary,
+              color: TEXT.primary,
             }}
           >
             {avatarInitial(user)}
           </Avatar>
           <Box>
-            <Typography
-              variant="h6"
-              sx={{ fontWeight: 700, color: "#fff", mb: 0.5 }}
-            >
+            <Typography variant="h6" sx={{ mb: 0.5 }}>
               {addressAs(user)}
             </Typography>
-            <Typography
-              variant="body2"
-              sx={{ color: "rgba(255,255,255,0.85)" }}
-            >
+            <Typography variant="body2" sx={{ color: TEXT.secondary }}>
               {user.email}
             </Typography>
           </Box>
@@ -704,7 +700,7 @@ export default function ProfileDialog({
                 ))}
                 {coaching.favoriteOpenings.length === 0 && (
                   <Typography variant="caption" sx={{ color: "#999" }}>
-                    None yet — add up to 20.
+                    None yet. Add up to 20.
                   </Typography>
                 )}
               </Box>
@@ -788,7 +784,7 @@ export default function ProfileDialog({
             </Box>
 
             <Typography variant="caption" sx={{ color: "#999" }}>
-              Visual themes are saved but not yet applied to the board — wiring
+              Visual themes are saved but not yet applied to the board. Wiring
               lands in a follow-up.
             </Typography>
 
@@ -820,21 +816,7 @@ function SaveButton({
       variant="contained"
       onClick={onClick}
       disabled={saving}
-      sx={{
-        px: 3,
-        py: 0.75,
-        fontWeight: 700,
-        borderRadius: 2.5,
-        background: saved
-          ? "linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)"
-          : "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
-        textTransform: "none",
-        "&:hover": {
-          background: saved
-            ? "linear-gradient(135deg, #43A047 0%, #5CB360 100%)"
-            : "linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)",
-        },
-      }}
+      sx={{ px: 3, py: 0.75 }}
       startIcon={saved ? <Icon icon="mdi:check" /> : undefined}
     >
       {saving ? "Saving..." : saved ? "Saved" : "Save changes"}

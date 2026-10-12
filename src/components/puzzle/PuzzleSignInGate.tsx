@@ -3,17 +3,27 @@ import { Box, Button, Typography } from "@mui/material";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthDialog } from "@/contexts/AuthDialogContext";
-import { ACCENTS } from "@/components/ui/accents";
 import { Masti } from "@/components/masti";
+import {
+  MATERIAL,
+  MATERIAL_FALLBACK_SX,
+  RADIUS,
+  SHADOW,
+  TEXT,
+} from "@/theme/tokens";
 
 /**
  * Cosmetic sign-in gate for the /puzzles/<rating> landing pages.
  *
  * The wrapped cards stay in the DOM — the puzzles are CC0 Lichess data and
  * the statically generated HTML is what search engines index, so this is a
- * conversion prompt, not access control. Blur + pointer-events: none +
+ * conversion prompt, not access control. A scrim + pointer-events: none +
  * aria-hidden neutralise the region for sight and input; the gated cards
  * render static diagrams only, so nothing focusable sits underneath.
+ *
+ * The card itself is the one translucent thing here: it is floating chrome
+ * that the gated region scrolls under, so it wears the material (and goes
+ * solid under reduced transparency or more contrast).
  *
  * The PARENT owns the auth decision: mount this only once useViewer()
  * reports { loading: false, user: null }. While auth state is loading,
@@ -51,7 +61,6 @@ export function PuzzleSignInGate({
       <Box
         aria-hidden
         sx={{
-          filter: "blur(6px)",
           pointerEvents: "none",
           userSelect: "none",
         }}
@@ -66,16 +75,15 @@ export function PuzzleSignInGate({
           display: "flex",
           justifyContent: "center",
           alignItems: "flex-start",
-          background:
-            "linear-gradient(180deg, rgba(8,9,12,0.25) 0%, rgba(8,9,12,0.62) 100%)",
-          borderRadius: "1.5rem",
+          background: MATERIAL.scrim,
+          borderRadius: `${RADIUS.card}px`,
           px: 2,
         }}
       >
         <Box
           sx={{
             // Sticky so the card stays in view while the visitor scrolls
-            // the (tall, blurred) gated region on mobile.
+            // the (tall, dimmed) gated region on mobile.
             position: "sticky",
             top: { xs: 88, md: 120 },
             mt: { xs: 4, md: 7 },
@@ -83,29 +91,27 @@ export function PuzzleSignInGate({
             width: "100%",
             textAlign: "center",
             p: { xs: 3, md: 3.5 },
-            borderRadius: "1.5rem",
-            background: "rgba(20, 22, 28, 0.88)",
-            backdropFilter: "blur(12px)",
-            border: `1px solid ${ACCENTS.ember.border}`,
-            boxShadow: ACCENTS.ember.glow,
+            borderRadius: `${RADIUS.sheet}px`,
+            background: MATERIAL.background,
+            backdropFilter: MATERIAL.backdropFilter,
+            WebkitBackdropFilter: MATERIAL.backdropFilter,
+            border: `1px solid ${MATERIAL.border}`,
+            boxShadow: SHADOW.modal,
+            ...MATERIAL_FALLBACK_SX,
           }}
         >
           <Masti mood="wave" size={88} decorative style={{ marginBottom: 8 }} />
-          <Typography
-            component="h2"
-            variant="h6"
-            sx={{ fontWeight: 800, mb: 0.75 }}
-          >
+          <Typography component="h2" variant="h4" sx={{ mb: 0.75 }}>
             Sign in to keep solving
           </Typography>
           <Typography
             sx={{
               fontSize: "0.875rem",
-              color: "rgba(255,255,255,0.65)",
+              color: TEXT.secondary,
               mb: 2.5,
             }}
           >
-            {remainingCount} more puzzles in this set — free account.
+            {remainingCount} more puzzles in this set, with a free account.
           </Typography>
 
           <Button
@@ -113,12 +119,6 @@ export function PuzzleSignInGate({
             variant="contained"
             onClick={handleGoogle}
             startIcon={<Icon icon="flat-color-icons:google" width={18} />}
-            sx={{
-              textTransform: "none",
-              fontWeight: 700,
-              borderRadius: "12px",
-              py: 1.1,
-            }}
           >
             Continue with Google
           </Button>
@@ -126,12 +126,7 @@ export function PuzzleSignInGate({
             fullWidth
             variant="text"
             onClick={() => openAuthDialog()}
-            sx={{
-              mt: 1,
-              textTransform: "none",
-              fontWeight: 600,
-              color: "rgba(255,255,255,0.75)",
-            }}
+            sx={{ mt: 1 }}
           >
             Sign in with email
           </Button>

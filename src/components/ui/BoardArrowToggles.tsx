@@ -3,6 +3,15 @@
 import { Box, Slider, Stack, Typography } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
 import { Activity, BookOpen, Brain, Cpu } from "lucide-react";
+import {
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 export interface ArrowToggleState {
   best: boolean;
@@ -23,8 +32,18 @@ export const DEFAULT_ARROW_TOGGLES: ArrowToggleState = {
 export const ARROW_PALETTE = {
   // Match chessground brush names so the page can use these directly
   best: { brush: "green", color: "#22c55e", label: "Engine best", icon: Cpu },
-  common: { brush: "blue", color: "#3B82F6", label: "Most common", icon: BookOpen },
-  game: { brush: "yellow", color: "#F97316", label: "Game played", icon: Activity },
+  common: {
+    brush: "blue",
+    color: "#3B82F6",
+    label: "Most common",
+    icon: BookOpen,
+  },
+  game: {
+    brush: "yellow",
+    color: "#F97316",
+    label: "Game played",
+    icon: Activity,
+  },
   maia: { brush: "purple", color: "#A855F7", label: "Maia", icon: Brain },
 } as const;
 
@@ -41,7 +60,7 @@ interface BoardArrowTogglesProps {
   state: ArrowToggleState;
   onChange: (next: ArrowToggleState) => void;
   /**
-   * Single-row variant: no outer glass card, no "ARROWS" caption, short
+   * Single-row variant: no outer card, no "Arrows" caption, short
    * labels, and the Maia ELO slider sits inline instead of expanding a
    * second row. Used by /analysis, where the page is pinned to the viewport
    * and an expanding control would push the board off-screen.
@@ -66,11 +85,9 @@ export function BoardArrowToggles({
           : {
               mt: 2,
               p: 1.5,
-              borderRadius: "1rem",
-              background: "rgba(20,22,28,0.5)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              backdropFilter: "blur(10px)",
-              WebkitBackdropFilter: "blur(10px)",
+              borderRadius: `${RADIUS.card}px`,
+              background: SURFACE.raised,
+              border: `1px solid ${LINE.hairline}`,
             }
       }
     >
@@ -83,11 +100,8 @@ export function BoardArrowToggles({
         {!compact && (
           <Typography
             sx={{
-              fontSize: "0.66rem",
-              fontWeight: 700,
-              letterSpacing: "0.16em",
-              color: "rgba(255,255,255,0.42)",
-              textTransform: "uppercase",
+              ...TYPE.label,
+              color: TEXT.secondary,
               mr: 1,
               whiteSpace: "nowrap",
             }}
@@ -96,9 +110,7 @@ export function BoardArrowToggles({
           </Typography>
         )}
 
-        {(
-          ["best", "common", "game", "maia"] as const
-        ).map((key) => {
+        {(["best", "common", "game", "maia"] as const).map((key) => {
           const opt = ARROW_PALETTE[key];
           const active = state[key];
           const Icon = opt.icon;
@@ -114,24 +126,25 @@ export function BoardArrowToggles({
                 gap: compact ? 0.5 : 0.75,
                 px: compact ? 0.9 : 1.25,
                 py: compact ? 0.4 : 0.6,
-                borderRadius: "999px",
-                background: active
-                  ? `${opt.color}24`
-                  : "rgba(255,255,255,0.03)",
+                borderRadius: `${RADIUS.pill}px`,
+                // The arrow colour is the legend: a quiet tint on the chip
+                // that is on, nothing on the chips that are off.
+                background: active ? `${opt.color}24` : "transparent",
                 border: active
                   ? `1px solid ${opt.color}66`
-                  : "1px solid rgba(255,255,255,0.08)",
-                color: active ? opt.color : "rgba(255,255,255,0.7)",
-                fontWeight: active ? 700 : 500,
-                fontSize: compact ? "0.72rem" : "0.78rem",
-                transition: "all 180ms ease",
+                  : `1px solid ${LINE.hairline}`,
+                color: active ? opt.color : TEXT.secondary,
+                fontWeight: active ? 600 : 500,
+                fontSize: compact ? "0.72rem" : TYPE.caption.fontSize,
+                transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
                 userSelect: "none",
                 "&:hover": {
                   background: active
                     ? `${opt.color}30`
                     : "rgba(255,255,255,0.06)",
-                  borderColor: active ? `${opt.color}88` : "rgba(255,255,255,0.18)",
+                  borderColor: active ? `${opt.color}88` : LINE.strong,
                 },
+                "&:active": { transform: MOTION.pressScale },
               }}
             >
               {!compact && (
@@ -141,12 +154,7 @@ export function BoardArrowToggles({
                     height: 8,
                     borderRadius: "50%",
                     background: active ? opt.color : "transparent",
-                    border: active
-                      ? "none"
-                      : `1.5px solid ${opt.color}aa`,
-                    boxShadow: active
-                      ? `0 0 8px ${opt.color}99`
-                      : "none",
+                    border: active ? "none" : `1.5px solid ${opt.color}aa`,
                     flexShrink: 0,
                   }}
                 />
@@ -160,7 +168,8 @@ export function BoardArrowToggles({
                   component="span"
                   sx={{
                     ml: 0.5,
-                    fontFamily: "Monaco, Menlo, monospace",
+                    fontFamily: FONT_MONO,
+                    fontVariantNumeric: "tabular-nums",
                     fontSize: "0.72rem",
                     color: opt.color,
                   }}
@@ -182,48 +191,37 @@ export function BoardArrowToggles({
             sx={{
               px: 1,
               py: 0.15,
-              borderRadius: "999px",
-              background: "rgba(168,85,247,0.08)",
-              border: "1px solid rgba(168,85,247,0.22)",
+              borderRadius: `${RADIUS.small}px`,
+              border: `1px solid ${LINE.hairline}`,
             }}
           >
             <Slider
               aria-label="Maia ELO"
               value={state.maiaElo}
               onChange={(_, v) =>
-                onChange({ ...state, maiaElo: typeof v === "number" ? v : v[0] })
+                onChange({
+                  ...state,
+                  maiaElo: typeof v === "number" ? v : v[0],
+                })
               }
               min={1100}
               max={2200}
               step={100}
               sx={{
                 width: 84,
-                color: "#A855F7",
                 py: 0.75,
-                "& .MuiSlider-rail": {
-                  background: "rgba(168,85,247,0.18)",
-                  height: 3,
-                },
-                "& .MuiSlider-track": {
-                  background: "linear-gradient(90deg, #A855F7, #C084FC)",
-                  height: 3,
-                  border: "none",
-                },
-                "& .MuiSlider-thumb": {
-                  width: 11,
-                  height: 11,
-                  background: "#A855F7",
-                  boxShadow: "0 0 10px rgba(168,85,247,0.6)",
-                  border: "2px solid #0A0A0A",
-                },
+                "& .MuiSlider-rail": { height: 3 },
+                "& .MuiSlider-track": { height: 3, border: "none" },
+                "& .MuiSlider-thumb": { width: 11, height: 11 },
               }}
             />
             <Typography
               sx={{
                 fontSize: "0.72rem",
-                fontWeight: 700,
-                color: "#C084FC",
-                fontFamily: "Monaco, Menlo, monospace",
+                fontWeight: 600,
+                color: TEXT.primary,
+                fontFamily: FONT_MONO,
+                fontVariantNumeric: "tabular-nums",
                 minWidth: 34,
                 textAlign: "right",
               }}
@@ -247,9 +245,9 @@ export function BoardArrowToggles({
               sx={{
                 px: 1.5,
                 py: 1,
-                borderRadius: "10px",
-                background: "rgba(168,85,247,0.06)",
-                border: "1px solid rgba(168,85,247,0.18)",
+                borderRadius: `${RADIUS.control}px`,
+                background: SURFACE.raisedSecondary,
+                border: `1px solid ${LINE.hairline}`,
                 display: "grid",
                 gridTemplateColumns: "auto 1fr auto",
                 gap: 2,
@@ -257,23 +255,22 @@ export function BoardArrowToggles({
               }}
             >
               <Stack direction="row" spacing={0.75} alignItems="center">
-                <Brain size={13} color="#A855F7" />
-                <Typography
-                  sx={{
-                    fontSize: "0.72rem",
-                    fontWeight: 700,
-                    letterSpacing: "0.1em",
-                    color: "#C084FC",
-                    textTransform: "uppercase",
-                  }}
-                >
+                <Brain
+                  size={16}
+                  strokeWidth={1.75}
+                  color={ARROW_PALETTE.maia.color}
+                />
+                <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
                   Maia ELO
                 </Typography>
               </Stack>
               <Slider
                 value={state.maiaElo}
                 onChange={(_, v) =>
-                  onChange({ ...state, maiaElo: typeof v === "number" ? v : v[0] })
+                  onChange({
+                    ...state,
+                    maiaElo: typeof v === "number" ? v : v[0],
+                  })
                 }
                 min={1100}
                 max={2200}
@@ -285,28 +282,10 @@ export function BoardArrowToggles({
                   { value: 2200, label: "" },
                 ]}
                 sx={{
-                  color: "#A855F7",
                   py: 1,
-                  "& .MuiSlider-rail": {
-                    background: "rgba(168,85,247,0.18)",
-                    height: 4,
-                  },
-                  "& .MuiSlider-track": {
-                    background:
-                      "linear-gradient(90deg, #A855F7, #C084FC)",
-                    height: 4,
-                    border: "none",
-                  },
-                  "& .MuiSlider-thumb": {
-                    width: 14,
-                    height: 14,
-                    background: "#A855F7",
-                    boxShadow: "0 0 12px rgba(168,85,247,0.6)",
-                    border: "2px solid #0A0A0A",
-                    "&:hover, &.Mui-focusVisible": {
-                      boxShadow: "0 0 16px rgba(168,85,247,0.8)",
-                    },
-                  },
+                  "& .MuiSlider-rail": { height: 4 },
+                  "& .MuiSlider-track": { height: 4, border: "none" },
+                  "& .MuiSlider-thumb": { width: 14, height: 14 },
                   "& .MuiSlider-mark": {
                     background: "rgba(255,255,255,0.18)",
                     width: 2,
@@ -317,9 +296,10 @@ export function BoardArrowToggles({
               <Typography
                 sx={{
                   fontSize: "0.82rem",
-                  fontWeight: 700,
-                  color: "#C084FC",
-                  fontFamily: "Monaco, Menlo, monospace",
+                  fontWeight: 600,
+                  color: TEXT.primary,
+                  fontFamily: FONT_MONO,
+                  fontVariantNumeric: "tabular-nums",
                   minWidth: 48,
                   textAlign: "right",
                 }}

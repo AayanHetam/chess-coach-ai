@@ -25,11 +25,14 @@ import { useQuizCurrentRating, type QuizRating } from "./useQuizCurrentRating";
 import { isUsernameValid } from "./useOnboardingQuiz";
 import TacticDiagram from "./TacticDiagram";
 import QuizIcon, { type QuizIconName } from "./QuizIcon";
-import { GOAL_DIAGRAMS, GOAL_DIAGRAM_ALT, SPOT_DIAGRAMS } from "./tacticDiagrams";
+import {
+  GOAL_DIAGRAMS,
+  GOAL_DIAGRAM_ALT,
+  SPOT_DIAGRAMS,
+} from "./tacticDiagrams";
+import { ACCENT, LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 
-const EASE = [0.22, 0.61, 0.36, 1] as const;
-const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
-const ORANGE_HOVER = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
+const EASE = [0.2, 0, 0, 1] as const;
 
 const ratingInputSx = {
   "& .MuiOutlinedInput-root": {
@@ -64,7 +67,11 @@ const PLAY_STYLE_ICON_ALT: Record<string, string> = {
 };
 
 /** Self-assessment score → rank. Mirrors selfAssessScore's 0/1/2. */
-const LEVEL_ALT = ["Pawn — just starting", "Knight — getting there", "Queen — confident"];
+const LEVEL_ALT = [
+  "Pawn, just starting",
+  "Knight, getting there",
+  "Queen, confident",
+];
 
 /** Days-per-week option → clock fill, reusing the time-budget iconography. */
 const FREQUENCY_ICON: Record<number, QuizIconName> = {
@@ -163,12 +170,14 @@ export default function OnboardingQuiz({
         return (
           <QuizStep
             title={`What's your ${platform} username?`}
-            helper={`We'll read your real rating straight off ${platform} — no need to guess.`}
+            helper={`We'll read your real rating straight off ${platform}, so there's no need to guess.`}
           >
             <TextField
               label={`${platform} username`}
               placeholder={
-                q.answers.playStyle === "lichess" ? "e.g. DrNykterstein" : "e.g. hikaru"
+                q.answers.playStyle === "lichess"
+                  ? "e.g. DrNykterstein"
+                  : "e.g. hikaru"
               }
               fullWidth
               autoFocus
@@ -233,7 +242,7 @@ export default function OnboardingQuiz({
         return (
           <QuizStep
             title="What do you want to improve?"
-            helper="Pick a few — each one is shown on the board."
+            helper="Pick a few. Each one is shown on the board."
           >
             {QUIZ_GOAL_OPTIONS.map((o) => (
               <QuizOption
@@ -282,7 +291,7 @@ export default function OnboardingQuiz({
         return (
           <QuizStep
             title="Where do you want each time control to be?"
-            helper="Set a goal on the ones you play — leave the rest blank."
+            helper="Set a goal on the ones you play and leave the rest blank."
           >
             <PerfGoalStep
               drafts={q.answers.perfDrafts}
@@ -299,12 +308,9 @@ export default function OnboardingQuiz({
         return (
           <QuizStep
             title="Pick your handle"
-            helper="It's how we'll address you, and you can sign in with it instead of your email. Don't use your full name — other players can see this."
+            helper="It's how we'll address you, and you can sign in with it instead of your email. Don't use your full name, since other players can see this."
           >
-            <HandleStep
-              value={q.answers.handle ?? ""}
-              onChange={q.setHandle}
-            />
+            <HandleStep value={q.answers.handle ?? ""} onChange={q.setHandle} />
           </QuizStep>
         );
 
@@ -382,7 +388,7 @@ export default function OnboardingQuiz({
                   display: "grid",
                   placeItems: "center",
                   background: q.answers.dailyReminder
-                    ? "linear-gradient(135deg, #F97316, #EA580C)"
+                    ? ACCENT.main
                     : "transparent",
                   border: q.answers.dailyReminder
                     ? "none"
@@ -390,7 +396,7 @@ export default function OnboardingQuiz({
                 }}
               >
                 {q.answers.dailyReminder && (
-                  <Check size={13} color="#0A0907" strokeWidth={3.5} />
+                  <Check size={13} color={TEXT.onAccent} strokeWidth={3.5} />
                 )}
               </Box>
               <Box>
@@ -440,13 +446,9 @@ export default function OnboardingQuiz({
           flexDirection: "column",
           gap: 2.5,
           p: { xs: 2.5, md: 3.5 },
-          borderRadius: "24px",
-          background:
-            "linear-gradient(180deg, rgba(20,22,28,0.92) 0%, rgba(12,14,20,0.92) 100%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          backdropFilter: "blur(20px) saturate(150%)",
-          WebkitBackdropFilter: "blur(20px) saturate(150%)",
-          boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
+          borderRadius: `${RADIUS.card}px`,
+          background: SURFACE.raised,
+          border: `1px solid ${LINE.hairline}`,
         }}
       >
         {/* Header: progress + start over */}
@@ -460,15 +462,7 @@ export default function OnboardingQuiz({
               mb: 1.25,
             }}
           >
-            <Typography
-              sx={{
-                color: "rgba(255,255,255,0.5)",
-                fontSize: "0.74rem",
-                fontWeight: 600,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-              }}
-            >
+            <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
               Chess Masti
             </Typography>
             {showStartOver && (
@@ -498,10 +492,10 @@ export default function OnboardingQuiz({
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={animKey}
-              initial={{ opacity: 0, x: 24 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -24 }}
-              transition={{ duration: 0.28, ease: EASE }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18, ease: EASE }}
             >
               {renderContent()}
             </motion.div>
@@ -512,37 +506,21 @@ export default function OnboardingQuiz({
         {q.phase === "questions" && (
           <Box sx={{ display: "flex", gap: 1.5 }}>
             {!q.isFirstStep && (
-              <Button
-                onClick={q.back}
-                sx={{
-                  textTransform: "none",
-                  fontWeight: 600,
-                  px: 2.5,
-                  borderRadius: "12px",
-                  color: "rgba(255,255,255,0.8)",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  "&:hover": { background: "rgba(255,255,255,0.05)" },
-                }}
-              >
+              <Button onClick={q.back} variant="outlined" sx={{ px: 2.5 }}>
                 Back
               </Button>
             )}
             <Button
               onClick={q.next}
               disabled={!q.canAdvance}
+              variant="contained"
               sx={{
                 flex: 1,
                 py: 1.3,
-                borderRadius: "12px",
-                textTransform: "none",
-                fontWeight: 700,
-                fontSize: "0.98rem",
-                color: "#fff",
-                background: ORANGE,
-                "&:hover": { background: ORANGE_HOVER },
+                fontSize: TYPE.body.fontSize,
                 "&.Mui-disabled": {
-                  color: "rgba(255,255,255,0.4)",
-                  background: "rgba(255,255,255,0.06)",
+                  color: TEXT.tertiary,
+                  background: "rgba(255,255,255,0.08)",
                 },
               }}
             >

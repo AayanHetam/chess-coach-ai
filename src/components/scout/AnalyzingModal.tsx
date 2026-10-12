@@ -6,42 +6,56 @@ import {
   Paper,
   Stack,
   Typography,
-} from '@mui/material';
-import { Masti } from '@/components/masti';
-import { Icon } from '@iconify/react';
+} from "@mui/material";
+import { Masti } from "@/components/masti";
+import { Icon } from "@iconify/react";
+import {
+  ACCENT,
+  LINE,
+  RADIUS,
+  SHADOW,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
-export type AnalyzingStage = 'connect' | 'download' | 'analyze';
+export type AnalyzingStage = "connect" | "download" | "analyze";
 
-const STAGE_ORDER: AnalyzingStage[] = ['connect', 'download', 'analyze'];
+const STAGE_ORDER: AnalyzingStage[] = ["connect", "download", "analyze"];
 
 export interface AnalyzingModalProps {
   open: boolean;
   username: string;
-  platform: 'chess.com' | 'lichess';
+  platform: "chess.com" | "lichess";
   stage: AnalyzingStage;
   progress: number; // 0-1
   onCancel?: () => void;
 }
 
 const STAGE_LABEL: Record<AnalyzingStage, string> = {
-  connect: 'CONNECT',
-  download: 'DOWNLOAD',
-  analyze: 'ANALYZE',
+  connect: "Connect",
+  download: "Download",
+  analyze: "Analyze",
 };
 
 const STAGE_BODY: Record<AnalyzingStage, { title: string; detail: string }> = {
   connect: {
-    title: 'Connecting to archives..',
-    detail: 'Pinging player endpoint',
+    title: "Connecting to the archives…",
+    detail: "Finding the player",
   },
   download: {
-    title: 'Pulling recent games..',
-    detail: 'Last year of play',
+    title: "Pulling recent games…",
+    detail: "Last year of play",
   },
   analyze: {
-    title: 'Analyzing patterns..',
-    detail: 'Openings, traps & psychology',
+    title: "Analyzing patterns…",
+    detail: "Openings, traps and psychology",
   },
+};
+
+const PLATFORM_LABEL: Record<AnalyzingModalProps["platform"], string> = {
+  "chess.com": "Chess.com",
+  lichess: "Lichess",
 };
 
 export default function AnalyzingModal({
@@ -57,101 +71,115 @@ export default function AnalyzingModal({
   const pct = Math.round(progress * 100);
 
   return (
-    <Backdrop
-      open={open}
-      sx={{
-        zIndex: theme => theme.zIndex.modal + 10,
-        background: 'rgba(15, 23, 42, 0.72)',
-        backdropFilter: 'blur(4px)',
-      }}
-    >
+    <Backdrop open={open} sx={{ zIndex: (theme) => theme.zIndex.modal + 10 }}>
       <Paper
-        elevation={24}
+        elevation={0}
         sx={{
           width: 420,
-          maxWidth: '92vw',
+          maxWidth: "92vw",
           p: 3,
-          borderRadius: 3,
-          background: 'linear-gradient(180deg, #0f172a 0%, #111c38 100%)',
-          color: '#fff',
-          border: '1px solid rgba(255,107,53,0.25)',
-          boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+          borderRadius: `${RADIUS.sheet}px`,
+          background: SURFACE.overlay,
+          color: TEXT.primary,
+          border: `1px solid ${LINE.hairline}`,
+          boxShadow: SHADOW.modal,
         }}
       >
         {/* Avatar + username */}
-        <Stack direction="column" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
+        <Stack
+          direction="column"
+          alignItems="center"
+          spacing={1.5}
+          sx={{ mb: 2 }}
+        >
           <Box
             sx={{
               width: 72,
               height: 72,
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-              boxShadow: '0 0 0 6px rgba(255,107,53,0.15)',
+              borderRadius: "50%",
+              bgcolor: SURFACE.raisedSecondary,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              position: "relative",
             }}
           >
-            <Typography sx={{ fontSize: 32, fontWeight: 900, color: '#fff', textTransform: 'uppercase' }}>
-              {username.charAt(0) || '?'}
+            <Typography
+              sx={{ fontSize: 32, fontWeight: 700, color: TEXT.primary }}
+            >
+              {username.charAt(0).toUpperCase() || "?"}
             </Typography>
             <Box
               sx={{
-                position: 'absolute',
+                position: "absolute",
                 bottom: 0,
                 right: 0,
                 width: 16,
                 height: 16,
-                borderRadius: '4px',
-                bgcolor: platform === 'chess.com' ? '#7fa650' : '#262421',
-                border: '2px solid #0f172a',
+                borderRadius: "4px",
+                bgcolor: platform === "chess.com" ? "#7fa650" : "#262421",
+                border: `2px solid ${SURFACE.overlay}`,
               }}
             />
           </Box>
 
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography sx={{ fontSize: 18, fontWeight: 800 }}>
-              Analyzing{' '}
-              <Box component="span" sx={{ color: '#FF6B35' }}>
+          <Box sx={{ textAlign: "center" }}>
+            <Typography sx={{ ...TYPE.h4 }}>
+              Analyzing{" "}
+              <Box component="span" sx={{ color: ACCENT.main }}>
                 {username}
               </Box>
             </Typography>
-            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', letterSpacing: 1.2 }}>
-              {platform.toUpperCase()}
+            <Typography variant="caption" sx={{ color: TEXT.secondary }}>
+              {PLATFORM_LABEL[platform]}
             </Typography>
           </Box>
         </Stack>
 
         {/* Step indicators */}
-        <Stack direction="row" alignItems="center" justifyContent="center" sx={{ mb: 3, gap: 0 }}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="center"
+          sx={{ mb: 3, gap: 0 }}
+        >
           {STAGE_ORDER.map((s, i) => {
             const done = i < stageIdx;
             const active = i === stageIdx;
             return (
               <Box
                 key={s}
-                sx={{ display: 'flex', alignItems: 'center', gap: 0, flex: i < STAGE_ORDER.length - 1 ? 1 : 'unset' }}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0,
+                  flex: i < STAGE_ORDER.length - 1 ? 1 : "unset",
+                }}
               >
                 <Stack alignItems="center" spacing={0.5}>
                   <Box
                     sx={{
                       width: 36,
                       height: 36,
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 800,
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: 600,
                       fontSize: 14,
-                      color: active || done ? '#fff' : 'rgba(255,255,255,0.5)',
-                      bgcolor: active
-                        ? '#FF6B35'
+                      fontVariantNumeric: "tabular-nums",
+                      color: active
+                        ? TEXT.onAccent
                         : done
-                        ? 'rgba(255,107,53,0.35)'
-                        : 'rgba(255,255,255,0.08)',
-                      border: active ? '2px solid #FFB88A' : 'none',
-                      transition: 'all 0.3s ease',
+                          ? ACCENT.hover
+                          : TEXT.secondary,
+                      bgcolor: active
+                        ? ACCENT.main
+                        : done
+                          ? ACCENT.tint
+                          : SURFACE.raisedSecondary,
+                      transition:
+                        "background-color 160ms ease-out, color 160ms ease-out",
                     }}
                   >
                     {done ? <Icon icon="mdi:check-bold" width={18} /> : i + 1}
@@ -159,10 +187,8 @@ export default function AnalyzingModal({
                   <Typography
                     variant="caption"
                     sx={{
-                      letterSpacing: 1.2,
-                      fontSize: '0.62rem',
-                      fontWeight: 700,
-                      color: active ? '#FF6B35' : 'rgba(255,255,255,0.45)',
+                      ...TYPE.label,
+                      color: active ? TEXT.primary : TEXT.secondary,
                     }}
                   >
                     {STAGE_LABEL[s]}
@@ -173,7 +199,7 @@ export default function AnalyzingModal({
                     sx={{
                       flex: 1,
                       height: 2,
-                      bgcolor: done ? 'rgba(255,107,53,0.35)' : 'rgba(255,255,255,0.08)',
+                      bgcolor: done ? LINE.strong : LINE.hairline,
                       mx: 1,
                       mt: -2,
                     }}
@@ -190,15 +216,17 @@ export default function AnalyzingModal({
           sx={{
             p: 2,
             mb: 2.5,
-            borderRadius: 2,
-            bgcolor: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: `${RADIUS.control}px`,
+            bgcolor: SURFACE.raisedSecondary,
+            border: `1px solid ${LINE.hairline}`,
           }}
         >
-          <Typography sx={{ fontWeight: 700, color: '#fff', fontSize: 15, mb: 0.5 }}>
+          <Typography
+            sx={{ fontWeight: 600, color: TEXT.primary, fontSize: 15, mb: 0.5 }}
+          >
             {title}
           </Typography>
-          <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, mb: 1.5 }}>
+          <Typography sx={{ color: TEXT.secondary, fontSize: 13, mb: 1.5 }}>
             {detail}
           </Typography>
 
@@ -206,8 +234,21 @@ export default function AnalyzingModal({
               modal opens, the loop while it is open (when the pack has one),
               the still again once it closes. The figure stands alone; the
               modal copy above him already says what is happening. */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', my: 1.5 }}>
-            <Masti mood="thinking" size={96} animated={open} loops={0} decorative />
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              my: 1.5,
+            }}
+          >
+            <Masti
+              mood="thinking"
+              size={96}
+              animated={open}
+              loops={0}
+              decorative
+            />
           </Box>
 
           <LinearProgress
@@ -216,35 +257,25 @@ export default function AnalyzingModal({
             sx={{
               height: 6,
               borderRadius: 3,
-              bgcolor: 'rgba(255,255,255,0.08)',
-              '& .MuiLinearProgress-bar': {
-                background: 'linear-gradient(90deg, #FF6B35 0%, #FFB88A 100%)',
-              },
+              bgcolor: LINE.hairline,
+              "& .MuiLinearProgress-bar": { bgcolor: ACCENT.main },
             }}
           />
           <Typography
             variant="caption"
-            sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem', mt: 0.5, display: 'block' }}
+            sx={{
+              color: TEXT.secondary,
+              mt: 0.5,
+              display: "block",
+              fontVariantNumeric: "tabular-nums",
+            }}
           >
             {pct}%
           </Typography>
         </Paper>
 
         {onCancel && (
-          <Button
-            fullWidth
-            onClick={onCancel}
-            sx={{
-              color: 'rgba(255,255,255,0.55)',
-              textTransform: 'none',
-              fontWeight: 600,
-              border: '1px solid rgba(255,255,255,0.1)',
-              '&:hover': {
-                bgcolor: 'rgba(255,255,255,0.04)',
-                color: '#fff',
-              },
-            }}
-          >
+          <Button fullWidth variant="outlined" onClick={onCancel}>
             Cancel
           </Button>
         )}

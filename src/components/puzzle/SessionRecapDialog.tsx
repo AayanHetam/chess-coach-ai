@@ -16,6 +16,16 @@ import {
 import { classifyTrend, pickSessionMessage } from "@/lib/puzzleSessionMessages";
 import { Masti, trendMood } from "@/components/masti";
 import type { SessionResult } from "@/lib/puzzleSession";
+import {
+  ACCENT,
+  LINE,
+  RADIUS,
+  SHADOW,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 // Re-exported so existing imports (`SessionResult` from this module) keep
 // working; the canonical definition now lives in lib/puzzleSession.
@@ -31,10 +41,6 @@ interface SessionRecapDialogProps {
    *  `lastMessage` next time. */
   onMessagePicked?: (msg: string) => void;
 }
-
-const GREEN = "#4ade80";
-const RED = "#f87171";
-const EMBER = "#FF7A1A";
 
 export function SessionRecapDialog({
   open,
@@ -62,7 +68,7 @@ export function SessionRecapDialog({
         solved: r.solved,
       })),
     ],
-    [results, startRating],
+    [results, startRating]
   );
 
   // Picked once per open (pure — no parent setState during render). Keyed on
@@ -81,9 +87,15 @@ export function SessionRecapDialog({
   }, [open, message]);
 
   // Color the headline by the SAME trend bucket the motivational note uses, so
-  // a small "+5" doesn't show a green number next to a neutral note.
+  // a small "+5" doesn't show a green number next to a neutral note. A flat
+  // session is a number, not a status, so it reads in plain text.
   const trend = classifyTrend(netDelta);
-  const deltaColor = trend === "gain" ? GREEN : trend === "loss" ? RED : "#FBBF24";
+  const deltaColor =
+    trend === "gain"
+      ? STATUS.success
+      : trend === "loss"
+        ? STATUS.error
+        : TEXT.primary;
   const deltaLabel = `${netDelta > 0 ? "+" : ""}${netDelta}`;
   const chartSummary = `Rating ${netDelta >= 0 ? "rose" : "fell"} from ${startRating} to ${endRating} over ${total} ${total === 1 ? "puzzle" : "puzzles"} (${solvedCount} solved, ${wrongCount} missed).`;
 
@@ -94,41 +106,29 @@ export function SessionRecapDialog({
       maxWidth="sm"
       fullWidth
       aria-labelledby="session-recap-title"
-      PaperProps={{
-        sx: {
-          borderRadius: "1.5rem",
-          background: "linear-gradient(160deg, #161210, #0A0907)",
-          border: "1px solid rgba(255,122,26,0.22)",
-          backgroundImage:
-            "linear-gradient(160deg, rgba(255,122,26,0.06), rgba(10,9,7,0.9))",
-          boxShadow: "0 32px 80px -24px rgba(0,0,0,0.8)",
-          color: "rgba(255,240,224,0.94)",
-          overflow: "hidden",
-        },
-      }}
     >
       <Box sx={{ p: { xs: 2.5, sm: 3.5 } }}>
         <Typography
           id="session-recap-title"
-          sx={{
-            fontSize: "0.68rem",
-            fontWeight: 700,
-            letterSpacing: "0.18em",
-            color: "#FFD1A8",
-            textTransform: "uppercase",
-            mb: 0.5,
-          }}
+          component="h2"
+          sx={{ ...TYPE.h4, color: TEXT.primary, mb: 1 }}
         >
           Session complete
         </Typography>
 
         {/* Headline net rating move */}
-        <Stack direction="row" alignItems="baseline" spacing={1.5} sx={{ mb: 0.5 }}>
+        <Stack
+          direction="row"
+          alignItems="baseline"
+          spacing={1.5}
+          sx={{ mb: 0.5 }}
+        >
           <Typography
             sx={{
               fontSize: "2.4rem",
-              fontWeight: 800,
-              letterSpacing: "-0.03em",
+              fontWeight: 700,
+              letterSpacing: "-0.025em",
+              fontVariantNumeric: "tabular-nums",
               color: deltaColor,
               lineHeight: 1,
             }}
@@ -136,7 +136,11 @@ export function SessionRecapDialog({
             {deltaLabel}
           </Typography>
           <Typography
-            sx={{ fontSize: "0.95rem", color: "rgba(255,240,224,0.6)" }}
+            sx={{
+              fontSize: "0.95rem",
+              color: TEXT.secondary,
+              fontVariantNumeric: "tabular-nums",
+            }}
           >
             rating · {startRating} → {endRating}
           </Typography>
@@ -157,7 +161,7 @@ export function SessionRecapDialog({
             sx={{
               fontSize: "0.98rem",
               fontWeight: 600,
-              color: "rgba(255,240,224,0.9)",
+              color: TEXT.primary,
               minHeight: 24,
             }}
           >
@@ -167,13 +171,19 @@ export function SessionRecapDialog({
 
         {/* Count chips */}
         <Stack direction="row" spacing={1.25} sx={{ mb: 2 }}>
-          <CountChip color={GREEN} icon={<Check size={13} />} value={solvedCount} label="solved" />
-          <CountChip color={RED} icon={<XIcon size={13} />} value={wrongCount} label="missed" />
           <CountChip
-            color="rgba(255,240,224,0.55)"
-            value={total}
-            label="puzzles"
+            color={STATUS.success}
+            icon={<Check size={13} />}
+            value={solvedCount}
+            label="solved"
           />
+          <CountChip
+            color={STATUS.error}
+            icon={<XIcon size={13} />}
+            value={wrongCount}
+            label="missed"
+          />
+          <CountChip color={TEXT.secondary} value={total} label="puzzles" />
         </Stack>
 
         {/* Rating-by-puzzle chart */}
@@ -182,35 +192,39 @@ export function SessionRecapDialog({
           aria-label={chartSummary}
           sx={{
             height: 200,
-            borderRadius: "1rem",
-            background: "rgba(0,0,0,0.25)",
-            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: `${RADIUS.control}px`,
+            background: SURFACE.raisedSecondary,
+            border: `1px solid ${LINE.hairline}`,
             p: 1.5,
             pr: 2,
           }}
         >
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 8, right: 8, bottom: 4, left: -12 }}>
-              <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
+            <LineChart
+              data={data}
+              margin={{ top: 8, right: 8, bottom: 4, left: -12 }}
+            >
+              <CartesianGrid stroke={LINE.hairline} vertical={false} />
               <XAxis
                 dataKey="n"
-                tick={{ fill: "rgba(255,240,224,0.6)", fontSize: 11 }}
-                axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
+                tick={{ fill: TEXT.secondary, fontSize: 11 }}
+                axisLine={{ stroke: LINE.hairline }}
                 tickLine={false}
               />
               <YAxis
                 domain={["dataMin - 20", "dataMax + 20"]}
-                tick={{ fill: "rgba(255,240,224,0.6)", fontSize: 11 }}
+                tick={{ fill: TEXT.secondary, fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
                 width={44}
               />
               <Tooltip
                 contentStyle={{
-                  background: "#161210",
-                  border: "1px solid rgba(255,122,26,0.3)",
-                  borderRadius: 10,
-                  color: "rgba(255,240,224,0.92)",
+                  background: SURFACE.raisedTertiary,
+                  border: `1px solid ${LINE.hairline}`,
+                  borderRadius: RADIUS.small,
+                  boxShadow: SHADOW.floating,
+                  color: TEXT.primary,
                   fontSize: 12,
                 }}
                 labelFormatter={(n) => (n === 0 ? "Start" : `Puzzle ${n}`)}
@@ -218,17 +232,17 @@ export function SessionRecapDialog({
               />
               <ReferenceLine
                 y={startRating}
-                stroke="rgba(255,240,224,0.25)"
+                stroke={TEXT.tertiary}
                 strokeDasharray="4 4"
               />
               <Line
                 type="monotone"
                 dataKey="rating"
-                stroke={EMBER}
+                stroke={ACCENT.main}
                 strokeWidth={2.5}
                 dot={<RatingDot />}
-                activeDot={{ r: 5, fill: EMBER }}
-                isAnimationActive
+                activeDot={{ r: 5, fill: ACCENT.main }}
+                isAnimationActive={false}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -237,19 +251,9 @@ export function SessionRecapDialog({
         <Button
           onClick={onClose}
           fullWidth
-          sx={{
-            mt: 2.5,
-            py: 1.1,
-            borderRadius: "999px",
-            background: "linear-gradient(135deg, #FF7A1A, #FB923C)",
-            color: "#0A0907",
-            fontWeight: 800,
-            fontSize: "0.92rem",
-            textTransform: "none",
-            "&:hover": {
-              background: "linear-gradient(135deg, #FB923C, #FBBF24)",
-            },
-          }}
+          variant="contained"
+          size="large"
+          sx={{ mt: 2.5 }}
         >
           Start a fresh session
         </Button>
@@ -269,8 +273,17 @@ function RatingDot(props: {
   if (cx == null || cy == null) return null;
   const solved = payload?.solved;
   const fill =
-    solved === null ? "rgba(255,240,224,0.4)" : solved ? GREEN : RED;
-  return <circle cx={cx} cy={cy} r={4} fill={fill} stroke="#0A0907" strokeWidth={1.5} />;
+    solved === null ? TEXT.tertiary : solved ? STATUS.success : STATUS.error;
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={4}
+      fill={fill}
+      stroke={SURFACE.raisedSecondary}
+      strokeWidth={1.5}
+    />
+  );
 }
 
 function CountChip({
@@ -292,16 +305,23 @@ function CountChip({
         gap: 0.6,
         px: 1.5,
         py: 0.6,
-        borderRadius: "999px",
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: `${RADIUS.pill}px`,
+        background: SURFACE.raisedSecondary,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       {icon && <Box sx={{ color, display: "inline-flex" }}>{icon}</Box>}
-      <Typography sx={{ fontSize: "0.9rem", fontWeight: 800, color }}>
+      <Typography
+        sx={{
+          fontSize: "0.9rem",
+          fontWeight: 700,
+          fontVariantNumeric: "tabular-nums",
+          color,
+        }}
+      >
         {value}
       </Typography>
-      <Typography sx={{ fontSize: "0.78rem", color: "rgba(255,240,224,0.5)" }}>
+      <Typography sx={{ fontSize: "0.78rem", color: TEXT.secondary }}>
         {label}
       </Typography>
     </Box>

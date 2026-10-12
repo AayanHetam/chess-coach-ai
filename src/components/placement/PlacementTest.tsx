@@ -29,10 +29,9 @@ import { dedupe } from "@/components/onboarding/quizConfig";
 import { MAX_FOCUS_THEMES } from "@/components/onboarding/quizThemes";
 import type { ChessPuzzle } from "@/lib/chessPuzzlesService";
 
-type Phase = "intro" | "testing" | "result";
+import { LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 
-const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
-const ORANGE_HOVER = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
+type Phase = "intro" | "testing" | "result";
 
 async function fetchOne(
   body: Record<string, unknown>
@@ -109,7 +108,7 @@ export default function PlacementTest() {
     setLoading(false);
     if (!p) {
       setError(
-        "Couldn't load a puzzle — the puzzle database may be unavailable."
+        "Couldn't load a puzzle. The puzzle database may be unavailable."
       );
       setCurrentPuzzle(null);
       return;
@@ -244,7 +243,7 @@ export default function PlacementTest() {
           Find your chess rating
         </Typography>
         <Typography sx={{ color: "rgba(255,255,255,0.6)", mb: 3 }}>
-          Sign in to take the 20-puzzle placement test and unlock your training
+          Sign in to take the 20-puzzle placement test and start your training
           plan.
         </Typography>
         <PrimaryButton onClick={() => openAuthDialog()}>
@@ -273,35 +272,16 @@ export default function PlacementTest() {
       session.history.length < PLACEMENT_LENGTH;
     return (
       <Panel>
-        <Typography
-          sx={{
-            color: "#FB923C",
-            fontWeight: 700,
-            fontSize: "0.78rem",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            mb: 1,
-          }}
-        >
+        <Typography sx={{ ...TYPE.label, color: TEXT.secondary, mb: 1 }}>
           Placement test
         </Typography>
-        <Typography
-          sx={{
-            color: "#fff",
-            fontWeight: 800,
-            fontSize: "1.6rem",
-            lineHeight: 1.2,
-            mb: 1,
-          }}
-        >
+        <Typography sx={{ ...TYPE.h2, color: TEXT.primary, mb: 1 }}>
           Let&apos;s find your rating.
         </Typography>
-        <Typography
-          sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.95rem", mb: 3 }}
-        >
+        <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary, mb: 3 }}>
           20 puzzles, adjusting to your level as you go. Get one right and the
           next is harder; miss one and it eases off. At the end you&apos;ll have
-          a starting rating and a personalized plan. There&apos;s no penalty —
+          a starting rating and a personalized plan. There&apos;s no penalty, so
           just play your best move.
         </Typography>
         <PrimaryButton onClick={resumeOrStart}>
@@ -406,7 +386,7 @@ export default function PlacementTest() {
   );
 }
 
-// ── Small presentational helpers (glass panel + primary button) ──────────────
+// ── Small presentational helpers (panel + primary button) ───────────────────
 function Panel({
   children,
   wide = false,
@@ -428,13 +408,9 @@ function Panel({
           width: "100%",
           maxWidth: wide ? 600 : 480,
           p: { xs: 2.5, md: 3.5 },
-          borderRadius: "24px",
-          background:
-            "linear-gradient(180deg, rgba(20,22,28,0.92) 0%, rgba(12,14,20,0.92) 100%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          backdropFilter: "blur(20px) saturate(150%)",
-          WebkitBackdropFilter: "blur(20px) saturate(150%)",
-          boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
+          borderRadius: `${RADIUS.card}px`,
+          background: SURFACE.raised,
+          border: `1px solid ${LINE.hairline}`,
         }}
       >
         {children}
@@ -453,17 +429,9 @@ function PrimaryButton({
   return (
     <Button
       fullWidth
+      variant="contained"
       onClick={onClick}
-      sx={{
-        py: 1.4,
-        borderRadius: "12px",
-        textTransform: "none",
-        fontWeight: 700,
-        fontSize: "1rem",
-        color: "#fff",
-        background: ORANGE,
-        "&:hover": { background: ORANGE_HOVER },
-      }}
+      sx={{ py: 1.4, fontSize: TYPE.body.fontSize }}
     >
       {children}
     </Button>

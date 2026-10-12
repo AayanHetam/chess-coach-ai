@@ -12,25 +12,83 @@ import { getScoutSnapshot } from "@/lib/scoutSnapshots";
 import { Masti, MastiSays } from "@/components/masti";
 import type { ScoutSnapshotRecord } from "@/types/scoutSnapshot";
 import type { OpeningSummary } from "@/types/scout";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 interface ShareScoutProps {
   snapshot: ScoutSnapshotRecord | null;
 }
 
-const BG = "#08080f";
-const SURFACE = "rgba(255,255,255,0.04)";
-const BORDER = "rgba(255,255,255,0.08)";
-const EMBER = "#FF6B2B";
+// This page renders outside the app's ThemeProvider, so the two buttons carry
+// the theme's button recipe inline.
+const PRIMARY_BUTTON_SX = {
+  bgcolor: ACCENT.main,
+  color: TEXT.onAccent,
+  borderRadius: `${RADIUS.pill}px`,
+  boxShadow: "none",
+  fontWeight: 600,
+  px: 3,
+  py: 1.25,
+  textTransform: "none",
+  fontSize: "1rem",
+  "&:hover": { bgcolor: ACCENT.hover, boxShadow: "none" },
+  "&:active": { transform: MOTION.pressScale },
+} as const;
+
+const SECONDARY_BUTTON_SX = {
+  borderColor: LINE.strong,
+  color: TEXT.primary,
+  borderRadius: `${RADIUS.pill}px`,
+  fontWeight: 600,
+  px: 3,
+  py: 1.25,
+  textTransform: "none",
+  fontSize: "1rem",
+  "&:hover": {
+    borderColor: TEXT.secondary,
+    bgcolor: "rgba(255,255,255,0.06)",
+  },
+  "&:active": { transform: MOTION.pressScale },
+} as const;
+
+const CARD_SX = {
+  background: SURFACE.raised,
+  border: `1px solid ${LINE.hairline}`,
+  borderRadius: `${RADIUS.card}px`,
+  p: 3,
+} as const;
+
+const SECTION_LABEL_SX = {
+  ...TYPE.label,
+  color: TEXT.secondary,
+  mb: 1,
+} as const;
 
 function StatBar({ label, value }: { label: string; value: number }) {
   const clamped = Math.max(0, Math.min(100, value));
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
       <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-        <Typography sx={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.65)" }}>
+        <Typography sx={{ fontSize: "0.85rem", color: TEXT.secondary }}>
           {label}
         </Typography>
-        <Typography sx={{ fontSize: "0.85rem", color: "#fff", fontWeight: 600 }}>
+        <Typography
+          sx={{
+            fontSize: "0.85rem",
+            color: TEXT.primary,
+            fontWeight: 600,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
           {Math.round(clamped)}
         </Typography>
       </Box>
@@ -38,8 +96,8 @@ function StatBar({ label, value }: { label: string; value: number }) {
         sx={{
           width: "100%",
           height: 6,
-          background: "rgba(255,255,255,0.06)",
-          borderRadius: 999,
+          background: LINE.hairline,
+          borderRadius: 3,
           overflow: "hidden",
         }}
       >
@@ -47,8 +105,8 @@ function StatBar({ label, value }: { label: string; value: number }) {
           sx={{
             width: `${clamped}%`,
             height: "100%",
-            background: `linear-gradient(90deg, ${EMBER}, #ff8050)`,
-            borderRadius: 999,
+            background: ACCENT.main,
+            borderRadius: 3,
           }}
         />
       </Box>
@@ -60,38 +118,55 @@ function OpeningRow({ opening }: { opening: OpeningSummary }) {
   return (
     <Box
       sx={{
-        background: SURFACE,
-        border: `1px solid ${BORDER}`,
-        borderRadius: "0.75rem",
+        background: SURFACE.raisedSecondary,
+        border: `1px solid ${LINE.hairline}`,
+        borderRadius: `${RADIUS.control}px`,
         p: 2,
       }}
     >
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          mb: 1,
+        }}
+      >
         <Box>
-          <Typography sx={{ color: "#fff", fontWeight: 600, fontSize: "0.95rem" }}>
+          <Typography
+            sx={{ color: TEXT.primary, fontWeight: 600, fontSize: "0.95rem" }}
+          >
             {opening.name}
           </Typography>
           {opening.variation && (
-            <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.8rem" }}>
+            <Typography sx={{ color: TEXT.secondary, fontSize: "0.8rem" }}>
               {opening.variation}
             </Typography>
           )}
         </Box>
-        <Typography sx={{ color: EMBER, fontWeight: 700, fontSize: "1rem" }}>
+        <Typography
+          sx={{
+            color: TEXT.primary,
+            fontWeight: 700,
+            fontSize: "1rem",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
           {Math.round(opening.scorePct)}%
         </Typography>
       </Box>
       <Typography
         sx={{
-          color: "rgba(255,255,255,0.55)",
+          color: TEXT.secondary,
           fontSize: "0.75rem",
-          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+          fontFamily: FONT_MONO,
         }}
       >
         {opening.moves.slice(0, 6).join(" ")}
       </Typography>
-      <Typography sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.75rem", mt: 0.5 }}>
-        {opening.totalGames} games · {opening.wins}W / {opening.draws}D / {opening.losses}L
+      <Typography sx={{ color: TEXT.tertiary, fontSize: "0.75rem", mt: 0.5 }}>
+        {opening.totalGames} games · {opening.wins}W / {opening.draws}D /{" "}
+        {opening.losses}L
       </Typography>
     </Box>
   );
@@ -100,20 +175,34 @@ function OpeningRow({ opening }: { opening: OpeningSummary }) {
 export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
   if (!snapshot) {
     return (
-      <Box sx={{ background: BG, minHeight: "100vh", color: "#fff", py: 8 }}>
+      <Box
+        sx={{
+          background: SURFACE.page,
+          minHeight: "100vh",
+          color: TEXT.primary,
+          py: 8,
+        }}
+      >
         <Container maxWidth="md">
-          <Masti mood="defeated" size={140} loops={2} decorative style={{ marginBottom: 16 }} />
+          <Masti
+            mood="defeated"
+            size={140}
+            loops={2}
+            decorative
+            style={{ marginBottom: 16 }}
+          />
           <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
             Scout report not found
           </Typography>
-          <Typography sx={{ color: "rgba(255,255,255,0.6)", mb: 4 }}>
+          <Typography sx={{ color: TEXT.secondary, mb: 4 }}>
             This share may have been deleted or the link is incorrect.
           </Typography>
           <Button
             component={Link}
             href="/scout"
             variant="contained"
-            sx={{ background: EMBER, "&:hover": { background: "#ff8050" } }}
+            disableElevation
+            sx={PRIMARY_BUTTON_SX}
           >
             Scout someone yourself
           </Button>
@@ -136,49 +225,59 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
   return (
     <>
       <Head>
-        <title>{`${titleLine} — Scout Report — Chess Masti AI`}</title>
+        <title>{`${titleLine} · Scout report · Chess Masti`}</title>
         <meta name="description" content={description} />
-        <meta property="og:title" content={`${titleLine} — Scout Report`} />
+        <meta property="og:title" content={`${titleLine} · Scout report`} />
         <meta property="og:description" content={description} />
         <meta property="og:type" content="article" />
-        <meta property="og:url" content={`https://chessmasti.com/share/scout/${snapshot.id}`} />
-        <meta property="og:image" content={`https://chessmasti.com/api/og/scout/${snapshot.id}`} />
+        <meta
+          property="og:url"
+          content={`https://chessmasti.com/share/scout/${snapshot.id}`}
+        />
+        <meta
+          property="og:image"
+          content={`https://chessmasti.com/api/og/scout/${snapshot.id}`}
+        />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={`${titleLine} — Scout Report`} />
+        <meta name="twitter:title" content={`${titleLine} · Scout report`} />
         <meta name="twitter:description" content={description} />
-        <meta name="twitter:image" content={`https://chessmasti.com/api/og/scout/${snapshot.id}`} />
-        <link rel="canonical" href={`https://chessmasti.com/share/scout/${snapshot.id}`} />
+        <meta
+          name="twitter:image"
+          content={`https://chessmasti.com/api/og/scout/${snapshot.id}`}
+        />
+        <link
+          rel="canonical"
+          href={`https://chessmasti.com/share/scout/${snapshot.id}`}
+        />
       </Head>
 
-      <Box sx={{ background: BG, minHeight: "100vh", color: "rgba(255,255,255,0.85)", py: { xs: 3, md: 6 } }}>
+      <Box
+        sx={{
+          background: SURFACE.page,
+          minHeight: "100vh",
+          color: TEXT.primary,
+          py: { xs: 3, md: 6 },
+        }}
+      >
         <Container maxWidth="lg">
           {/* Header */}
           <Box sx={{ mb: 4, textAlign: "center" }}>
-            <Typography
-              sx={{
-                fontSize: "0.75rem",
-                letterSpacing: 2,
-                color: EMBER,
-                fontWeight: 700,
-                mb: 1,
-              }}
-            >
-              SCOUT REPORT
-            </Typography>
+            <Typography sx={SECTION_LABEL_SX}>Scout report</Typography>
             <Typography
               component="h1"
               sx={{
                 fontSize: { xs: "2rem", md: "3rem" },
-                fontWeight: 800,
-                color: "#fff",
+                fontWeight: 700,
+                letterSpacing: "-0.02em",
+                color: TEXT.primary,
                 mb: 1,
               }}
             >
               {username}
             </Typography>
-            <Typography sx={{ color: "rgba(255,255,255,0.55)" }}>
+            <Typography sx={{ color: TEXT.secondary }}>
               {platform} · {profile.totalGames} games · {snapshot.months} months
             </Typography>
             {profile.archetype && (
@@ -186,13 +285,13 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
                 sx={{
                   display: "inline-block",
                   mt: 2,
-                  px: 2,
+                  px: 1.5,
                   py: 0.5,
-                  borderRadius: 999,
-                  background: SURFACE,
-                  border: `1px solid ${BORDER}`,
-                  color: "rgba(255,255,255,0.7)",
+                  borderRadius: `${RADIUS.small}px`,
+                  background: SURFACE.raisedSecondary,
+                  color: TEXT.primary,
                   fontSize: "0.85rem",
+                  fontWeight: 500,
                 }}
               >
                 {profile.archetype}
@@ -201,8 +300,21 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
             {/* Masti fronts the report: a scout dossier is his idea of a
                 good read, whoever it is about. Still on the server, one
                 bounded burst after mount. */}
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 3, textAlign: "left" }}>
-              <MastiSays mood="idea" size={88} priority maxWidth={440} data-testid="share-scout-masti">
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                mt: 3,
+                textAlign: "left",
+              }}
+            >
+              <MastiSays
+                mood="idea"
+                size={88}
+                priority
+                maxWidth={440}
+                data-testid="share-scout-masti"
+              >
                 I read {profile.totalGames} of {username}&apos;s games.{" "}
                 {hasPrep
                   ? "Start with the tells, then take the openings below into your prep."
@@ -221,50 +333,73 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
             }}
           >
             {/* Tells card */}
-            <Box
-              sx={{
-                background: SURFACE,
-                border: `1px solid ${BORDER}`,
-                borderRadius: "1rem",
-                p: 3,
-              }}
-            >
-              <Typography sx={{ color: EMBER, fontSize: "0.75rem", letterSpacing: 1.5, fontWeight: 700, mb: 1 }}>
-                TELLS
-              </Typography>
-              <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5, mb: 2 }}>
-                <Typography sx={{ color: "#fff", fontSize: "3.5rem", fontWeight: 800, lineHeight: 1 }}>
+            <Box sx={CARD_SX}>
+              <Typography sx={SECTION_LABEL_SX}>Tells</Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 1.5,
+                  mb: 2,
+                }}
+              >
+                <Typography
+                  sx={{
+                    color: TEXT.primary,
+                    fontSize: "3.5rem",
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    letterSpacing: "-0.025em",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
                   {Math.round(tells.total)}
                 </Typography>
-                <Typography sx={{ color: "rgba(255,255,255,0.5)" }}>/ 100</Typography>
+                <Typography sx={{ color: TEXT.secondary }}>/ 100</Typography>
               </Box>
-              <Typography sx={{ color: "rgba(255,255,255,0.7)", mb: 2, fontSize: "0.9rem" }}>
-                Predictability: <strong style={{ color: "#fff" }}>{tells.predictability}</strong>
+              <Typography
+                sx={{ color: TEXT.secondary, mb: 2, fontSize: "0.9rem" }}
+              >
+                Predictability:{" "}
+                <strong style={{ color: TEXT.primary }}>
+                  {tells.predictability}
+                </strong>
               </Typography>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                 {tells.factors.map((factor) => (
-                  <StatBar key={factor.id} label={factor.label} value={factor.score} />
+                  <StatBar
+                    key={factor.id}
+                    label={factor.label}
+                    value={factor.score}
+                  />
                 ))}
               </Box>
             </Box>
 
             {/* Profile card */}
-            <Box
-              sx={{
-                background: SURFACE,
-                border: `1px solid ${BORDER}`,
-                borderRadius: "1rem",
-                p: 3,
-              }}
-            >
-              <Typography sx={{ color: EMBER, fontSize: "0.75rem", letterSpacing: 1.5, fontWeight: 700, mb: 1 }}>
-                PROFILE
-              </Typography>
-              <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5, mb: 2 }}>
-                <Typography sx={{ color: "#fff", fontSize: "3.5rem", fontWeight: 800, lineHeight: 1 }}>
+            <Box sx={CARD_SX}>
+              <Typography sx={SECTION_LABEL_SX}>Profile</Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 1.5,
+                  mb: 2,
+                }}
+              >
+                <Typography
+                  sx={{
+                    color: TEXT.primary,
+                    fontSize: "3.5rem",
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    letterSpacing: "-0.025em",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
                   {Math.round(profile.ovr)}
                 </Typography>
-                <Typography sx={{ color: "rgba(255,255,255,0.5)" }}>OVR</Typography>
+                <Typography sx={{ color: TEXT.secondary }}>overall</Typography>
               </Box>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                 <StatBar label="Attack" value={profile.atk} />
@@ -277,17 +412,9 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
 
           {/* Recent form */}
           {profile.recent && profile.recent.length > 0 && (
-            <Box
-              sx={{
-                background: SURFACE,
-                border: `1px solid ${BORDER}`,
-                borderRadius: "1rem",
-                p: 3,
-                mb: 4,
-              }}
-            >
-              <Typography sx={{ color: EMBER, fontSize: "0.75rem", letterSpacing: 1.5, fontWeight: 700, mb: 2 }}>
-                RECENT FORM
+            <Box sx={{ ...CARD_SX, mb: 4 }}>
+              <Typography sx={{ ...SECTION_LABEL_SX, mb: 2 }}>
+                Recent form
               </Typography>
               <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
                 {profile.recent.map((r, i) => (
@@ -296,34 +423,32 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
                     sx={{
                       width: 28,
                       height: 28,
-                      borderRadius: 0.75,
+                      borderRadius: `${RADIUS.small}px`,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: "0.7rem",
-                      fontWeight: 700,
-                      color: "#fff",
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                      color: TEXT.primary,
                       background:
                         r.outcome === "win"
-                          ? "rgba(34, 197, 94, 0.3)"
+                          ? STATUS.successTint
                           : r.outcome === "loss"
-                            ? "rgba(239, 68, 68, 0.3)"
-                            : "rgba(148, 163, 184, 0.3)",
-                      border: `1px solid ${
-                        r.outcome === "win"
-                          ? "rgba(34, 197, 94, 0.5)"
-                          : r.outcome === "loss"
-                            ? "rgba(239, 68, 68, 0.5)"
-                            : "rgba(148, 163, 184, 0.5)"
-                      }`,
+                            ? STATUS.errorTint
+                            : SURFACE.raisedSecondary,
+                      border: `1px solid ${LINE.hairline}`,
                     }}
                   >
                     {r.outcome[0].toUpperCase()}
                   </Box>
                 ))}
               </Box>
-              <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.85rem", mt: 1.5 }}>
-                Win {Math.round(profile.winRate * 100)}% · Draw {Math.round(profile.drawRate * 100)}% · Loss {Math.round(profile.lossRate * 100)}%
+              <Typography
+                sx={{ color: TEXT.secondary, fontSize: "0.85rem", mt: 1.5 }}
+              >
+                Win {Math.round(profile.winRate * 100)}% · Draw{" "}
+                {Math.round(profile.drawRate * 100)}% · Loss{" "}
+                {Math.round(profile.lossRate * 100)}%
               </Typography>
             </Box>
           )}
@@ -333,17 +458,31 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
             <Box sx={{ mb: 4 }}>
               <Typography
                 component="h2"
-                sx={{ fontWeight: 700, color: "#fff", fontSize: "1.25rem", mb: 2 }}
+                sx={{ ...TYPE.h3, color: TEXT.primary, mb: 2 }}
               >
                 Exploitable openings
               </Typography>
-              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                  gap: 2,
+                }}
+              >
                 {prepWhite.length > 0 && (
                   <Box>
-                    <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.85rem", mb: 1 }}>
+                    <Typography
+                      sx={{ color: TEXT.secondary, fontSize: "0.85rem", mb: 1 }}
+                    >
                       You play White
                     </Typography>
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 1.5,
+                      }}
+                    >
                       {prepWhite.map((o, i) => (
                         <OpeningRow key={i} opening={o} />
                       ))}
@@ -352,10 +491,18 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
                 )}
                 {prepBlack.length > 0 && (
                   <Box>
-                    <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.85rem", mb: 1 }}>
+                    <Typography
+                      sx={{ color: TEXT.secondary, fontSize: "0.85rem", mb: 1 }}
+                    >
                       You play Black
                     </Typography>
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 1.5,
+                      }}
+                    >
                       {prepBlack.map((o, i) => (
                         <OpeningRow key={i} opening={o} />
                       ))}
@@ -367,36 +514,28 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
           )}
 
           {/* CTA */}
-          <Box
-            sx={{
-              background: SURFACE,
-              border: `1px solid ${EMBER}33`,
-              borderRadius: "1rem",
-              p: 4,
-              textAlign: "center",
-            }}
-          >
-            <Typography sx={{ fontWeight: 700, color: "#fff", fontSize: "1.5rem", mb: 1 }}>
+          <Box sx={{ ...CARD_SX, p: 4, textAlign: "center" }}>
+            <Typography sx={{ ...TYPE.h3, color: TEXT.primary, mb: 1 }}>
               Scout your own opponent
             </Typography>
-            <Typography sx={{ color: "rgba(255,255,255,0.65)", mb: 3 }}>
-              Paste any Lichess or Chess.com username. Get their Tells, opening weaknesses,
-              and tilt profile in seconds. Free.
+            <Typography sx={{ color: TEXT.secondary, mb: 3 }}>
+              Paste any Lichess or Chess.com username. Get their tells, opening
+              weaknesses, and tilt profile in seconds. Free.
             </Typography>
-            <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
+            <Box
+              sx={{
+                display: "flex",
+                gap: 2,
+                justifyContent: "center",
+                flexWrap: "wrap",
+              }}
+            >
               <Button
                 component={Link}
                 href="/scout"
                 variant="contained"
-                sx={{
-                  background: EMBER,
-                  fontWeight: 700,
-                  px: 3,
-                  py: 1.25,
-                  textTransform: "none",
-                  fontSize: "1rem",
-                  "&:hover": { background: "#ff8050" },
-                }}
+                disableElevation
+                sx={PRIMARY_BUTTON_SX}
               >
                 Scout an opponent
               </Button>
@@ -404,18 +543,9 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
                 component={Link}
                 href="/free-ai-chess-coach"
                 variant="outlined"
-                sx={{
-                  borderColor: BORDER,
-                  color: "rgba(255,255,255,0.75)",
-                  fontWeight: 600,
-                  px: 3,
-                  py: 1.25,
-                  textTransform: "none",
-                  fontSize: "1rem",
-                  "&:hover": { borderColor: "rgba(255,255,255,0.25)", color: "#fff" },
-                }}
+                sx={SECONDARY_BUTTON_SX}
               >
-                Meet Masti, your AI coach
+                Meet Masti, your chess coach
               </Button>
             </Box>
           </Box>
@@ -425,7 +555,9 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
   );
 }
 
-export const getServerSideProps: GetServerSideProps<ShareScoutProps> = async (ctx) => {
+export const getServerSideProps: GetServerSideProps<ShareScoutProps> = async (
+  ctx
+) => {
   const rawId = ctx.params?.id;
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
   if (!id || typeof id !== "string" || id.length > 64) {

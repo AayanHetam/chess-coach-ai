@@ -7,7 +7,7 @@ import { getLineEvalLabel, moveLineUciToSan } from "@/lib/chess";
 import { useEngineWithStatus, isEngineUnavailable } from "@/hooks/useEngine";
 import { DEFAULT_ENGINE, ENGINE_LABELS } from "@/constants";
 import { SERIF_DISPLAY } from "@/theme/fonts";
-import { ACCENTS } from "@/components/ui/accents";
+import { FONT_MONO, LINE, RADIUS, SURFACE, TEXT } from "@/theme/tokens";
 import type { LineEval } from "@/types/eval";
 
 /**
@@ -26,7 +26,7 @@ import type { LineEval } from "@/types/eval";
  */
 
 const DEPTH = 16;
-const DIM = "rgba(255,240,224,0.5)";
+const DIM = TEXT.secondary;
 
 /**
  * How long to sit on "Evaluating…" before admitting nothing is coming.
@@ -180,10 +180,10 @@ export function PuzzleAnalysisPanel({
         mt: 1.5,
         px: 1.5,
         py: 1.25,
-        borderRadius: "0.75rem",
-        // Analysis is cyan wherever it appears on the site.
-        background: `linear-gradient(180deg, ${ACCENTS.cyan.tint}, rgba(255,255,255,0.02))`,
-        border: `1px solid ${ACCENTS.cyan.border}`,
+        borderRadius: `${RADIUS.control}px`,
+        // A quiet inset panel on the board card, same as the reference card.
+        background: SURFACE.raisedSecondary,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       {terminal ? (
@@ -193,7 +193,7 @@ export function PuzzleAnalysisPanel({
           sx={{
             fontFamily: SERIF_DISPLAY,
             fontSize: "0.92rem",
-            color: "rgba(255,240,224,0.88)",
+            color: TEXT.primary,
           }}
         >
           {terminal}
@@ -241,7 +241,7 @@ export function PuzzleAnalysisPanel({
               fontFamily: SERIF_DISPLAY,
               fontSize: "1.05rem",
               fontWeight: 600,
-              color: ACCENTS.cyan.bright,
+              color: TEXT.primary,
               fontVariantNumeric: "tabular-nums",
             }}
           >
@@ -252,7 +252,7 @@ export function PuzzleAnalysisPanel({
               sx={{
                 fontFamily: SERIF_DISPLAY,
                 fontSize: "0.9rem",
-                color: "rgba(255,240,224,0.88)",
+                color: TEXT.primary,
                 minWidth: 0,
               }}
             >
@@ -266,7 +266,7 @@ export function PuzzleAnalysisPanel({
             sx={{
               fontSize: "0.7rem",
               color: DIM,
-              fontFamily: "Monaco, Menlo, monospace",
+              fontFamily: FONT_MONO,
               whiteSpace: "nowrap",
             }}
           >

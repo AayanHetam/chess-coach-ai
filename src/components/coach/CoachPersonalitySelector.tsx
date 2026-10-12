@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import { Icon } from "@iconify/react";
 import { MastiAvatar } from "@/components/masti";
+import { LINE, TEXT } from "@/theme/tokens";
 import { useAtom } from "jotai";
 import { selectedCoachIdAtom } from "@/atoms/coachAtoms";
 import {
@@ -96,11 +97,7 @@ export default function CoachPersonalitySelector({
             {currentPersonality.title}
           </Typography>
         </Box>
-        <Icon
-          icon="mdi:chevron-down"
-          width={16}
-          color="rgba(255,107,53,0.6)"
-        />
+        <Icon icon="mdi:chevron-down" width={16} color={TEXT.secondary} />
       </Box>
 
       {/* Personality selection dialog */}
@@ -109,45 +106,35 @@ export default function CoachPersonalitySelector({
         onClose={() => setDialogOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 4,
-            overflow: "hidden",
-          },
-        }}
+        PaperProps={{ sx: { overflow: "hidden" } }}
       >
         {/* Header */}
         <Box
           sx={{
-            background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
             py: 2.5,
             px: 3,
             position: "relative",
+            borderBottom: `1px solid ${LINE.hairline}`,
           }}
         >
           <IconButton
             onClick={() => setDialogOpen(false)}
+            aria-label="Close"
             sx={{
               position: "absolute",
               top: 8,
               right: 8,
-              color: "rgba(255,255,255,0.7)",
-              "&:hover": { color: "#fff" },
+              color: TEXT.secondary,
+              "&:hover": { color: TEXT.primary },
             }}
           >
             <Icon icon="mdi:close" />
           </IconButton>
 
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: 800, color: "#fff", mb: 0.5 }}
-          >
-            Choose Your Coach
+          <Typography variant="h6" sx={{ mb: 0.5, pr: 4 }}>
+            Choose your coach
           </Typography>
-          <Typography
-            variant="body2"
-            sx={{ color: "rgba(255,255,255,0.85)" }}
-          >
+          <Typography variant="body2" sx={{ color: TEXT.secondary }}>
             Each coach has a unique teaching style. Pick the one that matches
             how you like to learn.
           </Typography>

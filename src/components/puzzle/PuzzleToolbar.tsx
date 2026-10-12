@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Box, Tooltip, Typography } from "@mui/material";
 import { BookOpen, Clock, Eye, EyeOff, Ban, LineChart } from "lucide-react";
 import { formatSolveClock } from "@/lib/puzzle/solveClock";
-import { ACCENTS, type Accent } from "@/components/ui/accents";
+import { ACCENT, FONT_MONO, LINE, MOTION, RADIUS, TEXT } from "@/theme/tokens";
 
 /**
  * The board card's toolbar strip.
@@ -20,10 +20,14 @@ import { ACCENTS, type Accent } from "@/components/ui/accents";
  * because a tool that only appears after you succeed is a tool nobody
  * discovers. The engine mounts lazily behind it, so the ~7 MB download only
  * happens for solvers who actually open it.
+ *
+ * The tools are neutral chrome: an active tool is a selected row (10% white),
+ * and only the attention state (a tool that just unlocked) wears the accent.
  */
 
-const DIM = "rgba(255,240,224,0.5)";
-const BRIGHT = "rgba(255,240,224,0.9)";
+const SELECTED = "rgba(255,255,255,0.10)";
+const HOVER = "rgba(255,255,255,0.06)";
+const ACCENT_TINT_HOVER = "rgba(249,115,22,0.22)";
 
 function ToolButton({
   icon,
@@ -33,7 +37,6 @@ function ToolButton({
   attention,
   hint,
   disabledReason,
-  accent = ACCENTS.violet,
   onClick,
 }: {
   icon: ReactNode;
@@ -54,9 +57,6 @@ function ToolButton({
   /** Shown on hover when disabled. A dead button with no explanation is worse
    *  than no button — the user assumes it's broken. */
   disabledReason?: string;
-  /** The tool's identity colour on this surface — the same jewel language the
-   *  rest of the site speaks (theory gold, analysis cyan, chrome violet). */
-  accent?: Accent;
   onClick: () => void;
 }) {
   const highlighted = attention && !disabled && !active;
@@ -79,41 +79,46 @@ function ToolButton({
         gap: { xs: 0.4, lg: 0.25 },
         px: { xs: 1.25, lg: 1 },
         py: { xs: 0.75, lg: 0.5 },
-        // Ember fill + edge, not just a colour shift. Against two flat
-        // borderless neighbours, a filled chip is what the eye actually lands
-        // on — alpha alone reads as "same button, slightly brighter". The
-        // attention state stays EMBER regardless of the tool's identity
-        // accent: "press this now" is an action signal, and ember is the
-        // action colour sitewide.
+        // Accent tint + hairline, not just a colour shift. Against two flat
+        // borderless neighbours, a tinted chip is what the eye actually
+        // lands on — alpha alone reads as "same button, slightly brighter".
+        // "Press this now" is an action signal, and the accent is the action
+        // colour sitewide.
         border: highlighted
-          ? "1px solid rgba(255,122,26,0.45)"
+          ? `1px solid ${ACCENT.border}`
           : "1px solid transparent",
-        background: highlighted ? "rgba(255,122,26,0.12)" : "transparent",
-        borderRadius: "0.5rem",
+        background: highlighted
+          ? ACCENT.tint
+          : active
+            ? SELECTED
+            : "transparent",
+        borderRadius: `${RADIUS.small}px`,
         cursor: disabled ? "not-allowed" : "pointer",
         color: disabled
           ? // Pushed further down so locked reads as genuinely inert rather
             // than as a dimmer version of available.
-            "rgba(255,240,224,0.22)"
+            TEXT.tertiary
           : highlighted
-            ? "#FFB37A"
+            ? ACCENT.hover
             : active
-              ? accent.bright
-              : DIM,
-        transition:
-          "color 180ms ease-out, background 180ms ease-out, border-color 180ms ease-out",
+              ? TEXT.primary
+              : TEXT.secondary,
+        transition: `color ${MOTION.hover}, background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
         "&:hover": disabled
           ? undefined
           : {
-              color: BRIGHT,
+              color: highlighted ? ACCENT.hover : TEXT.primary,
               background: highlighted
-                ? "rgba(255,122,26,0.2)"
-                : "rgba(255,255,255,0.04)",
+                ? ACCENT_TINT_HOVER
+                : active
+                  ? SELECTED
+                  : HOVER,
             },
+        "&:active": disabled ? undefined : { transform: MOTION.pressScale },
         // Keyboard focus stays one colour across every tool — a focus ring
         // that changes hue per button reads as state, not as focus.
         "&:focus-visible": {
-          outline: "2px solid rgba(255,122,26,0.8)",
+          outline: `2px solid ${TEXT.primary}`,
           outlineOffset: 2,
         },
       }}
@@ -136,9 +141,8 @@ function ToolButton({
             right: 3,
             width: 6,
             height: 6,
-            borderRadius: "999px",
-            background: "#FF7A1A",
-            boxShadow: "0 0 0 3px rgba(255,122,26,0.18)",
+            borderRadius: "50%",
+            background: ACCENT.main,
           }}
         />
       )}
@@ -201,19 +205,24 @@ export function PuzzleToolbar({
         flexWrap: "wrap",
         pb: { xs: 1.25, lg: 0.75 },
         mb: { xs: 1.75, lg: 1.25 },
-        borderBottom: "1px solid rgba(255,255,255,0.07)",
+        borderBottom: `1px solid ${LINE.hairline}`,
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-        <Clock size={15} color={DIM} aria-hidden />
+        <Clock
+          size={15}
+          strokeWidth={1.75}
+          color={TEXT.secondary}
+          aria-hidden
+        />
         <Typography
           // Tabular figures stop the strip jittering as digits change width.
           sx={{
-            fontFamily: "Monaco, Menlo, monospace",
+            fontFamily: FONT_MONO,
             fontVariantNumeric: "tabular-nums",
             fontSize: "0.95rem",
             fontWeight: 700,
-            color: timerHidden ? "transparent" : BRIGHT,
+            color: timerHidden ? "transparent" : TEXT.primary,
             // Keep the space reserved when hidden so nothing reflows.
             userSelect: timerHidden ? "none" : "auto",
           }}
@@ -237,34 +246,38 @@ export function PuzzleToolbar({
             background: "transparent",
             p: 0.5,
             cursor: "pointer",
-            color: DIM,
-            borderRadius: "0.4rem",
-            "&:hover": { color: BRIGHT },
+            color: TEXT.secondary,
+            borderRadius: `${RADIUS.small}px`,
+            transition: `color ${MOTION.hover}, transform ${MOTION.press}`,
+            "&:hover": { color: TEXT.primary },
+            "&:active": { transform: MOTION.pressScale },
             "&:focus-visible": {
-              outline: "2px solid rgba(255,122,26,0.8)",
+              outline: `2px solid ${TEXT.primary}`,
               outlineOffset: 2,
             },
           }}
         >
-          {timerHidden ? <Eye size={14} /> : <EyeOff size={14} />}
+          {timerHidden ? (
+            <Eye size={14} strokeWidth={1.75} />
+          ) : (
+            <EyeOff size={14} strokeWidth={1.75} />
+          )}
         </Box>
       </Box>
 
       <Box sx={{ flex: 1, minWidth: 8 }} />
 
-      {/* Theory wears gold everywhere on the site (lessons, courses). */}
       <ToolButton
-        icon={<BookOpen size={18} />}
+        icon={<BookOpen size={18} strokeWidth={1.75} />}
         label="Reference"
         active={referenceOpen}
         disabled={Boolean(referenceDisabledReason)}
         disabledReason={referenceDisabledReason}
-        accent={ACCENTS.gold}
         onClick={onToggleReference}
       />
 
       <ToolButton
-        icon={<Ban size={18} />}
+        icon={<Ban size={18} strokeWidth={1.75} />}
         label="Eliminate"
         active={eliminateOn}
         onClick={onToggleEliminate}
@@ -274,7 +287,7 @@ export function PuzzleToolbar({
           the time, so putting it before the always-live ones would make the
           row read as half-broken. */}
       <ToolButton
-        icon={<LineChart size={18} />}
+        icon={<LineChart size={18} strokeWidth={1.75} />}
         label="Analyse"
         active={analyseOn}
         disabled={Boolean(analyseDisabledReason)}
@@ -284,8 +297,6 @@ export function PuzzleToolbar({
         // a permanent flag would just become part of the furniture.
         attention={!analyseDisabledReason && !analyseOn}
         hint="See the engine's evaluation and best line for this position"
-        // Analysis is cyan wherever it appears on the site.
-        accent={ACCENTS.cyan}
         onClick={onToggleAnalyse}
       />
 

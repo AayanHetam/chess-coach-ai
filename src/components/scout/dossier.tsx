@@ -2,78 +2,88 @@
 // Dossier — the visual language for /scout.
 //
 // The scout report is a field dossier on a player, and every primitive here
-// leans into that: mono field labels, corner-bracket registration marks, and
-// instrument-style segmented meters instead of dial gauges. Panels share one
-// shell so a ten-panel page still reads as a single document rather than ten
-// unrelated cards.
+// leans into that: small field labels, instrument-style segmented meters
+// instead of dial gauges, and one panel shell so a ten-panel page still reads
+// as a single document rather than ten unrelated cards.
+//
+// The panels are flat: a raised surface, a hairline, no glass, no glow. See
+// docs/design/DESIGN_RULES.md.
 //
 // Deliberately NOT here: circular progress rings and arc gauges. Those are the
 // generic stats-site vocabulary; the meters below are the house form.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Box, Stack, Typography } from '@mui/material';
-import { Icon } from '@iconify/react';
-import type { ReactNode } from 'react';
-import { ACCENTS, type Accent } from '@/components/ui/accents';
+import { Box, Stack, Typography } from "@mui/material";
+import { Icon } from "@iconify/react";
+import type { ReactNode } from "react";
+import { ACCENTS, type Accent } from "@/components/ui/accents";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
-// Ember accent, per the Chess Masti design OS: glow / voice / focus, never fill.
-// Ember stays the ACTION colour (primary buttons, "play this" pointers) and the
+// Ember is the one accent: the primary action ("play this" pointers) and the
 // middle band of the exploitability heat scale below.
-export const EMBER = '#F97316';
-export const EMBER_LIGHT = '#FB923C';
+export const EMBER = ACCENT.main;
+export const EMBER_LIGHT = ACCENT.hover;
 
-// Rose is Scout's surface identity — the same rose the NavPill "Scout" pill and
-// /plan's "Your weakest line" card wear. It carries the dossier chrome (panel
-// frames, corner marks, section labels, selection states) and marks found
-// weaknesses; it is glow/tint/border on glass, never a fill.
+// Rose is Scout's category colour, the same rose /plan's "Your weakest line"
+// card wears. It marks found weaknesses as a quiet tint on a tag or as an icon
+// colour; never a border glow, a gradient or a fill.
 export const ROSE: Accent = ACCENTS.rose;
 
 /** Semantic scale for "how good is this number for the SUBJECT" (higher = better). */
 export function strengthColor(v: number): string {
-  if (v >= 75) return '#34d399';
-  if (v >= 60) return '#a3e635';
-  if (v >= 45) return '#fbbf24';
-  return '#f87171';
+  if (v >= 75) return "#34d399";
+  if (v >= 60) return "#a3e635";
+  if (v >= 45) return "#fbbf24";
+  return "#f87171";
 }
 
 /** Semantic scale for "how exploitable is this" (higher = better FOR YOU). */
 export function tellColor(v: number): string {
-  if (v >= 70) return '#f87171';
+  if (v >= 70) return "#f87171";
   if (v >= 50) return EMBER_LIGHT;
-  if (v >= 35) return '#fbbf24';
-  return '#34d399';
+  if (v >= 35) return "#fbbf24";
+  return "#34d399";
 }
 
-export const MONO =
-  "'SF Mono', 'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace";
+export const MONO = FONT_MONO;
 
 // ─── Field label ────────────────────────────────────────────────────────────
 
 /**
- * The mono, wide-tracked, small-caps label that heads every field in the
- * dossier. Used for section names, column heads, and stat captions.
+ * The small label that heads every field in the dossier. Used for section
+ * names, column heads, and stat captions. Sentence case, in the platform font,
+ * at `TYPE.label` (13px, 600).
  */
 export function FieldLabel({
   children,
-  color = 'rgba(255,255,255,0.42)',
-  size = '0.62rem',
+  color = TEXT.secondary,
+  size,
 }: {
   children: ReactNode;
   color?: string;
+  /**
+   * A caller's size hint. Fine print is never smaller than 12px, so the hint
+   * is floored there; leave it out for the 13px label.
+   */
   size?: string;
 }) {
   return (
     <Typography
       component="span"
       sx={{
-        fontFamily: MONO,
-        fontSize: size,
-        fontWeight: 600,
-        letterSpacing: '0.18em',
-        textTransform: 'uppercase',
+        ...TYPE.label,
+        fontSize: size ? `max(${size}, 0.75rem)` : TYPE.label.fontSize,
         color,
-        lineHeight: 1.4,
-        whiteSpace: 'nowrap',
+        whiteSpace: "nowrap",
       }}
     >
       {children}
@@ -83,37 +93,12 @@ export function FieldLabel({
 
 // ─── Panel shell ────────────────────────────────────────────────────────────
 
-/**
- * Registration marks at the panel corners. Four 10px L-shapes, drawn with
- * borders so they cost no extra DOM beyond the spans. This is the signature
- * of the surface — it's what makes a stack of panels read as one dossier.
- */
-function CornerMarks({ color }: { color: string }) {
-  const base = {
-    position: 'absolute' as const,
-    width: 9,
-    height: 9,
-    borderColor: color,
-    borderStyle: 'solid',
-    pointerEvents: 'none' as const,
-    transition: 'border-color 200ms ease',
-  };
-  return (
-    <>
-      <Box sx={{ ...base, top: 8, left: 8, borderWidth: '1px 0 0 1px' }} />
-      <Box sx={{ ...base, top: 8, right: 8, borderWidth: '1px 1px 0 0' }} />
-      <Box sx={{ ...base, bottom: 8, left: 8, borderWidth: '0 0 1px 1px' }} />
-      <Box sx={{ ...base, bottom: 8, right: 8, borderWidth: '0 1px 1px 0' }} />
-    </>
-  );
-}
-
 export interface DossierPanelProps {
-  /** Mono section label rendered in the header rail, e.g. "TELLS". */
+  /** Section label rendered in the header rail, e.g. "Tells". */
   label?: string;
   /** Right-aligned slot in the header rail — a count, a verdict pill, an action. */
   action?: ReactNode;
-  /** Accent the panel edge + corner marks in ember (used for the two hero panels). */
+  /** Lifts the two hero panels: a stronger hairline and a primary-text label. */
   emphasis?: boolean;
   children: ReactNode;
   /** Applied to the outer panel. */
@@ -123,7 +108,7 @@ export interface DossierPanelProps {
 /**
  * The one panel shell every /scout surface uses.
  *
- * Structure is a header rail (mono label + action slot, separated by a hairline)
+ * Structure is a header rail (label + action slot, separated by a hairline)
  * over the body. The rail is what gives the page its spine — panels line up on
  * a shared left edge and a shared type scale, so scanning down the page you read
  * a document, not a feed.
@@ -135,40 +120,24 @@ export function DossierPanel({
   children,
   sx = {},
 }: DossierPanelProps) {
-  const edge = emphasis ? ROSE.border : 'rgba(255,255,255,0.09)';
-  const marks = emphasis ? ROSE.base : 'rgba(255,255,255,0.18)';
-
   return (
     <Box
       sx={{
-        position: 'relative',
-        height: '100%',
-        width: '100%',
-        borderRadius: '1.25rem',
-        border: `1px solid ${edge}`,
-        background: emphasis
-          ? `linear-gradient(160deg, ${ROSE.tint} 0%, rgba(16,18,24,0.72) 42%)`
-          : 'rgba(16,18,24,0.62)',
-        backdropFilter: 'blur(16px) saturate(150%)',
-        WebkitBackdropFilter: 'blur(16px) saturate(150%)',
-        boxShadow: emphasis
-          ? `0 12px 40px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.07), ${ROSE.glow}`
-          : '0 8px 30px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.05)',
-        overflow: 'hidden',
+        position: "relative",
+        height: "100%",
+        width: "100%",
+        borderRadius: `${RADIUS.card}px`,
+        border: `1px solid ${emphasis ? LINE.strong : LINE.hairline}`,
+        background: SURFACE.raised,
+        overflow: "hidden",
         // Column layout so the body can claim the leftover height when the
         // panel is stretched by a taller sibling in a grid row. Without this,
         // a short panel leaves a dead void under its content.
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'border-color 200ms ease, box-shadow 200ms ease',
-        '&:hover': {
-          borderColor: emphasis ? ROSE.base : 'rgba(255,255,255,0.14)',
-        },
+        display: "flex",
+        flexDirection: "column",
         ...sx,
       }}
     >
-      <CornerMarks color={marks} />
-
       {(label || action) && (
         <Stack
           direction="row"
@@ -178,24 +147,15 @@ export function DossierPanel({
             px: 2.5,
             py: 1.25,
             gap: 1.5,
-            borderBottom: '1px solid rgba(255,255,255,0.07)',
+            borderBottom: `1px solid ${LINE.hairline}`,
           }}
         >
           {label ? (
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-              <Box
-                sx={{
-                  width: 3,
-                  height: 11,
-                  borderRadius: 2,
-                  bgcolor: emphasis ? ROSE.base : 'rgba(255,255,255,0.28)',
-                  flexShrink: 0,
-                }}
-              />
-              <FieldLabel color={emphasis ? ROSE.bright : 'rgba(255,255,255,0.55)'}>
+            <Box sx={{ minWidth: 0 }}>
+              <FieldLabel color={emphasis ? TEXT.primary : TEXT.secondary}>
                 {label}
               </FieldLabel>
-            </Stack>
+            </Box>
           ) : (
             <Box />
           )}
@@ -209,8 +169,8 @@ export function DossierPanel({
           py: 2.25,
           flex: 1,
           minHeight: 0,
-          display: 'flex',
-          flexDirection: 'column',
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         {children}
@@ -246,39 +206,37 @@ export function SegmentedMeter({
 
   return (
     <Box
-      sx={{ display: 'flex', gap: `${gap}px`, alignItems: 'stretch', width: '100%' }}
+      sx={{
+        display: "flex",
+        gap: `${gap}px`,
+        alignItems: "stretch",
+        width: "100%",
+      }}
       role="meter"
       aria-valuenow={Math.round(clamped)}
       aria-valuemin={0}
       aria-valuemax={100}
     >
-      {Array.from({ length: segments }, (_, i) => {
-        const on = i < lit;
-        // The leading segment glows — it reads as the needle of an instrument.
-        const isHead = on && i === lit - 1;
-        return (
-          <Box
-            key={i}
-            sx={{
-              flex: 1,
-              height,
-              borderRadius: '1px',
-              bgcolor: on ? color : 'rgba(255,255,255,0.07)',
-              opacity: on ? (isHead ? 1 : 0.82) : 1,
-              boxShadow: isHead ? `0 0 8px ${color}` : 'none',
-              transition: `background-color 320ms ease ${i * 12}ms, opacity 320ms ease`,
-            }}
-          />
-        );
-      })}
+      {Array.from({ length: segments }, (_, i) => (
+        <Box
+          key={i}
+          sx={{
+            flex: 1,
+            height,
+            borderRadius: "1px",
+            bgcolor: i < lit ? color : LINE.hairline,
+            transition: `background-color ${MOTION.hover}`,
+          }}
+        />
+      ))}
     </Box>
   );
 }
 
 /**
- * A labelled meter row: mono label on the left, meter in the middle, mono
- * value on the right. The three columns are fixed-width so rows stack into
- * clean vertical rules.
+ * A labelled meter row: label on the left, meter in the middle, value on the
+ * right. The three columns are fixed-width so rows stack into clean vertical
+ * rules.
  */
 export function MeterRow({
   label,
@@ -301,7 +259,7 @@ export function MeterRow({
   return (
     <Stack direction="row" alignItems="center" spacing={1.5}>
       <Box sx={{ width: labelWidth, flexShrink: 0 }}>
-        <FieldLabel color={highlight ? ROSE.bright : 'rgba(255,255,255,0.66)'}>
+        <FieldLabel color={highlight ? TEXT.primary : TEXT.secondary}>
           {label}
         </FieldLabel>
       </Box>
@@ -311,21 +269,31 @@ export function MeterRow({
       <Typography
         sx={{
           fontFamily: MONO,
-          fontSize: '0.9rem',
+          fontSize: "0.9rem",
           fontWeight: 700,
           color,
           width: 30,
-          textAlign: 'right',
+          textAlign: "right",
           flexShrink: 0,
-          fontVariantNumeric: 'tabular-nums',
+          fontVariantNumeric: "tabular-nums",
         }}
       >
         {Math.round(value)}
       </Typography>
       {/* Fixed-width gutter so rows stay aligned whether or not they're marked. */}
-      <Box sx={{ width: 14, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+      <Box
+        sx={{
+          width: 14,
+          flexShrink: 0,
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
         {highlight && (
-          <Box sx={{ color: ROSE.bright, display: 'flex', lineHeight: 1 }} aria-hidden>
+          <Box
+            sx={{ color: ROSE.bright, display: "flex", lineHeight: 1 }}
+            aria-hidden
+          >
             <Icon icon="mdi:target" width={13} />
           </Box>
         )}
@@ -336,7 +304,7 @@ export function MeterRow({
 
 // ─── Verdict pill ───────────────────────────────────────────────────────────
 
-/** Small mono status pill for the header rail's action slot. */
+/** Small status tag for the header rail's action slot. */
 export function VerdictPill({
   label,
   color,
@@ -349,15 +317,15 @@ export function VerdictPill({
   return (
     <Box
       sx={{
-        px: 1.1,
-        py: 0.35,
-        borderRadius: '4px',
-        border: `1px solid ${color}${filled ? '' : '59'}`,
+        px: 1,
+        py: 0.25,
+        borderRadius: `${RADIUS.small}px`,
+        border: `1px solid ${color}${filled ? "" : "59"}`,
         bgcolor: filled ? color : `${color}1a`,
         flexShrink: 0,
       }}
     >
-      <FieldLabel color={filled ? '#0A0A0A' : color} size="0.58rem">
+      <FieldLabel color={filled ? TEXT.onAccent : color} size="0.75rem">
         {label}
       </FieldLabel>
     </Box>

@@ -18,7 +18,17 @@ import type { SessionResult } from "@/lib/puzzleSession";
 import { buildRailRows, type RowState } from "@/lib/puzzle/railRows";
 import { SERIF_DISPLAY } from "@/theme/fonts";
 import { useAuth } from "@/contexts/AuthContext";
-import { ACCENTS } from "@/components/ui/accents";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 /**
  * PuzzleSessionRail — the left navigator on /puzzles.
@@ -32,18 +42,11 @@ import { ACCENTS } from "@/components/ui/accents";
  * order as the session actually happened in. Graded rows are re-openable only
  * when they're still in the feed queue; a consumed puzzle can't be jumped back
  * to, so those rows are inert rather than misleadingly clickable.
+ *
+ * The rail is a raised surface with a hairline, neutral like the rest of the
+ * chrome; the current row is the one accent-tinted thing on it, because "you
+ * are here" is an attention signal, not surface identity.
  */
-
-/** Chrome tokens, kept together so the rail reads as one surface. */
-const RAIL_BG = "rgba(12,10,8,0.72)";
-const RAIL_EDGE = "1px solid rgba(255,255,255,0.08)";
-const TEXT = "rgba(255,240,224,0.92)";
-const TEXT_DIM = "rgba(255,240,224,0.5)";
-/** Practice-surface identity — the violet the NavPill "Practice" pill wears.
- *  Chrome only: the current-row marker stays EMBER, because "you are here" is
- *  an attention signal, not surface identity — same rule as /plan's "today". */
-const VIOLET = ACCENTS.violet;
-const EMBER = "#FF7A1A";
 
 function StatusGlyph({ state }: { state: RowState }) {
   if (state === "solved" || state === "failed") {
@@ -54,16 +57,16 @@ function StatusGlyph({ state }: { state: RowState }) {
           width: 22,
           height: 22,
           flexShrink: 0,
-          borderRadius: "999px",
+          borderRadius: "50%",
           display: "grid",
           placeItems: "center",
-          background: solved ? "#4ade80" : "rgba(248,113,113,0.9)",
+          background: solved ? STATUS.success : STATUS.error,
         }}
       >
         {solved ? (
-          <Check size={13} color="#0A0907" strokeWidth={3.5} />
+          <Check size={13} color={TEXT.onAccent} strokeWidth={3} />
         ) : (
-          <X size={13} color="#0A0907" strokeWidth={3.5} />
+          <X size={13} color={TEXT.onAccent} strokeWidth={3} />
         )}
       </Box>
     );
@@ -75,11 +78,11 @@ function StatusGlyph({ state }: { state: RowState }) {
         width: 22,
         height: 22,
         flexShrink: 0,
-        borderRadius: "999px",
+        borderRadius: "50%",
         border:
           state === "current"
-            ? `2px solid ${EMBER}`
-            : "2px solid rgba(255,240,224,0.28)",
+            ? `2px solid ${ACCENT.main}`
+            : `2px solid ${TEXT.tertiary}`,
       }}
     />
   );
@@ -132,12 +135,9 @@ export function PuzzleSessionRail({
         flexDirection: "column",
         minHeight: 0,
         height: "100%",
-        borderRadius: "1.5rem",
-        // Violet identity tint at the rail top, over the same dark glass.
-        background: `radial-gradient(120% 40% at 50% 0%, ${VIOLET.tint}, transparent 70%), linear-gradient(${RAIL_BG}, ${RAIL_BG})`,
-        backdropFilter: "blur(16px) saturate(150%)",
-        WebkitBackdropFilter: "blur(16px) saturate(150%)",
-        border: RAIL_EDGE,
+        borderRadius: `${RADIUS.card}px`,
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
         overflow: "hidden",
       }}
     >
@@ -149,13 +149,13 @@ export function PuzzleSessionRail({
           onClick={() => router.push("/plan")}
           sx={{
             cursor: "pointer",
-            color: TEXT_DIM,
+            color: TEXT.secondary,
             mb: 2,
-            "&:hover": { color: TEXT },
-            transition: "color 180ms ease-out",
+            "&:hover": { color: TEXT.primary },
+            transition: `color ${MOTION.hover}`,
           }}
         >
-          <ArrowLeft size={16} />
+          <ArrowLeft size={16} strokeWidth={1.75} />
           <Typography sx={{ fontSize: "0.88rem", fontWeight: 600 }}>
             Back to plan
           </Typography>
@@ -167,7 +167,7 @@ export function PuzzleSessionRail({
         <Typography
           component="h2"
           sx={{
-            color: TEXT,
+            color: TEXT.primary,
             fontFamily: SERIF_DISPLAY,
             fontSize: "1.6rem",
             fontWeight: 500,
@@ -181,19 +181,14 @@ export function PuzzleSessionRail({
         <Stack direction="row" alignItems="center" spacing={1.25}>
           <Typography
             sx={{
-              color: TEXT_DIM,
-              fontSize: "0.7rem",
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
+              ...TYPE.label,
+              color: TEXT.secondary,
               whiteSpace: "nowrap",
             }}
           >
             Today&apos;s puzzles
           </Typography>
-          <Box
-            sx={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.1)" }}
-          />
+          <Box sx={{ flex: 1, height: "1px", background: LINE.hairline }} />
         </Stack>
       </Box>
 
@@ -213,7 +208,9 @@ export function PuzzleSessionRail({
         }}
       >
         {rows.length === 0 ? (
-          <Typography sx={{ color: TEXT_DIM, fontSize: "0.85rem", px: 1.25 }}>
+          <Typography
+            sx={{ color: TEXT.secondary, fontSize: "0.85rem", px: 1.25 }}
+          >
             Puzzles will appear here as your session loads.
           </Typography>
         ) : (
@@ -232,20 +229,18 @@ export function PuzzleSessionRail({
                 sx={{
                   px: 1.25,
                   py: 1.15,
-                  borderRadius: "0.75rem",
+                  borderRadius: `${RADIUS.small}px`,
                   cursor: clickable ? "pointer" : "default",
                   // Highlight follows `isCurrent`, the glyph follows `state`.
                   // A solved puzzle you are still looking at is ONE row: green
-                  // check, ember highlight.
-                  background: row.isCurrent
-                    ? "rgba(255,122,26,0.10)"
-                    : "transparent",
+                  // check, accent highlight.
+                  background: row.isCurrent ? ACCENT.tint : "transparent",
                   border: row.isCurrent
-                    ? "1px solid rgba(255,122,26,0.28)"
+                    ? `1px solid ${ACCENT.border}`
                     : "1px solid transparent",
-                  transition: "background 180ms ease-out",
+                  transition: `background-color ${MOTION.hover}`,
                   "&:hover": clickable
-                    ? { background: "rgba(255,255,255,0.05)" }
+                    ? { background: "rgba(255,255,255,0.06)" }
                     : undefined,
                 }}
               >
@@ -259,7 +254,8 @@ export function PuzzleSessionRail({
                   sx={{
                     flex: 1,
                     minWidth: 0,
-                    color: row.state === "upcoming" ? TEXT_DIM : TEXT,
+                    color:
+                      row.state === "upcoming" ? TEXT.secondary : TEXT.primary,
                     fontFamily: SERIF_DISPLAY,
                     fontSize: "0.95rem",
                     fontWeight: row.isCurrent ? 600 : 400,
@@ -273,9 +269,10 @@ export function PuzzleSessionRail({
                 {row.rating ? (
                   <Typography
                     sx={{
-                      color: TEXT_DIM,
+                      color: TEXT.secondary,
                       fontSize: "0.75rem",
-                      fontFamily: "Monaco, Menlo, monospace",
+                      fontFamily: FONT_MONO,
+                      fontVariantNumeric: "tabular-nums",
                       flexShrink: 0,
                     }}
                   >
@@ -299,26 +296,26 @@ export function PuzzleSessionRail({
           spacing={1.25}
           sx={{
             p: 1,
-            borderRadius: "0.9rem",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: `${RADIUS.control}px`,
+            background: SURFACE.raisedSecondary,
+            border: `1px solid ${LINE.hairline}`,
           }}
         >
           <Avatar
             src={user?.photoURL || undefined}
-            sx={{ width: 34, height: 34, bgcolor: VIOLET.soft }}
+            sx={{ width: 34, height: 34, bgcolor: SURFACE.raisedTertiary }}
           >
             {user ? (
               displayName.charAt(0).toUpperCase()
             ) : (
-              <UserRound size={16} />
+              <UserRound size={16} strokeWidth={1.75} />
             )}
           </Avatar>
           <Typography
             sx={{
               flex: 1,
               minWidth: 0,
-              color: user ? TEXT : TEXT_DIM,
+              color: user ? TEXT.primary : TEXT.secondary,
               fontSize: "0.9rem",
               fontWeight: 600,
               overflow: "hidden",
@@ -335,29 +332,15 @@ export function PuzzleSessionRail({
               size="small"
               aria-label="Profile settings"
               onClick={() => router.push("/profile")}
-              sx={{ color: TEXT_DIM, "&:hover": { color: TEXT } }}
+              sx={{ color: TEXT.secondary, "&:hover": { color: TEXT.primary } }}
             >
-              <Settings size={16} />
+              <Settings size={16} strokeWidth={1.75} />
             </IconButton>
           ) : authLoading ? null : (
             <Button
               size="small"
+              variant="contained"
               onClick={() => openAuthDialog()}
-              sx={{
-                textTransform: "none",
-                fontWeight: 700,
-                fontSize: "0.78rem",
-                px: 1.25,
-                py: 0.35,
-                minWidth: 0,
-                borderRadius: "10px",
-                color: "#0A0A0A",
-                background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
-                "&:hover": {
-                  background:
-                    "linear-gradient(135deg, #FB923C 0%, #F97316 100%)",
-                },
-              }}
             >
               Sign in
             </Button>

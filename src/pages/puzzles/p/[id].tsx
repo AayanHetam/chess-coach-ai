@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import type { GetStaticPaths, GetStaticProps, InferGetStaticPropsType } from "next";
+import type {
+  GetStaticPaths,
+  GetStaticProps,
+  InferGetStaticPropsType,
+} from "next";
 import Head from "next/head";
 import NextLink from "next/link";
 import { Box, Button, Chip, Link as MuiLink, Typography } from "@mui/material";
@@ -12,6 +16,7 @@ import {
   type LandingPuzzle,
 } from "@/components/puzzle/landingPuzzle";
 import { MastiSays } from "@/components/masti";
+import { LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 
 /**
  * /puzzles/p/<id> — permalink to ONE puzzle from the bundled Lichess
@@ -70,7 +75,7 @@ export const getStaticProps: GetStaticProps<
 
   const band = Math.min(
     BAND_MAX,
-    Math.max(BAND_MIN, Math.floor(puzzle.rating / 100) * 100),
+    Math.max(BAND_MIN, Math.floor(puzzle.rating / 100) * 100)
   );
   return { props: { puzzle, band } };
 };
@@ -87,7 +92,7 @@ export default function PuzzlePermalinkPage({
 
   const sideLabel = puzzle.sideToMove === "white" ? "White" : "Black";
   const title = `${puzzle.themeLabel} Puzzle · Rated ${puzzle.rating} · Chess Masti`;
-  const description = `${sideLabel} to move — a ${puzzle.themeLabel.toLowerCase()} puzzle rated ${puzzle.rating} from the Lichess database. Solve it right in your browser.`;
+  const description = `${sideLabel} to move: a ${puzzle.themeLabel.toLowerCase()} puzzle rated ${puzzle.rating} from the Lichess database. Solve it right in your browser.`;
 
   return (
     <>
@@ -96,10 +101,17 @@ export default function PuzzlePermalinkPage({
         <meta name="description" content={description} />
         <link rel="canonical" href={`${SITE_BASE}/puzzles/p/${puzzle.id}`} />
         <meta name="color-scheme" content="dark" />
-        <meta name="theme-color" content="#0A0907" />
+        <meta name="theme-color" content={SURFACE.page} />
       </Head>
 
-      <Box sx={{ maxWidth: 560, mx: "auto", px: { xs: 1, sm: 2 }, py: { xs: 2, md: 4 } }}>
+      <Box
+        sx={{
+          maxWidth: 560,
+          mx: "auto",
+          px: { xs: 1, sm: 2 },
+          py: { xs: 2, md: 4 },
+        }}
+      >
         <Box
           sx={{
             display: "flex",
@@ -109,22 +121,14 @@ export default function PuzzlePermalinkPage({
             mb: 1,
           }}
         >
-          <Typography
-            component="h1"
-            sx={{ fontSize: "1.35rem", fontWeight: 800, letterSpacing: "-0.02em", minWidth: 0 }}
-            noWrap
-          >
+          <Typography component="h1" sx={{ ...TYPE.h3, minWidth: 0 }} noWrap>
             {puzzle.themeLabel}
           </Typography>
           <Chip
             size="small"
             variant="outlined"
             label={`Rated ${puzzle.rating}`}
-            sx={{
-              color: "rgba(255,255,255,0.75)",
-              borderColor: "rgba(255,255,255,0.2)",
-              flexShrink: 0,
-            }}
+            sx={{ flexShrink: 0 }}
           />
         </Box>
         {/* Masti carries the intro, above the card and never over the board;
@@ -145,10 +149,9 @@ export default function PuzzlePermalinkPage({
         <Box
           sx={{
             p: 2,
-            borderRadius: "1.5rem",
-            background: "rgba(20, 22, 28, 0.66)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            backdropFilter: "blur(12px)",
+            borderRadius: `${RADIUS.card}px`,
+            background: SURFACE.raised,
+            border: `1px solid ${LINE.hairline}`,
           }}
         >
           {mounted ? (
@@ -163,9 +166,7 @@ export default function PuzzlePermalinkPage({
               />
               {/* Shared with the interactive caption this is swapped for
                   after mount — see BOARD_CAPTION_SX. */}
-              <Typography
-                sx={{ ...BOARD_CAPTION_SX, color: "rgba(255,255,255,0.6)" }}
-              >
+              <Typography sx={{ ...BOARD_CAPTION_SX, color: TEXT.secondary }}>
                 {sideLabel} to move
               </Typography>
             </>
@@ -185,28 +186,20 @@ export default function PuzzlePermalinkPage({
             component={NextLink}
             href={`/puzzles/${band}`}
             variant="contained"
-            sx={{
-              textTransform: "none",
-              fontWeight: 700,
-              borderRadius: "12px",
-              px: 3,
-              py: 1.1,
-            }}
+            size="large"
           >
             More puzzles rated {band}–{band + 99}
           </Button>
           <MuiLink
             component={NextLink}
             href="/puzzles"
-            sx={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.7)" }}
+            sx={{ fontSize: "0.85rem" }}
           >
             Train endless puzzles with Masti
           </MuiLink>
         </Box>
 
-        <Typography
-          sx={{ mt: 4, fontSize: "0.72rem", color: "rgba(255,255,255,0.4)" }}
-        >
+        <Typography sx={{ mt: 4, fontSize: "0.72rem", color: TEXT.tertiary }}>
           Puzzle from the{" "}
           <MuiLink
             href="https://database.lichess.org/#puzzles"

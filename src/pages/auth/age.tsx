@@ -5,6 +5,7 @@ import { PageTitle } from "@/components/pageTitle";
 import { Masti, type MastiMood } from "@/components/masti";
 import AgeGate from "@/components/consent/AgeGate";
 import { isAgeGateBlocked } from "@/lib/tracking/ageGateLock";
+import { LINE, RADIUS, TEXT, TYPE } from "@/theme/tokens";
 
 /**
  * COPPA interstitial for brand-new Google accounts (see
@@ -98,7 +99,15 @@ export default function AgeInterstitialPage() {
     <>
       <PageTitle title="One quick check" />
       <Box sx={{ display: "flex", justifyContent: "center", py: 8, px: 2 }}>
-        <Paper sx={{ p: 4, maxWidth: 440, width: "100%", borderRadius: 4 }}>
+        <Paper
+          sx={{
+            p: 4,
+            maxWidth: 440,
+            width: "100%",
+            borderRadius: `${RADIUS.card}px`,
+            border: `1px solid ${LINE.hairline}`,
+          }}
+        >
           {/* Card header: the coach, sized by the size prop so the box is
               right before hydration (no Emotion SSR on the Pages Router). */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2.5 }}>
@@ -109,15 +118,7 @@ export default function AgeInterstitialPage() {
               priority
             />
             <Box>
-              <Typography
-                sx={{
-                  fontSize: "0.72rem",
-                  fontWeight: 700,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: "#FF6B35",
-                }}
-              >
+              <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
                 Chess Masti
               </Typography>
               <Typography sx={{ fontWeight: 700, lineHeight: 1.3 }}>

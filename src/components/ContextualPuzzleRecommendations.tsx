@@ -1,14 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  Box,
-  Paper,
-  Typography,
-  Chip,
-  Alert,
-  Button,
-} from "@mui/material";
+import { Box, Paper, Typography, Chip, Alert, Button } from "@mui/material";
 import { Loader } from "@/components/ui/Loader";
 import { styled } from "@mui/material/styles";
 import { useRouter } from "next/router";
@@ -20,6 +13,7 @@ import {
 } from "@/sections/practice/states";
 import { ChessPuzzle } from "@/lib/chessPuzzlesService";
 import { createTrainingSet } from "@/lib/repetitTraining";
+import { LINE, RADIUS, SURFACE } from "@/theme/tokens";
 
 interface ContextualPuzzleRecommendationsProps {
   fen: string;
@@ -35,23 +29,18 @@ interface ContextualPuzzleRecommendationsProps {
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(2.5),
   marginTop: theme.spacing(2),
-  background: "linear-gradient(145deg, rgba(76, 175, 80, 0.08) 0%, rgba(46, 125, 50, 0.12) 100%)",
-  border: "1px solid rgba(76, 175, 80, 0.3)",
-  borderRadius: "12px",
-  boxShadow: "0 4px 12px rgba(76, 175, 80, 0.15)",
+  background: SURFACE.raised,
+  border: `1px solid ${LINE.hairline}`,
+  borderRadius: RADIUS.card,
+  boxShadow: "none",
 }));
 
 const PuzzleCard = styled(Box)(({ theme }) => ({
   padding: theme.spacing(1.5),
   marginTop: theme.spacing(1),
-  background: "rgba(255, 255, 255, 0.05)",
-  borderRadius: "8px",
-  border: "1px solid rgba(255, 255, 255, 0.1)",
-  transition: "all 0.2s ease",
-  "&:hover": {
-    background: "rgba(255, 255, 255, 0.08)",
-    borderColor: "rgba(76, 175, 80, 0.4)",
-  },
+  background: SURFACE.raisedSecondary,
+  borderRadius: RADIUS.control,
+  border: `1px solid ${LINE.hairline}`,
 }));
 
 /**
@@ -113,7 +102,9 @@ export const ContextualPuzzleRecommendations: React.FC<
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to load puzzle recommendations");
+        throw new Error(
+          errorData.message || "Failed to load puzzle recommendations"
+        );
       }
 
       const data = await response.json();
@@ -145,7 +136,8 @@ export const ContextualPuzzleRecommendations: React.FC<
     }));
 
     // Create a training set for spaced repetition
-    const conceptName = mistakeDescription || `Mistake from ${fen.slice(0, 20)}...`;
+    const conceptName =
+      mistakeDescription || `Mistake from ${fen.slice(0, 20)}...`;
     const trainingSet = createTrainingSet({
       conceptName,
       theme: tacticalMotifs[0]?.toLowerCase() || "tactical",
@@ -198,19 +190,9 @@ export const ContextualPuzzleRecommendations: React.FC<
   }
 
   return (
-    <StyledPaper elevation={3}>
+    <StyledPaper elevation={0}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-        <Typography
-          variant="h6"
-          sx={{
-            fontWeight: 700,
-            background: "linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          🎯 Practice This Pattern
-        </Typography>
+        <Typography variant="h6">Practice this pattern</Typography>
       </Box>
 
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -223,23 +205,26 @@ export const ContextualPuzzleRecommendations: React.FC<
         </Typography>
         {puzzles.slice(0, 3).map((puzzle, idx) => (
           <PuzzleCard key={puzzle.puzzleId}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
               <Box>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
                   Puzzle {idx + 1}: Rating {puzzle.rating}
                 </Typography>
-                <Box sx={{ display: "flex", gap: 0.5, mt: 0.5, flexWrap: "wrap" }}>
+                <Box
+                  sx={{ display: "flex", gap: 0.5, mt: 0.5, flexWrap: "wrap" }}
+                >
                   {puzzle.themes?.slice(0, 3).map((theme: string) => (
                     <Chip
                       key={theme}
                       label={theme}
                       size="small"
-                      sx={{
-                        height: "20px",
-                        fontSize: "0.7rem",
-                        background: "rgba(76, 175, 80, 0.2)",
-                        border: "1px solid rgba(76, 175, 80, 0.3)",
-                      }}
+                      sx={{ height: "20px", fontSize: "0.7rem" }}
                     />
                   ))}
                 </Box>
@@ -253,24 +238,18 @@ export const ContextualPuzzleRecommendations: React.FC<
         variant="contained"
         fullWidth
         onClick={handleStartPractice}
-        sx={{
-          background: "linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)",
-          color: "#fff",
-          fontWeight: 700,
-          py: 1.5,
-          borderRadius: "8px",
-          boxShadow: "0 4px 12px rgba(76, 175, 80, 0.3)",
-          "&:hover": {
-            background: "linear-gradient(135deg, #43A047 0%, #1B5E20 100%)",
-            boxShadow: "0 6px 16px rgba(76, 175, 80, 0.4)",
-          },
-        }}
+        sx={{ py: 1.5 }}
       >
-        🧩 Start Practice ({puzzles.length} Puzzles)
+        Start practice ({puzzles.length} puzzles)
       </Button>
 
-      <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: "block", textAlign: "center" }}>
-        These puzzles are specifically chosen to help you recognize this pattern in future games
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ mt: 1.5, display: "block", textAlign: "center" }}
+      >
+        These puzzles are specifically chosen to help you recognize this pattern
+        in future games
       </Typography>
     </StyledPaper>
   );

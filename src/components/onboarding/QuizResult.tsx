@@ -18,19 +18,14 @@ import {
   QUIZ_GOAL_OPTIONS,
 } from "./quizThemes";
 import { GOAL_PERFS } from "@/lib/curriculum/goalPatch";
-import {
-  PERF_LABEL,
-  parseRatingField,
-} from "@/lib/curriculum/perfGoalDrafts";
-
-const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
-const ORANGE_HOVER = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
+import { PERF_LABEL, parseRatingField } from "@/lib/curriculum/perfGoalDrafts";
+import { TEXT, TYPE } from "@/theme/tokens";
 
 const BAND_BLURB: Record<string, string> = {
   Beginner: "We'll keep things plain-English and focus on not losing material.",
   Intermediate:
     "We'll sharpen pattern recognition and the plans behind the moves.",
-  Advanced: "We'll go deep — imbalances, prophylaxis, and clean technique.",
+  Advanced: "We'll go deep: imbalances, prophylaxis and clean technique.",
 };
 
 interface QuizResultProps {
@@ -120,15 +115,7 @@ export default function QuizResult({
           mb: 1,
         }}
       >
-        <Typography
-          sx={{
-            color: "#FB923C",
-            fontWeight: 700,
-            fontSize: "0.78rem",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-          }}
-        >
+        <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
           Your chess profile
         </Typography>
         {/* The quiz just worked out who they are; that is an idea. */}
@@ -154,7 +141,7 @@ export default function QuizResult({
       >
         {band
           ? BAND_BLURB[band]
-          : `As soon as you're in, we read your real ${platformName} rating — bullet, blitz and rapid — and tune the coach to it. No guessing.`}
+          : `As soon as you're in, we read your real ${platformName} rating (bullet, blitz and rapid) and tune the coach to it. No guessing.`}
       </Typography>
 
       {weaknessLabels.length > 0 && (
@@ -232,26 +219,21 @@ export default function QuizResult({
         // SIGN_IN_ATTR.
         {...(authed ? {} : SIGN_IN_PROPS)}
         fullWidth
+        variant="contained"
         onClick={onUnlock}
         disabled={submitting}
         sx={{
           py: 1.4,
-          borderRadius: "12px",
-          textTransform: "none",
-          fontWeight: 700,
-          fontSize: "1rem",
-          color: "#fff",
-          background: ORANGE,
-          "&:hover": { background: ORANGE_HOVER },
+          fontSize: TYPE.body.fontSize,
           "&.Mui-disabled": {
-            color: "rgba(255,255,255,0.5)",
-            background: "rgba(249,115,22,0.4)",
+            color: TEXT.tertiary,
+            background: "rgba(255,255,255,0.08)",
           },
         }}
       >
         {authed
           ? "Start my training plan"
-          : "Unlock your full plan + first puzzles"}
+          : "Save your plan and start your first puzzles"}
       </Button>
       <Typography
         {...(authed ? {} : SIGN_IN_PROPS)}
@@ -263,7 +245,7 @@ export default function QuizResult({
         }}
       >
         {authed
-          ? "Saved to your profile — let's train."
+          ? "Saved to your profile. Let's train."
           : "Create a free account to save your profile and start training."}
       </Typography>
 
@@ -280,7 +262,7 @@ export default function QuizResult({
             },
           }}
         >
-          ← Edit my answers
+          Edit my answers
         </Button>
       </Box>
     </Box>

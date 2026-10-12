@@ -4,7 +4,15 @@ import { Box, Typography } from "@mui/material";
 import { Check, X } from "lucide-react";
 import type { MoveChoice } from "@/lib/puzzle/moveChoices";
 import { SERIF_DISPLAY } from "@/theme/fonts";
-import { ACCENTS } from "@/components/ui/accents";
+import {
+  ACCENT,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+} from "@/theme/tokens";
 
 /**
  * Multiple-choice answer rows.
@@ -21,6 +29,10 @@ import { ACCENTS } from "@/components/ui/accents";
  */
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
+
+/** Status hairlines at the strength of a selected control's border. */
+const CORRECT_BORDER = "rgba(48,209,88,0.6)";
+const WRONG_BORDER = "rgba(255,69,58,0.6)";
 
 interface MoveChoiceListProps {
   choices: MoveChoice[];
@@ -70,12 +82,12 @@ export function MoveChoiceList({
         const showWrong = wrongSan === choice.san && !choice.isSolution;
 
         const border = showCorrect
-          ? "1.5px solid rgba(74,222,128,0.6)"
+          ? `1px solid ${CORRECT_BORDER}`
           : showWrong
-          ? "1.5px solid rgba(248,113,113,0.6)"
-          : isChosen
-          ? `1.5px solid ${ACCENTS.violet.base}`
-          : "1.5px solid rgba(255,255,255,0.14)";
+            ? `1px solid ${WRONG_BORDER}`
+            : isChosen
+              ? `1px solid ${ACCENT.border}`
+              : `1px solid ${LINE.hairline}`;
 
         return (
           <Box
@@ -98,24 +110,24 @@ export function MoveChoiceList({
               gap: 1.75,
               px: 2,
               minHeight: 62,
-              borderRadius: "0.7rem",
+              borderRadius: `${RADIUS.control}px`,
               border,
               background: showCorrect
-                ? "rgba(74,222,128,0.10)"
+                ? STATUS.successTint
                 : showWrong
-                ? "rgba(248,113,113,0.10)"
-                : isChosen
-                ? ACCENTS.violet.tint
-                : "rgba(22,18,14,0.55)",
+                  ? STATUS.errorTint
+                  : isChosen
+                    ? ACCENT.tint
+                    : SURFACE.raisedSecondary,
               cursor: disabled ? "default" : "pointer",
               opacity: disabled && !isChosen && !showCorrect ? 0.55 : 1,
-              transition:
-                "border-color 180ms ease-out, background 180ms ease-out",
-              "&:hover": disabled
+              transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}, transform ${MOTION.press}`,
+              "&:hover": disabled ? undefined : { borderColor: LINE.strong },
+              "&:active": disabled
                 ? undefined
-                : { borderColor: ACCENTS.violet.border },
+                : { transform: MOTION.pressScale },
               "&:focus-visible": {
-                outline: "2px solid rgba(255,122,26,0.8)",
+                outline: `2px solid ${TEXT.primary}`,
                 outlineOffset: 2,
               },
             }}
@@ -126,14 +138,14 @@ export function MoveChoiceList({
                 width: 30,
                 height: 30,
                 flexShrink: 0,
-                borderRadius: "999px",
+                borderRadius: "50%",
                 display: "grid",
                 placeItems: "center",
-                border: "1.5px solid rgba(255,240,224,0.35)",
+                border: `1.5px solid ${LINE.strong}`,
                 fontFamily: SERIF_DISPLAY,
                 fontWeight: 600,
                 fontSize: "0.95rem",
-                color: "rgba(255,240,224,0.8)",
+                color: TEXT.secondary,
               }}
             >
               {LETTERS[i] ?? String(i + 1)}
@@ -144,14 +156,18 @@ export function MoveChoiceList({
                 flex: 1,
                 fontFamily: SERIF_DISPLAY,
                 fontSize: "1.12rem",
-                color: "rgba(255,240,224,0.94)",
+                color: TEXT.primary,
               }}
             >
               {choice.san}
             </Typography>
 
-            {showCorrect && <Check size={17} color="#86efac" />}
-            {showWrong && <X size={17} color="#fca5a5" />}
+            {showCorrect && (
+              <Check size={18} strokeWidth={1.75} color={STATUS.success} />
+            )}
+            {showWrong && (
+              <X size={18} strokeWidth={1.75} color={STATUS.error} />
+            )}
           </Box>
         );
       })}

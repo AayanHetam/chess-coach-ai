@@ -4,11 +4,11 @@ import { useMemo, useState } from "react";
 import { Box, Button, Collapse, Stack, Typography } from "@mui/material";
 import { Chess } from "chess.js";
 import { ChevronDown, Target } from "lucide-react";
-import { motion } from "framer-motion";
 import type { PuzzleContext } from "@/lib/validation/puzzleChatSchemas";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 import { prettyTheme } from "@/components/puzzle/prettyTheme";
 import { SERIF_DISPLAY } from "@/theme/fonts";
+import { FONT_MONO, LINE, MOTION, RADIUS, SURFACE, TEXT } from "@/theme/tokens";
 
 /**
  * PuzzleDrillMenu — the "drill more like this" set, as an opt-in drag-down
@@ -52,130 +52,92 @@ export function PuzzleDrillMenu({ puzzles, onPick }: PuzzleDrillMenuProps) {
   if (set.length === 0) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, transform: "translateY(8px)" }}
-      animate={{ opacity: 1, transform: "translateY(0px)" }}
-      transition={{ duration: 0.3, delay: 0.2, ease: [0.23, 1, 0.32, 1] }}
-    >
-      <Box sx={{ mt: 1.5, pl: { xs: 0, sm: 4.5 } }}>
-        {/* Drag-down header */}
-        <Button
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          aria-controls="puzzle-drill-panel"
-          startIcon={<Target size={15} />}
-          endIcon={
-            <ChevronDown
-              size={16}
-              style={{
-                transform: open ? "rotate(180deg)" : "none",
-                transition: "transform 220ms cubic-bezier(0.23,1,0.32,1)",
-              }}
-            />
-          }
-          sx={{
-            px: 2.25,
-            py: 1,
-            borderRadius: "999px",
-            background:
-              "linear-gradient(135deg, rgba(255,122,26,0.18), rgba(255,140,66,0.08))",
-            border: "1px solid rgba(255,122,26,0.4)",
-            color: "#FFD1A8",
-            fontWeight: 600,
-            fontSize: "0.85rem",
-            textTransform: "none",
-            "&:hover": {
-              background:
-                "linear-gradient(135deg, rgba(255,122,26,0.28), rgba(255,140,66,0.14))",
-              borderColor: "rgba(255,122,26,0.6)",
-              boxShadow: "0 0 0 4px rgba(255,122,26,0.08)",
-            },
-            transition: "all 200ms cubic-bezier(0.23, 1, 0.32, 1)",
-          }}
-        >
-          Drill {set.length} more like this
-        </Button>
+    <Box sx={{ mt: 1.5, pl: { xs: 0, sm: 4.5 } }}>
+      {/* Drag-down header */}
+      <Button
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls="puzzle-drill-panel"
+        variant="outlined"
+        size="small"
+        startIcon={<Target size={15} strokeWidth={1.75} />}
+        endIcon={
+          <ChevronDown
+            size={16}
+            strokeWidth={1.75}
+            style={{
+              transform: open ? "rotate(180deg)" : "none",
+              transition: `transform ${MOTION.hover}`,
+            }}
+          />
+        }
+      >
+        Drill {set.length} more like this
+      </Button>
 
-        <Collapse in={open} timeout={260} unmountOnExit id="puzzle-drill-panel">
-          <Stack spacing={1.25} sx={{ mt: 1.5 }}>
-            {set.map((p, i) => (
+      <Collapse in={open} timeout={200} unmountOnExit id="puzzle-drill-panel">
+        <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+          {set.map((p, i) => (
+            <Box
+              key={p.id}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                p: 1.25,
+                borderRadius: `${RADIUS.control}px`,
+                background: SURFACE.raisedSecondary,
+                border: `1px solid ${LINE.hairline}`,
+                transition: `border-color ${MOTION.hover}`,
+                "&:hover": { borderColor: LINE.strong },
+              }}
+            >
               <Box
-                key={p.id}
                 sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1.5,
-                  p: 1.25,
-                  borderRadius: "1rem",
-                  background: "rgba(22,18,14,0.55)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  backdropFilter: "blur(8px)",
-                  WebkitBackdropFilter: "blur(8px)",
-                  transition: "border-color 180ms ease-out",
-                  "&:hover": { borderColor: "rgba(255,122,26,0.35)" },
+                  flexShrink: 0,
+                  width: MINI_BOARD_WIDTH,
+                  borderRadius: `${RADIUS.small}px`,
+                  overflow: "hidden",
                 }}
               >
-                <Box
+                <MiniBoard puzzle={p} />
+              </Box>
+
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography
                   sx={{
-                    flexShrink: 0,
-                    width: MINI_BOARD_WIDTH,
-                    borderRadius: "0.65rem",
-                    overflow: "hidden",
-                    boxShadow: "0 0 0 1px rgba(255,255,255,0.06)",
+                    fontFamily: SERIF_DISPLAY,
+                    fontSize: "0.9rem",
+                    fontWeight: 500,
+                    color: TEXT.primary,
                   }}
                 >
-                  <MiniBoard puzzle={p} />
-                </Box>
-
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography
-                    sx={{
-                      fontFamily: SERIF_DISPLAY,
-                      fontSize: "0.9rem",
-                      fontWeight: 500,
-                      color: "rgba(255,240,224,0.92)",
-                    }}
-                  >
-                    {prettyTheme(p.themes)}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: "0.72rem",
-                      color: "rgba(255,240,224,0.5)",
-                      fontFamily: "Monaco, Menlo, monospace",
-                      mb: 0.75,
-                    }}
-                  >
-                    Puzzle {i + 1}
-                    {p.rating ? ` · ${p.rating}` : ""}
-                  </Typography>
-                  <Button
-                    onClick={() => onPick(p.id)}
-                    size="small"
-                    sx={{
-                      px: 1.75,
-                      py: 0.4,
-                      minHeight: 0,
-                      borderRadius: "999px",
-                      background: "linear-gradient(135deg, #FF7A1A, #FB923C)",
-                      color: "#0A0907",
-                      fontSize: "0.76rem",
-                      fontWeight: 700,
-                      textTransform: "none",
-                      "&:hover": {
-                        background: "linear-gradient(135deg, #FB923C, #FBBF24)",
-                      },
-                    }}
-                  >
-                    Open on board →
-                  </Button>
-                </Box>
+                  {prettyTheme(p.themes)}
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: "0.72rem",
+                    color: TEXT.secondary,
+                    fontFamily: FONT_MONO,
+                    mb: 0.75,
+                  }}
+                >
+                  Puzzle {i + 1}
+                  {p.rating ? ` · ${p.rating}` : ""}
+                </Typography>
+                <Button
+                  onClick={() => onPick(p.id)}
+                  size="small"
+                  variant="contained"
+                >
+                  Open on board
+                </Button>
               </Box>
-            ))}
-          </Stack>
-        </Collapse>
-      </Box>
-    </motion.div>
+            </Box>
+          ))}
+        </Stack>
+      </Collapse>
+    </Box>
   );
 }
 

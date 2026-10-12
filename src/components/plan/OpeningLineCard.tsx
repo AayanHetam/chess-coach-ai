@@ -11,7 +11,16 @@
 
 import { useEffect, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
-import { BookOpen, Check, ChevronRight, Dumbbell, History, Play, RotateCcw, Search } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  ChevronRight,
+  Dumbbell,
+  History,
+  Play,
+  RotateCcw,
+  Search,
+} from "lucide-react";
 import {
   formatLine,
   holeLine,
@@ -31,9 +40,20 @@ import { fetchMasterViews } from "@/lib/master/useMasterIdeas";
 import { fetchOpeningTheory } from "@/lib/theory/fetchOpeningTheory";
 import type { MasterView } from "@/lib/master/ideas";
 import type { OpeningTheory } from "@/types/theory";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
-const EMBER = "#FB923C";
-const MONO = '"SF Mono", ui-monospace, Menlo, monospace';
+const EMBER = ACCENT.hover;
+const MONO = FONT_MONO;
 
 const pct = (v: number) => Math.round(v * 100);
 
@@ -103,14 +123,8 @@ export default function OpeningLineCard({
 function Header() {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.25 }}>
-      <BookOpen size={18} color={EMBER} strokeWidth={2} />
-      <Typography
-        sx={{
-          color: "rgba(255,255,255,0.9)",
-          fontWeight: 700,
-          fontSize: "1rem",
-        }}
-      >
+      <BookOpen size={18} color={ACCENT.main} strokeWidth={1.75} />
+      <Typography sx={{ ...TYPE.h5, color: TEXT.primary }}>
         Your weakest line
       </Typography>
     </Box>
@@ -127,7 +141,7 @@ function Body({
   return (
     <Typography
       sx={{
-        color: tone === "warn" ? "#FCA5A5" : "rgba(255,255,255,0.55)",
+        color: tone === "warn" ? STATUS.error : TEXT.secondary,
         fontSize: "0.88rem",
         lineHeight: 1.55,
       }}
@@ -144,7 +158,11 @@ function Idle({ onRun }: { onRun: () => void }) {
         We read your last year of games, pool them by position, and find where
         you score furthest below your own average. Takes about half a minute.
       </Body>
-      <RunButton onClick={onRun} icon={<Search size={15} />} label="FIND MY WEAKEST LINE" />
+      <RunButton
+        onClick={onRun}
+        icon={<Search size={16} strokeWidth={1.75} />}
+        label="Find my weakest line"
+      />
     </>
   );
 }
@@ -160,25 +178,12 @@ function RunButton({
 }) {
   return (
     <Button
+      variant="outlined"
+      size="small"
       onClick={onClick}
-      sx={{
-        mt: 1.75,
-        px: 2,
-        py: 0.85,
-        borderRadius: "10px",
-        border: "1px solid rgba(249,115,22,0.45)",
-        color: EMBER,
-        fontSize: "0.75rem",
-        fontWeight: 700,
-        letterSpacing: "0.08em",
-        gap: 0.85,
-        "&:hover": {
-          background: "rgba(249,115,22,0.1)",
-          borderColor: "rgba(249,115,22,0.7)",
-        },
-      }}
+      startIcon={icon}
+      sx={{ mt: 1.75 }}
     >
-      {icon}
       {label}
     </Button>
   );
@@ -207,7 +212,7 @@ function Ready({
       <>
         <Body>
           {measured
-            ? "We looked at both colours and found no line where you score measurably below your own average. That is a good result, not a missing one — your losses are not concentrated in one opening."
+            ? "We looked at both colours and found no line where you score measurably below your own average. That is a good result, not a missing one. Your losses are not concentrated in one opening."
             : "Not enough games yet to measure a repertoire. Positions need to repeat before a score in them means anything."}
         </Body>
         {/* Reviews belong on BOTH sides of this branch. Having no leaking line
@@ -216,7 +221,11 @@ function Ready({
             this after the early return would have made a clean repertoire
             silently swallow its own review queue. */}
         <DueForReview accountId={accountId} synced={synced} />
-        <RunButton onClick={onRun} icon={<RotateCcw size={15} />} label="MEASURE AGAIN" />
+        <RunButton
+          onClick={onRun}
+          icon={<RotateCcw size={16} strokeWidth={1.75} />}
+          label="Measure again"
+        />
       </>
     );
   }
@@ -271,7 +280,9 @@ function TrainCta({
   accountId: string | null;
   synced: number;
 }) {
-  const [status, setStatus] = useState<"fresh" | "resume" | "repaired">("fresh");
+  const [status, setStatus] = useState<"fresh" | "resume" | "repaired">(
+    "fresh"
+  );
 
   useEffect(() => {
     if (!accountId) return;
@@ -282,11 +293,24 @@ function TrainCta({
   }, [accountId, line, synced]);
 
   const label =
-    status === "resume" ? "RESUME TRAINING" : status === "repaired" ? "TRAIN IT AGAIN" : "FIX THIS LINE";
-  const Icon = status === "resume" ? Play : status === "repaired" ? RotateCcw : Dumbbell;
+    status === "resume"
+      ? "Resume training"
+      : status === "repaired"
+        ? "Train it again"
+        : "Fix this line";
+  const Icon =
+    status === "resume" ? Play : status === "repaired" ? RotateCcw : Dumbbell;
 
   return (
-    <Box sx={{ mt: 2.5, display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+    <Box
+      sx={{
+        mt: 2.5,
+        display: "flex",
+        alignItems: "center",
+        gap: 1.5,
+        flexWrap: "wrap",
+      }}
+    >
       <Box
         component="a"
         href={trainerHref(line)}
@@ -296,26 +320,30 @@ function TrainCta({
           gap: 1,
           minHeight: 44,
           px: 2.25,
-          borderRadius: "12px",
-          border: "1px solid rgba(249,115,22,0.5)",
-          background: "rgba(249,115,22,0.08)",
-          color: EMBER,
-          fontSize: "0.78rem",
-          fontWeight: 700,
-          letterSpacing: "0.06em",
+          borderRadius: `${RADIUS.pill}px`,
+          background: ACCENT.main,
+          color: TEXT.onAccent,
+          fontSize: TYPE.bodySmall.fontSize,
+          fontWeight: 600,
           textDecoration: "none",
-          transition: "background 180ms ease, border-color 180ms ease",
-          "&:hover": { background: "rgba(249,115,22,0.16)", borderColor: EMBER },
-          "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+          transition: `background-color ${MOTION.hover}, transform ${MOTION.press}`,
+          "&:hover": { background: ACCENT.hover },
+          "&:active": { transform: MOTION.pressScale },
+          "&:focus-visible": {
+            outline: `2px solid ${TEXT.primary}`,
+            outlineOffset: 2,
+          },
         }}
       >
-        <Icon size={15} aria-hidden />
+        <Icon size={16} strokeWidth={1.75} aria-hidden />
         {label}
       </Box>
       {status === "repaired" && (
         <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.6 }}>
-          <Check size={14} color="#86EFAC" aria-hidden />
-          <Typography sx={{ fontSize: "0.78rem", color: "#86EFAC" }}>Repaired</Typography>
+          <Check size={14} color={STATUS.success} aria-hidden />
+          <Typography sx={{ fontSize: "0.78rem", color: STATUS.success }}>
+            Repaired
+          </Typography>
         </Box>
       )}
     </Box>
@@ -338,23 +366,41 @@ function QueueRow({ hole }: { hole: RepertoireHole }) {
         minHeight: 44,
         px: 1,
         mx: -1,
-        borderRadius: "10px",
+        borderRadius: `${RADIUS.small}px`,
         textDecoration: "none",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        borderBottom: `1px solid ${LINE.separator}`,
         "&:last-of-type": { borderBottom: "none" },
-        transition: "background 180ms ease",
-        "&:hover": { background: "rgba(255,255,255,0.04)" },
-        "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: -2 },
+        transition: `background-color ${MOTION.hover}`,
+        "&:hover": { background: "rgba(255,255,255,0.06)" },
+        "&:focus-visible": {
+          outline: `2px solid ${TEXT.primary}`,
+          outlineOffset: -2,
+        },
       }}
     >
-      <Typography sx={{ fontFamily: MONO, fontSize: "0.8rem", color: "rgba(255,255,255,0.7)" }}>
+      <Typography
+        sx={{ fontFamily: MONO, fontSize: "0.8rem", color: TEXT.primary }}
+      >
         {formatLine(hole.line, hole.color)}
       </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexShrink: 0 }}>
-        <Typography sx={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap" }}>
+      <Box
+        sx={{ display: "flex", alignItems: "center", gap: 0.75, flexShrink: 0 }}
+      >
+        <Typography
+          sx={{
+            fontSize: "0.78rem",
+            color: TEXT.secondary,
+            whiteSpace: "nowrap",
+          }}
+        >
           {pct(hole.score)}% · {hole.games} games
         </Typography>
-        <ChevronRight size={14} color="rgba(255,255,255,0.35)" aria-hidden />
+        <ChevronRight
+          size={16}
+          strokeWidth={1.75}
+          color={TEXT.secondary}
+          aria-hidden
+        />
       </Box>
     </Box>
   );
@@ -388,7 +434,13 @@ function useTrainerSync(accountId: string | null): number {
  * Hidden entirely when nothing is due. An empty "0 due" row would be a
  * permanent reminder that there is nothing to remind them of.
  */
-function DueForReview({ accountId, synced }: { accountId: string | null; synced: number }) {
+function DueForReview({
+  accountId,
+  synced,
+}: {
+  accountId: string | null;
+  synced: number;
+}) {
   const [due, setDue] = useState<ReviewCard[]>([]);
 
   useEffect(() => {
@@ -414,22 +466,40 @@ function DueForReview({ accountId, synced }: { accountId: string | null; synced:
             minHeight: 44,
             px: 1,
             mx: -1,
-            borderRadius: "10px",
+            borderRadius: `${RADIUS.small}px`,
             textDecoration: "none",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            borderBottom: `1px solid ${LINE.separator}`,
             "&:last-of-type": { borderBottom: "none" },
-            transition: "background 180ms ease",
-            "&:hover": { background: "rgba(255,255,255,0.04)" },
-            "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: -2 },
+            transition: `background-color ${MOTION.hover}`,
+            "&:hover": { background: "rgba(255,255,255,0.06)" },
+            "&:focus-visible": {
+              outline: `2px solid ${TEXT.primary}`,
+              outlineOffset: -2,
+            },
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-            <History size={14} color="rgba(255,255,255,0.4)" aria-hidden />
-            <Typography sx={{ fontFamily: MONO, fontSize: "0.8rem", color: "rgba(255,255,255,0.7)" }}>
+          <Box
+            sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}
+          >
+            <History
+              size={16}
+              strokeWidth={1.75}
+              color={TEXT.secondary}
+              aria-hidden
+            />
+            <Typography
+              sx={{ fontFamily: MONO, fontSize: "0.8rem", color: TEXT.primary }}
+            >
               {card.label}
             </Typography>
           </Box>
-          <Typography sx={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap" }}>
+          <Typography
+            sx={{
+              fontSize: "0.75rem",
+              color: TEXT.secondary,
+              whiteSpace: "nowrap",
+            }}
+          >
             {/* A line that keeps lapsing is not a review any more, and the
                 link says so before they click it. */}
             {needsFullRepair(card) ? "train again" : "one clean run"}
@@ -443,19 +513,27 @@ function DueForReview({ accountId, synced }: { accountId: string | null; synced:
 function LineBlock({ line }: { line: RepertoireHole }) {
   return (
     <>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mb: 1.25 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          flexWrap: "wrap",
+          mb: 1.25,
+        }}
+      >
         <Typography
           sx={{
             fontFamily: MONO,
             fontSize: "1.05rem",
             fontWeight: 700,
-            color: "#fff",
+            color: TEXT.primary,
           }}
         >
           {formatLine(line.line, line.color)}
         </Typography>
         <TierPill tier={line.tier} />
-        <Typography sx={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.4)" }}>
+        <Typography sx={{ fontSize: "0.75rem", color: TEXT.secondary }}>
           as {line.color === "white" ? "White" : "Black"}
         </Typography>
       </Box>
@@ -486,7 +564,7 @@ function Diagnosis({ line }: { line: RepertoireHole }) {
   const move = line.line[line.line.length - 1].san;
   return (
     <Typography
-      sx={{ color: "rgba(255,255,255,0.7)", fontSize: "0.88rem", lineHeight: 1.6 }}
+      sx={{ color: TEXT.secondary, fontSize: "0.88rem", lineHeight: 1.6 }}
     >
       {line.diagnosis === "move" ? (
         <>
@@ -496,7 +574,7 @@ function Diagnosis({ line }: { line: RepertoireHole }) {
         </>
       ) : (
         <>
-          <Mono>{move}</Mono> is a sound move — the engine has no complaint. You
+          <Mono>{move}</Mono> is a sound move; the engine has no complaint. You
           simply do badly in what comes after it, which usually means the
           structure does not suit you rather than that you blundered.
         </>
@@ -535,14 +613,14 @@ function TheoryNote({ line }: { line: RepertoireHole }) {
   return (
     <Box sx={{ mt: 2 }}>
       <FieldLabel>
-        {theory.name ? `The theory — ${theory.name}` : "The theory"}
+        {theory.name ? `The theory: ${theory.name}` : "The theory"}
         {theory.eco ? ` · ${theory.eco}` : ""}
       </FieldLabel>
       {theory.excerpt.split(/\n{2,}/).map((para, i) => (
         <Typography
           key={i}
           sx={{
-            color: "rgba(255,255,255,0.7)",
+            color: TEXT.secondary,
             fontSize: "0.86rem",
             lineHeight: 1.65,
             mt: i === 0 ? 0.5 : 1,
@@ -551,14 +629,14 @@ function TheoryNote({ line }: { line: RepertoireHole }) {
           {para}
         </Typography>
       ))}
-      <Typography sx={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.3)", mt: 1 }}>
+      <Typography sx={{ fontSize: "0.75rem", color: TEXT.tertiary, mt: 1 }}>
         From{" "}
         <Box
           component="a"
           href={theory.sourceUrl}
           target="_blank"
           rel="noopener noreferrer"
-          sx={{ color: "rgba(249,115,22,0.75)", "&:hover": { color: EMBER } }}
+          sx={{ color: ACCENT.main, "&:hover": { color: EMBER } }}
         >
           Wikibooks
         </Box>
@@ -568,7 +646,7 @@ function TheoryNote({ line }: { line: RepertoireHole }) {
           href={theory.licenceUrl}
           target="_blank"
           rel="noopener noreferrer"
-          sx={{ color: "rgba(249,115,22,0.75)", "&:hover": { color: EMBER } }}
+          sx={{ color: ACCENT.main, "&:hover": { color: EMBER } }}
         >
           {theory.licence}
         </Box>
@@ -591,7 +669,10 @@ function MasterNote({ line }: { line: RepertoireHole }) {
   useEffect(() => {
     let cancelled = false;
     const move = line.line[line.line.length - 1].san;
-    void fetchMasterViews([{ fen: line.parentFen, yourMove: move }], line.color).then((ctx) => {
+    void fetchMasterViews(
+      [{ fen: line.parentFen, yourMove: move }],
+      line.color
+    ).then((ctx) => {
       if (!cancelled) setView(ctx.byFen.get(line.parentFen) ?? null);
     });
     return () => {
@@ -609,11 +690,11 @@ function MasterNote({ line }: { line: RepertoireHole }) {
       sx={{
         mt: 1.75,
         pl: 1.5,
-        borderLeft: "2px solid rgba(249,115,22,0.35)",
+        borderLeft: `2px solid ${ACCENT.border}`,
       }}
     >
       <Typography
-        sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.84rem", lineHeight: 1.6 }}
+        sx={{ color: TEXT.secondary, fontSize: "0.84rem", lineHeight: 1.6 }}
       >
         In {view.games.toLocaleString()} master games from this position
         {mine ? (
@@ -653,10 +734,21 @@ function Footer({
   const games = reports.reduce((a, r) => a + r.baselineGames, 0);
   const tests = reports.reduce((a, r) => a + r.tests, 0);
   return (
-    <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-      <Typography sx={{ fontSize: "0.73rem", color: "rgba(255,255,255,0.35)" }}>
-        {games.toLocaleString()} of your games · {tests} independent lines tested
-        {cachedAt ? ` · measured ${new Date(cachedAt).toLocaleDateString()}` : ""}
+    <Box
+      sx={{
+        mt: 2,
+        display: "flex",
+        alignItems: "center",
+        gap: 1.5,
+        flexWrap: "wrap",
+      }}
+    >
+      <Typography sx={{ fontSize: "0.75rem", color: TEXT.tertiary }}>
+        {games.toLocaleString()} of your games · {tests} independent lines
+        tested
+        {cachedAt
+          ? ` · measured ${new Date(cachedAt).toLocaleDateString()}`
+          : ""}
       </Typography>
       <Box
         component="button"
@@ -666,9 +758,13 @@ function Footer({
           border: "none",
           p: 0,
           cursor: "pointer",
-          fontSize: "0.73rem",
-          color: "rgba(249,115,22,0.75)",
+          fontSize: "0.75rem",
+          color: ACCENT.main,
           "&:hover": { color: EMBER },
+          "&:focus-visible": {
+            outline: `2px solid ${TEXT.primary}`,
+            outlineOffset: 2,
+          },
         }}
       >
         measure again
@@ -682,17 +778,16 @@ function TierPill({ tier }: { tier: RepertoireHole["tier"] }) {
   return (
     <Box
       sx={{
-        px: 0.9,
-        py: 0.2,
-        borderRadius: "6px",
-        fontSize: "0.66rem",
-        fontWeight: 700,
-        letterSpacing: "0.06em",
-        color: confirmed ? "#86EFAC" : "rgba(255,255,255,0.5)",
-        border: `1px solid ${confirmed ? "rgba(134,239,172,0.35)" : "rgba(255,255,255,0.15)"}`,
+        px: 1,
+        py: 0.25,
+        borderRadius: `${RADIUS.small}px`,
+        fontSize: TYPE.caption.fontSize,
+        fontWeight: 500,
+        color: confirmed ? STATUS.success : TEXT.secondary,
+        background: confirmed ? STATUS.successTint : SURFACE.raisedSecondary,
       }}
     >
-      {confirmed ? "CONFIRMED" : "SIGNAL"}
+      {confirmed ? "Confirmed" : "Signal"}
     </Box>
   );
 }
@@ -714,7 +809,7 @@ function Stat({
           fontFamily: MONO,
           fontSize: "0.95rem",
           fontWeight: 700,
-          color: tone === "bad" ? "#FCA5A5" : "rgba(255,255,255,0.85)",
+          color: tone === "bad" ? STATUS.error : TEXT.primary,
         }}
       >
         {value}
@@ -725,15 +820,7 @@ function Stat({
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Typography
-      sx={{
-        fontSize: "0.65rem",
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        color: "rgba(255,255,255,0.35)",
-        mb: 0.3,
-      }}
-    >
+    <Typography sx={{ ...TYPE.label, color: TEXT.secondary, mb: 0.3 }}>
       {children}
     </Typography>
   );
@@ -741,7 +828,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 
 function Mono({ children }: { children: React.ReactNode }) {
   return (
-    <Box component="span" sx={{ fontFamily: MONO, color: "rgba(255,255,255,0.92)" }}>
+    <Box component="span" sx={{ fontFamily: MONO, color: TEXT.primary }}>
       {children}
     </Box>
   );

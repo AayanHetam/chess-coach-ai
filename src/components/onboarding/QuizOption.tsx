@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Box, Typography } from "@mui/material";
+import { ACCENT } from "@/theme/tokens";
 
 interface QuizOptionProps {
   label: string;
@@ -74,10 +75,8 @@ export default function QuizOption({
           flexShrink: 0,
           borderRadius: multi ? "6px" : "50%",
           border: "2px solid",
-          borderColor: selected ? "#FB923C" : "rgba(255,255,255,0.3)",
-          background: selected
-            ? "linear-gradient(135deg, #F97316 0%, #EA580C 100%)"
-            : "transparent",
+          borderColor: selected ? ACCENT.main : "rgba(255,255,255,0.3)",
+          background: selected ? ACCENT.main : "transparent",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -126,8 +125,7 @@ export default function QuizOption({
             // labels; selecting one brings its picture forward.
             opacity: selected ? 1 : 0.8,
             transform: selected ? "scale(1.04)" : "none",
-            transition:
-              "opacity 180ms ease-out, transform 180ms ease-out",
+            transition: "opacity 180ms ease-out, transform 180ms ease-out",
           }}
         >
           {visual}

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { Box, Slider, Typography } from "@mui/material";
+import { ACCENT, TEXT } from "@/theme/tokens";
 import GoalProjection from "./GoalProjection";
 import type { QuizRatingStatus } from "./useQuizCurrentRating";
 
@@ -60,9 +61,9 @@ export default function GoalRatingPicker({
       <>
         <Hint>
           {ratingStatus === "not_found"
-            ? "We couldn't find that account, so we can't estimate a timeline yet — you can still set a goal."
+            ? "We couldn't find that account, so we can't estimate a timeline yet. You can still set a goal."
             : ratingStatus === "no_established_rating"
-              ? "No established rating on that account yet, so there's nothing to project from — you can still set a goal."
+              ? "No established rating on that account yet, so there's nothing to project from. You can still set a goal."
               : "Once we know your rating we'll estimate how long this takes."}
         </Hint>
         <FreeGoal value={value} onChange={onChange} />
@@ -75,10 +76,19 @@ export default function GoalRatingPicker({
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, mb: 0.5 }}>
-        <Typography sx={{ color: "#fff", fontWeight: 800, fontSize: "2rem", lineHeight: 1 }}>
+        <Typography
+          sx={{
+            color: "#fff",
+            fontWeight: 800,
+            fontSize: "2rem",
+            lineHeight: 1,
+          }}
+        >
           {goal}
         </Typography>
-        <Typography sx={{ color: "#FB923C", fontWeight: 700, fontSize: "0.9rem" }}>
+        <Typography
+          sx={{ color: "#FB923C", fontWeight: 700, fontSize: "0.9rem" }}
+        >
           +{goal - currentRating}
         </Typography>
       </Box>
@@ -90,14 +100,20 @@ export default function GoalRatingPicker({
         step={25}
         onChange={(_, v) => onChange(Array.isArray(v) ? v[0] : v)}
         sx={{
-          color: "#F97316",
-          "& .MuiSlider-rail": { backgroundColor: "rgba(255,255,255,0.14)", opacity: 1 },
+          color: ACCENT.main,
+          "& .MuiSlider-rail": {
+            backgroundColor: "rgba(255,255,255,0.14)",
+            opacity: 1,
+          },
           "& .MuiSlider-thumb": {
             width: 22,
             height: 22,
-            boxShadow: "0 0 0 6px rgba(249,115,22,0.16)",
-            "&:hover, &.Mui-focusVisible": {
-              boxShadow: "0 0 0 9px rgba(249,115,22,0.22)",
+            boxShadow: "none",
+            "&:hover, &.Mui-active": { boxShadow: "none" },
+            "&.Mui-focusVisible": {
+              boxShadow: "none",
+              outline: `2px solid ${TEXT.primary}`,
+              outlineOffset: 2,
             },
           },
         }}
@@ -124,7 +140,9 @@ export default function GoalRatingPicker({
                 fontSize: "0.8rem",
                 fontWeight: 600,
                 color: active ? "#FB923C" : "rgba(255,255,255,0.7)",
-                background: active ? "rgba(249,115,22,0.14)" : "rgba(255,255,255,0.04)",
+                background: active
+                  ? "rgba(249,115,22,0.14)"
+                  : "rgba(255,255,255,0.04)",
                 border: active
                   ? "1px solid rgba(249,115,22,0.5)"
                   : "1px solid rgba(255,255,255,0.1)",
@@ -145,8 +163,10 @@ export default function GoalRatingPicker({
       />
 
       {ratingStatus === "self_assessed" && (
-        <Typography sx={{ color: "rgba(255,255,255,0.38)", fontSize: "0.72rem", mt: 1 }}>
-          Starting point estimated from your answers — the placement test will
+        <Typography
+          sx={{ color: "rgba(255,255,255,0.38)", fontSize: "0.72rem", mt: 1 }}
+        >
+          Starting point estimated from your answers. The placement test will
           sharpen it.
         </Typography>
       )}
@@ -160,7 +180,9 @@ function roundTo25(n: number): number {
 
 function Hint({ children }: { children: React.ReactNode }) {
   return (
-    <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.88rem", mb: 1.5 }}>
+    <Typography
+      sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.88rem", mb: 1.5 }}
+    >
       {children}
     </Typography>
   );
@@ -177,7 +199,15 @@ function FreeGoal({
   const goal = value ?? 1500;
   return (
     <Box>
-      <Typography sx={{ color: "#fff", fontWeight: 800, fontSize: "2rem", lineHeight: 1, mb: 0.5 }}>
+      <Typography
+        sx={{
+          color: "#fff",
+          fontWeight: 800,
+          fontSize: "2rem",
+          lineHeight: 1,
+          mb: 0.5,
+        }}
+      >
         {goal}
       </Typography>
       <Slider

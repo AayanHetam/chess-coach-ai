@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { Masti } from "./Masti";
 import { MASTI_ASPECT, MASTI_FACE, type MastiMood } from "./manifest";
+import { ACCENT, SURFACE } from "@/theme/tokens";
 
 /** Avatars smaller than this never animate, whatever the caller asks. */
 export const MASTI_AVATAR_ANIMATE_MIN_PX = 32;
@@ -15,7 +16,7 @@ export interface MastiAvatarProps {
   animated?: boolean;
   loops?: number;
   replayKey?: string | number;
-  /** Ember ring and glow, the coach-identity treatment. */
+  /** A hairline ember ring, the coach-identity treatment. */
   ring?: boolean;
   label?: string;
   decorative?: boolean;
@@ -64,11 +65,10 @@ export function MastiAvatar({
         overflow: "hidden",
         flexShrink: 0,
         lineHeight: 0,
-        background:
-          "radial-gradient(circle at 50% 35%, rgba(249,115,22,0.28) 0%, rgba(20,22,28,0.9) 72%)",
-        boxShadow: ring
-          ? "0 0 0 1px rgba(249,115,22,0.42), 0 0 18px rgba(249,115,22,0.28)"
-          : undefined,
+        background: SURFACE.raisedSecondary,
+        // An outline costs no layout, so the face crop below stays put.
+        outline: ring ? `1px solid ${ACCENT.border}` : undefined,
+        outlineOffset: ring ? -1 : undefined,
         ...style,
       }}
     >

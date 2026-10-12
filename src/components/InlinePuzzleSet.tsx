@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Box,
   Button,
@@ -16,6 +22,7 @@ import { usePuzzleBoardState } from "@/hooks/usePuzzleBoardState";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 import InlinePuzzleCoach from "./InlinePuzzleCoach";
 import { MastiAvatar } from "@/components/masti";
+import { LINE, RADIUS, SURFACE } from "@/theme/tokens";
 
 /**
  * InlinePuzzleSet — 3 puzzles solved inside the chat bubble (no /practice nav).
@@ -34,11 +41,10 @@ const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(2),
   marginTop: theme.spacing(1.5),
   maxWidth: 480,
-  background:
-    "linear-gradient(145deg, rgba(76, 175, 80, 0.10) 0%, rgba(46, 125, 50, 0.14) 100%)",
-  border: "1px solid rgba(76, 175, 80, 0.35)",
-  borderRadius: "12px",
-  boxShadow: "0 4px 12px rgba(76, 175, 80, 0.18)",
+  background: SURFACE.raised,
+  border: `1px solid ${LINE.hairline}`,
+  borderRadius: RADIUS.card,
+  boxShadow: "none",
 }));
 
 const BOARD_MAX_WIDTH = 360;
@@ -104,7 +110,7 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
             loops={2}
             style={{ verticalAlign: "middle", marginRight: 6 }}
           />
-          Nice work — 3 puzzles done
+          Nice work: 3 puzzles done
         </Typography>
         {displayTheme && (
           <Typography variant="caption" color="text.secondary">
@@ -116,21 +122,21 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
   }
 
   const turn = board.game.turn();
-  const statusText =
-    board.puzzleError
-      ? "Puzzle data error"
-      : board.status === "loading"
-        ? "Loading…"
-        : board.status === "wrong"
-          ? "Not quite — try again."
-          : board.status === "solved"
-            ? "Correct!"
-            : turn === "w"
-              ? "White to move"
-              : "Black to move";
+  const statusText = board.puzzleError
+    ? "Puzzle data error"
+    : board.status === "loading"
+      ? "Loading…"
+      : board.status === "wrong"
+        ? "Not quite. Try again."
+        : board.status === "solved"
+          ? "Correct."
+          : turn === "w"
+            ? "White to move"
+            : "Black to move";
 
   const showSkip =
-    (board.wrongAttempts >= WRONG_ATTEMPTS_BEFORE_SKIP || !!board.puzzleError) &&
+    (board.wrongAttempts >= WRONG_ATTEMPTS_BEFORE_SKIP ||
+      !!board.puzzleError) &&
     board.status !== "solved" &&
     !done;
   const showCoach =
@@ -151,7 +157,7 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
         }}
       >
         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-          🧩 Puzzle {currentIndex + 1} of {trimmed.length}
+          Puzzle {currentIndex + 1} of {trimmed.length}
           {currentPuzzle?.rating ? ` · ${currentPuzzle.rating}` : ""}
         </Typography>
         <Chip
@@ -202,9 +208,7 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
           boardId={`InlinePuzzle-${currentPuzzle?.id ?? currentIndex}`}
           fen={board.game.fen()}
           orientation={board.boardOrientation}
-          interactive={
-            board.status === "playing" || board.status === "wrong"
-          }
+          interactive={board.status === "playing" || board.status === "wrong"}
           onPieceDrop={board.onPieceDrop}
           lastMove={board.lastMoveSquares}
           wrongSquare={board.wrongSquare}
@@ -229,20 +233,8 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
         sx={{ mt: 1.5, alignItems: "center", justifyContent: "space-between" }}
       >
         {board.status === "solved" ? (
-          <Button
-            variant="contained"
-            size="small"
-            onClick={advanceToNext}
-            sx={{
-              bgcolor: "#4CAF50",
-              textTransform: "none",
-              fontWeight: 700,
-              "&:hover": { bgcolor: "#43A047" },
-            }}
-          >
-            {currentIndex + 1 < trimmed.length
-              ? "Next puzzle →"
-              : "Finish set →"}
+          <Button variant="contained" size="small" onClick={advanceToNext}>
+            {currentIndex + 1 < trimmed.length ? "Next puzzle" : "Finish set"}
           </Button>
         ) : (
           <Box />
@@ -255,7 +247,7 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
             onClick={advanceToNext}
             sx={{ color: "text.secondary", textDecoration: "underline" }}
           >
-            Skip this one →
+            Skip this one
           </Link>
         )}
       </Stack>

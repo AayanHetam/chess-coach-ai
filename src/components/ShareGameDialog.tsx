@@ -24,6 +24,15 @@ import {
 } from "@mui/material";
 import { Icon } from "@iconify/react";
 import type { GameShareCreateRequest } from "@/types/gameShare";
+import {
+  LINE,
+  MATERIAL,
+  RADIUS,
+  SHADOW,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 export interface ShareGameDialogProps {
   open: boolean;
@@ -35,7 +44,7 @@ export interface ShareGameDialogProps {
 const SITE_URL = "https://chessmasti.com";
 
 function buildShareText(playerLine: string, url: string): string {
-  return `Coached this on Chess Masti AI — ${playerLine}. Free AI chess coach: ${url} #ChessMasti #Chess #AI`;
+  return `Coached this on Chess Masti: ${playerLine}. Free chess coach: ${url} #ChessMasti #Chess`;
 }
 
 export default function ShareGameDialog({
@@ -47,7 +56,10 @@ export default function ShareGameDialog({
   const [error, setError] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
   const [note, setNote] = useState("");
-  const [toast, setToast] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
+  const [toast, setToast] = useState<{
+    kind: "ok" | "err";
+    msg: string;
+  } | null>(null);
 
   // Reset state on open/close.
   useEffect(() => {
@@ -88,7 +100,7 @@ export default function ShareGameDialog({
         if (typeof json?.id === "string") {
           setShareId(json.id);
         } else {
-          setError("Share failed — server returned no ID.");
+          setError("Share failed: the server returned no ID.");
         }
       } catch (err) {
         if (!cancelled) {
@@ -118,11 +130,14 @@ export default function ShareGameDialog({
     if (!shareUrl) return;
     try {
       if (!navigator.clipboard?.writeText) {
-        setToast({ kind: "err", msg: "Clipboard not supported in this browser." });
+        setToast({
+          kind: "err",
+          msg: "Clipboard not supported in this browser.",
+        });
         return;
       }
       await navigator.clipboard.writeText(shareUrl);
-      setToast({ kind: "ok", msg: "Link copied!" });
+      setToast({ kind: "ok", msg: "Link copied" });
     } catch (e) {
       setToast({ kind: "err", msg: `Copy failed: ${(e as Error).message}` });
     }
@@ -136,7 +151,7 @@ export default function ShareGameDialog({
     : null;
   const redditUrl = shareUrl
     ? `https://www.reddit.com/r/chess/submit?title=${encodeURIComponent(
-        "Coached my game on Chess Masti AI — free AI chess coach with engine-grounded analysis"
+        "Coached my game on Chess Masti, a free chess coach that checks every claim against the engine"
       )}&url=${encodeURIComponent(shareUrl)}`
     : null;
 
@@ -146,20 +161,21 @@ export default function ShareGameDialog({
       onClick={onClose}
       sx={{
         zIndex: (theme) => theme.zIndex.modal + 8,
-        background: "rgba(5, 10, 20, 0.75)",
-        backdropFilter: "blur(6px)",
+        background: MATERIAL.scrim,
       }}
     >
       <Paper
         onClick={(e) => e.stopPropagation()}
-        elevation={24}
+        elevation={0}
         sx={{
           width: "min(92vw, 540px)",
           maxHeight: "92vh",
           overflow: "auto",
           p: 3,
-          borderRadius: 3,
-          background: "linear-gradient(180deg, #ffffff 0%, #fafbfc 100%)",
+          borderRadius: `${RADIUS.sheet}px`,
+          background: SURFACE.overlay,
+          border: `1px solid ${LINE.hairline}`,
+          boxShadow: SHADOW.modal,
           position: "relative",
         }}
       >
@@ -172,8 +188,12 @@ export default function ShareGameDialog({
         >
           <Box>
             <Stack direction="row" spacing={1} alignItems="center">
-              <Icon icon="mdi:share-variant" width={20} style={{ color: "#FF6B35" }} />
-              <Typography sx={{ fontWeight: 800, fontSize: "1.05rem" }}>
+              <Icon
+                icon="mdi:share-variant"
+                width={20}
+                style={{ color: TEXT.secondary }}
+              />
+              <Typography component="h2" sx={{ ...TYPE.h4 }}>
                 Share this game
               </Typography>
             </Stack>
@@ -228,24 +248,26 @@ export default function ShareGameDialog({
               fullWidth
               size="small"
               value={shareUrl}
-              InputProps={{ readOnly: true, sx: { fontFamily: "ui-monospace, monospace", fontSize: "0.85rem" } }}
+              InputProps={{
+                readOnly: true,
+                sx: {
+                  fontFamily: "ui-monospace, monospace",
+                  fontSize: "0.85rem",
+                },
+              }}
               sx={{ mb: 2 }}
             />
 
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              sx={{ mb: 2 }}
+            >
               <Button
                 fullWidth
                 variant="contained"
                 startIcon={<Icon icon="mdi:content-copy" />}
                 onClick={handleCopyLink}
-                sx={{
-                  textTransform: "none",
-                  fontWeight: 700,
-                  background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
-                  "&:hover": {
-                    background: "linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)",
-                  },
-                }}
               >
                 Copy link
               </Button>
@@ -370,7 +392,8 @@ export default function ShareGameDialog({
             lineHeight: 1.5,
           }}
         >
-          The link is public. Anyone with the URL can view the game and the coach&apos;s analysis.
+          The link is public. Anyone with the URL can view the game and the
+          coach&apos;s analysis.
         </Typography>
 
         <Snackbar
@@ -380,7 +403,10 @@ export default function ShareGameDialog({
           anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         >
           {toast ? (
-            <Alert severity={toast.kind === "ok" ? "success" : "error"} variant="filled">
+            <Alert
+              severity={toast.kind === "ok" ? "success" : "error"}
+              variant="filled"
+            >
               {toast.msg}
             </Alert>
           ) : undefined}

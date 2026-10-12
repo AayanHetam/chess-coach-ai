@@ -15,9 +15,19 @@ import {
   RefreshCw,
   RotateCw,
   Search,
-  Sparkles,
   Target,
 } from "lucide-react";
+import {
+  FONT_MONO,
+  FONT_SANS,
+  LINE,
+  MATERIAL,
+  RADIUS,
+  SHADOW,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 export interface CommandItem {
   id: string;
@@ -41,7 +51,11 @@ interface CommandPaletteProps {
   groups: CommandGroup[];
 }
 
-export function CommandPalette({ open, onOpenChange, groups }: CommandPaletteProps) {
+export function CommandPalette({
+  open,
+  onOpenChange,
+  groups,
+}: CommandPaletteProps) {
   // Global ⌘K / Ctrl+K to toggle
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -69,10 +83,8 @@ export function CommandPalette({ open, onOpenChange, groups }: CommandPalettePro
         alignItems: "flex-start",
         justifyContent: "center",
         pt: { xs: 8, md: 16 },
-        background: "rgba(0,0,0,0.55)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-        animation: "fadeIn 180ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+        background: MATERIAL.scrim,
+        animation: "fadeIn 180ms cubic-bezier(0.2, 0, 0, 1)",
         "@keyframes fadeIn": {
           "0%": { opacity: 0 },
           "100%": { opacity: 1 },
@@ -85,26 +97,21 @@ export function CommandPalette({ open, onOpenChange, groups }: CommandPalettePro
           width: "100%",
           maxWidth: 600,
           mx: 2,
-          borderRadius: "1.25rem",
-          background: "rgba(20,22,28,0.92)",
-          backdropFilter: "blur(20px) saturate(160%)",
-          WebkitBackdropFilter: "blur(20px) saturate(160%)",
-          border: "1px solid rgba(255,255,255,0.1)",
-          boxShadow:
-            "0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(249,115,22,0.08), inset 0 1px 0 rgba(255,255,255,0.06)",
+          borderRadius: `${RADIUS.sheet}px`,
+          background: SURFACE.overlay,
+          border: `1px solid ${LINE.hairline}`,
+          boxShadow: SHADOW.modal,
+          color: TEXT.primary,
           overflow: "hidden",
-          animation: "slideIn 240ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+          transformOrigin: "top center",
+          animation: "slideIn 180ms cubic-bezier(0.2, 0, 0, 1)",
           "@keyframes slideIn": {
-            "0%": { opacity: 0, transform: "translateY(-8px) scale(0.98)" },
-            "100%": { opacity: 1, transform: "translateY(0) scale(1)" },
+            "0%": { opacity: 0, transform: "scale(0.98)" },
+            "100%": { opacity: 1, transform: "scale(1)" },
           },
         }}
       >
-        <Command
-          label="Command Palette"
-          shouldFilter
-          style={{ width: "100%" }}
-        >
+        <Command label="Command Palette" shouldFilter style={{ width: "100%" }}>
           <Box
             sx={{
               display: "flex",
@@ -112,10 +119,10 @@ export function CommandPalette({ open, onOpenChange, groups }: CommandPalettePro
               gap: 1.5,
               px: 2.5,
               py: 2,
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              borderBottom: `1px solid ${LINE.hairline}`,
             }}
           >
-            <Search size={16} color="#F97316" />
+            <Search size={18} strokeWidth={1.75} color={TEXT.secondary} />
             <Command.Input
               autoFocus
               placeholder="Search moves, actions, or ask the coach…"
@@ -124,26 +131,26 @@ export function CommandPalette({ open, onOpenChange, groups }: CommandPalettePro
                 background: "transparent",
                 border: "none",
                 outline: "none",
-                color: "rgba(255,255,255,0.94)",
-                fontSize: "0.95rem",
-                fontFamily: "Inter, sans-serif",
-                fontWeight: 500,
+                color: TEXT.primary,
+                fontSize: TYPE.body.fontSize,
+                fontFamily: FONT_SANS,
+                fontWeight: 400,
               }}
             />
             <Box
               sx={{
                 px: 1.25,
                 py: 0.4,
-                borderRadius: "6px",
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: `${RADIUS.small}px`,
+                background: "rgba(255,255,255,0.06)",
+                border: `1px solid ${LINE.hairline}`,
                 fontSize: "0.7rem",
                 fontWeight: 600,
-                color: "rgba(255,255,255,0.5)",
-                fontFamily: "Monaco, Menlo, monospace",
+                color: TEXT.secondary,
+                fontFamily: FONT_MONO,
               }}
             >
-              ESC
+              Esc
             </Box>
           </Box>
 
@@ -156,8 +163,8 @@ export function CommandPalette({ open, onOpenChange, groups }: CommandPalettePro
           >
             <Command.Empty>
               <Box sx={{ px: 2, py: 4, textAlign: "center" }}>
-                <Typography sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.88rem" }}>
-                  No results. Try a different query.
+                <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
+                  No results. Try a different search.
                 </Typography>
               </Box>
             </Command.Empty>
@@ -168,8 +175,7 @@ export function CommandPalette({ open, onOpenChange, groups }: CommandPalettePro
                 heading={group.heading}
                 style={
                   {
-                    "--cmdk-group-heading-color":
-                      "rgba(255,255,255,0.4)",
+                    "--cmdk-group-heading-color": TEXT.secondary,
                   } as React.CSSProperties
                 }
               >
@@ -178,11 +184,8 @@ export function CommandPalette({ open, onOpenChange, groups }: CommandPalettePro
                     px: 1.5,
                     pt: 1.5,
                     pb: 0.5,
-                    fontSize: "0.68rem",
-                    fontWeight: 700,
-                    letterSpacing: "0.14em",
-                    color: "rgba(255,255,255,0.38)",
-                    textTransform: "uppercase",
+                    ...TYPE.label,
+                    color: TEXT.secondary,
                   }}
                 >
                   {group.heading}
@@ -205,39 +208,30 @@ export function CommandPalette({ open, onOpenChange, groups }: CommandPalettePro
                           alignItems: "center",
                           gap: "12px",
                           cursor: "pointer",
-                          fontSize: "0.9rem",
-                          color: "rgba(255,255,255,0.88)",
+                          fontSize: TYPE.bodySmall.fontSize,
+                          color: TEXT.primary,
                           // cmdk applies [aria-selected="true"]
-                          "--selected-bg": "rgba(249,115,22,0.12)",
+                          "--selected-bg": "rgba(255,255,255,0.1)",
                         } as React.CSSProperties
                       }
                     >
                       {Icon && (
-                        <Box
-                          sx={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: "8px",
-                            background: "rgba(249,115,22,0.1)",
-                            border: "1px solid rgba(249,115,22,0.25)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            flexShrink: 0,
-                          }}
-                        >
-                          <Icon size={14} color="#F97316" />
-                        </Box>
+                        <Icon
+                          size={18}
+                          strokeWidth={1.75}
+                          color={TEXT.secondary}
+                          style={{ flexShrink: 0 }}
+                        />
                       )}
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Box sx={{ fontWeight: 500, color: "rgba(255,255,255,0.92)" }}>
+                        <Box sx={{ fontWeight: 500, color: TEXT.primary }}>
                           {item.label}
                         </Box>
                         {item.hint && (
                           <Box
                             sx={{
-                              fontSize: "0.74rem",
-                              color: "rgba(255,255,255,0.45)",
+                              ...TYPE.caption,
+                              color: TEXT.secondary,
                               mt: 0.25,
                             }}
                           >
@@ -253,13 +247,13 @@ export function CommandPalette({ open, onOpenChange, groups }: CommandPalettePro
                               sx={{
                                 px: 0.75,
                                 py: 0.25,
-                                borderRadius: "5px",
-                                background: "rgba(255,255,255,0.05)",
-                                border: "1px solid rgba(255,255,255,0.08)",
+                                borderRadius: `${RADIUS.small}px`,
+                                background: "rgba(255,255,255,0.06)",
+                                border: `1px solid ${LINE.hairline}`,
                                 fontSize: "0.68rem",
                                 fontWeight: 600,
-                                color: "rgba(255,255,255,0.5)",
-                                fontFamily: "Monaco, Menlo, monospace",
+                                color: TEXT.secondary,
+                                fontFamily: FONT_MONO,
                               }}
                             >
                               {k}
@@ -278,12 +272,12 @@ export function CommandPalette({ open, onOpenChange, groups }: CommandPalettePro
             sx={{
               px: 2.5,
               py: 1.25,
-              borderTop: "1px solid rgba(255,255,255,0.06)",
+              borderTop: `1px solid ${LINE.hairline}`,
               display: "flex",
               alignItems: "center",
               gap: 2,
-              fontSize: "0.72rem",
-              color: "rgba(255,255,255,0.4)",
+              ...TYPE.caption,
+              color: TEXT.secondary,
             }}
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
@@ -292,10 +286,10 @@ export function CommandPalette({ open, onOpenChange, groups }: CommandPalettePro
                 sx={{
                   px: 0.75,
                   py: 0.15,
-                  borderRadius: "4px",
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  fontFamily: "Monaco, Menlo, monospace",
+                  borderRadius: `${RADIUS.small}px`,
+                  background: "rgba(255,255,255,0.06)",
+                  border: `1px solid ${LINE.hairline}`,
+                  fontFamily: FONT_MONO,
                   fontWeight: 600,
                 }}
               >
@@ -309,10 +303,10 @@ export function CommandPalette({ open, onOpenChange, groups }: CommandPalettePro
                 sx={{
                   px: 0.75,
                   py: 0.15,
-                  borderRadius: "4px",
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  fontFamily: "Monaco, Menlo, monospace",
+                  borderRadius: `${RADIUS.small}px`,
+                  background: "rgba(255,255,255,0.06)",
+                  border: `1px solid ${LINE.hairline}`,
+                  fontFamily: FONT_MONO,
                   fontWeight: 600,
                 }}
               >
@@ -321,10 +315,7 @@ export function CommandPalette({ open, onOpenChange, groups }: CommandPalettePro
               select
             </Box>
             <Box sx={{ flex: 1 }} />
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Sparkles size={11} color="#F97316" />
-              <Box>Chess Masti</Box>
-            </Box>
+            <Box>Chess Masti</Box>
           </Box>
         </Command>
       </Box>
@@ -332,8 +323,8 @@ export function CommandPalette({ open, onOpenChange, groups }: CommandPalettePro
       {/* cmdk's aria-selected style override */}
       <style>{`
         [cmdk-item][aria-selected="true"] {
-          background: rgba(249, 115, 22, 0.12) !important;
-          color: rgba(255, 255, 255, 0.98) !important;
+          background: rgba(255, 255, 255, 0.1) !important;
+          color: ${TEXT.primary} !important;
         }
       `}</style>
     </Box>
@@ -354,5 +345,4 @@ export const CommandIcons = {
   Coach: MessageSquare,
   Hint: Lightbulb,
   Target,
-  Sparkles,
 };

@@ -26,7 +26,6 @@ import { useRouter } from "next/router";
 import { useAtomValue } from "jotai";
 import { Chess } from "chess.js";
 import { ArrowRight, ChevronLeft } from "lucide-react";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import OpeningDiagram from "@/components/learn/OpeningDiagram";
 import { pieceSetAtom } from "@/components/board/states";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
@@ -397,7 +396,6 @@ export default function CourseTrainerPage(props: Props) {
           <title key="title">{`Train ${props.courseName} — Chess Masti AI`}</title>
           <meta name="robots" content="noindex" />
         </Head>
-        <GradientBackdrop />
         <Box
           sx={{
             minHeight: "100dvh",
@@ -488,7 +486,6 @@ export default function CourseTrainerPage(props: Props) {
         {/* Progress is per account; nothing here belongs in a shared cache. */}
         <meta name="robots" content="noindex" />
       </Head>
-      <GradientBackdrop />
       <Box
         sx={{
           minHeight: "100dvh",
@@ -743,7 +740,6 @@ function RoundScreen({
         <title key="title">{`Train ${props.courseName} — Chess Masti AI`}</title>
         <meta name="robots" content="noindex" />
       </Head>
-      <GradientBackdrop />
       <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, minHeight: "100dvh" }}>
         <CourseRoundStrip {...railProps} title={numbered(props.chapterLine)} />
         <CourseRoundRail {...railProps} />

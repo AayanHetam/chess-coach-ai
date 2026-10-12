@@ -19,7 +19,6 @@ import Link from "next/link";
 import type { GetServerSideProps } from "next";
 import { Box, Typography } from "@mui/material";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import OpeningDiagram from "@/components/learn/OpeningDiagram";
 import { MastiSays, type MastiMood } from "@/components/masti";
 import { numbered } from "@/lib/courses/lines";
@@ -59,7 +58,6 @@ export default function DrillPickerPage(props: Props) {
         <title key="title">{`Drill ${props.courseName} — Chess Masti`}</title>
         <meta name="robots" content="noindex" />
       </Head>
-      <GradientBackdrop />
 
       <Box sx={{ maxWidth: 760, mx: "auto", px: { xs: 2, md: 3 }, py: { xs: 3, md: 5 } }}>
         <Box

@@ -109,8 +109,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { BorderBeam } from "@/components/ui/BorderBeam";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import {
   SIGN_IN_PROPS,
   VIEWPORT_LOCK_PROPS,
@@ -4591,7 +4589,6 @@ function CoachPanel({
         overflow: "hidden",
       }}
     >
-      <BorderBeam duration={20} colorFrom="#F97316" colorTo="#FB923C" />
 
       {/* Header */}
       <Box
@@ -10676,7 +10673,6 @@ export default function AnalysisPage() {
         `}</style>
       </Head>
 
-      <GradientBackdrop />
       <ChessgroundDarkSquareOverride />
 
       <CommandPalette

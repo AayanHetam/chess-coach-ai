@@ -21,7 +21,6 @@ import type { GetServerSideProps } from "next";
 import { Box, Typography } from "@mui/material";
 import { ArrowLeft, Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import { Masti, type MastiMood } from "@/components/masti";
 import CourseCard from "@/components/courses/CourseCard";
@@ -161,7 +160,6 @@ export default function CoursesPage({ entries }: Props) {
           content="Every opening course, with the lines derived from 3.4 million games and the position each one produces."
         />
       </Head>
-      <GradientBackdrop />
       <Box sx={{ minHeight: "100dvh", px: { xs: 2, md: 3 }, pt: 2, pb: 6 }}>
         <NavPill />
         <Box

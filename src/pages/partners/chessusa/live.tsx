@@ -27,7 +27,6 @@ import dynamic from "next/dynamic";
 import { Box, Stack, Typography } from "@mui/material";
 import { ThemeProvider } from "@mui/material/styles";
 
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import { PartnerBanner } from "@/components/ads/PartnerBanner";
 import { FONT_HREF } from "@/components/ads/PartnerSlot";
@@ -105,7 +104,6 @@ function HomeSurface({ banner }: { banner: React.ReactNode }) {
 function LearnSurface({ banner }: { banner: React.ReactNode }) {
   return (
     <>
-      <GradientBackdrop />
       <Box
         sx={{
           minHeight: "100vh",
@@ -182,7 +180,6 @@ function SnapshotContext() {
 function AnalyzeSurface({ banner }: { banner: React.ReactNode }) {
   return (
     <>
-      <GradientBackdrop />
       <Box
         sx={{
           minHeight: "100vh",

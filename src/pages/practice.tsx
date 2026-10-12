@@ -22,7 +22,6 @@ import GuessTheMove from "@/sections/practice/GuessTheMove";
 import PuzzleStats from "@/sections/practice/PuzzleStats";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { chessMastiDarkTheme } from "@/theme/chessMasti";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import { ACCENTS, type Accent } from "@/components/ui/accents";
 import {
@@ -117,7 +116,6 @@ export default function Practice() {
           <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:${VIOLET.soft};border-radius:5px;}`}</style>
         </Head>
 
-        <GradientBackdrop />
 
         <Box
           sx={{
@@ -150,7 +148,6 @@ export default function Practice() {
           <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:${VIOLET.soft};border-radius:5px;}`}</style>
         </Head>
 
-        <GradientBackdrop />
 
         <Box
           sx={{
@@ -183,7 +180,6 @@ export default function Practice() {
           <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:${VIOLET.soft};border-radius:5px;}`}</style>
         </Head>
 
-        <GradientBackdrop />
 
         <Box
           sx={{
@@ -216,7 +212,6 @@ export default function Practice() {
           <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:${VIOLET.soft};border-radius:5px;}`}</style>
         </Head>
 
-        <GradientBackdrop />
 
         <Box
           sx={{
@@ -248,7 +243,6 @@ export default function Practice() {
         <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:${VIOLET.soft};border-radius:5px;}`}</style>
       </Head>
 
-      <GradientBackdrop />
 
       <Box
         sx={{

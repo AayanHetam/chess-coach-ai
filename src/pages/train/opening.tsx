@@ -21,7 +21,6 @@ import { Chess } from "chess.js";
 import { useAuth } from "@/contexts/AuthContext";
 import { Masti } from "@/components/masti";
 import { pieceSetAtom } from "@/components/board/states";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 import type { FlashState } from "@/components/puzzle/FlashOverlay";
 import TrainerRail, { TrainerRailStrip } from "@/components/train/TrainerRail";
@@ -473,7 +472,6 @@ function Shell({ children, title }: { children: React.ReactNode; title?: string 
           {title ? `Train ${title} — Chess Masti AI` : "Opening trainer — Chess Masti AI"}
         </title>
       </Head>
-      <GradientBackdrop />
       <Box sx={{ display: "flex", minHeight: "100dvh" }}>{children}</Box>
     </>
   );

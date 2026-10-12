@@ -7,7 +7,6 @@ import Head from "next/head";
 import { Icon } from "@iconify/react";
 import { useState } from "react";
 import { chessMastiDarkTheme } from "@/theme/chessMasti";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import { ACCENTS } from "@/components/ui/accents";
 import { MastiSays } from "@/components/masti";
@@ -26,7 +25,6 @@ export default function Play() {
         <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:rgba(249,115,22,0.18);border-radius:5px;}`}</style>
       </Head>
 
-      <GradientBackdrop />
 
       <Box
         sx={{

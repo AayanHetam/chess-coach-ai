@@ -30,7 +30,6 @@ import {
   RotateCcw,
   Sparkles,
 } from "lucide-react";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { VIEWPORT_LOCK_PROPS } from "@/components/ads/PartnerSlot";
 import { NavPill } from "@/components/ui/NavPill";
 import { ACCENTS, themeAccent, type Accent } from "@/components/ui/accents";
@@ -1771,7 +1770,6 @@ export default function PreviewPuzzlesPage() {
         `}</style>
       </Head>
 
-      <GradientBackdrop />
 
       {/*
         Viewport-locked at lg and up: exactly one screen, never scrolls. This is

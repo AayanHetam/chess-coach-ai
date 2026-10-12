@@ -24,7 +24,6 @@ import { Box, Typography } from "@mui/material";
 import { motion } from "framer-motion";
 import { useAtomValue } from "jotai";
 import { ChevronLeft, ChevronRight, Dumbbell, RotateCcw } from "lucide-react";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 import { pieceSetAtom } from "@/components/board/states";
 import { Pill } from "@/components/courses/ChapterRow";
@@ -130,7 +129,6 @@ export default function ChapterReaderPage(props: Props) {
         <title key="title">{`${title} — ${props.courseName} — Chess Masti`}</title>
         <meta name="robots" content="noindex" />
       </Head>
-      <GradientBackdrop />
 
       <Box sx={{ maxWidth: 1180, mx: "auto", px: { xs: 2, md: 3 }, py: { xs: 2, md: 4 } }}>
         <Box

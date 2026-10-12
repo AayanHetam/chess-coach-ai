@@ -22,7 +22,6 @@ import type { GetServerSideProps } from "next";
 import { Box, Typography } from "@mui/material";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Dumbbell, Search } from "lucide-react";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import OpeningDiagram from "@/components/learn/OpeningDiagram";
 import ChapterRow, { MiniBar, Pill } from "@/components/courses/ChapterRow";
 import { CourseExplorer } from "@/components/courses/CourseExplorer";
@@ -114,7 +113,6 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
         {/* The cut depends on the account. Nothing here belongs in a shared cache. */}
         <meta name="robots" content="noindex" />
       </Head>
-      <GradientBackdrop />
 
       <Box sx={{ maxWidth: 1080, mx: "auto", px: { xs: 2, md: 3 }, py: { xs: 3, md: 5 } }}>
         <Box

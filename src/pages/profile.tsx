@@ -17,7 +17,6 @@ import TargetIcon from "@mui/icons-material/GpsFixed";
 import { PageTitle } from "@/components/pageTitle";
 import { chessMastiDarkTheme } from "@/theme/chessMasti";
 import { SERIF_DISPLAY } from "@/theme/fonts";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import ProfileDialog from "@/components/auth/ProfileDialog";
 import HandleCard from "@/components/profile/HandleCard";
@@ -170,7 +169,6 @@ export default function Profile() {
         <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:rgba(249,115,22,0.18);border-radius:5px;}`}</style>
       </Head>
 
-      <GradientBackdrop />
 
       <Box
         sx={{

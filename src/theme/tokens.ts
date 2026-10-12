@@ -213,6 +213,7 @@ export const MOTION = {
 
 /** Global CSS the baseline injects: reduced motion and the press feedback. */
 export const GLOBAL_CSS = `
+@keyframes cmFadeIn { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;

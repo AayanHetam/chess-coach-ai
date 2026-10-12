@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/router';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/router";
 import {
   Alert,
   Box,
@@ -19,19 +19,18 @@ import {
   ToggleButtonGroup,
   Tooltip,
   Typography,
-} from '@mui/material';
-import { ThemeProvider } from '@mui/material/styles';
-import Head from 'next/head';
-import { Icon } from '@iconify/react';
-import { useAtomValue } from 'jotai';
-import { pieceSetAtom } from '@/components/board/states';
-import { useScreenSize } from '@/hooks/useScreenSize';
-import { PageTitle } from '@/components/pageTitle';
-import { useAuthDialog } from '@/contexts/AuthDialogContext';
-import { chessMastiDarkTheme } from '@/theme/chessMasti';
-import { GradientBackdrop } from '@/components/ui/GradientBackdrop';
-import { NavPill } from '@/components/ui/NavPill';
-import { ACCENTS } from '@/components/ui/accents';
+} from "@mui/material";
+import { ThemeProvider } from "@mui/material/styles";
+import Head from "next/head";
+import { Icon } from "@iconify/react";
+import { useAtomValue } from "jotai";
+import { pieceSetAtom } from "@/components/board/states";
+import { useScreenSize } from "@/hooks/useScreenSize";
+import { PageTitle } from "@/components/pageTitle";
+import { useAuthDialog } from "@/contexts/AuthDialogContext";
+import { chessMastiDarkTheme } from "@/theme/chessMasti";
+import { NavPill } from "@/components/ui/NavPill";
+import { ACCENTS } from "@/components/ui/accents";
 import {
   OpeningTreeNode,
   Platform,
@@ -40,49 +39,56 @@ import {
   ScoutGame,
   ScoutResult,
   TimeClass,
-} from '@/types/scout';
-import { getTreeNodeAtPath } from '@/lib/scoutService';
+} from "@/types/scout";
+import { getTreeNodeAtPath } from "@/lib/scoutService";
 import type {
   ScoutWorkerRequest,
   ScoutWorkerResponse,
-} from '@/workers/scoutWorker';
-import AnalyzingModal, { AnalyzingStage } from '@/components/scout/AnalyzingModal';
-import ScoutLanding from '@/components/scout/ScoutLanding';
-import ProfileCard from '@/components/scout/ProfileCard';
-import TellsCard from '@/components/scout/TellsCard';
-import ClockWindowsPanel from '@/components/scout/ClockWindowsPanel';
-import { FieldLabel } from '@/components/scout/dossier';
+} from "@/workers/scoutWorker";
+import AnalyzingModal, {
+  AnalyzingStage,
+} from "@/components/scout/AnalyzingModal";
+import ScoutLanding from "@/components/scout/ScoutLanding";
+import ProfileCard from "@/components/scout/ProfileCard";
+import TellsCard from "@/components/scout/TellsCard";
+import ClockWindowsPanel from "@/components/scout/ClockWindowsPanel";
+import { FieldLabel } from "@/components/scout/dossier";
 import {
   availableFormats,
   scopeGames,
   type FormatScope,
-} from '@/lib/scout/formatScope';
-import HeadToHeadPanel from '@/components/scout/HeadToHeadPanel';
-import PrepLinesPanel from '@/components/scout/PrepLinesPanel';
-import { useHoleReport } from '@/lib/scout/useHoleReport';
-import TargetedPrepPanel from '@/components/scout/TargetedPrep';
-import PreGameChecklist from '@/components/scout/PreGameChecklist';
-import RivalsPanel from '@/components/scout/RivalsPanel';
-import PsychologyPanel from '@/components/scout/PsychologyPanel';
-import TreeExplorer from '@/components/scout/TreeExplorer';
-import TwinBotDialog from '@/components/scout/TwinBotDialog';
-import TwinBotGame from '@/components/scout/TwinBotGame';
-import NoveltyPanel from '@/components/scout/NoveltyPanel';
-import CollisionPanel from '@/components/scout/CollisionPanel';
-import ShareCardDialog from '@/components/scout/ShareCardDialog';
-import { parsePlatformCode } from '@/lib/shareCard';
-import { buildOpeningTree } from '@/lib/scoutService';
-import { computeCollisions } from '@/lib/collisionAnalysis';
-import { computeAnalytics } from '@/lib/scoutAnalytics';
+} from "@/lib/scout/formatScope";
+import HeadToHeadPanel from "@/components/scout/HeadToHeadPanel";
+import PrepLinesPanel from "@/components/scout/PrepLinesPanel";
+import { useHoleReport } from "@/lib/scout/useHoleReport";
+import TargetedPrepPanel from "@/components/scout/TargetedPrep";
+import PreGameChecklist from "@/components/scout/PreGameChecklist";
+import RivalsPanel from "@/components/scout/RivalsPanel";
+import PsychologyPanel from "@/components/scout/PsychologyPanel";
+import TreeExplorer from "@/components/scout/TreeExplorer";
+import TwinBotDialog from "@/components/scout/TwinBotDialog";
+import TwinBotGame from "@/components/scout/TwinBotGame";
+import NoveltyPanel from "@/components/scout/NoveltyPanel";
+import CollisionPanel from "@/components/scout/CollisionPanel";
+import ShareCardDialog from "@/components/scout/ShareCardDialog";
+import { parsePlatformCode } from "@/lib/shareCard";
+import { buildOpeningTree } from "@/lib/scoutService";
+import { computeCollisions } from "@/lib/collisionAnalysis";
+import { computeAnalytics } from "@/lib/scoutAnalytics";
 import {
   buildHeadToHead,
   buildRatingSeries,
   compareProfiles,
-} from '@/lib/scout/headToHead';
-import { useViewer } from '@/hooks/useViewer';
-import type { Collisions } from '@/types/scout';
-import { getAuthHeader } from '@/lib/auth/getAuthHeader';
-import { Masti, MastiAvatar, MastiSays, type MastiMood } from '@/components/masti';
+} from "@/lib/scout/headToHead";
+import { useViewer } from "@/hooks/useViewer";
+import type { Collisions } from "@/types/scout";
+import { getAuthHeader } from "@/lib/auth/getAuthHeader";
+import {
+  Masti,
+  MastiAvatar,
+  MastiSays,
+  type MastiMood,
+} from "@/components/masti";
 
 // ─── Search bar ─────────────────────────────────────────────────────────────
 
@@ -120,16 +126,17 @@ function ScoutSearchBar({
       sx={{
         p: { xs: 1.25, sm: 1.5 },
         borderRadius: 999,
-        background: 'rgba(20,22,28,0.55)',
-        backdropFilter: 'blur(14px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        display: 'flex',
-        flexWrap: { xs: 'wrap', md: 'nowrap' },
-        alignItems: 'center',
+        background: "rgba(20,22,28,0.55)",
+        backdropFilter: "blur(14px) saturate(140%)",
+        WebkitBackdropFilter: "blur(14px) saturate(140%)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        display: "flex",
+        flexWrap: { xs: "wrap", md: "nowrap" },
+        alignItems: "center",
         gap: 1.25,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-        overflow: 'hidden',
+        boxShadow:
+          "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+        overflow: "hidden",
       }}
     >
       <ToggleButtonGroup
@@ -138,16 +145,16 @@ function ScoutSearchBar({
         size="small"
         onChange={(_, v) => v && onPlatformChange(v)}
         sx={{
-          '& .MuiToggleButton-root': {
-            border: 'none',
-            textTransform: 'none',
+          "& .MuiToggleButton-root": {
+            border: "none",
+            textTransform: "none",
             fontWeight: 700,
-            fontSize: '0.78rem',
+            fontSize: "0.78rem",
             px: 1.5,
             borderRadius: 999,
-            color: 'rgba(255,255,255,0.62)',
+            color: "rgba(255,255,255,0.62)",
           },
-          '& .Mui-selected': {
+          "& .Mui-selected": {
             bgcolor: `${ACCENTS.rose.soft} !important`,
             color: `${ACCENTS.rose.bright} !important`,
             border: `1px solid ${ACCENTS.rose.border}`,
@@ -164,27 +171,49 @@ function ScoutSearchBar({
         </ToggleButton>
       </ToggleButtonGroup>
 
-      <Box sx={{ height: 28, width: '1px', bgcolor: 'divider', display: { xs: 'none', md: 'block' } }} />
+      <Box
+        sx={{
+          height: 28,
+          width: "1px",
+          bgcolor: "divider",
+          display: { xs: "none", md: "block" },
+        }}
+      />
 
-      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1, minWidth: 240 }}>
-        <Icon icon="mdi:magnify" width={20} style={{ color: 'rgba(255,255,255,0.5)' }} />
+      <Box
+        sx={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          minWidth: 240,
+        }}
+      >
+        <Icon
+          icon="mdi:magnify"
+          width={20}
+          style={{ color: "rgba(255,255,255,0.5)" }}
+        />
         <TextField
           inputRef={inputRef}
           fullWidth
           variant="standard"
           placeholder="Enter opponent username…"
           value={username}
-          onChange={e => onUsernameChange(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Enter') onSubmit();
+          onChange={(e) => onUsernameChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onSubmit();
           }}
           InputProps={{
             disableUnderline: true,
             sx: {
-              fontSize: '0.95rem',
+              fontSize: "0.95rem",
               fontWeight: 600,
-              color: 'rgba(255,255,255,0.94)',
-              '& input::placeholder': { color: 'rgba(255,255,255,0.5)', opacity: 1 },
+              color: "rgba(255,255,255,0.94)",
+              "& input::placeholder": {
+                color: "rgba(255,255,255,0.5)",
+                opacity: 1,
+              },
             },
           }}
         />
@@ -193,9 +222,9 @@ function ScoutSearchBar({
           <>
             <Typography
               sx={{
-                color: 'text.secondary',
+                color: "text.secondary",
                 fontWeight: 800,
-                fontSize: '0.72rem',
+                fontSize: "0.72rem",
                 letterSpacing: 1.5,
                 px: 0.5,
                 flexShrink: 0,
@@ -208,17 +237,20 @@ function ScoutSearchBar({
               variant="standard"
               placeholder="Your username"
               value={yourUsername}
-              onChange={e => onYourUsernameChange(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') onSubmit();
+              onChange={(e) => onYourUsernameChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onSubmit();
               }}
               InputProps={{
                 disableUnderline: true,
                 sx: {
-                  fontSize: '0.9rem',
+                  fontSize: "0.9rem",
                   fontWeight: 600,
                   color: ACCENTS.rose.bright,
-                  '& input::placeholder': { color: 'rgba(255,255,255,0.5)', opacity: 1 },
+                  "& input::placeholder": {
+                    color: "rgba(255,255,255,0.5)",
+                    opacity: 1,
+                  },
                 },
               }}
               sx={{ maxWidth: 170 }}
@@ -228,21 +260,24 @@ function ScoutSearchBar({
                 component="button"
                 onClick={() => {
                   setShowCompare(false);
-                  onYourUsernameChange('');
+                  onYourUsernameChange("");
                 }}
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   width: 22,
                   height: 22,
-                  borderRadius: '50%',
-                  border: 'none',
-                  bgcolor: 'rgba(255,255,255,0.06)',
-                  color: 'text.secondary',
-                  cursor: 'pointer',
+                  borderRadius: "50%",
+                  border: "none",
+                  bgcolor: "rgba(255,255,255,0.06)",
+                  color: "text.secondary",
+                  cursor: "pointer",
                   flexShrink: 0,
-                  '&:hover': { bgcolor: ACCENTS.rose.soft, color: ACCENTS.rose.bright },
+                  "&:hover": {
+                    bgcolor: ACCENTS.rose.soft,
+                    color: ACCENTS.rose.bright,
+                  },
                 }}
               >
                 <Icon icon="mdi:close" width={14} />
@@ -258,13 +293,13 @@ function ScoutSearchBar({
               onClick={() => setShowCompare(true)}
               sx={{
                 fontWeight: 700,
-                fontSize: '0.72rem',
+                fontSize: "0.72rem",
                 bgcolor: ACCENTS.rose.soft,
                 color: ACCENTS.rose.bright,
                 border: `1px solid ${ACCENTS.rose.border}`,
-                cursor: 'pointer',
-                '& .MuiChip-icon': { color: ACCENTS.rose.bright },
-                '&:hover': { bgcolor: ACCENTS.rose.border },
+                cursor: "pointer",
+                "& .MuiChip-icon": { color: ACCENTS.rose.bright },
+                "&:hover": { bgcolor: ACCENTS.rose.border },
               }}
             />
           </Tooltip>
@@ -272,29 +307,31 @@ function ScoutSearchBar({
       </Box>
 
       <FormControl size="small" variant="standard" sx={{ minWidth: 110 }}>
-        <InputLabel sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>Window</InputLabel>
+        <InputLabel sx={{ fontSize: "0.7rem", color: "text.secondary" }}>
+          Window
+        </InputLabel>
         <Select
           value={months}
           disableUnderline
-          onChange={e => onMonthsChange(Number(e.target.value))}
+          onChange={(e) => onMonthsChange(Number(e.target.value))}
           sx={{
-            fontSize: '0.85rem',
+            fontSize: "0.85rem",
             fontWeight: 600,
-            color: 'rgba(255,255,255,0.94)',
-            '& .MuiSelect-icon': { color: 'rgba(255,255,255,0.62)' },
+            color: "rgba(255,255,255,0.94)",
+            "& .MuiSelect-icon": { color: "rgba(255,255,255,0.62)" },
           }}
           MenuProps={{
             PaperProps: {
               sx: {
-                background: 'rgba(20,22,28,0.92)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                '& .MuiMenuItem-root': {
-                  '&:hover': { bgcolor: ACCENTS.rose.tint },
-                  '&.Mui-selected': {
+                background: "rgba(20,22,28,0.92)",
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                "& .MuiMenuItem-root": {
+                  "&:hover": { bgcolor: ACCENTS.rose.tint },
+                  "&.Mui-selected": {
                     bgcolor: ACCENTS.rose.tint,
-                    '&:hover': { bgcolor: ACCENTS.rose.soft },
+                    "&:hover": { bgcolor: ACCENTS.rose.soft },
                   },
                 },
               },
@@ -313,29 +350,35 @@ function ScoutSearchBar({
         size="large"
         disabled={loading || !username.trim()}
         onClick={onSubmit}
-        startIcon={loading ? <CircularProgress size={16} sx={{ color: '#0A0A0A' }} /> : <Icon icon="mdi:binoculars" />}
+        startIcon={
+          loading ? (
+            <CircularProgress size={16} sx={{ color: "#0A0A0A" }} />
+          ) : (
+            <Icon icon="mdi:binoculars" />
+          )
+        }
         sx={{
           borderRadius: 999,
           px: 3,
           py: 1,
           fontWeight: 800,
           letterSpacing: 0.5,
-          textTransform: 'uppercase',
-          fontSize: '0.82rem',
-          bgcolor: '#F97316',
-          color: '#0A0A0A',
-          boxShadow: '0 6px 18px rgba(249,115,22,0.32)',
-          '&:hover': {
-            bgcolor: '#FB923C',
-            boxShadow: '0 6px 18px rgba(249,115,22,0.32)',
+          textTransform: "uppercase",
+          fontSize: "0.82rem",
+          bgcolor: "#F97316",
+          color: "#0A0A0A",
+          boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
+          "&:hover": {
+            bgcolor: "#FB923C",
+            boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
           },
-          '&.Mui-disabled': {
-            bgcolor: 'rgba(255,255,255,0.06)',
-            color: 'rgba(255,255,255,0.3)',
+          "&.Mui-disabled": {
+            bgcolor: "rgba(255,255,255,0.06)",
+            color: "rgba(255,255,255,0.3)",
           },
         }}
       >
-        {loading ? 'Scouting…' : 'Scout'}
+        {loading ? "Scouting…" : "Scout"}
       </Button>
     </Paper>
   );
@@ -357,8 +400,8 @@ function FormatFilterBar({
   onChange: (v: FormatScope) => void;
 }) {
   const options: Array<{ key: FormatScope; label: string; games: number }> = [
-    { key: 'all', label: 'All formats', games: totalGames },
-    ...formats.map(f => ({ key: f.tc, label: f.tc, games: f.games })),
+    { key: "all", label: "All formats", games: totalGames },
+    ...formats.map((f) => ({ key: f.tc, label: f.tc, games: f.games })),
   ];
 
   return (
@@ -366,13 +409,17 @@ function FormatFilterBar({
       direction="row"
       alignItems="center"
       spacing={1.5}
-      sx={{ flexWrap: 'wrap', gap: 1, px: 0.5 }}
+      sx={{ flexWrap: "wrap", gap: 1, px: 0.5 }}
     >
       <FieldLabel color="rgba(255,255,255,0.38)" size="0.57rem">
         Scope
       </FieldLabel>
-      <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
-        {options.map(o => {
+      <Stack
+        direction="row"
+        spacing={0.75}
+        sx={{ flexWrap: "wrap", gap: 0.75 }}
+      >
+        {options.map((o) => {
           const selected = o.key === value;
           return (
             <Box
@@ -382,19 +429,23 @@ function FormatFilterBar({
               sx={{
                 px: 1.25,
                 py: 0.5,
-                borderRadius: '5px',
-                cursor: 'pointer',
+                borderRadius: "5px",
+                cursor: "pointer",
                 border: selected
                   ? `1px solid ${ACCENTS.rose.border}`
-                  : '1px solid rgba(255,255,255,0.1)',
-                bgcolor: selected ? ACCENTS.rose.soft : 'rgba(255,255,255,0.03)',
-                transition: 'all 160ms ease',
-                '&:hover': { borderColor: ACCENTS.rose.border },
+                  : "1px solid rgba(255,255,255,0.1)",
+                bgcolor: selected
+                  ? ACCENTS.rose.soft
+                  : "rgba(255,255,255,0.03)",
+                transition: "all 160ms ease",
+                "&:hover": { borderColor: ACCENTS.rose.border },
               }}
             >
               <Stack direction="row" spacing={0.75} alignItems="center">
                 <FieldLabel
-                  color={selected ? ACCENTS.rose.bright : 'rgba(255,255,255,0.6)'}
+                  color={
+                    selected ? ACCENTS.rose.bright : "rgba(255,255,255,0.6)"
+                  }
                   size="0.58rem"
                 >
                   {o.label}
@@ -402,8 +453,10 @@ function FormatFilterBar({
                 <Typography
                   sx={{
                     fontFamily: "'SF Mono', Menlo, monospace",
-                    fontSize: '0.6rem',
-                    color: selected ? ACCENTS.rose.base : 'rgba(255,255,255,0.3)',
+                    fontSize: "0.6rem",
+                    color: selected
+                      ? ACCENTS.rose.base
+                      : "rgba(255,255,255,0.3)",
                   }}
                 >
                   {o.games}
@@ -413,7 +466,7 @@ function FormatFilterBar({
           );
         })}
       </Stack>
-      {value !== 'all' && (
+      {value !== "all" && (
         <FieldLabel color="rgba(255,255,255,0.34)" size="0.55rem">
           Every number below is from these {scopedGames} games
         </FieldLabel>
@@ -440,30 +493,32 @@ function TwinBanner({
         p: { xs: 2, sm: 2.5 },
         borderRadius: 3,
         background: `linear-gradient(135deg, ${ACCENTS.rose.tint}, rgba(20,22,28,0.6))`,
-        backdropFilter: 'blur(14px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-        color: 'rgba(255,255,255,0.94)',
-        display: 'flex',
-        flexDirection: { xs: 'column', sm: 'row' },
-        alignItems: { xs: 'flex-start', sm: 'center' },
-        justifyContent: 'space-between',
+        backdropFilter: "blur(14px) saturate(140%)",
+        WebkitBackdropFilter: "blur(14px) saturate(140%)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        boxShadow:
+          "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+        color: "rgba(255,255,255,0.94)",
+        display: "flex",
+        flexDirection: { xs: "column", sm: "row" },
+        alignItems: { xs: "flex-start", sm: "center" },
+        justifyContent: "space-between",
         gap: 2,
-        position: 'relative',
-        overflow: 'hidden',
+        position: "relative",
+        overflow: "hidden",
       }}
     >
       <Box
         sx={{
-          position: 'absolute',
+          position: "absolute",
           right: -60,
           top: -60,
           width: 220,
           height: 220,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(34,197,94,0.25) 0%, transparent 65%)',
-          pointerEvents: 'none',
+          borderRadius: "50%",
+          background:
+            "radial-gradient(circle, rgba(34,197,94,0.25) 0%, transparent 65%)",
+          pointerEvents: "none",
         }}
       />
       <Stack direction="row" spacing={2} alignItems="center">
@@ -471,12 +526,12 @@ function TwinBanner({
           sx={{
             width: 48,
             height: 48,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
+            borderRadius: "50%",
+            background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#fff",
             flexShrink: 0,
           }}
         >
@@ -484,33 +539,56 @@ function TwinBanner({
         </Box>
         <Box>
           <Stack direction="row" spacing={1} alignItems="center">
-            <Typography sx={{ fontWeight: 800, fontSize: '1.05rem' }}>
-              Play against <Box component="span" sx={{ color: '#22c55e' }}>{username}&apos;s</Box> Twin
+            <Typography sx={{ fontWeight: 800, fontSize: "1.05rem" }}>
+              Play against{" "}
+              <Box component="span" sx={{ color: "#22c55e" }}>
+                {username}&apos;s
+              </Box>{" "}
+              Twin
             </Typography>
             <Chip
               label="NEW"
               size="small"
               sx={{
-                bgcolor: 'rgba(34,197,94,0.2)',
-                color: '#22c55e',
+                bgcolor: "rgba(34,197,94,0.2)",
+                color: "#22c55e",
                 fontWeight: 800,
-                fontSize: '0.6rem',
+                fontSize: "0.6rem",
                 height: 18,
                 letterSpacing: 1,
               }}
             />
           </Stack>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
-            Bot plays their exact opening theory, then Maia-proxy at their phase-ELO.
+          <Typography
+            variant="caption"
+            sx={{ color: "rgba(255,255,255,0.65)" }}
+          >
+            Bot plays their exact opening theory, then Maia-proxy at their
+            phase-ELO.
           </Typography>
         </Box>
       </Stack>
       <Stack direction="row" spacing={2} alignItems="center">
-        <Box sx={{ textAlign: 'right', display: { xs: 'none', md: 'block' } }}>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.68rem', letterSpacing: 1, fontWeight: 700 }}>
+        <Box sx={{ textAlign: "right", display: { xs: "none", md: "block" } }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: "rgba(255,255,255,0.5)",
+              fontSize: "0.68rem",
+              letterSpacing: 1,
+              fontWeight: 700,
+            }}
+          >
             REPERTOIRE LOADED
           </Typography>
-          <Typography sx={{ color: '#22c55e', fontWeight: 800, fontSize: '0.9rem', lineHeight: 1 }}>
+          <Typography
+            sx={{
+              color: "#22c55e",
+              fontWeight: 800,
+              fontSize: "0.9rem",
+              lineHeight: 1,
+            }}
+          >
             {totalGames.toLocaleString()} games analyzed
           </Typography>
         </Box>
@@ -520,15 +598,15 @@ function TwinBanner({
           startIcon={<Icon icon="mdi:play-circle-outline" />}
           sx={{
             borderRadius: 999,
-            textTransform: 'none',
+            textTransform: "none",
             fontWeight: 700,
             px: 2.5,
-            bgcolor: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            color: 'rgba(255,255,255,0.94)',
-            '&:hover': {
-              bgcolor: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(249,115,22,0.4)',
+            bgcolor: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            color: "rgba(255,255,255,0.94)",
+            "&:hover": {
+              bgcolor: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(249,115,22,0.4)",
             },
           }}
         >
@@ -554,9 +632,9 @@ export default function ScoutPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Search inputs
-  const [username, setUsername] = useState('');
-  const [yourUsername, setYourUsername] = useState('');
-  const [platform, setPlatform] = useState<Platform>('chess.com');
+  const [username, setUsername] = useState("");
+  const [yourUsername, setYourUsername] = useState("");
+  const [platform, setPlatform] = useState<Platform>("chess.com");
   const [months, setMonths] = useState(12);
 
   // Results
@@ -568,7 +646,7 @@ export default function ScoutPage() {
   const [twinDialogOpen, setTwinDialogOpen] = useState(false);
   const [twinGame, setTwinGame] = useState<{
     tree: OpeningTreeNode;
-    color: 'white' | 'black';
+    color: "white" | "black";
   } | null>(null);
 
   // Share card dialog
@@ -591,10 +669,10 @@ export default function ScoutPage() {
   const [collisionsError, setCollisionsError] = useState<string | null>(null);
 
   // Tree drill-down state
-  const [colorFilter, setColorFilter] = useState<'white' | 'black'>('white');
+  const [colorFilter, setColorFilter] = useState<"white" | "black">("white");
   // Which time class the whole dossier is scoped to. A blitz scouting report
   // should not be diluted by their rapid games.
-  const [formatFilter, setFormatFilter] = useState<FormatScope>('all');
+  const [formatFilter, setFormatFilter] = useState<FormatScope>("all");
   const [minGames, setMinGames] = useState(1);
   const [currentPath, setCurrentPath] = useState<string[]>([]);
   const [history, setHistory] = useState<string[][]>([]);
@@ -603,21 +681,25 @@ export default function ScoutPage() {
   // Progress / modal state
   const [loading, setLoading] = useState(false);
   const [building, setBuilding] = useState(false);
-  const [stage, setStage] = useState<AnalyzingStage>('connect');
+  const [stage, setStage] = useState<AnalyzingStage>("connect");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   // Worker
   const workerRef = useRef<Worker | null>(null);
-  const pendingRef = useRef<Map<number, (r: ScoutWorkerResponse) => void>>(new Map());
+  const pendingRef = useRef<Map<number, (r: ScoutWorkerResponse) => void>>(
+    new Map()
+  );
   const nextReqIdRef = useRef(1);
 
   // Guards the drill-down rebuild effect from racing against the initial search.
   const searchInFlightRef = useRef(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof Worker === 'undefined') return;
-    const worker = new Worker(new URL('../workers/scoutWorker.ts', import.meta.url));
+    if (typeof window === "undefined" || typeof Worker === "undefined") return;
+    const worker = new Worker(
+      new URL("../workers/scoutWorker.ts", import.meta.url)
+    );
     worker.onmessage = (e: MessageEvent<ScoutWorkerResponse>) => {
       const resolver = pendingRef.current.get(e.data.id);
       if (resolver) {
@@ -637,7 +719,7 @@ export default function ScoutPage() {
     (
       games: ScoutGame[],
       targetUsername: string,
-      color: 'white' | 'black',
+      color: "white" | "black",
       mg: number,
       withAnalytics: boolean
     ): Promise<ScoutWorkerResponse> => {
@@ -654,13 +736,29 @@ export default function ScoutPage() {
         };
         if (!w) {
           // Fallback: import on main thread.
-          Promise.all([import('@/lib/scoutService'), import('@/lib/scoutAnalytics')])
-            .then(([{ buildOpeningTree, generatePrepLines }, { computeAnalytics }]) => {
-              const tree = buildOpeningTree(games, targetUsername, color, 25, mg);
-              const prepLines = generatePrepLines(tree, 10, Math.max(2, mg));
-              const analytics = withAnalytics ? computeAnalytics(games, targetUsername) : null;
-              resolve({ id, tree, prepLines, analytics, buildMs: 0 });
-            })
+          Promise.all([
+            import("@/lib/scoutService"),
+            import("@/lib/scoutAnalytics"),
+          ])
+            .then(
+              ([
+                { buildOpeningTree, generatePrepLines },
+                { computeAnalytics },
+              ]) => {
+                const tree = buildOpeningTree(
+                  games,
+                  targetUsername,
+                  color,
+                  25,
+                  mg
+                );
+                const prepLines = generatePrepLines(tree, 10, Math.max(2, mg));
+                const analytics = withAnalytics
+                  ? computeAnalytics(games, targetUsername)
+                  : null;
+                resolve({ id, tree, prepLines, analytics, buildMs: 0 });
+              }
+            )
             .catch(reject);
           return;
         }
@@ -683,7 +781,7 @@ export default function ScoutPage() {
 
   // "Customize vs me" — the prep report. Kept out of the main analytics pass
   // because it costs ~100 cloud-eval calls, so it runs only when asked for.
-  const [prepColor, setPrepColor] = useState<'white' | 'black'>('white');
+  const [prepColor, setPrepColor] = useState<"white" | "black">("white");
   const holeReport = useHoleReport();
 
   // Derived nodes
@@ -692,7 +790,10 @@ export default function ScoutPage() {
     return getTreeNodeAtPath(tree, currentPath) || tree;
   }, [tree, currentPath]);
 
-  const boardOrientation = useMemo<'white' | 'black'>(() => colorFilter, [colorFilter]);
+  const boardOrientation = useMemo<"white" | "black">(
+    () => colorFilter,
+    [colorFilter]
+  );
 
   const boardSize = useMemo(() => {
     const w = screenSize.width || 800;
@@ -705,8 +806,9 @@ export default function ScoutPage() {
   useEffect(() => {
     if (!loading) return;
     const id = setInterval(() => {
-      setProgress(p => {
-        const target = stage === 'connect' ? 0.35 : stage === 'download' ? 0.65 : 0.95;
+      setProgress((p) => {
+        const target =
+          stage === "connect" ? 0.35 : stage === "download" ? 0.65 : 0.95;
         if (p >= target) return p;
         return Math.min(target, p + 0.02);
       });
@@ -716,7 +818,10 @@ export default function ScoutPage() {
 
   const focusSearch = useCallback(() => {
     searchInputRef.current?.focus();
-    searchInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    searchInputRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
   }, []);
 
   // /api/scout requires a signed-in session. Rather than pre-guess that from
@@ -739,13 +844,16 @@ export default function ScoutPage() {
     setCurrentPath([]);
     setHistory([]);
     setFuture([]);
-    setStage('connect');
+    setStage("connect");
     setProgress(0.05);
 
     try {
-      const res = await fetch('/api/scout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(await getAuthHeader()) },
+      const res = await fetch("/api/scout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await getAuthHeader()),
+        },
         body: JSON.stringify({ username: name, platform, months }),
       });
 
@@ -760,16 +868,16 @@ export default function ScoutPage() {
         return;
       }
 
-      setStage('download');
-      setProgress(p => Math.max(p, 0.4));
+      setStage("download");
+      setProgress((p) => Math.max(p, 0.4));
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to fetch games');
+        throw new Error(data.error || "Failed to fetch games");
       }
 
-      setStage('analyze');
-      setProgress(p => Math.max(p, 0.7));
+      setStage("analyze");
+      setProgress((p) => Math.max(p, 0.7));
       setBuilding(true);
 
       // First pass: compute the full analytics bundle once.
@@ -792,12 +900,20 @@ export default function ScoutPage() {
       // Brief pause so the 100% tick is visible.
       setTimeout(() => setLoading(false), 250);
     } catch (err: any) {
-      setError(err?.message || 'Failed to scout player');
+      setError(err?.message || "Failed to scout player");
       setBuilding(false);
       setLoading(false);
       searchInFlightRef.current = false;
     }
-  }, [username, platform, months, colorFilter, minGames, runBuild, openAuthDialog]);
+  }, [
+    username,
+    platform,
+    months,
+    colorFilter,
+    minGames,
+    runBuild,
+    openAuthDialog,
+  ]);
 
   // Read via a ref so the 401 retry above always calls the LATEST
   // handleSearch (fresh username/platform/months) rather than the one
@@ -813,7 +929,12 @@ export default function ScoutPage() {
   const autoScoutPendingRef = useRef(false);
   const autoScoutDoneRef = useRef(false);
   useEffect(() => {
-    if (!router.isReady || autoScoutPendingRef.current || autoScoutDoneRef.current) return;
+    if (
+      !router.isReady ||
+      autoScoutPendingRef.current ||
+      autoScoutDoneRef.current
+    )
+      return;
     const qu = router.query.u;
     const qp = router.query.p;
     const sharedUsername = Array.isArray(qu) ? qu[0] : qu;
@@ -845,7 +966,7 @@ export default function ScoutPage() {
     if (!router.isReady) return;
     const qsid = router.query.scoutId;
     const sid = Array.isArray(qsid) ? qsid[0] : qsid;
-    if (!sid || typeof sid !== 'string') return;
+    if (!sid || typeof sid !== "string") return;
     if (snapshotLoadedRef.current === sid) return;
     snapshotLoadedRef.current = sid;
     // Mark the legacy auto-scout as "done" so it doesn't also fire.
@@ -857,22 +978,22 @@ export default function ScoutPage() {
         if (!res.ok) return; // 404 / 500 — fall through to bare /scout page
         const snap = await res.json();
         if (cancelled) return;
-        setUsername(String(snap.username ?? ''));
-        setPlatform(snap.platform === 'lichess' ? 'lichess' : 'chess.com');
-        setMonths(typeof snap.months === 'number' ? snap.months : 12);
+        setUsername(String(snap.username ?? ""));
+        setPlatform(snap.platform === "lichess" ? "lichess" : "chess.com");
+        setMonths(typeof snap.months === "number" ? snap.months : 12);
         if (snap.yourUsername) setYourUsername(String(snap.yourUsername));
         if (snap.scoutResult) setScoutResult(snap.scoutResult);
         if (snap.tree) setTree(snap.tree);
         if (snap.analytics) setAnalytics(snap.analytics);
         if (snap.collisions !== undefined) setCollisions(snap.collisions);
       } catch (err) {
-        console.error('Failed to load scout snapshot:', err);
+        console.error("Failed to load scout snapshot:", err);
       }
     })();
     return () => {
       cancelled = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady, router.query.scoutId]);
 
   // ── Share-click handler: POST snapshot, open dialog, swap URLs ──────────
@@ -886,9 +1007,9 @@ export default function ScoutPage() {
     if (!scoutResult || !analytics || !tree) return;
     (async () => {
       try {
-        const res = await fetch('/api/scouts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const res = await fetch("/api/scouts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             username: scoutResult.username,
             platform: scoutResult.platform,
@@ -899,15 +1020,18 @@ export default function ScoutPage() {
             tree,
             collisions,
           }),
-          credentials: 'same-origin',
+          credentials: "same-origin",
         });
         if (!res.ok) return;
         const json = await res.json();
-        if (typeof json?.id === 'string') {
+        if (typeof json?.id === "string") {
           setScoutSnapshotId(json.id);
         }
       } catch (err) {
-        console.warn('Scout snapshot POST failed; share URL falls back to ?u=&p=:', err);
+        console.warn(
+          "Scout snapshot POST failed; share URL falls back to ?u=&p=:",
+          err
+        );
       }
     })();
   }, [scoutResult, analytics, tree, months, yourUsername, collisions]);
@@ -937,9 +1061,12 @@ export default function ScoutPage() {
     const t = setTimeout(async () => {
       setCollisionsLoading(true);
       try {
-        const res = await fetch('/api/scout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(await getAuthHeader()) },
+        const res = await fetch("/api/scout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(await getAuthHeader()),
+          },
           body: JSON.stringify({
             username: yn,
             platform: scoutResult.platform,
@@ -949,13 +1076,13 @@ export default function ScoutPage() {
         if (res.status === 401) {
           if (cancelled) return;
           setCollisions(null);
-          setCollisionsError('Sign in to compare your games against theirs.');
+          setCollisionsError("Sign in to compare your games against theirs.");
           return;
         }
         const data = await res.json();
         if (cancelled) return;
         if (!res.ok) {
-          setCollisionsError(data.error || 'Failed to load your games');
+          setCollisionsError(data.error || "Failed to load your games");
           setCollisions(null);
           return;
         }
@@ -976,7 +1103,7 @@ export default function ScoutPage() {
         }
       } catch (e: any) {
         if (cancelled) return;
-        setCollisionsError(e?.message || 'Failed to load your games');
+        setCollisionsError(e?.message || "Failed to load your games");
       } finally {
         if (!cancelled) setCollisionsLoading(false);
       }
@@ -993,21 +1120,24 @@ export default function ScoutPage() {
   const headToHead = useMemo(() => {
     if (!analytics) return null;
     const playedRatings = Object.values(yourProfile?.ratings ?? {}).filter(
-      (r): r is number => typeof r === 'number' && r > 0
+      (r): r is number => typeof r === "number" && r > 0
     );
-    const played = playedRatings.length ? Math.max(...playedRatings) : undefined;
+    const played = playedRatings.length
+      ? Math.max(...playedRatings)
+      : undefined;
     const selfReported = viewerProfile?.selfReportedRating;
     const rating = played ?? selfReported;
     if (!rating) return null;
     return buildHeadToHead({
       yourRating: rating,
-      yourRatingSource: played ? 'played' : 'self-reported',
+      yourRatingSource: played ? "played" : "self-reported",
       theirProfile: analytics.profile,
     });
   }, [analytics, yourProfile, viewerProfile]);
 
   const theirRatingSeries = useMemo(
-    () => (scoutResult ? buildRatingSeries(activeGames, scoutResult.username) : []),
+    () =>
+      scoutResult ? buildRatingSeries(activeGames, scoutResult.username) : [],
     [scoutResult, activeGames]
   );
 
@@ -1028,11 +1158,13 @@ export default function ScoutPage() {
         if (cancelled) return;
         setTree(openingTree);
         if (rebuilt) setAnalytics(rebuilt);
-        setCurrentPath(prev => {
+        setCurrentPath((prev) => {
           let node: OpeningTreeNode | null = openingTree;
           const valid: string[] = [];
           for (const mv of prev) {
-            const child: OpeningTreeNode | undefined = node?.children.find(c => c.move === mv);
+            const child: OpeningTreeNode | undefined = node?.children.find(
+              (c) => c.move === mv
+            );
             if (!child) break;
             valid.push(mv);
             node = child;
@@ -1052,11 +1184,14 @@ export default function ScoutPage() {
 
   // Navigation callbacks
   const navigateTo = useCallback((newPath: string[]) => {
-    setCurrentPath(prev => {
-      if (prev.length === newPath.length && prev.every((m, i) => m === newPath[i])) {
+    setCurrentPath((prev) => {
+      if (
+        prev.length === newPath.length &&
+        prev.every((m, i) => m === newPath[i])
+      ) {
         return prev;
       }
-      setHistory(h => [...h, prev]);
+      setHistory((h) => [...h, prev]);
       setFuture([]);
       return newPath;
     });
@@ -1067,26 +1202,27 @@ export default function ScoutPage() {
     [currentPath, navigateTo]
   );
   const handleBack = useCallback(() => {
-    setHistory(h => {
+    setHistory((h) => {
       if (h.length === 0) return h;
       const prev = h[h.length - 1];
-      setFuture(f => [...f, currentPath]);
+      setFuture((f) => [...f, currentPath]);
       setCurrentPath(prev);
       return h.slice(0, -1);
     });
   }, [currentPath]);
   const handleForward = useCallback(() => {
-    setFuture(f => {
+    setFuture((f) => {
       if (f.length === 0) return f;
       const next = f[f.length - 1];
-      setHistory(h => [...h, currentPath]);
+      setHistory((h) => [...h, currentPath]);
       setCurrentPath(next);
       return f.slice(0, -1);
     });
   }, [currentPath]);
   const handleReset = useCallback(() => navigateTo([]), [navigateTo]);
   const handleBreadcrumb = useCallback(
-    (index: number) => navigateTo(index < 0 ? [] : currentPath.slice(0, index + 1)),
+    (index: number) =>
+      navigateTo(index < 0 ? [] : currentPath.slice(0, index + 1)),
     [currentPath, navigateTo]
   );
 
@@ -1095,27 +1231,37 @@ export default function ScoutPage() {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
-      if (e.key === 'ArrowLeft') { e.preventDefault(); handleBack(); }
-      else if (e.key === 'ArrowRight') { e.preventDefault(); handleForward(); }
-      else if (e.key === 'Home') { e.preventDefault(); handleReset(); }
+      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable)
+        return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        handleBack();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        handleForward();
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        handleReset();
+      }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [handleBack, handleForward, handleReset]);
 
   // Exploration from weakness/strength cards — automatically switch to the right color
   // (weaknesses as white = opponent's black tree, so target color stays whatever they play).
   const exploreLine = useCallback(
-    (moves: string[], asColor: 'white' | 'black') => {
+    (moves: string[], asColor: "white" | "black") => {
       // "as White" tab shows the *opponent's* Black lines → we need the tree filtered on
       // target (opponent) as Black.
-      const targetColor = asColor === 'white' ? 'black' : 'white';
+      const targetColor = asColor === "white" ? "black" : "white";
       if (colorFilter !== targetColor) setColorFilter(targetColor);
       navigateTo(moves);
       // Scroll into view
       setTimeout(() => {
-        document.getElementById('scout-tree-explorer')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document
+          .getElementById("scout-tree-explorer")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 150);
     },
     [colorFilter, navigateTo]
@@ -1131,12 +1277,12 @@ export default function ScoutPage() {
   // idea once the dossier is up, and is dizzy on an error or an empty one.
   const headerMood: MastiMood =
     loading || building
-      ? 'thinking'
+      ? "thinking"
       : error || emptyResult
-        ? 'defeated'
+        ? "defeated"
         : hasResult
-          ? 'idea'
-          : 'wave';
+          ? "idea"
+          : "wave";
 
   return (
     <ThemeProvider theme={chessMastiDarkTheme}>
@@ -1147,12 +1293,10 @@ export default function ScoutPage() {
         <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:${ACCENTS.rose.soft};border-radius:5px;}`}</style>
       </Head>
 
-      <GradientBackdrop />
-
       <Box
         sx={{
-          minHeight: '100vh',
-          color: 'rgba(255,255,255,0.94)',
+          minHeight: "100vh",
+          color: "rgba(255,255,255,0.94)",
           pt: 2,
           pb: 4,
           px: { xs: 2, md: 3 },
@@ -1160,496 +1304,641 @@ export default function ScoutPage() {
       >
         <NavPill active="scout" />
 
-        <Box sx={{ maxWidth: 1400, mx: 'auto', mt: 2 }}>
+        <Box sx={{ maxWidth: 1400, mx: "auto", mt: 2 }}>
           {/* Sticky search header */}
-      <Box
-        sx={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 20,
-          py: 1.25,
-          backdropFilter: 'blur(14px) saturate(140%)',
-          WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-          bgcolor: 'rgba(8,9,12,0.72)',
-          borderBottom: scoutResult ? '1px solid rgba(255,255,255,0.08)' : 'none',
-          mb: 2,
-        }}
-      >
-        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5, px: 0.5 }}>
-          <MastiAvatar mood={headerMood} size={36} data-testid="scout-masti-face" />
-          <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontWeight: 800, fontSize: '1.05rem', lineHeight: 1, color: 'rgba(255,255,255,0.94)' }}>
-              Scout
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-              Opponent dossiers · Chess.com + Lichess
-            </Typography>
-          </Box>
-        </Stack>
-        <ScoutSearchBar
-          username={username}
-          yourUsername={yourUsername}
-          platform={platform}
-          months={months}
-          loading={loading}
-          onUsernameChange={setUsername}
-          onYourUsernameChange={setYourUsername}
-          onPlatformChange={setPlatform}
-          onMonthsChange={setMonths}
-          onSubmit={handleSearch}
-          inputRef={searchInputRef}
-        />
-      </Box>
-
-      {error && (
-        <Alert
-          severity="error"
-          icon={<MastiAvatar mood="defeated" size={22} ring={false} />}
-          sx={{
-            mb: 2,
-            borderRadius: '12px',
-            background: 'rgba(239,68,68,0.12)',
-            border: '1px solid rgba(239,68,68,0.35)',
-            color: 'rgba(255,255,255,0.94)',
-            '& .MuiAlert-icon': { color: '#ef4444' },
-          }}
-          onClose={() => setError(null)}
-        >
-          {error}
-        </Alert>
-      )}
-
-      {/* Result summary chips */}
-      {scoutResult && (
-        <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
-          <Chip
-            icon={<Icon icon="mdi:account" />}
-            label={`${scoutResult.username} · ${scoutResult.platform}`}
-            variant="outlined"
-            sx={{ borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.62)' }}
-          />
-          <Chip
-            icon={<Icon icon="mdi:chess-pawn" />}
-            label={`${scoutResult.totalGames} games`}
-            variant="outlined"
-            sx={{ borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.62)' }}
-          />
-          {scoutResult.cached && (
-            <Tooltip title="Served from server cache (10-min TTL)">
-              <Chip
-                icon={<Icon icon="mdi:lightning-bolt" />}
-                label="cached"
-                size="small"
-                sx={{ fontWeight: 700, bgcolor: ACCENTS.rose.soft, color: ACCENTS.rose.bright }}
-              />
-            </Tooltip>
-          )}
-          {scoutResult.totalGames < 50 && (
-            <Chip
-              icon={<Icon icon="mdi:alert" />}
-              label="Limited data — results may be less reliable"
-              variant="outlined"
-              sx={{
-                bgcolor: 'rgba(245,158,11,0.14)',
-                border: '1px solid rgba(245,158,11,0.4)',
-                color: '#f59e0b',
-              }}
-            />
-          )}
-          {building && tree && (
-            <Chip
-              icon={<CircularProgress size={12} sx={{ color: ACCENTS.rose.bright }} />}
-              label="Rebuilding…"
-              size="small"
-              variant="outlined"
-              sx={{ borderColor: ACCENTS.rose.border, color: ACCENTS.rose.bright }}
-            />
-          )}
-        </Stack>
-      )}
-
-      {/* Empty / landing state */}
-      {!hasResult && !loading && (
-        <ScoutLanding onFocusSearch={focusSearch} />
-      )}
-
-      {/* Empty result: the account exists, the window holds no games */}
-      {scoutResult && emptyResult && !loading && (
-        <Paper
-          elevation={0}
-          data-testid="scout-empty-result"
-          sx={{
-            p: { xs: 3, md: 4 },
-            borderRadius: '1.5rem',
-            background: 'rgba(20,22,28,0.55)',
-            backdropFilter: 'blur(14px) saturate(140%)',
-            WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-            textAlign: 'center',
-          }}
-        >
-          <Masti mood="defeated" size={120} loops={2} decorative style={{ marginBottom: 12 }} />
-          <Typography sx={{ fontWeight: 800, fontSize: '1.05rem', color: 'rgba(255,255,255,0.94)', mb: 0.75 }}>
-            No games to read
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', maxWidth: 460, mx: 'auto', lineHeight: 1.6 }}>
-            I went through {scoutResult.username}&apos;s {scoutResult.platform} archive and came back
-            empty: no games in this window. Try a longer window up top.
-          </Typography>
-        </Paper>
-      )}
-
-      {/* Dashboard */}
-      {hasResult && analytics && scoutResult && !emptyResult && (
-        <Stack spacing={2.5}>
-          <MastiSays mood="idea" size={72} loops={2} maxWidth={560} data-testid="scout-masti-says">
-            I read {scoutResult.totalGames.toLocaleString()} of {scoutResult.username}&apos;s games so
-            you don&apos;t have to. Start with the tells, then take the prep lines into your next game.
-          </MastiSays>
-
-          {formatOptions.length > 1 && (
-            <FormatFilterBar
-              value={formatFilter}
-              formats={formatOptions}
-              totalGames={scoutResult.games.length}
-              scopedGames={activeGames.length}
-              onChange={setFormatFilter}
-            />
-          )}
-
-          <Grid container spacing={2} alignItems="stretch">
-            <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex' }}>
-              <ProfileCard
-                username={scoutResult.username}
-                platform={scoutResult.platform}
-                profile={analytics.profile}
-                onShare={handleShareClick}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex' }}>
-              <TellsCard tells={analytics.tells} />
-            </Grid>
-          </Grid>
-
-          <ClockWindowsPanel
-            windows={analytics.clockWindows}
-            username={scoutResult.username}
-          />
-
-          {headToHead && yourProfile && (
-            <HeadToHeadPanel
-              h2h={headToHead}
-              comparison={compareProfiles(yourProfile, analytics.profile)}
-              series={theirRatingSeries}
-              yourName={yourUsername.trim() || 'You'}
-              theirName={scoutResult.username}
-            />
-          )}
-
-          <PrepLinesPanel
-            report={holeReport.report}
-            progress={holeReport.progress}
-            error={holeReport.error}
-            theirName={scoutResult.username}
-            yourColor={prepColor}
-            onColorChange={c => {
-              setPrepColor(c);
-              holeReport.reset();
+          <Box
+            sx={{
+              position: "sticky",
+              top: 0,
+              zIndex: 20,
+              py: 1.25,
+              backdropFilter: "blur(14px) saturate(140%)",
+              WebkitBackdropFilter: "blur(14px) saturate(140%)",
+              bgcolor: "rgba(8,9,12,0.72)",
+              borderBottom: scoutResult
+                ? "1px solid rgba(255,255,255,0.08)"
+                : "none",
+              mb: 2,
             }}
-            onRun={() =>
-              holeReport.run(activeGames, scoutResult.username, prepColor, {
-                yourGames: yourGames ?? undefined,
-                yourUsername: yourUsername.trim() || undefined,
-              })
-            }
-            onExplore={(moves, asColor) => exploreLine(moves, asColor)}
-          />
-
-          <TwinBanner
-            username={scoutResult.username}
-            totalGames={scoutResult.totalGames}
-            onPlay={() => setTwinDialogOpen(true)}
-          />
-
-          {/* You-vs-them collisions (only when yourUsername provided) */}
-          {collisionsError && yourUsername.trim() && (
-            <Alert
-              severity="warning"
-              sx={{
-                borderRadius: '12px',
-                background: 'rgba(245,158,11,0.12)',
-                border: '1px solid rgba(245,158,11,0.35)',
-                color: 'rgba(255,255,255,0.94)',
-                '& .MuiAlert-icon': { color: '#f59e0b' },
-              }}
-              onClose={() => setCollisionsError(null)}
+          >
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              sx={{ mb: 1.5, px: 0.5 }}
             >
-              {collisionsError}
+              <MastiAvatar
+                mood={headerMood}
+                size={36}
+                data-testid="scout-masti-face"
+              />
+              <Box sx={{ flex: 1 }}>
+                <Typography
+                  sx={{
+                    fontWeight: 800,
+                    fontSize: "1.05rem",
+                    lineHeight: 1,
+                    color: "rgba(255,255,255,0.94)",
+                  }}
+                >
+                  Scout
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 600 }}
+                >
+                  Opponent dossiers · Chess.com + Lichess
+                </Typography>
+              </Box>
+            </Stack>
+            <ScoutSearchBar
+              username={username}
+              yourUsername={yourUsername}
+              platform={platform}
+              months={months}
+              loading={loading}
+              onUsernameChange={setUsername}
+              onYourUsernameChange={setYourUsername}
+              onPlatformChange={setPlatform}
+              onMonthsChange={setMonths}
+              onSubmit={handleSearch}
+              inputRef={searchInputRef}
+            />
+          </Box>
+
+          {error && (
+            <Alert
+              severity="error"
+              icon={<MastiAvatar mood="defeated" size={22} ring={false} />}
+              sx={{
+                mb: 2,
+                borderRadius: "12px",
+                background: "rgba(239,68,68,0.12)",
+                border: "1px solid rgba(239,68,68,0.35)",
+                color: "rgba(255,255,255,0.94)",
+                "& .MuiAlert-icon": { color: "#ef4444" },
+              }}
+              onClose={() => setError(null)}
+            >
+              {error}
             </Alert>
           )}
-          {collisionsLoading && (
+
+          {/* Result summary chips */}
+          {scoutResult && (
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ mb: 2, flexWrap: "wrap", gap: 1 }}
+            >
+              <Chip
+                icon={<Icon icon="mdi:account" />}
+                label={`${scoutResult.username} · ${scoutResult.platform}`}
+                variant="outlined"
+                sx={{
+                  borderColor: "rgba(255,255,255,0.12)",
+                  color: "rgba(255,255,255,0.62)",
+                }}
+              />
+              <Chip
+                icon={<Icon icon="mdi:chess-pawn" />}
+                label={`${scoutResult.totalGames} games`}
+                variant="outlined"
+                sx={{
+                  borderColor: "rgba(255,255,255,0.12)",
+                  color: "rgba(255,255,255,0.62)",
+                }}
+              />
+              {scoutResult.cached && (
+                <Tooltip title="Served from server cache (10-min TTL)">
+                  <Chip
+                    icon={<Icon icon="mdi:lightning-bolt" />}
+                    label="cached"
+                    size="small"
+                    sx={{
+                      fontWeight: 700,
+                      bgcolor: ACCENTS.rose.soft,
+                      color: ACCENTS.rose.bright,
+                    }}
+                  />
+                </Tooltip>
+              )}
+              {scoutResult.totalGames < 50 && (
+                <Chip
+                  icon={<Icon icon="mdi:alert" />}
+                  label="Limited data — results may be less reliable"
+                  variant="outlined"
+                  sx={{
+                    bgcolor: "rgba(245,158,11,0.14)",
+                    border: "1px solid rgba(245,158,11,0.4)",
+                    color: "#f59e0b",
+                  }}
+                />
+              )}
+              {building && tree && (
+                <Chip
+                  icon={
+                    <CircularProgress
+                      size={12}
+                      sx={{ color: ACCENTS.rose.bright }}
+                    />
+                  }
+                  label="Rebuilding…"
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    borderColor: ACCENTS.rose.border,
+                    color: ACCENTS.rose.bright,
+                  }}
+                />
+              )}
+            </Stack>
+          )}
+
+          {/* Empty / landing state */}
+          {!hasResult && !loading && (
+            <ScoutLanding onFocusSearch={focusSearch} />
+          )}
+
+          {/* Empty result: the account exists, the window holds no games */}
+          {scoutResult && emptyResult && !loading && (
             <Paper
               elevation={0}
+              data-testid="scout-empty-result"
               sx={{
-                p: 2,
-                borderRadius: '1rem',
-                background: 'rgba(20,22,28,0.55)',
-                backdropFilter: 'blur(14px) saturate(140%)',
-                WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.5,
+                p: { xs: 3, md: 4 },
+                borderRadius: "1.5rem",
+                background: "rgba(20,22,28,0.55)",
+                backdropFilter: "blur(14px) saturate(140%)",
+                WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                boxShadow:
+                  "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+                textAlign: "center",
               }}
             >
-              <MastiAvatar mood="thinking" size={28} ring={false} />
-              <Typography variant="body2" color="text.secondary">
-                Loading <strong>{yourUsername}</strong>&apos;s games and computing collisions…
+              <Masti
+                mood="defeated"
+                size={120}
+                loops={2}
+                decorative
+                style={{ marginBottom: 12 }}
+              />
+              <Typography
+                sx={{
+                  fontWeight: 800,
+                  fontSize: "1.05rem",
+                  color: "rgba(255,255,255,0.94)",
+                  mb: 0.75,
+                }}
+              >
+                No games to read
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "rgba(255,255,255,0.6)",
+                  maxWidth: 460,
+                  mx: "auto",
+                  lineHeight: 1.6,
+                }}
+              >
+                I went through {scoutResult.username}&apos;s{" "}
+                {scoutResult.platform} archive and came back empty: no games in
+                this window. Try a longer window up top.
               </Typography>
             </Paper>
           )}
-          {collisions && !collisionsLoading && (
-            <CollisionPanel
-              collisions={collisions}
-              targetUsername={scoutResult.username}
-              // yourColor = the color YOU play in the clicked line.
-              // exploreLine expects the color you're playing; it flips internally
-              // to walk the target's tree of the opposite color.
-              onExplore={(moves, yourColor) => exploreLine(moves, yourColor)}
-            />
+
+          {/* Dashboard */}
+          {hasResult && analytics && scoutResult && !emptyResult && (
+            <Stack spacing={2.5}>
+              <MastiSays
+                mood="idea"
+                size={72}
+                loops={2}
+                maxWidth={560}
+                data-testid="scout-masti-says"
+              >
+                I read {scoutResult.totalGames.toLocaleString()} of{" "}
+                {scoutResult.username}&apos;s games so you don&apos;t have to.
+                Start with the tells, then take the prep lines into your next
+                game.
+              </MastiSays>
+
+              {formatOptions.length > 1 && (
+                <FormatFilterBar
+                  value={formatFilter}
+                  formats={formatOptions}
+                  totalGames={scoutResult.games.length}
+                  scopedGames={activeGames.length}
+                  onChange={setFormatFilter}
+                />
+              )}
+
+              <Grid container spacing={2} alignItems="stretch">
+                <Grid size={{ xs: 12, lg: 6 }} sx={{ display: "flex" }}>
+                  <ProfileCard
+                    username={scoutResult.username}
+                    platform={scoutResult.platform}
+                    profile={analytics.profile}
+                    onShare={handleShareClick}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, lg: 6 }} sx={{ display: "flex" }}>
+                  <TellsCard tells={analytics.tells} />
+                </Grid>
+              </Grid>
+
+              <ClockWindowsPanel
+                windows={analytics.clockWindows}
+                username={scoutResult.username}
+              />
+
+              {headToHead && yourProfile && (
+                <HeadToHeadPanel
+                  h2h={headToHead}
+                  comparison={compareProfiles(yourProfile, analytics.profile)}
+                  series={theirRatingSeries}
+                  yourName={yourUsername.trim() || "You"}
+                  theirName={scoutResult.username}
+                />
+              )}
+
+              <PrepLinesPanel
+                report={holeReport.report}
+                progress={holeReport.progress}
+                error={holeReport.error}
+                theirName={scoutResult.username}
+                yourColor={prepColor}
+                onColorChange={(c) => {
+                  setPrepColor(c);
+                  holeReport.reset();
+                }}
+                onRun={() =>
+                  holeReport.run(activeGames, scoutResult.username, prepColor, {
+                    yourGames: yourGames ?? undefined,
+                    yourUsername: yourUsername.trim() || undefined,
+                  })
+                }
+                onExplore={(moves, asColor) => exploreLine(moves, asColor)}
+              />
+
+              <TwinBanner
+                username={scoutResult.username}
+                totalGames={scoutResult.totalGames}
+                onPlay={() => setTwinDialogOpen(true)}
+              />
+
+              {/* You-vs-them collisions (only when yourUsername provided) */}
+              {collisionsError && yourUsername.trim() && (
+                <Alert
+                  severity="warning"
+                  sx={{
+                    borderRadius: "12px",
+                    background: "rgba(245,158,11,0.12)",
+                    border: "1px solid rgba(245,158,11,0.35)",
+                    color: "rgba(255,255,255,0.94)",
+                    "& .MuiAlert-icon": { color: "#f59e0b" },
+                  }}
+                  onClose={() => setCollisionsError(null)}
+                >
+                  {collisionsError}
+                </Alert>
+              )}
+              {collisionsLoading && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    borderRadius: "1rem",
+                    background: "rgba(20,22,28,0.55)",
+                    backdropFilter: "blur(14px) saturate(140%)",
+                    WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    boxShadow:
+                      "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                  }}
+                >
+                  <MastiAvatar mood="thinking" size={28} ring={false} />
+                  <Typography variant="body2" color="text.secondary">
+                    Loading <strong>{yourUsername}</strong>&apos;s games and
+                    computing collisions…
+                  </Typography>
+                </Paper>
+              )}
+              {collisions && !collisionsLoading && (
+                <CollisionPanel
+                  collisions={collisions}
+                  targetUsername={scoutResult.username}
+                  // yourColor = the color YOU play in the clicked line.
+                  // exploreLine expects the color you're playing; it flips internally
+                  // to walk the target's tree of the opposite color.
+                  onExplore={(moves, yourColor) =>
+                    exploreLine(moves, yourColor)
+                  }
+                />
+              )}
+
+              <TargetedPrepPanel
+                prep={analytics.prep}
+                onExplore={(moves, asColor) => exploreLine(moves, asColor)}
+              />
+
+              <PreGameChecklist items={analytics.checklist} />
+
+              <Grid container spacing={2} alignItems="stretch">
+                <Grid size={{ xs: 12, md: 6 }} sx={{ display: "flex" }}>
+                  <RivalsPanel rivals={analytics.rivals} />
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }} sx={{ display: "flex" }}>
+                  <PsychologyPanel
+                    psychology={analytics.psychology}
+                    recentBuckets={analytics.recentBuckets}
+                  />
+                </Grid>
+              </Grid>
+
+              {/* Novelty / deviation finder */}
+              {analytics.novelty.length > 0 && (
+                <NoveltyPanel
+                  findings={analytics.novelty}
+                  onExplore={(moves, targetColor) => {
+                    const yourColor: "white" | "black" =
+                      targetColor === "white" ? "black" : "white";
+                    exploreLine(moves, yourColor);
+                  }}
+                />
+              )}
+
+              {/* Deep-dive tree explorer */}
+              <Box id="scout-tree-explorer">
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    borderRadius: "1.5rem",
+                    background: "rgba(20,22,28,0.55)",
+                    backdropFilter: "blur(14px) saturate(140%)",
+                    WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    boxShadow:
+                      "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+                    overflow: "hidden",
+                    mb: 2,
+                  }}
+                >
+                  <Stack
+                    direction={{ xs: "column", md: "row" }}
+                    spacing={2}
+                    alignItems={{ xs: "flex-start", md: "center" }}
+                    justifyContent="space-between"
+                  >
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Icon
+                        icon="mdi:file-tree"
+                        width={20}
+                        style={{ color: ACCENTS.rose.bright }}
+                      />
+                      <Typography
+                        sx={{
+                          fontWeight: 800,
+                          fontSize: "1rem",
+                          color: "rgba(255,255,255,0.94)",
+                        }}
+                      >
+                        Deep-dive Opening Tree
+                      </Typography>
+                      <Tooltip
+                        title="Drill into the target's repertoire move-by-move. Use ← / → keys."
+                        arrow
+                      >
+                        <Box
+                          sx={{
+                            color: "rgba(255,255,255,0.5)",
+                            display: "flex",
+                            cursor: "help",
+                          }}
+                        >
+                          <Icon icon="mdi:help-circle-outline" width={14} />
+                        </Box>
+                      </Tooltip>
+                    </Stack>
+
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      spacing={2}
+                      alignItems={{ xs: "flex-start", sm: "center" }}
+                    >
+                      <ToggleButtonGroup
+                        value={colorFilter}
+                        exclusive
+                        size="small"
+                        onChange={(_, v) => v && setColorFilter(v)}
+                        sx={{
+                          "& .MuiToggleButton-root": {
+                            color: "rgba(255,255,255,0.62)",
+                            border: "1px solid rgba(255,255,255,0.08)",
+                          },
+                          "& .Mui-selected": {
+                            bgcolor: `${ACCENTS.rose.soft} !important`,
+                            color: `${ACCENTS.rose.bright} !important`,
+                            border: `1px solid ${ACCENTS.rose.border} !important`,
+                          },
+                        }}
+                      >
+                        <ToggleButton
+                          value="white"
+                          sx={{ textTransform: "none", px: 2 }}
+                        >
+                          <Box
+                            sx={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: "50%",
+                              bgcolor: "#fff",
+                              border: "1px solid #999",
+                              mr: 0.75,
+                            }}
+                          />{" "}
+                          As White
+                        </ToggleButton>
+                        <ToggleButton
+                          value="black"
+                          sx={{ textTransform: "none", px: 2 }}
+                        >
+                          <Box
+                            sx={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: "50%",
+                              bgcolor: "#3a3a3a",
+                              border: "1px solid rgba(255,255,255,0.2)",
+                              mr: 0.75,
+                            }}
+                          />{" "}
+                          As Black
+                        </ToggleButton>
+                      </ToggleButtonGroup>
+
+                      <Box sx={{ minWidth: 220 }}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ fontWeight: 600, display: "block", mb: 0.25 }}
+                        >
+                          Min games:{" "}
+                          <strong style={{ color: ACCENTS.rose.bright }}>
+                            {minGames}
+                          </strong>
+                        </Typography>
+                        <Slider
+                          size="small"
+                          value={minGames}
+                          onChange={(_, v) =>
+                            setMinGames(Array.isArray(v) ? v[0] : v)
+                          }
+                          min={1}
+                          max={10}
+                          step={1}
+                          marks={[
+                            { value: 1, label: "1" },
+                            { value: 5, label: "5" },
+                            { value: 10, label: "10" },
+                          ]}
+                          sx={{
+                            color: ACCENTS.rose.bright,
+                            "& .MuiSlider-rail": {
+                              opacity: 1,
+                              bgcolor: "rgba(255,255,255,0.12)",
+                            },
+                            "& .MuiSlider-markLabel": {
+                              color: "rgba(255,255,255,0.5)",
+                            },
+                          }}
+                        />
+                      </Box>
+                    </Stack>
+                  </Stack>
+                </Paper>
+
+                {tree && (
+                  <TreeExplorer
+                    tree={tree}
+                    currentPath={currentPath}
+                    orientation={boardOrientation}
+                    pieceSet={pieceSet}
+                    boardSize={boardSize}
+                    minGames={minGames}
+                    historyLen={history.length}
+                    futureLen={future.length}
+                    onMoveClick={handleMoveClick}
+                    onBack={handleBack}
+                    onForward={handleForward}
+                    onReset={handleReset}
+                    onBreadcrumbClick={handleBreadcrumb}
+                  />
+                )}
+
+                {!currentNode?.children.length && tree && (
+                  <Box
+                    sx={{ textAlign: "center", color: "text.secondary", mt: 1 }}
+                  >
+                    <Typography variant="caption">
+                      End of line. Use ← to go back or Home to reset.
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Stack>
           )}
 
-          <TargetedPrepPanel
-            prep={analytics.prep}
-            onExplore={(moves, asColor) => exploreLine(moves, asColor)}
+          {/* Analyzing modal */}
+          <AnalyzingModal
+            open={loading}
+            username={username}
+            platform={platform}
+            stage={stage}
+            progress={progress}
+            onCancel={() => {
+              setLoading(false);
+              setBuilding(false);
+            }}
           />
 
-          <PreGameChecklist items={analytics.checklist} />
-
-          <Grid container spacing={2} alignItems="stretch">
-            <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex' }}>
-              <RivalsPanel rivals={analytics.rivals} />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex' }}>
-              <PsychologyPanel
-                psychology={analytics.psychology}
-                recentBuckets={analytics.recentBuckets}
-              />
-            </Grid>
-          </Grid>
-
-          {/* Novelty / deviation finder */}
-          {analytics.novelty.length > 0 && (
-            <NoveltyPanel
-              findings={analytics.novelty}
-              onExplore={(moves, targetColor) => {
-                const yourColor: 'white' | 'black' =
-                  targetColor === 'white' ? 'black' : 'white';
-                exploreLine(moves, yourColor);
+          {/* Twin Bot launch dialog */}
+          {scoutResult && analytics && (
+            <TwinBotDialog
+              open={twinDialogOpen}
+              onClose={() => setTwinDialogOpen(false)}
+              username={scoutResult.username}
+              platform={scoutResult.platform}
+              profile={analytics.profile}
+              onStart={(userColor) => {
+                // Build the opponent's tree for THEIR color (opposite of user's choice).
+                const oppColor: "white" | "black" =
+                  userColor === "white" ? "black" : "white";
+                const opponentTree = buildOpeningTree(
+                  scoutResult.games,
+                  scoutResult.username,
+                  oppColor,
+                  25,
+                  1
+                );
+                setTwinGame({ tree: opponentTree, color: userColor });
+                setTwinDialogOpen(false);
               }}
             />
           )}
 
-          {/* Deep-dive tree explorer */}
-          <Box id="scout-tree-explorer">
-            <Paper
-              elevation={0}
-              sx={{
-                p: 2,
-                borderRadius: '1.5rem',
-                background: 'rgba(20,22,28,0.55)',
-                backdropFilter: 'blur(14px) saturate(140%)',
-                WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-                overflow: 'hidden',
-                mb: 2,
+          {/* Twin Bot game */}
+          {scoutResult && analytics && twinGame && (
+            <TwinBotGame
+              open={!!twinGame}
+              onClose={() => setTwinGame(null)}
+              username={scoutResult.username}
+              yourUsername={yourUsername.trim() || "You"}
+              platform={scoutResult.platform}
+              profile={analytics.profile}
+              opponentTree={twinGame.tree}
+              yourColor={twinGame.color}
+              topWeakness={
+                twinGame.color === "white"
+                  ? analytics.prep.asWhite.weaknesses[0]
+                  : analytics.prep.asBlack.weaknesses[0]
+              }
+              pieceSet={pieceSet}
+            />
+          )}
+
+          {/* Share card dialog */}
+          {scoutResult && analytics && (
+            <ShareCardDialog
+              open={shareOpen}
+              onClose={() => setShareOpen(false)}
+              data={{
+                username: scoutResult.username,
+                platform: scoutResult.platform,
+                profile: analytics.profile,
+                tells: analytics.tells,
+                topOpening: topOpeningFor(analytics),
               }}
-            >
-              <Stack
-                direction={{ xs: 'column', md: 'row' }}
-                spacing={2}
-                alignItems={{ xs: 'flex-start', md: 'center' }}
-                justifyContent="space-between"
-              >
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Icon icon="mdi:file-tree" width={20} style={{ color: ACCENTS.rose.bright }} />
-                  <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'rgba(255,255,255,0.94)' }}>
-                    Deep-dive Opening Tree
-                  </Typography>
-                  <Tooltip
-                    title="Drill into the target's repertoire move-by-move. Use ← / → keys."
-                    arrow
-                  >
-                    <Box sx={{ color: 'rgba(255,255,255,0.5)', display: 'flex', cursor: 'help' }}>
-                      <Icon icon="mdi:help-circle-outline" width={14} />
-                    </Box>
-                  </Tooltip>
-                </Stack>
-
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'center' }}>
-                  <ToggleButtonGroup
-                    value={colorFilter}
-                    exclusive
-                    size="small"
-                    onChange={(_, v) => v && setColorFilter(v)}
-                    sx={{
-                      '& .MuiToggleButton-root': {
-                        color: 'rgba(255,255,255,0.62)',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                      },
-                      '& .Mui-selected': {
-                        bgcolor: `${ACCENTS.rose.soft} !important`,
-                        color: `${ACCENTS.rose.bright} !important`,
-                        border: `1px solid ${ACCENTS.rose.border} !important`,
-                      },
-                    }}
-                  >
-                    <ToggleButton value="white" sx={{ textTransform: 'none', px: 2 }}>
-                      <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#fff', border: '1px solid #999', mr: 0.75 }} /> As White
-                    </ToggleButton>
-                    <ToggleButton value="black" sx={{ textTransform: 'none', px: 2 }}>
-                      <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#3a3a3a', border: '1px solid rgba(255,255,255,0.2)', mr: 0.75 }} /> As Black
-                    </ToggleButton>
-                  </ToggleButtonGroup>
-
-                  <Box sx={{ minWidth: 220 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block', mb: 0.25 }}>
-                      Min games: <strong style={{ color: ACCENTS.rose.bright }}>{minGames}</strong>
-                    </Typography>
-                    <Slider
-                      size="small"
-                      value={minGames}
-                      onChange={(_, v) => setMinGames(Array.isArray(v) ? v[0] : v)}
-                      min={1}
-                      max={10}
-                      step={1}
-                      marks={[
-                        { value: 1, label: '1' },
-                        { value: 5, label: '5' },
-                        { value: 10, label: '10' },
-                      ]}
-                      sx={{
-                        color: ACCENTS.rose.bright,
-                        '& .MuiSlider-rail': { opacity: 1, bgcolor: 'rgba(255,255,255,0.12)' },
-                        '& .MuiSlider-markLabel': { color: 'rgba(255,255,255,0.5)' },
-                      }}
-                    />
-                  </Box>
-                </Stack>
-              </Stack>
-            </Paper>
-
-            {tree && (
-              <TreeExplorer
-                tree={tree}
-                currentPath={currentPath}
-                orientation={boardOrientation}
-                pieceSet={pieceSet}
-                boardSize={boardSize}
-                minGames={minGames}
-                historyLen={history.length}
-                futureLen={future.length}
-                onMoveClick={handleMoveClick}
-                onBack={handleBack}
-                onForward={handleForward}
-                onReset={handleReset}
-                onBreadcrumbClick={handleBreadcrumb}
-              />
-            )}
-
-            {!currentNode?.children.length && tree && (
-              <Box sx={{ textAlign: 'center', color: 'text.secondary', mt: 1 }}>
-                <Typography variant="caption">
-                  End of line. Use ← to go back or Home to reset.
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        </Stack>
-      )}
-
-      {/* Analyzing modal */}
-      <AnalyzingModal
-        open={loading}
-        username={username}
-        platform={platform}
-        stage={stage}
-        progress={progress}
-        onCancel={() => {
-          setLoading(false);
-          setBuilding(false);
-        }}
-      />
-
-      {/* Twin Bot launch dialog */}
-      {scoutResult && analytics && (
-        <TwinBotDialog
-          open={twinDialogOpen}
-          onClose={() => setTwinDialogOpen(false)}
-          username={scoutResult.username}
-          platform={scoutResult.platform}
-          profile={analytics.profile}
-          onStart={userColor => {
-            // Build the opponent's tree for THEIR color (opposite of user's choice).
-            const oppColor: 'white' | 'black' = userColor === 'white' ? 'black' : 'white';
-            const opponentTree = buildOpeningTree(
-              scoutResult.games,
-              scoutResult.username,
-              oppColor,
-              25,
-              1
-            );
-            setTwinGame({ tree: opponentTree, color: userColor });
-            setTwinDialogOpen(false);
-          }}
-        />
-      )}
-
-      {/* Twin Bot game */}
-      {scoutResult && analytics && twinGame && (
-        <TwinBotGame
-          open={!!twinGame}
-          onClose={() => setTwinGame(null)}
-          username={scoutResult.username}
-          yourUsername={yourUsername.trim() || 'You'}
-          platform={scoutResult.platform}
-          profile={analytics.profile}
-          opponentTree={twinGame.tree}
-          yourColor={twinGame.color}
-          topWeakness={
-            twinGame.color === 'white'
-              ? analytics.prep.asWhite.weaknesses[0]
-              : analytics.prep.asBlack.weaknesses[0]
-          }
-          pieceSet={pieceSet}
-        />
-      )}
-
-      {/* Share card dialog */}
-      {scoutResult && analytics && (
-        <ShareCardDialog
-          open={shareOpen}
-          onClose={() => setShareOpen(false)}
-          data={{
-            username: scoutResult.username,
-            platform: scoutResult.platform,
-            profile: analytics.profile,
-            tells: analytics.tells,
-            topOpening: topOpeningFor(analytics),
-          }}
-          snapshotId={scoutSnapshotId}
-        />
-      )}
+              snapshotId={scoutSnapshotId}
+            />
+          )}
         </Box>
       </Box>
     </ThemeProvider>
   );
 }
 
-function topOpeningFor(analytics: ScoutAnalytics): { eco: string; name: string } | undefined {
+function topOpeningFor(
+  analytics: ScoutAnalytics
+): { eco: string; name: string } | undefined {
   const candidate =
     analytics.prep.asWhite.strengths[0] ||
     analytics.prep.asBlack.strengths[0] ||

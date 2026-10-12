@@ -44,7 +44,6 @@ import {
 import { resolveUserRating } from "@/lib/coach/userRating";
 import { firstNameOf } from "@/lib/auth/displayIdentity";
 import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import {
   ACCENTS,
   themeAccent,
@@ -767,7 +766,6 @@ function PlanShell({ children }: { children: React.ReactNode }) {
       <Head>
         <title key="title">Your plan — Chess Masti AI</title>
       </Head>
-      <GradientBackdrop />
       {/* Page-local aurora: cyan and rose join the backdrop's ember and
           violet, so the plan column sits in colour instead of flat charcoal.
           Fixed and z-indexed with the backdrop — never over content. */}

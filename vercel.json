@@ -8,6 +8,11 @@
   },
   "installCommand": "npm install",
   "ignoreCommand": "exit 1",
+  "git": {
+    "deploymentEnabled": {
+      "dependabot/**": false
+    }
+  },
   "build": {
     "env": {
       "NEXT_PUBLIC_SITE_URL": "https://chessmasti.com",

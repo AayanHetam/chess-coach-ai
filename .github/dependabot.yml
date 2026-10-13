@@ -1,0 +1,18 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    # Security updates only. A limit of 0 turns version updates off; security
+    # updates are governed by the repo's Dependabot settings and still open PRs.
+    open-pull-requests-limit: 0
+    ignore:
+      # Every transitive @opentelemetry/instrumentation-* advisory resolves by
+      # bumping @sentry/nextjs 8 -> 11, which drops `withSentryConfig` and
+      # `sendDefaultPii` and fails the build. Each alert opened its own PR, each
+      # PR its own failed Vercel preview. Remove this once Sentry is migrated by
+      # hand. `versions` (not `update-types`) because only `versions` applies to
+      # security updates.
+      - dependency-name: "@sentry/nextjs"
+        versions: [">=9.0.0"]

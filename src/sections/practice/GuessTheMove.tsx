@@ -227,12 +227,12 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
                   selectedGameId === g.id
                     ? ACCENT.tint
                     : SURFACE.raisedSecondary,
-                transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}, transform ${MOTION.press}`,
+                transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
                 "&:hover": {
                   borderColor:
                     selectedGameId === g.id ? ACCENT.border : LINE.strong,
                 },
-                "&:active": { transform: MOTION.pressScale },
+                "&:active": { background: SURFACE.raisedTertiary },
               }}
             >
               <Typography

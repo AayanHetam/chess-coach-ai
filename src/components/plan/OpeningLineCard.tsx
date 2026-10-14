@@ -743,7 +743,7 @@ function Footer({
         flexWrap: "wrap",
       }}
     >
-      <Typography sx={{ fontSize: "0.75rem", color: TEXT.tertiary }}>
+      <Typography sx={{ fontSize: "0.75rem", color: TEXT.secondary }}>
         {games.toLocaleString()} of your games · {tests} independent lines
         tested
         {cachedAt

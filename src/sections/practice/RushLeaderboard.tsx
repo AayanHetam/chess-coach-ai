@@ -209,7 +209,7 @@ export function RushLeaderboard({
                     fontWeight: 700,
                     fontSize: "0.85rem",
                     fontVariantNumeric: "tabular-nums",
-                    color: i < 3 ? MEDAL_COLOR[i] : TEXT.tertiary,
+                    color: i < 3 ? MEDAL_COLOR[i] : TEXT.secondary,
                   }}
                 >
                   {i + 1}

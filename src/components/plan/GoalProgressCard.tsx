@@ -17,7 +17,15 @@ import {
 } from "@/lib/curriculum/goalPatch";
 import { useRatingHistory } from "@/lib/rating/useRatingHistory";
 import type { TimeCommitment } from "@/components/onboarding/quizConfig";
-import { ACCENT, LINE, RADIUS, STATUS, TEXT, TYPE } from "@/theme/tokens";
+import {
+  ACCENT,
+  LINE,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 /**
  * "1600 by January — you're 3 weeks ahead."
@@ -34,9 +42,10 @@ import { ACCENT, LINE, RADIUS, STATUS, TEXT, TYPE } from "@/theme/tokens";
  */
 
 // A status banner: the tint on the surface, the status colour on the icon.
+// On track is not a status, so it sits on the plain card surface.
 const TONE: Record<GoalPace, { color: string; bg: string }> = {
   ahead: { color: STATUS.success, bg: STATUS.successTint },
-  on_track: { color: ACCENT.hover, bg: ACCENT.tint },
+  on_track: { color: TEXT.secondary, bg: SURFACE.raised },
   behind: { color: STATUS.warning, bg: STATUS.warningTint },
   reached: { color: STATUS.success, bg: STATUS.successTint },
 };

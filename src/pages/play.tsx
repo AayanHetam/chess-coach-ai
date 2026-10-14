@@ -9,7 +9,7 @@ import { useState } from "react";
 import { chessMastiDarkTheme } from "@/theme/chessMasti";
 import { NavPill } from "@/components/ui/NavPill";
 import { MastiSays } from "@/components/masti";
-import { LINE, SURFACE, TEXT } from "@/theme/tokens";
+import { SURFACE, TEXT } from "@/theme/tokens";
 
 type PlayMode = "lichess" | "chesscom";
 
@@ -22,7 +22,6 @@ export default function Play() {
       <Head>
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content={SURFACE.page} />
-        <style>{`html,body{background-color:${SURFACE.page};color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:${SURFACE.page};}::-webkit-scrollbar-thumb{background:${LINE.strong};border-radius:5px;}`}</style>
       </Head>
 
       <Box

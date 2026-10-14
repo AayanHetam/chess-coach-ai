@@ -72,7 +72,7 @@ function humanMoveBy(moveBy: number | null): string {
 
 /** Convert "1/86400" etc. into "1 move / day". */
 function humanTimeControl(tc?: string): string {
-  if (!tc) return "—";
+  if (!tc) return "Unknown";
   const m = tc.match(/^(\d+)\/(\d+)$/);
   if (!m) return tc;
   const moves = parseInt(m[1], 10);
@@ -107,7 +107,7 @@ export default function ChessComPlay() {
       );
       const body = await res.json();
       if (!res.ok) {
-        setError(body.error ?? "Failed to fetch games");
+        setError(body.error ?? "Couldn't load your games. Try again.");
         setData(null);
       } else {
         setData(body as ChessComResponse);
@@ -151,8 +151,7 @@ export default function ChessComPlay() {
                   Your Chess.com daily games
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Read-only · Chess.com doesn&apos;t expose playing via public
-                  API
+                  Read-only. Chess.com has no public API for playing.
                 </Typography>
               </Box>
             </Stack>
@@ -169,10 +168,9 @@ export default function ChessComPlay() {
           </Stack>
 
           <Alert severity="info" icon={<Icon icon="mdi:information-outline" />}>
-            Chess.com hasn&apos;t published an API for live matchmaking. You can
-            see your ongoing <strong>daily</strong> games here and jump back to
-            chess.com to make a move. For live play <em>inside</em> ChessMasti,
-            use the Lichess tab.
+            Chess.com has no public API for live play. Your ongoing daily games
+            are listed here; open one on chess.com to make your move. To play
+            live on Chess Masti, use the Lichess tab.
           </Alert>
 
           <Divider />
@@ -287,9 +285,9 @@ function ChessComGameCard({ game, you }: { game: ChessComGame; you: string }) {
         color: "inherit",
         background: SURFACE.raisedSecondary,
         border: `1px solid ${game.yourTurn ? ACCENT.border : LINE.hairline}`,
-        transition: `border-color ${MOTION.hover}, transform ${MOTION.press}`,
+        transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
         "&:hover": { borderColor: game.yourTurn ? ACCENT.main : LINE.strong },
-        "&:active": { transform: MOTION.pressScale },
+        "&:active": { background: SURFACE.raisedTertiary },
       }}
     >
       <Box sx={{ position: "relative", mb: 1 }}>
@@ -302,6 +300,8 @@ function ChessComGameCard({ game, you }: { game: ChessComGame; you: string }) {
             customBoardStyle={{ borderRadius: 4 }}
           />
         </Box>
+        {/* A status tag, not an action: the ember word on an opaque base so
+            it reads over the light and dark squares beneath it. */}
         {game.yourTurn && (
           <Chip
             size="small"
@@ -311,8 +311,8 @@ function ChessComGameCard({ game, you }: { game: ChessComGame; you: string }) {
               top: 4,
               right: 4,
               fontWeight: 600,
-              background: ACCENT.main,
-              color: TEXT.onAccent,
+              background: SURFACE.raisedSecondary,
+              color: ACCENT.hover,
             }}
           />
         )}

@@ -60,7 +60,7 @@ import { CHARTED_PERFS, type ChartedPerf } from "@/lib/rating/ratingHistory";
 import GoalProgressCard from "@/components/plan/GoalProgressCard";
 import EmailCard from "@/components/plan/EmailCard";
 import { hasCompleteGoal } from "@/lib/curriculum/goalPatch";
-import { formatTickerValue } from "@/components/ui/NumberTicker";
+import { formatTickerValue } from "@/components/ui/formatNumber";
 import SessionRunner from "@/components/curriculum/SessionRunner";
 import CurriculumMap from "@/components/curriculum/CurriculumMap";
 import GoalsCard from "@/components/curriculum/GoalsCard";
@@ -100,11 +100,11 @@ function PlanCard({
         background: SURFACE.raised,
         border: `1px solid ${highlight ? ACCENT.border : LINE.hairline}`,
         cursor: onClick ? "pointer" : "default",
-        transition: `border-color ${MOTION.hover}, transform ${MOTION.press}`,
+        transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
         ...(onClick
           ? {
               "&:hover": { borderColor: LINE.strong },
-              "&:active": { transform: MOTION.pressScale },
+              "&:active": { background: SURFACE.raisedTertiary },
             }
           : {}),
       }}
@@ -375,7 +375,7 @@ export default function PlanPage() {
             A placement test, a daily calendar, and a coach that adapts to you.
           </Typography>
           <PrimaryButton onClick={() => router.push("/onboarding")}>
-            Get started
+            Build my plan
           </PrimaryButton>
         </PlanCard>
       </PlanShell>
@@ -421,7 +421,7 @@ export default function PlanPage() {
             label="Rating"
             sub={isUnrated ? "Unrated" : bandLabel(stats.rating)}
           >
-            {isUnrated ? "—" : formatTickerValue(stats.rating)}
+            {isUnrated ? "–" : formatTickerValue(stats.rating)}
           </StatTile>
           <StatTile label="Streak" sub={`best ${streak.best}`}>
             <Box
@@ -696,7 +696,7 @@ function PlanShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Head>
-        <title key="title">Your plan: Chess Masti AI</title>
+        <title key="title">Your plan · Chess Masti AI</title>
       </Head>
       <Box sx={{ minHeight: "100vh", pt: 2, pb: 6, px: { xs: 2, md: 3 } }}>
         <NavPill active="plan" />
@@ -770,7 +770,7 @@ function SecondaryTaskRow({ task }: { task: DailyTask }) {
           >
             {task.label}
           </Typography>
-          <Typography sx={{ color: TEXT.tertiary, fontSize: "0.75rem" }}>
+          <Typography sx={{ color: TEXT.secondary, fontSize: "0.75rem" }}>
             ~{task.minutes} min
           </Typography>
           {task.external && <ExternalLink size={12} color={TEXT.tertiary} />}
@@ -873,11 +873,11 @@ function DayCell({
               ? STATUS.infoTint
               : SURFACE.raised,
         border: `1px solid ${day.isToday ? ACCENT.border : LINE.hairline}`,
-        transition: `border-color ${MOTION.hover}, transform ${MOTION.press}`,
+        transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
         ...(day.isToday
           ? {
               "&:hover": { borderColor: ACCENT.main },
-              "&:active": { transform: MOTION.pressScale },
+              "&:active": { background: SURFACE.raisedTertiary },
             }
           : {}),
       }}
@@ -960,7 +960,7 @@ function StatTile({
       >
         {children}
       </Typography>
-      <Typography sx={{ color: TEXT.tertiary, fontSize: "0.75rem" }}>
+      <Typography sx={{ color: TEXT.secondary, fontSize: "0.75rem" }}>
         {sub}
       </Typography>
     </Box>

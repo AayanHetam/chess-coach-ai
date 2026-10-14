@@ -218,7 +218,7 @@ function TrendPanel({
           fontVariantNumeric: "tabular-nums",
         }}
       >
-        {trend.current ?? "—"}
+        {trend.current ?? "–"}
       </Typography>
 
       <Box sx={{ height: 72, mt: 1, mx: -0.5 }}>
@@ -226,13 +226,13 @@ function TrendPanel({
           // An empty panel says so in words. Padding it with a flat line at some
           // default would draw a trend the user never played.
           <Box sx={{ height: "100%", display: "flex", alignItems: "center" }}>
-            <Typography sx={{ color: TEXT.tertiary, fontSize: "0.78rem" }}>
+            <Typography sx={{ color: TEXT.secondary, fontSize: "0.78rem" }}>
               No rated {PERF_LABEL[trend.perf].toLowerCase()} games this year.
             </Typography>
           </Box>
         ) : single ? (
           <Box sx={{ height: "100%", display: "flex", alignItems: "center" }}>
-            <Typography sx={{ color: TEXT.tertiary, fontSize: "0.78rem" }}>
+            <Typography sx={{ color: TEXT.secondary, fontSize: "0.78rem" }}>
               One data point so far. Play again to see a trend.
             </Typography>
           </Box>
@@ -328,7 +328,7 @@ function TrendPanel({
                     value: `goal ${goalOnThisPanel}`,
                     position: "insideTopLeft",
                     fill: TEXT.secondary,
-                    fontSize: 10,
+                    fontSize: 12,
                   }}
                 />
               )}

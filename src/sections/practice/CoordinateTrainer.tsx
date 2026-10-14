@@ -298,7 +298,7 @@ export default function CoordinateTrainer({ onBack }: CoordinateTrainerProps) {
             sx={{
               fontWeight: 700,
               lineHeight: 1,
-              color: ACCENT.hover,
+              color: TEXT.primary,
               fontFamily: FONT_MONO,
             }}
           >

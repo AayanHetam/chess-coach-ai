@@ -72,8 +72,8 @@ export default function PlayerFeedback() {
           </Box>
 
           <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-            In the meantime, open <strong>Analysis</strong> for your game
-            insights.
+            In the meantime, open <strong>Analysis</strong> to review your
+            games.
           </Typography>
 
           <Box
@@ -89,7 +89,7 @@ export default function PlayerFeedback() {
               size="large"
               onClick={() => router.push("/analysis")}
             >
-              Go to analysis
+              Analyze a game
             </Button>
             <Button
               variant="outlined"

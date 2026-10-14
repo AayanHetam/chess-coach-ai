@@ -3,9 +3,9 @@ import { Box } from "@mui/material";
 import PlacementTest from "@/components/placement/PlacementTest";
 import { NavPill } from "@/components/ui/NavPill";
 
-const PAGE_TITLE = "Find your chess rating: Chess Masti AI";
+const PAGE_TITLE = "Find your chess rating · Chess Masti AI";
 const PAGE_DESC =
-  "Take a free 20-puzzle adaptive placement test to find your chess rating and get a personalized training plan.";
+  "Take a free 20-puzzle adaptive placement test to find your chess rating and get a training plan to match it.";
 
 /**
  * Placement-test page. Bridges onboarding → the learning dashboard: a logged-in

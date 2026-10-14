@@ -139,7 +139,10 @@ export default function LichessLivePlay() {
       setBanner({ kind: "ok", msg: "Lichess connected. Ready to play." });
     } else if (lichess === "error") {
       const reason = url.searchParams.get("reason") ?? "unknown";
-      setBanner({ kind: "err", msg: `Lichess sign-in failed (${reason}).` });
+      setBanner({
+        kind: "err",
+        msg: `Lichess sign-in failed (${reason}). Try again.`,
+      });
     }
     if (lichess) {
       url.searchParams.delete("lichess");
@@ -214,8 +217,8 @@ export default function LichessLivePlay() {
               color="text.secondary"
               sx={{ maxWidth: 340 }}
             >
-              Real opponents. Real ratings. Powered by Lichess, played right
-              here on ChessMasti.
+              Real opponents and real ratings on Lichess, played here on Chess
+              Masti.
             </Typography>
           </Stack>
 
@@ -246,7 +249,7 @@ export default function LichessLivePlay() {
             />
             <FeaturePill
               icon="mdi:lightning-bolt"
-              text="Bullet, Blitz, Rapid & Classical"
+              text="Rapid and classical time controls"
             />
             <FeaturePill
               icon="mdi:chart-line"
@@ -274,8 +277,8 @@ export default function LichessLivePlay() {
               width={12}
               style={{ verticalAlign: "middle", marginRight: 4 }}
             />
-            Only <strong>board:play</strong> and <strong>challenge</strong>{" "}
-            scopes. Revoke any time from Lichess settings.
+            Lichess shares only your games and challenges with us. You can
+            revoke access any time in your Lichess settings.
           </Typography>
         </Stack>
       </Box>
@@ -392,20 +395,21 @@ export default function LichessLivePlay() {
               justifyContent="space-between"
             >
               <Stack direction="row" spacing={2} alignItems="center">
-                {/* Avatar circle */}
+                {/* Avatar circle: neutral, the same treatment as the player
+                    row on the live board. */}
                 <Box
                   sx={{
                     width: 52,
                     height: 52,
                     borderRadius: "50%",
-                    background: ACCENT.tint,
+                    background: SURFACE.raisedSecondary,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    color: ACCENT.hover,
+                    color: TEXT.primary,
                     fontSize: "1.3rem",
                     fontWeight: 700,
-                    border: `1px solid ${ACCENT.border}`,
+                    border: `1px solid ${LINE.hairline}`,
                   }}
                 >
                   {(user?.username ?? "?")[0].toUpperCase()}

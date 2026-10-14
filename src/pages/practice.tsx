@@ -47,9 +47,6 @@ type Mode = "hub" | "rush" | "pattern" | "coordinate" | "guess";
 
 const PAGE_BOX_SX = { width: "100%", maxWidth: "100vw", p: { xs: 1, md: 2 } };
 
-/** The page frame: the site's black page and a neutral scrollbar. */
-const HEAD_STYLE = `html,body{background-color:${SURFACE.page};color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:${SURFACE.page};}::-webkit-scrollbar-thumb{background:${LINE.strong};border-radius:5px;}`;
-
 export default function Practice() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("hub");
@@ -113,7 +110,6 @@ export default function Practice() {
         <Head>
           <meta name="color-scheme" content="dark" />
           <meta name="theme-color" content={SURFACE.page} />
-          <style>{HEAD_STYLE}</style>
         </Head>
 
         <Box
@@ -144,7 +140,6 @@ export default function Practice() {
         <Head>
           <meta name="color-scheme" content="dark" />
           <meta name="theme-color" content={SURFACE.page} />
-          <style>{HEAD_STYLE}</style>
         </Head>
 
         <Box
@@ -175,7 +170,6 @@ export default function Practice() {
         <Head>
           <meta name="color-scheme" content="dark" />
           <meta name="theme-color" content={SURFACE.page} />
-          <style>{HEAD_STYLE}</style>
         </Head>
 
         <Box
@@ -206,7 +200,6 @@ export default function Practice() {
         <Head>
           <meta name="color-scheme" content="dark" />
           <meta name="theme-color" content={SURFACE.page} />
-          <style>{HEAD_STYLE}</style>
         </Head>
 
         <Box
@@ -236,7 +229,6 @@ export default function Practice() {
       <Head>
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content={SURFACE.page} />
-        <style>{HEAD_STYLE}</style>
       </Head>
 
       <Box
@@ -297,6 +289,7 @@ export default function Practice() {
                 title="Puzzles"
                 desc="Adaptive puzzles tuned to your rating, with Masti walking through every miss. Your main training."
                 cta="Open puzzles"
+                primary
                 onClick={() => router.push("/puzzles")}
                 stat={
                   stats.totalAttempts > 0
@@ -376,6 +369,7 @@ function ModeCard({
   cta,
   onClick,
   stat,
+  primary = false,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -383,6 +377,8 @@ function ModeCard({
   cta: string;
   onClick: () => void;
   stat?: { icon: React.ReactNode; label: string };
+  /** The hub's one contained button: the main training. The rest are outlined. */
+  primary?: boolean;
 }) {
   return (
     <Paper
@@ -445,7 +441,7 @@ function ModeCard({
       )}
 
       <Button
-        variant="contained"
+        variant={primary ? "contained" : "outlined"}
         fullWidth
         endIcon={<ArrowForwardIcon />}
         onClick={onClick}

@@ -476,11 +476,11 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
                   border: `1px solid ${mode === m.value ? ACCENT.border : LINE.hairline}`,
                   background:
                     mode === m.value ? ACCENT.tint : SURFACE.raisedSecondary,
-                  transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}, transform ${MOTION.press}`,
+                  transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
                   "&:hover": {
                     borderColor: mode === m.value ? ACCENT.border : LINE.strong,
                   },
-                  "&:active": { transform: MOTION.pressScale },
+                  "&:active": { background: SURFACE.raisedTertiary },
                 }}
               >
                 <Typography variant="subtitle2" sx={{ color: TEXT.primary }}>

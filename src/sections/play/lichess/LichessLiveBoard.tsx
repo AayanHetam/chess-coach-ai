@@ -37,11 +37,10 @@ import LiveClock from "@/components/play/LiveClock";
 import {
   ACCENT,
   LINE,
-  MATERIAL,
-  MATERIAL_FALLBACK_SX,
   RADIUS,
   SHADOW,
   STATUS,
+  SURFACE,
   TEXT,
   TYPE,
 } from "@/theme/tokens";
@@ -101,7 +100,8 @@ function buildChess(game: LichessGameFull, movesStr: string): Chess {
 
 function playerLabel(p?: LichessPlayer, fallback = "…"): string {
   if (!p) return fallback;
-  const name = p.name || (p.aiLevel ? `Stockfish lvl ${p.aiLevel}` : fallback);
+  const name =
+    p.name || (p.aiLevel ? `Stockfish level ${p.aiLevel}` : fallback);
   const rating =
     p.rating != null ? ` (${p.rating}${p.provisional ? "?" : ""})` : "";
   const title = p.title ? `${p.title} ` : "";
@@ -577,19 +577,15 @@ export default function LichessLiveBoard({
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              // A result sheet floating over the finished board: the one
-              // translucent surface here, with the solid fallbacks for
-              // reduced transparency and more contrast.
-              background: MATERIAL.background,
-              backdropFilter: MATERIAL.backdropFilter,
-              WebkitBackdropFilter: MATERIAL.backdropFilter,
-              border: `1px solid ${MATERIAL.border}`,
+              // A result sheet floating over the finished board: opaque,
+              // with a hairline edge and the modal shadow because it floats.
+              background: SURFACE.overlay,
+              border: `1px solid ${LINE.hairline}`,
               borderRadius: `${RADIUS.control}px`,
               boxShadow: SHADOW.modal,
               color: TEXT.primary,
               textAlign: "center",
               p: 3,
-              ...MATERIAL_FALLBACK_SX,
             }}
           >
             <Icon
@@ -871,7 +867,6 @@ function CapturedPieces({
               fontSize: "0.95rem",
               lineHeight: 1,
               opacity: 0.85,
-              letterSpacing: "-1px",
             }}
           >
             {Array.from(
@@ -885,7 +880,7 @@ function CapturedPieces({
         <Typography
           component="span"
           sx={{
-            fontSize: "0.72rem",
+            fontSize: TYPE.caption.fontSize,
             fontWeight: 700,
             color: "text.secondary",
             ml: 0.5,

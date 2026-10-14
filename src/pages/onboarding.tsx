@@ -16,9 +16,9 @@ import {
 import { shouldSkipQuiz } from "@/lib/onboarding/quizGate";
 import { NavPill } from "@/components/ui/NavPill";
 
-const PAGE_TITLE = "Get your free chess profile: Chess Masti AI";
+const PAGE_TITLE = "Get your free chess profile · Chess Masti AI";
 const PAGE_DESC =
-  "Answer a few questions and get a personalized chess training plan: your level, your weaknesses, and your first puzzles, calibrated by an AI coach. Free.";
+  "Answer a few questions and get a training plan for your rating: your level, your weaknesses, and your first puzzles, set by Masti, your coach. Free.";
 
 /**
  * Pre-auth onboarding quiz funnel. The quiz is completable without an account;

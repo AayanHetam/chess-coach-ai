@@ -30,7 +30,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PageTitle } from "@/components/pageTitle";
 import { Masti, type MastiMood } from "@/components/masti";
-import { TYPE } from "@/theme/tokens";
+import { FONT_MONO, TYPE } from "@/theme/tokens";
 import {
   buildExport,
   CalibrationData,
@@ -489,7 +489,7 @@ function FactLabel({ children }: { children: React.ReactNode }) {
 
 function FactValue({ children }: { children: React.ReactNode }) {
   return (
-    <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
+    <Typography variant="body2" sx={{ fontFamily: FONT_MONO }}>
       {children}
     </Typography>
   );

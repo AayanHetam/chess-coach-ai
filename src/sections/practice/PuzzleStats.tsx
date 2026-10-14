@@ -42,25 +42,21 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
       label: "Puzzle rating",
       value: stats.rating,
       icon: <TrendingUpIcon sx={{ fontSize: 18 }} />,
-      color: ACCENT.hover,
     },
     {
       label: "Solve rate",
       value: `${solveRate}%`,
       icon: <CheckCircleIcon sx={{ fontSize: 18 }} />,
-      color: STATUS.success,
     },
     {
       label: "Average time",
       value: stats.totalAttempts > 0 ? formatTime(stats.averageTimeMs) : "-",
       icon: <TimerIcon sx={{ fontSize: 18 }} />,
-      color: STATUS.info,
     },
     {
       label: "Best streak",
       value: stats.bestStreak,
       icon: <WhatshotIcon sx={{ fontSize: 18 }} />,
-      color: STATUS.warning,
     },
   ];
 
@@ -83,7 +79,6 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
                 </span>
               }
               size="small"
-              sx={{ "& .MuiChip-icon": { color: card.color } }}
             />
           </Tooltip>
         ))}
@@ -125,7 +120,7 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
                 display: "flex",
                 justifyContent: "center",
                 mb: 0.5,
-                color: card.color,
+                color: TEXT.secondary,
               }}
             >
               {card.icon}

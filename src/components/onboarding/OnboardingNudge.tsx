@@ -9,7 +9,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { hasFreshPendingFlush } from "@/components/onboarding/quizStorage";
 import {
   ACCENT,
-  FONT_SANS,
   LINE,
   MATERIAL,
   MOTION,
@@ -97,6 +96,10 @@ export default function OnboardingNudge() {
         p: 2,
       }}
     >
+      {/* Mounted in _app.tsx outside Layout's ThemeProvider, so MUI
+          Typography here would take the default theme's Roboto stack. Text
+          and buttons take `font: "inherit"` (the baseline's system stack on
+          body) until the mount moves inside Layout. */}
       <Box
         role="dialog"
         aria-modal="true"
@@ -111,11 +114,12 @@ export default function OnboardingNudge() {
           border: `1px solid ${LINE.hairline}`,
           boxShadow: SHADOW.modal,
           color: TEXT.primary,
-          fontFamily: FONT_SANS,
           outline: "none",
         }}
       >
         <Box
+          component="button"
+          type="button"
           onClick={dismiss}
           aria-label="Dismiss"
           sx={{
@@ -125,15 +129,24 @@ export default function OnboardingNudge() {
             cursor: "pointer",
             width: 28,
             height: 28,
+            p: 0,
+            border: "none",
+            background: "transparent",
+            font: "inherit",
             borderRadius: `${RADIUS.small}px`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             color: TEXT.secondary,
-            transition: `background-color ${MOTION.hover}, color ${MOTION.hover}`,
+            transition: `background-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
             "&:hover": {
               background: "rgba(255,255,255,0.06)",
               color: TEXT.primary,
+            },
+            "&:active": { transform: MOTION.pressScale },
+            "&:focus-visible": {
+              outline: `2px solid ${TEXT.primary}`,
+              outlineOffset: 2,
             },
           }}
         >
@@ -148,13 +161,23 @@ export default function OnboardingNudge() {
           style={{ marginBottom: 12 }}
         />
 
-        <Typography component="h2" sx={{ ...TYPE.h4, color: TEXT.primary }}>
+        <Typography
+          component="h2"
+          sx={{ font: "inherit", ...TYPE.h4, color: TEXT.primary }}
+        >
           Welcome to Chess Masti
         </Typography>
-        <Typography sx={{ mt: 0.75, ...TYPE.bodySmall, color: TEXT.secondary }}>
-          Take a quick personalization quiz so your coach knows your level,
-          goals and weak spots. It tailors your analysis, puzzles and plan. It
-          lives in your profile, and you can do it whenever you like.
+        <Typography
+          sx={{
+            font: "inherit",
+            mt: 0.75,
+            ...TYPE.bodySmall,
+            color: TEXT.secondary,
+          }}
+        >
+          Take a short quiz so Masti knows your level, goals and weak spots. He
+          uses it for your analysis, puzzles and plan. It lives in your profile,
+          and you can do it whenever you like.
         </Typography>
 
         <Stack direction="row" spacing={1.25} sx={{ mt: 2.5 }}>
@@ -165,13 +188,13 @@ export default function OnboardingNudge() {
             sx={{
               flex: 1,
               cursor: "pointer",
+              font: "inherit",
               border: "none",
               outline: "none",
               py: 1.15,
               borderRadius: `${RADIUS.pill}px`,
               fontWeight: 600,
               fontSize: TYPE.bodySmall.fontSize,
-              fontFamily: "inherit",
               color: TEXT.onAccent,
               background: ACCENT.main,
               transition: `background-color ${MOTION.hover}, transform ${MOTION.press}`,
@@ -191,6 +214,7 @@ export default function OnboardingNudge() {
             onClick={dismiss}
             sx={{
               cursor: "pointer",
+              font: "inherit",
               border: `1px solid ${LINE.strong}`,
               outline: "none",
               px: 2,
@@ -198,7 +222,6 @@ export default function OnboardingNudge() {
               borderRadius: `${RADIUS.pill}px`,
               fontWeight: 600,
               fontSize: TYPE.bodySmall.fontSize,
-              fontFamily: "inherit",
               color: TEXT.primary,
               background: "transparent",
               transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,

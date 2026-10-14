@@ -3,9 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import CourseCard from "@/components/courses/CourseCard";
 import type { CourseProgress, Shelf } from "@/lib/courses/catalogue";
-import { ACCENTS } from "@/components/ui/accents";
-
-const EMBER = ACCENTS.ember.bright;
+import { LINE, MOTION, RADIUS, TEXT, TYPE } from "@/theme/tokens";
 
 /**
  * One horizontal rail of courses.
@@ -48,7 +46,10 @@ export default function CourseShelf({
   const nudge = (direction: 1 | -1) => {
     const el = rail.current;
     if (!el) return;
-    el.scrollBy({ left: direction * Math.max(240, el.clientWidth * 0.8), behavior: "smooth" });
+    el.scrollBy({
+      left: direction * Math.max(240, el.clientWidth * 0.8),
+      behavior: "smooth",
+    });
   };
 
   return (
@@ -61,17 +62,27 @@ export default function CourseShelf({
       data-testid={`shelf-${shelf.key}`}
       sx={{ mb: 4 }}
     >
-      <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 2, mb: 1.5 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          gap: 2,
+          mb: 1.5,
+        }}
+      >
         <Box sx={{ minWidth: 0 }}>
           {/* An empty title would emit a blank <h2>, which a screen reader
               announces as a heading with no name. */}
           {shelf.title && (
-            <Typography component="h2" sx={{ color: "#fff", fontSize: "1.05rem", fontWeight: 700 }}>
+            <Typography component="h2" sx={{ ...TYPE.h4, color: TEXT.primary }}>
               {shelf.title}
             </Typography>
           )}
           {shelf.note && (
-            <Typography sx={{ color: "rgba(255,255,255,0.42)", fontSize: "0.8rem", mt: 0.3 }}>
+            <Typography
+              sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 0.3 }}
+            >
               {shelf.note}
             </Typography>
           )}
@@ -79,7 +90,10 @@ export default function CourseShelf({
         {/* Arrows are a convenience over a scroller that already works, so they
             are hidden from assistive tech rather than announced as the only way
             through — a keyboard user Tabs the cards and the rail follows. */}
-        <Box sx={{ display: { xs: "none", md: "flex" }, gap: 0.5, flexShrink: 0 }} aria-hidden>
+        <Box
+          sx={{ display: { xs: "none", md: "flex" }, gap: 0.5, flexShrink: 0 }}
+          aria-hidden
+        >
           {([-1, 1] as const).map((direction) => {
             const live = direction === -1 ? edges.left : edges.right;
             return (
@@ -90,15 +104,33 @@ export default function CourseShelf({
                 onClick={() => nudge(direction)}
                 disabled={!live}
                 sx={{
-                  display: "grid", placeItems: "center", width: 30, height: 30,
-                  borderRadius: "50%", cursor: live ? "pointer" : "default",
-                  border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.03)",
-                  color: live ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.2)",
-                  transition: "color 180ms ease, border-color 180ms ease",
-                  "&:hover": live ? { borderColor: EMBER, color: EMBER } : {},
+                  display: "grid",
+                  placeItems: "center",
+                  width: 30,
+                  height: 30,
+                  borderRadius: `${RADIUS.control}px`,
+                  cursor: live ? "pointer" : "default",
+                  border: `1px solid ${LINE.hairline}`,
+                  background: "transparent",
+                  color: live ? TEXT.secondary : TEXT.tertiary,
+                  touchAction: "manipulation",
+                  WebkitTapHighlightColor: "transparent",
+                  transition: `color ${MOTION.hover}, border-color ${MOTION.hover}, background-color ${MOTION.hover}, transform ${MOTION.press}`,
+                  "&:hover": live
+                    ? {
+                        borderColor: LINE.strong,
+                        color: TEXT.primary,
+                        background: "rgba(255,255,255,0.06)",
+                      }
+                    : {},
+                  "&:active": live ? { transform: MOTION.pressScale } : {},
                 }}
               >
-                {direction === -1 ? <ChevronLeft size={15} /> : <ChevronRight size={15} />}
+                {direction === -1 ? (
+                  <ChevronLeft size={15} />
+                ) : (
+                  <ChevronRight size={15} />
+                )}
               </Box>
             );
           })}
@@ -109,15 +141,16 @@ export default function CourseShelf({
         ref={rail}
         onScroll={measure}
         sx={{
-          display: "flex", gap: 1.5, overflowX: "auto", pb: 1,
+          display: "flex",
+          gap: 1.5,
+          overflowX: "auto",
+          pb: 1,
           scrollSnapType: "x proximity",
           // The rail scrolls; the page must not. A shelf wider than the
           // viewport is the normal case here, and without this the whole
           // document gains a horizontal scrollbar.
           "& > *": { scrollSnapAlign: "start" },
           scrollbarWidth: "thin",
-          "&::-webkit-scrollbar": { height: 6 },
-          "&::-webkit-scrollbar-thumb": { background: "rgba(255,255,255,0.12)", borderRadius: 3 },
         }}
       >
         {shelf.entries.map((entry, i) => (

@@ -14,6 +14,7 @@ import {
   type PuzzleWindow,
 } from "@/lib/performance/puzzleWindow";
 import { prettyTheme } from "@/components/puzzle/prettyTheme";
+import { TEXT, TYPE } from "@/theme/tokens";
 
 /**
  * Puzzle performance over a "last N" window.
@@ -57,7 +58,7 @@ export function PuzzlePerformanceCard() {
       title="Puzzle performance"
       subtitle={
         empty
-          ? "No puzzles solved yet — your first session fills this in."
+          ? "No puzzles solved yet. Your first session fills this in."
           : `Your last ${summary.sampleSize} puzzle${summary.sampleSize === 1 ? "" : "s"}${
               summary.truncated && puzzleWindow !== "all"
                 ? " (all you've done so far)"
@@ -144,13 +145,7 @@ export function PuzzlePerformanceCard() {
             ))
           )}
           {summary.themes.length > THEME_LIMIT && (
-            <Typography
-              sx={{
-                fontSize: "0.7rem",
-                color: "rgba(255,255,255,0.32)",
-                mt: 1,
-              }}
-            >
+            <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 1 }}>
               +{summary.themes.length - THEME_LIMIT} more themes in this window
             </Typography>
           )}
@@ -182,16 +177,7 @@ export function PuzzlePerformanceCard() {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Typography
-      sx={{
-        fontSize: "0.7rem",
-        fontWeight: 600,
-        letterSpacing: "0.06em",
-        textTransform: "uppercase",
-        color: "rgba(255,255,255,0.38)",
-        mb: 0.75,
-      }}
-    >
+    <Typography sx={{ ...TYPE.label, color: TEXT.secondary, mb: 0.75 }}>
       {children}
     </Typography>
   );
@@ -199,9 +185,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function EmptyNote({ children }: { children: React.ReactNode }) {
   return (
-    <Typography
-      sx={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.35)", py: 1 }}
-    >
+    <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, py: 1 }}>
       {children}
     </Typography>
   );

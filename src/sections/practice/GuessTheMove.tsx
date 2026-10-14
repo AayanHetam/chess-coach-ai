@@ -2,15 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Typography, Button, Paper, Chip } from "@mui/material";
 import { Chess } from "chess.js";
 import { useAtomValue } from "jotai";
-import CasinoIcon from "@mui/icons-material/Casino";
-import PsychologyAltIcon from "@mui/icons-material/PsychologyAlt";
+import { CircleHelp, Dices } from "lucide-react";
 import { useScreenSize } from "@/hooks/useScreenSize";
 import { pieceSetAtom } from "@/components/board/states";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
-import {
-  GUESS_THE_MOVE_GAMES,
-  type GuessTheMoveGame,
-} from "@/data/guessTheMoveGames";
+import { GUESS_THE_MOVE_GAMES } from "@/data/guessTheMoveGames";
 import {
   ACCENT,
   LINE,
@@ -197,7 +193,12 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-          <PsychologyAltIcon sx={{ color: ACCENT.main, fontSize: 28 }} />
+          <CircleHelp
+            size={20}
+            strokeWidth={1.75}
+            color={TEXT.secondary}
+            aria-hidden
+          />
           <Typography variant="h5" sx={{ color: TEXT.primary }}>
             Guess the move
           </Typography>
@@ -217,10 +218,18 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
           {GUESS_THE_MOVE_GAMES.map((g) => (
             <Paper
               key={g.id}
+              component="button"
+              type="button"
+              aria-pressed={selectedGameId === g.id}
               onClick={() => setSelectedGameId(g.id)}
               sx={{
                 p: 1.5,
+                textAlign: "left",
+                font: "inherit",
+                color: "inherit",
                 cursor: "pointer",
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
                 borderRadius: `${RADIUS.control}px`,
                 border: `1px solid ${selectedGameId === g.id ? ACCENT.border : LINE.hairline}`,
                 background:
@@ -233,10 +242,16 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
                     selectedGameId === g.id ? ACCENT.border : LINE.strong,
                 },
                 "&:active": { background: SURFACE.raisedTertiary },
+                "&:focus-visible": {
+                  outline: "2px solid #FFFFFF",
+                  outlineOffset: 2,
+                },
               }}
             >
               <Typography
+                component="span"
                 sx={{
+                  display: "block",
                   fontWeight: 600,
                   fontSize: "0.88rem",
                   color: TEXT.primary,
@@ -244,7 +259,14 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
               >
                 {g.white} vs {g.black}
               </Typography>
-              <Typography sx={{ fontSize: "0.8rem", color: TEXT.secondary }}>
+              <Typography
+                component="span"
+                sx={{
+                  ...TYPE.caption,
+                  display: "block",
+                  color: TEXT.secondary,
+                }}
+              >
                 {g.event}, {g.year} · {g.result} · {g.moves.length} moves
               </Typography>
             </Paper>
@@ -271,7 +293,7 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
           ))}
           <Button
             size="small"
-            startIcon={<CasinoIcon />}
+            startIcon={<Dices size={18} strokeWidth={1.75} aria-hidden />}
             onClick={pickRandomGame}
             sx={{ ml: "auto", color: TEXT.secondary }}
           >
@@ -287,7 +309,7 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
             variant="contained"
             size="large"
             onClick={handleStart}
-            startIcon={<PsychologyAltIcon />}
+            startIcon={<CircleHelp size={18} strokeWidth={1.75} aria-hidden />}
           >
             Start
           </Button>
@@ -334,7 +356,7 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
           <Button
             variant="contained"
             onClick={handleStart}
-            startIcon={<PsychologyAltIcon />}
+            startIcon={<CircleHelp size={18} strokeWidth={1.75} aria-hidden />}
           >
             Play again
           </Button>
@@ -369,7 +391,7 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
           </Box>
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Typography sx={{ fontSize: "0.8rem", color: TEXT.secondary }}>
+          <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
             Score{" "}
             <Box
               component="span"
@@ -418,7 +440,7 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
         {!feedback &&
           (isUsersTurn
             ? `Your move. What did ${userColor === "w" ? selectedGame.white : selectedGame.black} play here?`
-            : "Opponent is thinking…")}
+            : `Playing ${userColor === "w" ? selectedGame.black : selectedGame.white}'s move…`)}
       </Box>
 
       <Box sx={{ display: "flex", justifyContent: "center" }}>

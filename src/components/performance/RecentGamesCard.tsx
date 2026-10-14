@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
-import RefreshIcon from "@mui/icons-material/Refresh";
+import { RefreshCw } from "lucide-react";
 import { PanelCard } from "./PanelCard";
 import { StatTile } from "./StatTile";
 import { AccuracyBar } from "./AccuracyBar";
@@ -17,6 +17,15 @@ import {
 import { formatRelativeTime } from "@/lib/performance/relativeTime";
 import { analysisHref, stageGameForAnalysis } from "@/lib/analysis/handoff";
 import type { RecentGame } from "@/lib/performance/recentGames";
+import {
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 /**
  * Recent games, fetched from the user's linked platforms, with a per-row
@@ -33,6 +42,9 @@ const RESULT_TONE: Record<string, { color: string; bg: string }> = {
   draw: { color: "rgba(255,255,255,0.7)", bg: "rgba(255,255,255,0.07)" },
   none: { color: "rgba(255,255,255,0.4)", bg: "rgba(255,255,255,0.04)" },
 };
+
+/** "win" as a word on a chip: "Win". Case is set here, not by a transform. */
+const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function GameRow({ game, now }: { game: RecentGame; now: number }) {
   const router = useRouter();
@@ -57,35 +69,33 @@ function GameRow({ game, now }: { game: RecentGame; now: number }) {
         gap: 1.5,
         px: 1.25,
         py: 1.1,
-        borderRadius: "0.75rem",
-        transition: "background 160ms ease",
-        "&:hover": { background: "rgba(255,255,255,0.035)" },
+        borderRadius: `${RADIUS.small}px`,
+        transition: `background-color ${MOTION.hover}`,
+        "&:hover": { background: "rgba(255,255,255,0.06)" },
         "&:hover .analyze-cta": { opacity: 1 },
       }}
     >
-      {/* Result chip — the first thing the eye should land on. */}
+      {/* Result chip, the first thing the eye should land on. */}
       <Box
         sx={{
           width: 46,
           textAlign: "center",
           py: 0.35,
-          borderRadius: "0.45rem",
+          borderRadius: `${RADIUS.small}px`,
           background: tone.bg,
           color: tone.color,
-          fontSize: "0.68rem",
-          fontWeight: 700,
-          letterSpacing: "0.04em",
-          textTransform: "uppercase",
+          fontSize: TYPE.caption.fontSize,
+          fontWeight: 600,
         }}
       >
-        {game.result ? game.result : "—"}
+        {game.result ? capitalise(game.result) : "—"}
       </Box>
 
       <Box sx={{ minWidth: 0 }}>
         <Typography
           sx={{
-            fontSize: "0.85rem",
-            color: "rgba(255,255,255,0.88)",
+            ...TYPE.bodySmall,
+            color: TEXT.primary,
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -93,18 +103,15 @@ function GameRow({ game, now }: { game: RecentGame; now: number }) {
         >
           vs {game.opponent}
           {game.opponentRating ? (
-            <Box
-              component="span"
-              sx={{ color: "rgba(255,255,255,0.38)", ml: 0.5 }}
-            >
+            <Box component="span" sx={{ color: TEXT.secondary, ml: 0.5 }}>
               ({game.opponentRating})
             </Box>
           ) : null}
         </Typography>
         <Typography
           sx={{
-            fontSize: "0.7rem",
-            color: "rgba(255,255,255,0.38)",
+            ...TYPE.caption,
+            color: TEXT.secondary,
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -126,8 +133,8 @@ function GameRow({ game, now }: { game: RecentGame; now: number }) {
 
       <Typography
         sx={{
-          fontSize: "0.72rem",
-          color: "rgba(255,255,255,0.34)",
+          ...TYPE.caption,
+          color: TEXT.secondary,
           display: { xs: "none", sm: "block" },
           whiteSpace: "nowrap",
         }}
@@ -137,26 +144,15 @@ function GameRow({ game, now }: { game: RecentGame; now: number }) {
 
       <Button
         className="analyze-cta"
+        variant="outlined"
         size="small"
         onClick={analyze}
         sx={{
-          textTransform: "none",
-          fontSize: "0.76rem",
-          fontWeight: 600,
           whiteSpace: "nowrap",
-          borderRadius: "0.6rem",
-          px: 1.25,
-          color: "#FB923C",
-          border: "1px solid rgba(249,115,22,0.32)",
-          background: "rgba(249,115,22,0.06)",
-          // Visible but quiet until hover — one CTA per row across ten rows
+          // Visible but quiet until hover: one CTA per row across ten rows
           // would otherwise be the loudest thing on the page.
           opacity: { xs: 1, md: 0.72 },
-          transition: "opacity 160ms ease, background 160ms ease",
-          "&:hover": {
-            background: "rgba(249,115,22,0.14)",
-            borderColor: "rgba(249,115,22,0.5)",
-          },
+          transition: `opacity ${MOTION.hover}, background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
         }}
       >
         Analyze now
@@ -195,39 +191,19 @@ export function RecentGamesCard({
           sx={{
             p: 3,
             textAlign: "center",
-            borderRadius: "0.9rem",
-            border: "1px dashed rgba(255,255,255,0.12)",
-            background: "rgba(255,255,255,0.02)",
+            borderRadius: `${RADIUS.control}px`,
+            border: `1px dashed ${LINE.strong}`,
+            background: SURFACE.raisedSecondary,
           }}
         >
-          <Typography
-            sx={{
-              fontSize: "0.88rem",
-              color: "rgba(255,255,255,0.75)",
-              mb: 0.5,
-            }}
-          >
+          <Typography sx={{ ...TYPE.bodySmall, color: TEXT.primary, mb: 0.5 }}>
             Link your chess.com or Lichess account
           </Typography>
-          <Typography
-            sx={{ fontSize: "0.76rem", color: "rgba(255,255,255,0.45)", mb: 2 }}
-          >
-            Then your games show up here automatically after you play — no
+          <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mb: 2 }}>
+            Then your games show up here automatically after you play: no
             uploading, no copying PGNs.
           </Typography>
-          <Button
-            onClick={onLinkAccount}
-            sx={{
-              textTransform: "none",
-              fontWeight: 600,
-              fontSize: "0.82rem",
-              borderRadius: "0.6rem",
-              px: 2,
-              color: "#FB923C",
-              border: "1px solid rgba(249,115,22,0.4)",
-              "&:hover": { background: "rgba(249,115,22,0.1)" },
-            }}
-          >
+          <Button variant="outlined" size="small" onClick={onLinkAccount}>
             Add your username
           </Button>
         </Box>
@@ -242,7 +218,7 @@ export function RecentGamesCard({
       title="Recent games"
       subtitle={
         loading
-          ? "Fetching your latest games…"
+          ? "Fetching your latest games"
           : summary.sampleSize === 0
             ? "No games found on your linked accounts yet."
             : `Your last ${summary.sampleSize} game${summary.sampleSize === 1 ? "" : "s"}${
@@ -254,29 +230,18 @@ export function RecentGamesCard({
       action={
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Button
+            variant="text"
             size="small"
             onClick={refresh}
             disabled={loading}
             startIcon={
               loading ? (
-                <CircularProgress
-                  size={12}
-                  sx={{ color: "rgba(255,255,255,0.4)" }}
-                />
+                <CircularProgress size={16} color="inherit" />
               ) : (
-                <RefreshIcon sx={{ fontSize: 15 }} />
+                <RefreshCw size={16} strokeWidth={1.75} aria-hidden />
               )
             }
-            sx={{
-              textTransform: "none",
-              fontSize: "0.75rem",
-              color: "rgba(255,255,255,0.55)",
-              minWidth: 0,
-              "&:hover": {
-                color: "#FB923C",
-                background: "rgba(249,115,22,0.06)",
-              },
-            }}
+            sx={{ color: TEXT.secondary, minWidth: 0 }}
           >
             Refresh
           </Button>
@@ -292,12 +257,7 @@ export function RecentGamesCard({
     >
       {error && (
         <Typography
-          sx={{
-            fontSize: "0.76rem",
-            color: "#FCA5A5",
-            mb: 1.5,
-            px: 1.25,
-          }}
+          sx={{ ...TYPE.caption, color: STATUS.error, mb: 1.5, px: 1.25 }}
         >
           {error} Your saved games below are unaffected.
         </Typography>
@@ -353,14 +313,7 @@ export function RecentGamesCard({
           {summary.bySpeed.length > 1 && (
             <Box sx={{ mb: 2, px: 0.25 }}>
               <Typography
-                sx={{
-                  fontSize: "0.7rem",
-                  fontWeight: 600,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.38)",
-                  mb: 0.5,
-                }}
+                sx={{ ...TYPE.label, color: TEXT.secondary, mb: 0.5 }}
               >
                 By time control
               </Typography>
@@ -387,8 +340,8 @@ export function RecentGamesCard({
       {!loading && summary.sampleSize === 0 && !error && (
         <Typography
           sx={{
-            fontSize: "0.78rem",
-            color: "rgba(255,255,255,0.4)",
+            ...TYPE.caption,
+            color: TEXT.secondary,
             textAlign: "center",
             py: 3,
           }}

@@ -104,11 +104,17 @@ export function DemoMoveCard({
               aria-hidden
             />
             <Typography sx={{ ...TYPE.label, color: TEXT.primary }}>
-              {isAnswer ? "Coach answer" : "Show on the board"}
+              {isAnswer ? "Masti's answer" : "Show on the board"}
             </Typography>
           </Stack>
-          <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
-            {moves.length} {moves.length === 1 ? "ply" : "plies"}
+          <Typography
+            sx={{
+              ...TYPE.caption,
+              color: TEXT.secondary,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {moves.length} {moves.length === 1 ? "move" : "moves"}
           </Typography>
         </Stack>
 
@@ -130,7 +136,7 @@ export function DemoMoveCard({
                   flexShrink: 0,
                   textAlign: "right",
                   fontFamily: FONT_MONO,
-                  fontSize: "0.74rem",
+                  fontSize: TYPE.caption.fontSize,
                   fontWeight: 600,
                   fontVariantNumeric: "tabular-nums",
                   color: TEXT.secondary,
@@ -155,11 +161,13 @@ export function DemoMoveCard({
           ))}
         </Stack>
 
+        {/* Outlined: a transcript can hold several of these, and the
+            page's one solid action is elsewhere. */}
         <Button
           onClick={() => onShow(moves)}
           startIcon={<Play size={13} />}
           size="small"
-          variant="contained"
+          variant="outlined"
           sx={{ alignSelf: "flex-start", mt: 0.25 }}
         >
           Play on board

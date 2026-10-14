@@ -4,12 +4,11 @@ import { TellsProfile, Predictability } from "@/types/scout";
 import {
   DossierPanel,
   FieldLabel,
-  MONO,
   SegmentedMeter,
   VerdictPill,
   tellColor,
 } from "./dossier";
-import { TEXT } from "@/theme/tokens";
+import { TEXT, TYPE } from "@/theme/tokens";
 
 export interface TellsCardProps {
   tells: TellsProfile;
@@ -25,11 +24,11 @@ const TELL_META: Record<
   },
   tilts: {
     icon: "mdi:emoticon-confused-outline",
-    tip: "Tendency to string losses after a loss: rapid tilt spirals.",
+    tip: "How often one loss turns into several in a row.",
   },
   limited_rep: {
     icon: "mdi:book-open-variant",
-    tip: "How narrow their opening repertoire is: few first moves means predictable.",
+    tip: "How few first moves they play. Fewer moves make them easier to prepare for.",
   },
   repetitive: {
     icon: "mdi:repeat",
@@ -37,11 +36,14 @@ const TELL_META: Record<
   },
 };
 
-/** The headline verdict. Phrased as how *readable* they are, not how bad they are. */
+/**
+ * The headline verdict. Phrased as how *readable* they are, not how bad they
+ * are. Coloured from the same exploitability scale as the meters below.
+ */
 function verdict(p: Predictability): { label: string; color: string } {
-  if (p === "High") return { label: "Highly readable", color: "#f87171" };
-  if (p === "Medium") return { label: "Readable", color: "#FB923C" };
-  return { label: "Hard to read", color: "#34d399" };
+  if (p === "High") return { label: "Highly readable", color: tellColor(100) };
+  if (p === "Medium") return { label: "Readable", color: tellColor(50) };
+  return { label: "Hard to read", color: tellColor(0) };
 }
 
 export default function TellsCard({ tells }: TellsCardProps) {
@@ -76,12 +78,10 @@ export default function TellsCard({ tells }: TellsCardProps) {
           <Stack direction="row" alignItems="baseline" spacing={0.25}>
             <Typography
               sx={{
-                fontFamily: MONO,
+                ...TYPE.h1,
                 fontSize: "3rem",
-                fontWeight: 700,
                 lineHeight: 0.9,
                 color: totalColor,
-                letterSpacing: "-0.04em",
                 fontVariantNumeric: "tabular-nums",
               }}
             >
@@ -89,10 +89,10 @@ export default function TellsCard({ tells }: TellsCardProps) {
             </Typography>
             <Typography
               sx={{
-                fontFamily: MONO,
                 fontSize: "0.85rem",
                 fontWeight: 600,
-                color: TEXT.tertiary,
+                color: TEXT.secondary,
+                fontVariantNumeric: "tabular-nums",
               }}
             >
               /100
@@ -164,7 +164,6 @@ export default function TellsCard({ tells }: TellsCardProps) {
                   </Box>
                   <Typography
                     sx={{
-                      fontFamily: MONO,
                       fontSize: "0.82rem",
                       fontWeight: 700,
                       color,

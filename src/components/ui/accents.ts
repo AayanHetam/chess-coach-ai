@@ -83,22 +83,3 @@ export function themeAccent(themeId: string): Accent {
   }
   return ACCENTS[CYCLE[h % CYCLE.length]];
 }
-
-/**
- * Identity colour per top-level product surface, for the tags on /plan
- * (analysis is cyan wherever it appears, lessons gold). The nav no longer
- * wears them.
- */
-export const SURFACE_ACCENTS: Record<string, AccentName> = {
-  plan: "ember",
-  play: "jade",
-  analysis: "cyan",
-  practice: "violet",
-  learn: "gold",
-  scout: "rose",
-};
-
-/** Accent for a nav surface id; anything unmapped (home, misc) reads ember. */
-export function surfaceAccent(id: string | undefined): Accent {
-  return ACCENTS[(id && SURFACE_ACCENTS[id]) || "ember"];
-}

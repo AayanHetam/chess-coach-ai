@@ -3,9 +3,9 @@
 import { Box, Typography } from "@mui/material";
 import { Check, X } from "lucide-react";
 import type { MoveChoice } from "@/lib/puzzle/moveChoices";
-import { SERIF_DISPLAY } from "@/theme/fonts";
 import {
   ACCENT,
+  FONT_MONO,
   LINE,
   MOTION,
   RADIUS,
@@ -122,7 +122,13 @@ export function MoveChoiceList({
               cursor: disabled ? "default" : "pointer",
               opacity: disabled && !isChosen && !showCorrect ? 0.55 : 1,
               transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}, transform ${MOTION.press}`,
-              "&:hover": disabled ? undefined : { borderColor: LINE.strong },
+              // Hover only for a row at rest: on the chosen or a marked row it
+              // would swap the state's edge for a neutral one and the row
+              // would stop reading as selected.
+              "&:hover":
+                disabled || isChosen || showCorrect || showWrong
+                  ? undefined
+                  : { borderColor: LINE.strong },
               "&:active": disabled
                 ? undefined
                 : { transform: MOTION.pressScale },
@@ -142,7 +148,6 @@ export function MoveChoiceList({
                 display: "grid",
                 placeItems: "center",
                 border: `1.5px solid ${LINE.strong}`,
-                fontFamily: SERIF_DISPLAY,
                 fontWeight: 600,
                 fontSize: "0.95rem",
                 color: TEXT.secondary,
@@ -154,8 +159,9 @@ export function MoveChoiceList({
             <Typography
               sx={{
                 flex: 1,
-                fontFamily: SERIF_DISPLAY,
-                fontSize: "1.12rem",
+                fontFamily: FONT_MONO,
+                fontSize: "0.9375rem",
+                lineHeight: 1.4,
                 color: TEXT.primary,
               }}
             >

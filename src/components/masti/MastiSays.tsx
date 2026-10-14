@@ -3,7 +3,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Masti } from "./Masti";
 import type { MastiMood } from "./manifest";
-import { LINE, SURFACE, TEXT } from "@/theme/tokens";
+import { LINE, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 
 export interface MastiSaysProps {
   mood: MastiMood;
@@ -11,7 +11,10 @@ export interface MastiSaysProps {
   size?: number;
   /** Which side the figure stands on. The bubble's tail points at him. */
   side?: "left" | "right";
-  /** Bubble surface: glass on dark chrome, ember for a celebration. */
+  /**
+   * Historical: every tone is now the same solid surface (the bubble carries
+   * no tint; Masti's mood carries the feeling). Kept so callers compile.
+   */
   tone?: "glass" | "ember" | "jade" | "rose";
   children?: ReactNode;
   animated?: boolean;
@@ -27,32 +30,20 @@ export interface MastiSaysProps {
   "data-testid"?: string;
 }
 
-const TONES: Record<
-  NonNullable<MastiSaysProps["tone"]>,
-  { background: string; border: string; color: string }
-> = {
-  // "glass" is the historical name of the neutral tone; the bubble is a
-  // solid surface now.
-  glass: {
-    background: SURFACE.raised,
-    border: `1px solid ${LINE.hairline}`,
-    color: TEXT.primary,
-  },
-  ember: {
-    background: "rgba(249,115,22,0.14)",
-    border: "1px solid rgba(249,115,22,0.38)",
-    color: "rgba(255,240,224,0.95)",
-  },
-  jade: {
-    background: "rgba(52,211,153,0.12)",
-    border: "1px solid rgba(52,211,153,0.36)",
-    color: "rgba(236,253,245,0.95)",
-  },
-  rose: {
-    background: "rgba(251,113,133,0.12)",
-    border: "1px solid rgba(251,113,133,0.36)",
-    color: "rgba(255,241,242,0.95)",
-  },
+// The one bubble: a nested block on whatever surface Masti stands on, a
+// hairline, no blur, no shadow, no tone tint (design rules, recipe 16). The
+// hero's white bubble is drawn by HeroMasti, not here.
+const BUBBLE = {
+  background: SURFACE.raisedSecondary,
+  border: `1px solid ${LINE.hairline}`,
+  color: TEXT.primary,
+} as const;
+
+const TONES: Record<NonNullable<MastiSaysProps["tone"]>, typeof BUBBLE> = {
+  glass: BUBBLE,
+  ember: BUBBLE,
+  jade: BUBBLE,
+  rose: BUBBLE,
 };
 
 /**
@@ -116,8 +107,8 @@ export function MastiSays({
             background: t.background,
             border: t.border,
             color: t.color,
-            fontSize: "0.94rem",
-            lineHeight: 1.5,
+            fontSize: TYPE.body.fontSize,
+            lineHeight: TYPE.body.lineHeight,
             marginBottom: align === "flex-end" ? Math.round(size * 0.18) : 0,
           }}
         >

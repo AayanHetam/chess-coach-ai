@@ -1,6 +1,6 @@
 import {
   Box,
-  Button,
+  ButtonBase,
   Chip,
   Grid,
   Stack,
@@ -13,6 +13,7 @@ import { NoveltyFinding } from "@/types/scout";
 import { formatMoveSequence } from "@/lib/scoutService";
 import {
   ACCENT,
+  FONT_MONO,
   LINE,
   MOTION,
   RADIUS,
@@ -49,7 +50,7 @@ export default function NoveltyPanel({
         sx={{ display: "block", mb: 2 }}
       >
         Positions where the opponent <strong>left their own repertoire</strong>{" "}
-        early. They were guessing: point the prep arrow right here.
+        early. They were guessing here, so prepare this line.
       </Typography>
 
       {findings.length === 0 ? (
@@ -103,17 +104,25 @@ function NoveltyCard({
   const moveNumber = Math.floor(finding.ply / 2) + 1;
   const colorLabel = finding.ply % 2 === 0 ? "W" : "B";
   return (
-    <Box
+    <ButtonBase
+      component="div"
       onClick={onExplore}
       sx={{
+        display: "block",
+        width: "100%",
+        textAlign: "left",
         p: 1.5,
         borderRadius: `${RADIUS.control}px`,
         border: `1px solid ${LINE.hairline}`,
         bgcolor: SURFACE.raisedSecondary,
         cursor: "pointer",
-        transition: `border-color ${MOTION.hover}, transform ${MOTION.press}`,
+        transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
         "&:hover": { borderColor: LINE.strong },
-        "&:active": { transform: MOTION.pressScale },
+        // A wide card darkens on press instead of scaling.
+        "&:active": {
+          transform: "none",
+          backgroundColor: SURFACE.raisedTertiary,
+        },
       }}
     >
       <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mb: 1 }}>
@@ -121,12 +130,12 @@ function NoveltyCard({
           label={finding.eco}
           size="small"
           sx={{
-            bgcolor: "rgba(255,255,255,0.08)",
+            bgcolor: SURFACE.raisedTertiary,
             color: TEXT.primary,
-            fontFamily: "monospace",
+            fontFamily: FONT_MONO,
             fontWeight: 700,
-            fontSize: "0.72rem",
-            height: 22,
+            fontSize: TYPE.caption.fontSize,
+            height: 24,
           }}
         />
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -151,7 +160,7 @@ function NoveltyCard({
           <Typography
             variant="caption"
             sx={{
-              fontFamily: "monospace",
+              fontFamily: FONT_MONO,
               color: "text.secondary",
               fontSize: "0.75rem",
             }}
@@ -182,9 +191,9 @@ function NoveltyCard({
           <Stack direction="row" spacing={0.75} alignItems="baseline">
             <Typography
               sx={{
-                fontWeight: 800,
+                fontWeight: 700,
                 fontSize: "1rem",
-                fontFamily: "monospace",
+                fontFamily: FONT_MONO,
                 color: STATUS.success,
               }}
             >
@@ -195,7 +204,7 @@ function NoveltyCard({
             <Typography
               variant="caption"
               color="text.secondary"
-              sx={{ fontSize: "0.75rem" }}
+              sx={{ fontSize: "0.75rem", fontVariantNumeric: "tabular-nums" }}
             >
               {frequency.toFixed(0)}% of {finding.totalGames}
             </Typography>
@@ -211,9 +220,9 @@ function NoveltyCard({
           <Stack direction="row" spacing={0.75} alignItems="baseline">
             <Typography
               sx={{
-                fontWeight: 800,
+                fontWeight: 700,
                 fontSize: "1rem",
-                fontFamily: "monospace",
+                fontFamily: FONT_MONO,
                 color: STATUS.error,
               }}
             >
@@ -252,16 +261,20 @@ function NoveltyCard({
           color="text.secondary"
           sx={{ fontSize: "0.75rem" }}
         >
-          Ply {finding.ply + 1} · out of book early
+          Left their usual line on move {moveNumber}
         </Typography>
-        <Button
-          size="small"
-          startIcon={<Icon icon="mdi:magnify" width={12} />}
-          sx={{ fontWeight: 600, fontSize: "0.75rem", color: ACCENT.main }}
+        {/* The whole card is the button; this is its label, not a second
+            control inside it. */}
+        <Stack
+          direction="row"
+          spacing={0.5}
+          alignItems="center"
+          sx={{ ...TYPE.label, color: ACCENT.main, px: 1, minHeight: 32 }}
         >
-          Investigate
-        </Button>
+          <Icon icon="mdi:magnify" width={14} />
+          <span>Investigate</span>
+        </Stack>
       </Stack>
-    </Box>
+    </ButtonBase>
   );
 }

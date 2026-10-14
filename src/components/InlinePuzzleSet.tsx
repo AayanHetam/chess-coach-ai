@@ -22,7 +22,7 @@ import { usePuzzleBoardState } from "@/hooks/usePuzzleBoardState";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 import InlinePuzzleCoach from "./InlinePuzzleCoach";
 import { MastiAvatar } from "@/components/masti";
-import { LINE, RADIUS, SURFACE } from "@/theme/tokens";
+import { LINE, RADIUS, STATUS, TEXT, TYPE } from "@/theme/tokens";
 
 /**
  * InlinePuzzleSet — 3 puzzles solved inside the chat bubble (no /practice nav).
@@ -37,13 +37,15 @@ import { LINE, RADIUS, SURFACE } from "@/theme/tokens";
  * same puzzle OR any puzzle-data error, show "Skip" link.
  */
 
+// A nested block inside the coach's message bubble, not a second card: no
+// fill of its own, a hairline and the control radius.
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(2),
   marginTop: theme.spacing(1.5),
   maxWidth: 480,
-  background: SURFACE.raised,
+  background: "transparent",
   border: `1px solid ${LINE.hairline}`,
-  borderRadius: RADIUS.card,
+  borderRadius: RADIUS.control,
   boxShadow: "none",
 }));
 
@@ -100,8 +102,8 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
 
   if (done) {
     return (
-      <StyledPaper ref={containerRef} elevation={2}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
+      <StyledPaper ref={containerRef} elevation={0}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
           <MastiAvatar
             mood="excited"
             size={24}
@@ -125,7 +127,7 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
   const statusText = board.puzzleError
     ? "Puzzle data error"
     : board.status === "loading"
-      ? "Loading…"
+      ? "Loading"
       : board.status === "wrong"
         ? "Not quite. Try again."
         : board.status === "solved"
@@ -145,7 +147,7 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
     board.status === "solved" ? "solved" : "wrong";
 
   return (
-    <StyledPaper ref={containerRef} elevation={2}>
+    <StyledPaper ref={containerRef} elevation={0}>
       <Box
         sx={{
           display: "flex",
@@ -156,7 +158,10 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
           gap: 1,
         }}
       >
-        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+        <Typography
+          variant="subtitle2"
+          sx={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}
+        >
           Puzzle {currentIndex + 1} of {trimmed.length}
           {currentPuzzle?.rating ? ` · ${currentPuzzle.rating}` : ""}
         </Typography>
@@ -173,28 +178,23 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
                   : "default"
           }
           variant="outlined"
-          // Force high-contrast text on the light-green StyledPaper background.
-          // The orange MessageBubble parent globally cascades color: #fff into
-          // its children, which made the default Chip label invisible against
-          // the light green. Slate-800 (#1f2937) matches the neutral text used
-          // in AICoachInsights for the same kind of dark-on-light context.
-          sx={{ "& .MuiChip-label": { color: "#1f2937" } }}
         />
       </Box>
 
       {board.puzzleError && (
         <Box
+          role="alert"
           sx={{
             mb: 1,
-            p: 1,
-            borderRadius: 1,
-            backgroundColor: "rgba(237, 108, 2, 0.10)",
-            border: "1px solid rgba(237, 108, 2, 0.35)",
+            px: 1.25,
+            py: 1,
+            borderRadius: `${RADIUS.control}px`,
+            backgroundColor: STATUS.warningTint,
+            border: `1px solid ${LINE.hairline}`,
           }}
         >
           <Typography
-            variant="caption"
-            sx={{ color: "#7a3a00", display: "block" }}
+            sx={{ ...TYPE.caption, color: TEXT.primary, display: "block" }}
           >
             {board.puzzleError} Use Skip to move on.
           </Typography>

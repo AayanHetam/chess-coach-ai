@@ -5,14 +5,16 @@ import { Box, Button, Grid, Paper, Typography } from "@mui/material";
 import { ThemeProvider } from "@mui/material/styles";
 import Head from "next/head";
 import { useAtomValue } from "jotai";
-import BoltIcon from "@mui/icons-material/Bolt";
-import PsychologyIcon from "@mui/icons-material/Psychology";
-import ExtensionIcon from "@mui/icons-material/Extension";
-import GridOnIcon from "@mui/icons-material/GridOn";
-import PsychologyAltIcon from "@mui/icons-material/PsychologyAlt";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
+import {
+  ArrowRight,
+  Brain,
+  CircleHelp,
+  Grid3x3,
+  Puzzle,
+  TrendingUp,
+  Trophy,
+  Zap,
+} from "lucide-react";
 import { useRouter } from "next/router";
 import { PageTitle } from "@/components/pageTitle";
 import PuzzleRush from "@/sections/practice/PuzzleRush";
@@ -23,7 +25,7 @@ import PuzzleStats from "@/sections/practice/PuzzleStats";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { chessMastiDarkTheme } from "@/theme/chessMasti";
 import { NavPill } from "@/components/ui/NavPill";
-import { ACCENT, LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
+import { LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 import {
   getSolveRate,
   puzzleStatsAtom,
@@ -106,7 +108,7 @@ export default function Practice() {
   if (mode === "rush") {
     return (
       <ThemeProvider theme={chessMastiDarkTheme}>
-        <PageTitle title="Chess Masti AI - Puzzle Rush" />
+        <PageTitle title="Puzzle rush · Chess Masti AI" />
         <Head>
           <meta name="color-scheme" content="dark" />
           <meta name="theme-color" content={SURFACE.page} />
@@ -136,7 +138,7 @@ export default function Practice() {
   if (mode === "pattern") {
     return (
       <ThemeProvider theme={chessMastiDarkTheme}>
-        <PageTitle title="Chess Masti AI - Pattern Training" />
+        <PageTitle title="Pattern training · Chess Masti AI" />
         <Head>
           <meta name="color-scheme" content="dark" />
           <meta name="theme-color" content={SURFACE.page} />
@@ -166,7 +168,7 @@ export default function Practice() {
   if (mode === "coordinate") {
     return (
       <ThemeProvider theme={chessMastiDarkTheme}>
-        <PageTitle title="Chess Masti AI - Coordinate Trainer" />
+        <PageTitle title="Coordinate trainer · Chess Masti AI" />
         <Head>
           <meta name="color-scheme" content="dark" />
           <meta name="theme-color" content={SURFACE.page} />
@@ -196,7 +198,7 @@ export default function Practice() {
   if (mode === "guess") {
     return (
       <ThemeProvider theme={chessMastiDarkTheme}>
-        <PageTitle title="Chess Masti AI - Guess the Move" />
+        <PageTitle title="Guess the move · Chess Masti AI" />
         <Head>
           <meta name="color-scheme" content="dark" />
           <meta name="theme-color" content={SURFACE.page} />
@@ -225,7 +227,7 @@ export default function Practice() {
 
   return (
     <ThemeProvider theme={chessMastiDarkTheme}>
-      <PageTitle title="Chess Masti AI - Practice" />
+      <PageTitle title="Practice · Chess Masti AI" />
       <Head>
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content={SURFACE.page} />
@@ -285,7 +287,7 @@ export default function Practice() {
           <Grid container spacing={2.5} sx={{ mb: 4 }}>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <ModeCard
-                icon={<ExtensionIcon fontSize="inherit" />}
+                icon={<Puzzle size={20} strokeWidth={1.75} aria-hidden />}
                 title="Puzzles"
                 desc="Adaptive puzzles tuned to your rating, with Masti walking through every miss. Your main training."
                 cta="Open puzzles"
@@ -294,7 +296,13 @@ export default function Practice() {
                 stat={
                   stats.totalAttempts > 0
                     ? {
-                        icon: <TrendingUpIcon sx={{ fontSize: 16 }} />,
+                        icon: (
+                          <TrendingUp
+                            size={16}
+                            strokeWidth={1.75}
+                            aria-hidden
+                          />
+                        ),
                         label: `Rating ${stats.rating}`,
                       }
                     : undefined
@@ -303,7 +311,7 @@ export default function Practice() {
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <ModeCard
-                icon={<BoltIcon fontSize="inherit" />}
+                icon={<Zap size={20} strokeWidth={1.75} aria-hidden />}
                 title="Puzzle rush"
                 desc="Solve as many as you can against the clock: 3 minutes, 5 minutes, or survival with 3 lives."
                 cta="Start rush"
@@ -311,7 +319,9 @@ export default function Practice() {
                 stat={
                   bestRush > 0
                     ? {
-                        icon: <EmojiEventsIcon sx={{ fontSize: 16 }} />,
+                        icon: (
+                          <Trophy size={16} strokeWidth={1.75} aria-hidden />
+                        ),
                         label: `Best ${bestRush}`,
                       }
                     : undefined
@@ -320,7 +330,7 @@ export default function Practice() {
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <ModeCard
-                icon={<PsychologyIcon fontSize="inherit" />}
+                icon={<Brain size={20} strokeWidth={1.75} aria-hidden />}
                 title="Pattern training"
                 desc="Memorize a position, then find the move with the pieces hidden."
                 cta="Start training"
@@ -329,7 +339,7 @@ export default function Practice() {
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <ModeCard
-                icon={<GridOnIcon fontSize="inherit" />}
+                icon={<Grid3x3 size={20} strokeWidth={1.75} aria-hidden />}
                 title="Coordinate trainer"
                 desc="A square is named. Click it on the blank board as fast as you can."
                 cta="Start drill"
@@ -337,7 +347,9 @@ export default function Practice() {
                 stat={
                   coordinateBest.best > 0
                     ? {
-                        icon: <EmojiEventsIcon sx={{ fontSize: 16 }} />,
+                        icon: (
+                          <Trophy size={16} strokeWidth={1.75} aria-hidden />
+                        ),
                         label: `Best ${coordinateBest.best}`,
                       }
                     : undefined
@@ -346,7 +358,7 @@ export default function Practice() {
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <ModeCard
-                icon={<PsychologyAltIcon fontSize="inherit" />}
+                icon={<CircleHelp size={20} strokeWidth={1.75} aria-hidden />}
                 title="Guess the move"
                 desc="Step through a real master game and guess the next move before it's revealed."
                 cta="Start guessing"
@@ -397,8 +409,7 @@ function ModeCard({
         sx={{
           display: "flex",
           alignItems: "center",
-          fontSize: 22,
-          color: ACCENT.main,
+          color: TEXT.secondary,
           mb: 1.5,
         }}
       >
@@ -443,7 +454,7 @@ function ModeCard({
       <Button
         variant={primary ? "contained" : "outlined"}
         fullWidth
-        endIcon={<ArrowForwardIcon />}
+        endIcon={<ArrowRight size={18} strokeWidth={1.75} aria-hidden />}
         onClick={onClick}
         sx={{ mt: "auto" }}
       >

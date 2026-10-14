@@ -237,12 +237,10 @@ export default function PlacementTest() {
   if (!user) {
     return (
       <Panel>
-        <Typography
-          sx={{ color: "#fff", fontWeight: 700, fontSize: "1.3rem", mb: 1 }}
-        >
+        <Typography sx={{ ...TYPE.h3, color: TEXT.primary, mb: 1 }}>
           Find your chess rating
         </Typography>
-        <Typography sx={{ color: "rgba(255,255,255,0.6)", mb: 3 }}>
+        <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary, mb: 3 }}>
           Sign in to take the 20-puzzle placement test and start your training
           plan.
         </Typography>
@@ -272,16 +270,13 @@ export default function PlacementTest() {
       session.history.length < PLACEMENT_LENGTH;
     return (
       <Panel>
-        <Typography sx={{ ...TYPE.label, color: TEXT.secondary, mb: 1 }}>
-          Placement test
-        </Typography>
         <Typography sx={{ ...TYPE.h2, color: TEXT.primary, mb: 1 }}>
           Let&apos;s find your rating.
         </Typography>
         <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary, mb: 3 }}>
           20 puzzles, adjusting to your level as you go. Get one right and the
           next is harder; miss one and it eases off. At the end you&apos;ll have
-          a starting rating and a personalized plan. There&apos;s no penalty, so
+          a starting rating and a plan built on it. There&apos;s no penalty, so
           just play your best move.
         </Typography>
         <PrimaryButton onClick={resumeOrStart}>
@@ -300,12 +295,23 @@ export default function PlacementTest() {
   return (
     <Panel wide>
       <Box sx={{ mb: 2 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+        {/* minHeight is the small button's 32px, so the row does not grow
+            and nudge the board down when "Finish now" appears mid-test. */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            minHeight: 32,
+            mb: 1,
+          }}
+        >
           <Typography
             sx={{
-              color: "rgba(255,255,255,0.7)",
+              ...TYPE.bodySmall,
               fontWeight: 600,
-              fontSize: "0.85rem",
+              color: TEXT.primary,
+              fontVariantNumeric: "tabular-nums",
             }}
           >
             Puzzle {Math.min(completed + 1, PLACEMENT_LENGTH)} of{" "}
@@ -314,12 +320,12 @@ export default function PlacementTest() {
           {canFinishEarly && (
             <Button
               onClick={() => session && finalize(session)}
+              size="small"
               sx={{
-                textTransform: "none",
-                color: "rgba(255,255,255,0.5)",
-                fontSize: "0.78rem",
-                p: "2px 6px",
+                color: TEXT.secondary,
+                fontSize: TYPE.caption.fontSize,
                 minWidth: 0,
+                "&:hover": { color: TEXT.primary },
               }}
             >
               Finish now
@@ -331,7 +337,10 @@ export default function PlacementTest() {
 
       {error ? (
         <Box sx={{ textAlign: "center", py: 4 }}>
-          <Typography sx={{ color: "rgba(255,255,255,0.7)", mb: 2 }}>
+          <Typography
+            role="alert"
+            sx={{ ...TYPE.bodySmall, color: TEXT.primary, mb: 2 }}
+          >
             {error}
           </Typography>
           <PrimaryButton onClick={() => session && loadPuzzleForItem(session)}>
@@ -346,10 +355,11 @@ export default function PlacementTest() {
         <>
           <Typography
             sx={{
-              color: "rgba(255,255,255,0.8)",
+              ...TYPE.bodySmall,
+              fontWeight: 600,
+              color: TEXT.primary,
               textAlign: "center",
               mb: 1.5,
-              fontWeight: 600,
             }}
           >
             Find the best move.
@@ -368,13 +378,9 @@ export default function PlacementTest() {
             <Button
               onClick={() => grade(false)}
               sx={{
-                textTransform: "none",
-                color: "rgba(255,255,255,0.5)",
-                fontSize: "0.82rem",
-                "&:hover": {
-                  color: "rgba(255,255,255,0.8)",
-                  background: "transparent",
-                },
+                color: TEXT.secondary,
+                fontSize: TYPE.bodySmall.fontSize,
+                "&:hover": { color: TEXT.primary },
               }}
             >
               Skip / I don&apos;t know

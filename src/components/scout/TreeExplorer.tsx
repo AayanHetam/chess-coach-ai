@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Box,
+  ButtonBase,
   Chip,
   CircularProgress,
   Grid,
@@ -19,9 +20,11 @@ import { getNodeScore } from "@/lib/scoutService";
 import { getLichessEval } from "@/lib/lichess";
 import {
   ACCENT,
+  FONT_MONO,
   LINE,
   MOTION,
   RADIUS,
+  STATUS,
   SURFACE,
   TEXT,
   TYPE,
@@ -222,9 +225,9 @@ export default function TreeExplorer({
             <Typography
               variant="caption"
               color="text.secondary"
-              sx={{ fontFamily: "monospace" }}
+              sx={{ fontVariantNumeric: "tabular-nums" }}
             >
-              ply {currentPath.length}
+              Ply {currentPath.length}
             </Typography>
           </Box>
 
@@ -234,7 +237,7 @@ export default function TreeExplorer({
               mb: 1.5,
               px: 0.75,
               py: 0.75,
-              borderRadius: "12px",
+              borderRadius: `${RADIUS.control}px`,
               bgcolor: "rgba(255,255,255,0.04)",
               minHeight: 32,
               display: "flex",
@@ -248,7 +251,7 @@ export default function TreeExplorer({
               underline={currentPath.length === 0 ? "none" : "hover"}
               onClick={() => onBreadcrumbClick(-1)}
               sx={{
-                fontFamily: "monospace",
+                fontFamily: FONT_MONO,
                 fontSize: "0.85rem",
                 fontWeight: 700,
                 color: currentPath.length === 0 ? ACCENT.main : TEXT.secondary,
@@ -271,7 +274,7 @@ export default function TreeExplorer({
                   {isWhiteMove && (
                     <Typography
                       variant="caption"
-                      sx={{ fontFamily: "monospace", color: "text.secondary" }}
+                      sx={{ fontFamily: FONT_MONO, color: "text.secondary" }}
                     >
                       {moveNumber}.
                     </Typography>
@@ -281,7 +284,7 @@ export default function TreeExplorer({
                     underline="hover"
                     onClick={() => onBreadcrumbClick(i)}
                     sx={{
-                      fontFamily: "monospace",
+                      fontFamily: FONT_MONO,
                       fontSize: "0.85rem",
                       fontWeight: 700,
                       color: isLast ? ACCENT.main : TEXT.primary,
@@ -331,19 +334,20 @@ export default function TreeExplorer({
                 size="small"
                 label={`Eval: ${formatEval(cloudEval)}`}
                 sx={{
-                  fontWeight: 700,
+                  fontWeight: 600,
+                  fontVariantNumeric: "tabular-nums",
                   bgcolor:
                     cloudEval.cp !== undefined && cloudEval.cp > 0
-                      ? "rgba(34,197,94,0.16)"
+                      ? STATUS.successTint
                       : cloudEval.cp !== undefined && cloudEval.cp < 0
-                        ? "rgba(239,68,68,0.16)"
-                        : "rgba(255,255,255,0.08)",
+                        ? STATUS.errorTint
+                        : SURFACE.raisedSecondary,
                   color:
                     cloudEval.cp !== undefined && cloudEval.cp > 0
-                      ? "#22c55e"
+                      ? STATUS.success
                       : cloudEval.cp !== undefined && cloudEval.cp < 0
-                        ? "#ef4444"
-                        : "rgba(255,255,255,0.8)",
+                        ? STATUS.error
+                        : TEXT.primary,
                 }}
               />
             )}
@@ -482,11 +486,14 @@ export default function TreeExplorer({
                     100
                   ).toFixed(0);
                   return (
-                    <Box
+                    <ButtonBase
                       key={child.move}
+                      component="div"
                       onClick={() => onMoveClick(child.move)}
                       sx={{
                         display: "grid",
+                        width: "100%",
+                        textAlign: "left",
                         gridTemplateColumns: "80px 90px 1fr 60px",
                         gap: 1,
                         px: 1,
@@ -498,8 +505,12 @@ export default function TreeExplorer({
                             ? "rgba(255,255,255,0.03)"
                             : "transparent",
                         "&:hover": { bgcolor: "rgba(255,255,255,0.06)" },
-                        "&:active": { transform: MOTION.pressScale },
-                        transition: `background-color ${MOTION.hover}, transform ${MOTION.press}`,
+                        // A wide row darkens on press instead of scaling.
+                        "&:active": {
+                          transform: "none",
+                          bgcolor: SURFACE.raisedTertiary,
+                        },
+                        transition: `background-color ${MOTION.hover}`,
                         alignItems: "center",
                       }}
                     >
@@ -507,7 +518,7 @@ export default function TreeExplorer({
                         variant="body2"
                         sx={{
                           fontWeight: 700,
-                          fontFamily: "monospace",
+                          fontFamily: FONT_MONO,
                           color: ACCENT.main,
                         }}
                       >
@@ -544,18 +555,19 @@ export default function TreeExplorer({
                         variant="body2"
                         sx={{
                           textAlign: "right",
-                          fontWeight: 800,
+                          fontWeight: 700,
+                          fontVariantNumeric: "tabular-nums",
                           color:
                             score >= 55
-                              ? "#22c55e"
+                              ? STATUS.success
                               : score <= 45
-                                ? "#ef4444"
+                                ? STATUS.error
                                 : "text.primary",
                         }}
                       >
                         {score.toFixed(0)}%
                       </Typography>
-                    </Box>
+                    </ButtonBase>
                   );
                 })}
               </Box>
@@ -622,7 +634,7 @@ function WinDrawLossBar({
             {wPct >= 15 && (
               <Typography
                 variant="caption"
-                sx={{ color: "#fff", fontSize: "0.65rem", fontWeight: 700 }}
+                sx={{ color: "#fff", fontSize: "0.75rem", fontWeight: 700 }}
               >
                 {wPct.toFixed(0)}%
               </Typography>
@@ -642,7 +654,7 @@ function WinDrawLossBar({
             {dPct >= 15 && (
               <Typography
                 variant="caption"
-                sx={{ color: "#fff", fontSize: "0.65rem", fontWeight: 700 }}
+                sx={{ color: "#fff", fontSize: "0.75rem", fontWeight: 700 }}
               >
                 {dPct.toFixed(0)}%
               </Typography>
@@ -662,7 +674,7 @@ function WinDrawLossBar({
             {lPct >= 15 && (
               <Typography
                 variant="caption"
-                sx={{ color: "#fff", fontSize: "0.65rem", fontWeight: 700 }}
+                sx={{ color: "#fff", fontSize: "0.75rem", fontWeight: 700 }}
               >
                 {lPct.toFixed(0)}%
               </Typography>

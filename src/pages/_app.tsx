@@ -14,6 +14,8 @@ import ConsentBanner from "@/components/consent/ConsentBanner";
 import ConsentGatedAnalytics from "@/components/consent/ConsentGatedAnalytics";
 import ProgressSync from "@/components/curriculum/ProgressSync";
 import { MotionConfig } from "framer-motion";
+import { ThemeProvider } from "@mui/material/styles";
+import { chessMastiDarkTheme } from "@/theme/chessMasti";
 
 const queryClient = new QueryClient();
 
@@ -72,29 +74,34 @@ export default function MyApp({ Component, pageProps }: AppProps) {
               opens it via useAuthDialog(); the dialog itself is rendered once
               by <GlobalAuthDialog /> inside the themed Layout. */}
           <AuthDialogProvider>
-            {/* Persists pre-auth onboarding-quiz answers once the user signs in,
+            {/* The overlays below mount outside Layout, so they get the site
+                theme here; Layout provides its own (the intern variant) for
+                the page. Without it their buttons fall back to MUI blue. */}
+            <ThemeProvider theme={chessMastiDarkTheme}>
+              {/* Persists pre-auth onboarding-quiz answers once the user signs in,
                 by either method (email in-page or Google full-page redirect). */}
-            <QuizPersistenceFlush />
-            {/* Gently nudges a new signed-in user (no completed quiz) toward
+              <QuizPersistenceFlush />
+              {/* Gently nudges a new signed-in user (no completed quiz) toward
                 /profile to personalize — a dismissable, one-time dialog. Never
                 force-redirects; the home screen stays the default surface. */}
-            <OnboardingNudge />
-            {/* One-time first-visit tour of the three core tools (Practice,
+              <OnboardingNudge />
+              {/* One-time first-visit tour of the three core tools (Practice,
                 Analyze, Plan) with a miniature of the nav pill. Product
                 surfaces only; yields to OnboardingNudge when both are due. */}
-            <WelcomeTour />
-            {/* Registers the push service worker (no-op where unsupported). */}
-            <ServiceWorkerRegistrar />
-            {/* Makes training progress durable: merges the server copy in on
+              <WelcomeTour />
+              {/* Registers the push service worker (no-op where unsupported). */}
+              <ServiceWorkerRegistrar />
+              {/* Makes training progress durable: merges the server copy in on
                 sign-in, then pushes a debounced snapshot. localStorage stays
                 the working copy, so signed-out and offline training is
                 unaffected. */}
-            <ProgressSync />
-            {/* Cookie-consent banner. App Router pages get it from
+              <ProgressSync />
+              {/* Cookie-consent banner. App Router pages get it from
                 src/app/layout.tsx; this mount covers every Pages Router route
-                (/, /preview/*, /analysis, ...). Fixed-position and self-styled,
-                so it renders fine outside the themed Layout below. */}
-            <ConsentBanner />
+                (/, /preview/*, /analysis, ...). Fixed-position, themed by the
+                provider above. */}
+              <ConsentBanner />
+            </ThemeProvider>
             <ErrorBoundary name="app">
               {/* Springs and slides cross-fade for anyone who asked for
                   reduced motion; the theme's baseline does the same for CSS. */}

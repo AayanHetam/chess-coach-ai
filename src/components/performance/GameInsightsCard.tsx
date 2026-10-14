@@ -2,13 +2,20 @@
 
 import { useMemo } from "react";
 import { Box, Chip, Tooltip, Typography } from "@mui/material";
-import { Area, AreaChart, ResponsiveContainer, Tooltip as RechartsTooltip, YAxis } from "recharts";
+import {
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+  YAxis,
+} from "recharts";
 import { PanelCard } from "./PanelCard";
 import { StatTile } from "./StatTile";
 import { computeGameInsights } from "@/lib/performance/insights";
 import { MoveClassification } from "@/types/enums";
 import type { Game } from "@/types/game";
 import { useAuth } from "@/contexts/AuthContext";
+import { LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 
 /**
  * Phase accuracy + blunder-pattern breakdown across the user's saved,
@@ -45,7 +52,9 @@ const PATTERN_LABEL: Record<string, string> = {
   [MoveClassification.Inaccuracy]: "Inaccuracies",
 };
 
-function accuracyTone(value: number | null): "default" | "positive" | "negative" {
+function accuracyTone(
+  value: number | null
+): "default" | "positive" | "negative" {
   if (value === null) return "default";
   if (value >= 80) return "positive";
   if (value < 60) return "negative";
@@ -66,44 +75,48 @@ export function GameInsightsCard({
   const insights = useMemo(
     () => computeGameInsights(games, usernames),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [games, profile?.chesscomUsername, profile?.lichessUsername],
+    [games, profile?.chesscomUsername, profile?.lichessUsername]
   );
 
   const chartData = useMemo(
-    () => insights.accuracyTrend.map((p, i) => ({ i, accuracy: Math.round(p.accuracy * 10) / 10 })),
-    [insights.accuracyTrend],
+    () =>
+      insights.accuracyTrend.map((p, i) => ({
+        i,
+        accuracy: Math.round(p.accuracy * 10) / 10,
+      })),
+    [insights.accuracyTrend]
   );
 
   if (!hasUsername) {
     return (
-      <PanelCard title="Game insights">
+      <PanelCard title="Mistakes in your games">
         <Box
           sx={{
             p: 3,
             textAlign: "center",
-            borderRadius: "0.9rem",
-            border: "1px dashed rgba(255,255,255,0.12)",
-            background: "rgba(255,255,255,0.02)",
+            borderRadius: `${RADIUS.control}px`,
+            border: `1px dashed ${LINE.strong}`,
+            background: SURFACE.raisedSecondary,
           }}
         >
-          <Typography sx={{ fontSize: "0.88rem", color: "rgba(255,255,255,0.75)", mb: 0.5 }}>
+          <Typography sx={{ ...TYPE.bodySmall, color: TEXT.primary, mb: 0.5 }}>
             Link your chess.com or Lichess username
           </Typography>
-          <Typography sx={{ fontSize: "0.76rem", color: "rgba(255,255,255,0.45)" }}>
+          <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
             That&rsquo;s how we know which side is you. Analyze and save a game
-            afterward and phase accuracy + blunder patterns build up here.
+            afterward and phase accuracy and blunder patterns build up here.
           </Typography>
           <Chip
             label="Add your username"
             onClick={onLinkAccount}
             size="small"
+            variant="outlined"
             sx={{
               mt: 2,
               cursor: "pointer",
-              color: "#FB923C",
-              border: "1px solid rgba(249,115,22,0.4)",
-              background: "transparent",
-              "&:hover": { background: "rgba(249,115,22,0.1)" },
+              color: TEXT.primary,
+              borderColor: LINE.strong,
+              "&:hover": { background: "rgba(255,255,255,0.06)" },
             }}
           />
         </Box>
@@ -113,62 +126,85 @@ export function GameInsightsCard({
 
   if (insights.gamesAnalyzed === 0) {
     return (
-      <PanelCard title="Game insights">
-        <Typography sx={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.45)", textAlign: "center", py: 2 }}>
-          Analyze one of your games above and save it — phase accuracy and
+      <PanelCard title="Mistakes in your games">
+        <Typography
+          sx={{
+            ...TYPE.caption,
+            color: TEXT.secondary,
+            textAlign: "center",
+            py: 2,
+          }}
+        >
+          Analyze one of your games above and save it. Phase accuracy and
           blunder patterns show up here once Stockfish has finished.
         </Typography>
       </PanelCard>
     );
   }
 
-  const patternEntries = PATTERN_ORDER
-    .map((cls) => ({ cls, count: insights.classificationCounts[cls] ?? 0 }))
-    .filter((e) => e.count > 0);
+  const patternEntries = PATTERN_ORDER.map((cls) => ({
+    cls,
+    count: insights.classificationCounts[cls] ?? 0,
+  })).filter((e) => e.count > 0);
 
   return (
     <PanelCard
-      title="Game insights"
+      title="Mistakes in your games"
       subtitle={`${insights.gamesAnalyzed} analyzed game${insights.gamesAnalyzed === 1 ? "" : "s"}`}
     >
-      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 1.25, mb: 2 }}>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, 1fr)",
+          gap: 1.25,
+          mb: 2,
+        }}
+      >
         <StatTile
           label="Avg accuracy"
-          value={insights.avgAccuracy !== null ? insights.avgAccuracy.toFixed(1) : null}
+          value={
+            insights.avgAccuracy !== null
+              ? insights.avgAccuracy.toFixed(1)
+              : null
+          }
           tone={accuracyTone(insights.avgAccuracy)}
         />
-        <StatTile label="Games analyzed" value={String(insights.gamesAnalyzed)} />
+        <StatTile
+          label="Games analyzed"
+          value={String(insights.gamesAnalyzed)}
+        />
       </Box>
 
       {chartData.length >= MIN_TREND_POINTS && (
-        <Box sx={{ width: "100%", height: { xs: 130, md: 160 }, mx: -0.5, mb: 2 }}>
+        <Box
+          sx={{ width: "100%", height: { xs: 130, md: 160 }, mx: -0.5, mb: 2 }}
+        >
           <ResponsiveContainer>
-            <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-              <defs>
-                <linearGradient id="insightsAccuracyFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#42a5f5" stopOpacity={0.32} />
-                  <stop offset="100%" stopColor="#42a5f5" stopOpacity={0} />
-                </linearGradient>
-              </defs>
+            <AreaChart
+              data={chartData}
+              margin={{ top: 4, right: 4, bottom: 0, left: 0 }}
+            >
               <YAxis hide domain={[0, 100]} />
               <RechartsTooltip
-                cursor={{ stroke: "rgba(255,255,255,0.18)" }}
+                cursor={{ stroke: LINE.strong }}
                 contentStyle={{
-                  background: "rgba(18,20,26,0.96)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 10,
+                  background: SURFACE.raisedTertiary,
+                  border: `1px solid ${LINE.hairline}`,
+                  borderRadius: RADIUS.small,
                   fontSize: 12,
-                  color: "rgba(255,255,255,0.9)",
+                  color: TEXT.primary,
                 }}
                 labelFormatter={() => ""}
                 formatter={(value: number) => [`${value}%`, "Accuracy"]}
               />
+              {/* The series keeps its colour; the fill under it is one flat 12%. */}
               <Area
                 type="monotone"
                 dataKey="accuracy"
                 stroke="#42a5f5"
                 strokeWidth={2}
-                fill="url(#insightsAccuracyFill)"
+                fill="#42a5f5"
+                fillOpacity={0.12}
                 dot={false}
                 activeDot={{ r: 3, fill: "#42a5f5", stroke: "none" }}
               />
@@ -177,43 +213,65 @@ export function GameInsightsCard({
         </Box>
       )}
 
-      <Typography sx={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.38)", mb: 0.75 }}>
+      <Typography sx={{ ...TYPE.label, color: TEXT.secondary, mb: 0.75 }}>
         Phase accuracy
       </Typography>
-      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1.25, mb: patternEntries.length ? 2 : 0 }}>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 1.25,
+          mb: patternEntries.length ? 2 : 0,
+        }}
+      >
         <StatTile
           label="Opening"
-          value={insights.phaseAccuracy.opening !== null ? insights.phaseAccuracy.opening.toFixed(1) : null}
+          value={
+            insights.phaseAccuracy.opening !== null
+              ? insights.phaseAccuracy.opening.toFixed(1)
+              : null
+          }
           tone={accuracyTone(insights.phaseAccuracy.opening)}
         />
         <StatTile
           label="Middlegame"
-          value={insights.phaseAccuracy.middlegame !== null ? insights.phaseAccuracy.middlegame.toFixed(1) : null}
+          value={
+            insights.phaseAccuracy.middlegame !== null
+              ? insights.phaseAccuracy.middlegame.toFixed(1)
+              : null
+          }
           tone={accuracyTone(insights.phaseAccuracy.middlegame)}
         />
         <StatTile
           label="Endgame"
-          value={insights.phaseAccuracy.endgame !== null ? insights.phaseAccuracy.endgame.toFixed(1) : null}
+          value={
+            insights.phaseAccuracy.endgame !== null
+              ? insights.phaseAccuracy.endgame.toFixed(1)
+              : null
+          }
           tone={accuracyTone(insights.phaseAccuracy.endgame)}
         />
       </Box>
 
       {patternEntries.length > 0 && (
         <>
-          <Typography sx={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.38)", mb: 0.75 }}>
+          <Typography sx={{ ...TYPE.label, color: TEXT.secondary, mb: 0.75 }}>
             Your patterns
           </Typography>
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
             {patternEntries.map(({ cls, count }) => (
-              <Tooltip key={cls} title={`${count} across your ${insights.gamesAnalyzed} analyzed game${insights.gamesAnalyzed === 1 ? "" : "s"}`}>
+              <Tooltip
+                key={cls}
+                title={`${count} across your ${insights.gamesAnalyzed} analyzed game${insights.gamesAnalyzed === 1 ? "" : "s"}`}
+              >
+                {/* A classification chip: the glyph colour on a 14% tint of it. */}
                 <Chip
                   label={`${PATTERN_LABEL[cls]} · ${count}`}
                   size="small"
                   sx={{
-                    bgcolor: `${PATTERN_COLOR[cls]}22`,
+                    bgcolor: `${PATTERN_COLOR[cls]}24`,
                     color: PATTERN_COLOR[cls],
-                    border: `1px solid ${PATTERN_COLOR[cls]}55`,
-                    fontSize: "0.72rem",
+                    fontSize: TYPE.caption.fontSize,
                     fontWeight: 600,
                   }}
                 />

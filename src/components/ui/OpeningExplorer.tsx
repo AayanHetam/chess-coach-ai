@@ -1,8 +1,25 @@
 "use client";
 
-import { Box, Button, Stack, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Stack,
+  Typography,
+} from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeftRight, BookOpen, TrendingUp } from "lucide-react";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 interface OpeningMove {
   uci: string;
@@ -27,7 +44,7 @@ interface OpeningExplorerProps {
   fallbackOpeningName?: string;
   fallbackEco?: string;
   onMoveClick?: (uci: string) => void;
-  /** If provided, renders a "Takeover" button in the header. */
+  /** If provided, renders a "Play from here" button in the header. */
   onTakeover?: () => void;
 }
 
@@ -53,7 +70,7 @@ export function OpeningExplorer({
       setLoading(true);
       setError(false);
       try {
-        // Same-origin proxy — see src/app/api/opening-explorer/route.ts.
+        // Same-origin proxy, see src/app/api/opening-explorer/route.ts.
         // Bypasses client-side network filters that block explorer.lichess.ovh.
         const url = `/api/opening-explorer?fen=${encodeURIComponent(fen)}&moves=6`;
         const res = await fetch(url, { signal: ctrl.signal });
@@ -83,22 +100,23 @@ export function OpeningExplorer({
       sx={{
         mt: 2,
         p: 2.25,
-        borderRadius: "1.25rem",
-        background: "rgba(20,22,28,0.55)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        border: "1px solid rgba(255,255,255,0.07)",
+        borderRadius: `${RADIUS.card}px`,
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       <Stack direction="row" alignItems="center" spacing={1.5} mb={1.5}>
-        <BookOpen size={14} color="#F97316" />
+        <BookOpen
+          size={18}
+          strokeWidth={1.75}
+          color={TEXT.secondary}
+          aria-hidden
+        />
         <Typography
           sx={{
-            fontSize: "0.7rem",
-            fontWeight: 700,
-            letterSpacing: "0.14em",
-            color: "rgba(255,255,255,0.55)",
-            textTransform: "uppercase",
+            fontSize: TYPE.bodySmall.fontSize,
+            fontWeight: 600,
+            color: TEXT.primary,
           }}
         >
           Master games
@@ -106,8 +124,8 @@ export function OpeningExplorer({
         {displayName && (
           <Typography
             sx={{
-              fontSize: "0.78rem",
-              color: "rgba(255,255,255,0.7)",
+              fontSize: TYPE.caption.fontSize,
+              color: TEXT.secondary,
               fontWeight: 500,
             }}
           >
@@ -117,9 +135,9 @@ export function OpeningExplorer({
                 component="span"
                 sx={{
                   ml: 1,
-                  fontSize: "0.7rem",
-                  color: "rgba(255,255,255,0.4)",
-                  fontFamily: "Monaco, Menlo, monospace",
+                  fontSize: TYPE.caption.fontSize,
+                  color: TEXT.secondary,
+                  fontFamily: FONT_MONO,
                 }}
               >
                 {displayEco}
@@ -131,9 +149,9 @@ export function OpeningExplorer({
         {total > 0 && (
           <Typography
             sx={{
-              fontSize: "0.72rem",
-              color: "rgba(255,255,255,0.45)",
-              fontFamily: "Monaco, Menlo, monospace",
+              fontSize: TYPE.caption.fontSize,
+              color: TEXT.secondary,
+              fontVariantNumeric: "tabular-nums",
             }}
           >
             {total.toLocaleString()} games
@@ -142,80 +160,86 @@ export function OpeningExplorer({
         {onTakeover && (
           <Button
             onClick={onTakeover}
-            startIcon={<ArrowLeftRight size={13} />}
+            startIcon={<ArrowLeftRight size={14} strokeWidth={1.75} />}
             size="small"
-            sx={{
-              bgcolor: "rgba(34,197,94,0.14)",
-              color: "#86efac",
-              fontWeight: 700,
-              fontSize: "0.72rem",
-              letterSpacing: "0.08em",
-              px: 1.5,
-              py: 0.4,
-              borderRadius: "999px",
-              border: "1px solid rgba(34,197,94,0.32)",
-              minWidth: 0,
-              transition: "all 180ms ease",
-              "&:hover": {
-                bgcolor: "rgba(34,197,94,0.22)",
-                borderColor: "rgba(34,197,94,0.5)",
-                color: "#bbf7d0",
-                transform: "translateY(-1px)",
-              },
-            }}
+            variant="outlined"
           >
-            Takeover
+            Play from here
           </Button>
         )}
       </Stack>
 
       {loading && !hasMoves && (
-        <Typography sx={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.4)", py: 1.5 }}>
-          Querying Lichess masters database…
-        </Typography>
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          role="status"
+          sx={{ py: 1.5 }}
+        >
+          <CircularProgress size={16} sx={{ color: TEXT.secondary }} />
+          <Typography
+            sx={{ fontSize: TYPE.bodySmall.fontSize, color: TEXT.secondary }}
+          >
+            Loading master games
+          </Typography>
+        </Stack>
       )}
 
       {!loading && !hasMoves && !error && (
         <Stack direction="row" spacing={1} alignItems="center" sx={{ py: 1.5 }}>
-          <TrendingUp size={14} color="rgba(255,255,255,0.3)" />
-          <Typography sx={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.4)" }}>
-            No master games reached this exact position. You're in original territory.
+          <TrendingUp
+            size={18}
+            strokeWidth={1.75}
+            color={TEXT.secondary}
+            aria-hidden
+          />
+          <Typography
+            sx={{ fontSize: TYPE.bodySmall.fontSize, color: TEXT.secondary }}
+          >
+            No master games reached this exact position. You're in original
+            territory.
           </Typography>
         </Stack>
       )}
 
       {error && (
-        <Stack direction="row" spacing={1.25} alignItems="flex-start" sx={{ py: 1 }}>
+        <Stack
+          direction="row"
+          spacing={1.25}
+          alignItems="flex-start"
+          sx={{ py: 1 }}
+        >
           <Box
+            aria-hidden
             sx={{
-              mt: 0.4,
-              width: 6,
-              height: 6,
+              mt: 0.6,
+              width: 8,
+              height: 8,
               borderRadius: "50%",
-              background: "rgba(255,255,255,0.25)",
+              background: STATUS.warning,
               flexShrink: 0,
             }}
           />
           <Box>
             <Typography
               sx={{
-                fontSize: "0.82rem",
-                color: "rgba(255,255,255,0.62)",
+                fontSize: TYPE.bodySmall.fontSize,
+                color: TEXT.primary,
                 lineHeight: 1.5,
               }}
             >
-              Master-game stats unavailable on this network.
+              The master games database didn't answer on this network.
             </Typography>
             <Typography
               sx={{
-                fontSize: "0.72rem",
-                color: "rgba(255,255,255,0.35)",
+                fontSize: TYPE.caption.fontSize,
+                color: TEXT.secondary,
                 mt: 0.5,
                 lineHeight: 1.5,
               }}
             >
-              Live in production · ranks top moves by win rate from 2M+
-              over-the-board master games.
+              Try again on another connection.
             </Typography>
           </Box>
         </Stack>
@@ -234,27 +258,31 @@ export function OpeningExplorer({
                 onClick={() => onMoveClick?.(m.uci)}
                 sx={{
                   display: "grid",
-                  gridTemplateColumns: "minmax(48px, 64px) 1fr minmax(56px, 80px)",
+                  gridTemplateColumns:
+                    "minmax(48px, 64px) 1fr minmax(56px, 80px)",
                   alignItems: "center",
                   gap: 1.5,
                   px: 1.25,
                   py: 0.75,
-                  borderRadius: "8px",
+                  borderRadius: `${RADIUS.small}px`,
                   cursor: onMoveClick ? "pointer" : "default",
-                  transition: "background 180ms ease",
+                  transition: `background-color ${MOTION.hover}`,
                   "&:hover": onMoveClick
                     ? {
-                        background: "rgba(249,115,22,0.06)",
+                        background: "rgba(255,255,255,0.06)",
                       }
+                    : undefined,
+                  "&:active": onMoveClick
+                    ? { background: SURFACE.raisedTertiary }
                     : undefined,
                 }}
               >
                 <Typography
                   sx={{
-                    fontSize: "0.92rem",
-                    fontWeight: 700,
-                    color: "rgba(255,255,255,0.92)",
-                    fontFamily: "Monaco, Menlo, monospace",
+                    fontSize: TYPE.bodySmall.fontSize,
+                    fontWeight: 600,
+                    color: TEXT.primary,
+                    fontFamily: FONT_MONO,
                   }}
                 >
                   {m.san}
@@ -262,17 +290,16 @@ export function OpeningExplorer({
                 <Box
                   sx={{
                     height: 8,
-                    borderRadius: "4px",
+                    borderRadius: `${RADIUS.small}px`,
                     overflow: "hidden",
                     display: "flex",
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.06)",
+                    background: SURFACE.raisedSecondary,
                   }}
                 >
                   <Box
                     sx={{
                       width: `${whitePct}%`,
-                      background: "linear-gradient(90deg, #FB923C, #F97316)",
+                      background: ACCENT.main,
                     }}
                   />
                   <Box
@@ -290,9 +317,9 @@ export function OpeningExplorer({
                 </Box>
                 <Typography
                   sx={{
-                    fontSize: "0.78rem",
-                    color: "rgba(255,255,255,0.5)",
-                    fontFamily: "Monaco, Menlo, monospace",
+                    fontSize: TYPE.caption.fontSize,
+                    color: TEXT.secondary,
+                    fontVariantNumeric: "tabular-nums",
                     textAlign: "right",
                   }}
                 >

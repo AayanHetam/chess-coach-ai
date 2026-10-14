@@ -1,13 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Box,
-  Button,
-  Collapse,
-  Typography,
-} from "@mui/material";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import { Box, Button, Collapse, Typography } from "@mui/material";
 import SchoolIcon from "@mui/icons-material/School";
 import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
 import { MastiAvatar } from "@/components/masti";
@@ -65,8 +59,7 @@ function generateFallbackExplanation(puzzle: ChessPuzzle): string {
   const rating = puzzle.rating ?? 1500;
 
   const themeExplanations: Record<string, string> = {
-    fork:
-      "A fork attacks two or more pieces at once, forcing the opponent to lose material.",
+    fork: "A fork attacks two or more pieces at once, forcing the opponent to lose material.",
     pin: "A pin restricts a piece from moving because it would expose a more valuable piece behind it.",
     skewer:
       "A skewer attacks a valuable piece, forcing it to move and exposing a less valuable piece behind it.",
@@ -119,7 +112,7 @@ function generateFallbackExplanation(puzzle: ChessPuzzle): string {
 function buildCombinedPrompt(
   puzzle: ChessPuzzle,
   outcome: "solved" | "wrong",
-  userAttemptedMoveSan?: string | null,
+  userAttemptedMoveSan?: string | null
 ): string {
   const userPrompt = buildPuzzleExplanationPrompt({
     fen: puzzle.fen,
@@ -162,7 +155,7 @@ export default function InlinePuzzleCoach({
       const content = buildCombinedPrompt(
         puzzle,
         outcome,
-        userAttemptedMoveSan,
+        userAttemptedMoveSan
       );
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -180,7 +173,7 @@ export default function InlinePuzzleCoach({
         setError(
           res.status === 401 || res.status === 403
             ? SIGN_IN_ERROR
-            : "Live coach unavailable — showing offline explanation.",
+            : "Live coach unavailable — showing offline explanation."
         );
         setExplanation(generateFallbackExplanation(puzzle));
         return;
@@ -224,9 +217,7 @@ export default function InlinePuzzleCoach({
   };
 
   const triggerLabel =
-    outcome === "solved"
-      ? "Coach: why this works"
-      : "Coach: what to look for";
+    outcome === "solved" ? "Coach: why this works" : "Coach: what to look for";
 
   return (
     <Box sx={{ mt: 1 }}>
@@ -234,7 +225,6 @@ export default function InlinePuzzleCoach({
         <Button
           variant="outlined"
           size="small"
-          startIcon={<AutoAwesomeIcon />}
           onClick={handleClick}
           sx={{
             color: "#ffa726",
@@ -261,9 +251,7 @@ export default function InlinePuzzleCoach({
             border: "1px solid rgba(255,167,38,0.22)",
           }}
         >
-          <Box
-            sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}
-          >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
             <SchoolIcon sx={{ color: "#ffa726", fontSize: 16 }} />
             <Typography
               variant="caption"

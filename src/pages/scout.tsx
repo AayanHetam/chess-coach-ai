@@ -30,12 +30,9 @@ import { PageTitle } from "@/components/pageTitle";
 import { useAuthDialog } from "@/contexts/AuthDialogContext";
 import { chessMastiDarkTheme } from "@/theme/chessMasti";
 import { NavPill } from "@/components/ui/NavPill";
-import { ACCENTS } from "@/components/ui/accents";
 import {
   ACCENT,
   LINE,
-  MATERIAL,
-  MATERIAL_FALLBACK_SX,
   MOTION,
   RADIUS,
   STATUS,
@@ -64,7 +61,11 @@ import ScoutLanding from "@/components/scout/ScoutLanding";
 import ProfileCard from "@/components/scout/ProfileCard";
 import TellsCard from "@/components/scout/TellsCard";
 import ClockWindowsPanel from "@/components/scout/ClockWindowsPanel";
-import { FieldLabel } from "@/components/scout/dossier";
+import {
+  FieldLabel,
+  PLATFORM_LABEL,
+  TIME_CLASS_LABEL,
+} from "@/components/scout/dossier";
 import {
   availableFormats,
   scopeGames,
@@ -155,8 +156,7 @@ function ScoutSearchBar({
         sx={{
           "& .MuiToggleButton-root": {
             border: "none",
-            fontWeight: 600,
-            fontSize: "0.78rem",
+            ...TYPE.label,
             px: 1.5,
             borderRadius: `${RADIUS.pill}px`,
             color: TEXT.secondary,
@@ -192,11 +192,7 @@ function ScoutSearchBar({
           minWidth: 240,
         }}
       >
-        <Icon
-          icon="mdi:magnify"
-          width={20}
-          style={{ color: "rgba(255,255,255,0.5)" }}
-        />
+        <Icon icon="mdi:magnify" width={20} style={{ color: TEXT.secondary }} />
         <TextField
           inputRef={inputRef}
           fullWidth
@@ -225,15 +221,13 @@ function ScoutSearchBar({
           <>
             <Typography
               sx={{
-                color: "text.secondary",
-                fontWeight: 800,
-                fontSize: "0.72rem",
-                letterSpacing: 1.5,
+                ...TYPE.caption,
+                color: TEXT.secondary,
                 px: 0.5,
                 flexShrink: 0,
               }}
             >
-              VS
+              vs
             </Typography>
             <TextField
               fullWidth
@@ -288,20 +282,19 @@ function ScoutSearchBar({
             </Tooltip>
           </>
         ) : (
-          <Tooltip title="Compare your games against theirs (collision mode)">
+          <Tooltip title="Compare your games with theirs">
             <Chip
               size="small"
+              variant="outlined"
               icon={<Icon icon="mdi:plus" width={14} />}
-              label="You"
+              label="Compare with you"
               onClick={() => setShowCompare(true)}
               sx={{
-                fontWeight: 600,
-                fontSize: "0.75rem",
-                bgcolor: ACCENTS.rose.soft,
-                color: ACCENTS.rose.bright,
+                ...TYPE.label,
+                color: TEXT.primary,
+                borderColor: LINE.strong,
                 cursor: "pointer",
-                "& .MuiChip-icon": { color: ACCENTS.rose.bright },
-                "&:hover": { bgcolor: ACCENTS.rose.soft },
+                "& .MuiChip-icon": { color: TEXT.secondary },
               }}
             />
           </Tooltip>
@@ -309,7 +302,10 @@ function ScoutSearchBar({
       </Box>
 
       <FormControl size="small" variant="standard" sx={{ minWidth: 110 }}>
-        <InputLabel sx={{ fontSize: "0.7rem", color: "text.secondary" }}>
+        <InputLabel
+          shrink
+          sx={{ ...TYPE.label, color: TEXT.secondary, transform: "none" }}
+        >
           Window
         </InputLabel>
         <Select
@@ -367,7 +363,11 @@ function FormatFilterBar({
 }) {
   const options: Array<{ key: FormatScope; label: string; games: number }> = [
     { key: "all", label: "All formats", games: totalGames },
-    ...formats.map((f) => ({ key: f.tc, label: f.tc, games: f.games })),
+    ...formats.map((f) => ({
+      key: f.tc,
+      label: TIME_CLASS_LABEL[f.tc] ?? f.tc,
+      games: f.games,
+    })),
   ];
 
   return (
@@ -414,7 +414,7 @@ function FormatFilterBar({
                   sx={{
                     ...TYPE.caption,
                     fontVariantNumeric: "tabular-nums",
-                    color: selected ? TEXT.secondary : TEXT.tertiary,
+                    color: TEXT.secondary,
                   }}
                 >
                   {o.games}
@@ -471,8 +471,8 @@ function TwinBanner({
             Play against {username}&apos;s twin
           </Typography>
           <Typography variant="caption" sx={{ color: TEXT.secondary }}>
-            The bot plays their exact opening moves, then a human-like opponent
-            at their strength in each phase.
+            The bot plays their exact opening moves, then the engine plays at
+            their rating.
           </Typography>
         </Box>
       </Stack>
@@ -764,7 +764,10 @@ export default function ScoutPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to fetch games");
+        throw new Error(
+          data.error ||
+            "Couldn't load that player's games. Check the username and try again."
+        );
       }
 
       setStage("analyze");
@@ -791,7 +794,10 @@ export default function ScoutPage() {
       // Brief pause so the 100% tick is visible.
       setTimeout(() => setLoading(false), 250);
     } catch (err: any) {
-      setError(err?.message || "Failed to scout player");
+      setError(
+        err?.message ||
+          "Couldn't load that player's games. Check the username and try again."
+      );
       setBuilding(false);
       setLoading(false);
       searchInFlightRef.current = false;
@@ -944,7 +950,9 @@ export default function ScoutPage() {
     }
     if (yn.toLowerCase() === scoutResult.username.toLowerCase()) {
       setCollisions(null);
-      setCollisionsError("Can't compare yourself to yourself 🙂");
+      setCollisionsError(
+        "That's your own username. Enter someone else's to compare."
+      );
       return;
     }
     let cancelled = false;
@@ -967,13 +975,15 @@ export default function ScoutPage() {
         if (res.status === 401) {
           if (cancelled) return;
           setCollisions(null);
-          setCollisionsError("Sign in to compare your games against theirs.");
+          setCollisionsError("Sign in to compare your games with theirs.");
           return;
         }
         const data = await res.json();
         if (cancelled) return;
         if (!res.ok) {
-          setCollisionsError(data.error || "Failed to load your games");
+          setCollisionsError(
+            data.error || "Couldn't load your games. Try again."
+          );
           setCollisions(null);
           return;
         }
@@ -992,9 +1002,9 @@ export default function ScoutPage() {
         } catch {
           setYourProfile(null);
         }
-      } catch (e: any) {
+      } catch {
         if (cancelled) return;
-        setCollisionsError(e?.message || "Failed to load your games");
+        setCollisionsError("Couldn't load your games. Try again.");
       } finally {
         if (!cancelled) setCollisionsLoading(false);
       }
@@ -1177,11 +1187,10 @@ export default function ScoutPage() {
 
   return (
     <ThemeProvider theme={chessMastiDarkTheme}>
-      <PageTitle title="Chess Masti AI - Scout" />
+      <PageTitle title="Scout · Chess Masti" />
       <Head>
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content={SURFACE.page} />
-        <style>{`html,body{background-color:${SURFACE.page};color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:${SURFACE.page};}::-webkit-scrollbar-thumb{background:${LINE.strong};border-radius:5px;}`}</style>
       </Head>
 
       <Box
@@ -1196,21 +1205,17 @@ export default function ScoutPage() {
         <NavPill active="scout" />
 
         <Box sx={{ maxWidth: 1400, mx: "auto", mt: 2 }}>
-          {/* Sticky search header */}
+          {/* Sticky search header. Opaque: it scrolls under the translucent
+              nav pill, and no translucent layer sits on another. */}
           <Box
             sx={{
               position: "sticky",
               top: 0,
               zIndex: 20,
               py: 1.25,
-              background: MATERIAL.background,
-              backdropFilter: MATERIAL.backdropFilter,
-              WebkitBackdropFilter: MATERIAL.backdropFilter,
-              borderBottom: scoutResult
-                ? `1px solid ${MATERIAL.border}`
-                : "none",
+              background: SURFACE.page,
+              borderBottom: scoutResult ? `1px solid ${LINE.hairline}` : "none",
               mb: 2,
-              ...MATERIAL_FALLBACK_SX,
             }}
           >
             <Stack
@@ -1233,7 +1238,7 @@ export default function ScoutPage() {
                   color="text.secondary"
                   sx={{ fontWeight: 600 }}
                 >
-                  Opponent dossiers · Chess.com + Lichess
+                  Read an opponent&apos;s Chess.com or Lichess games
                 </Typography>
               </Box>
             </Stack>
@@ -1272,7 +1277,9 @@ export default function ScoutPage() {
             >
               <Chip
                 icon={<Icon icon="mdi:account" />}
-                label={`${scoutResult.username} · ${scoutResult.platform}`}
+                label={`${scoutResult.username} · ${
+                  PLATFORM_LABEL[scoutResult.platform] ?? scoutResult.platform
+                }`}
                 variant="outlined"
                 sx={{ color: TEXT.secondary }}
               />
@@ -1283,14 +1290,15 @@ export default function ScoutPage() {
                 sx={{ color: TEXT.secondary }}
               />
               {scoutResult.cached && (
-                <Tooltip title="Served from server cache (10-min TTL)">
+                <Tooltip title="Cached a few minutes ago">
                   <Chip
                     icon={<Icon icon="mdi:lightning-bolt" />}
-                    label="cached"
+                    label="Cached"
                     size="small"
                     sx={{
-                      bgcolor: ACCENTS.rose.soft,
-                      color: ACCENTS.rose.bright,
+                      bgcolor: SURFACE.raisedSecondary,
+                      color: TEXT.secondary,
+                      "& .MuiChip-icon": { color: TEXT.secondary },
                     }}
                   />
                 </Tooltip>
@@ -1298,7 +1306,7 @@ export default function ScoutPage() {
               {scoutResult.totalGames < 50 && (
                 <Chip
                   icon={<Icon icon="mdi:alert" />}
-                  label="Limited data: results may be less reliable"
+                  label="Fewer than 50 games, so treat these numbers as rough"
                   variant="outlined"
                   sx={{
                     bgcolor: STATUS.warningTint,
@@ -1362,8 +1370,9 @@ export default function ScoutPage() {
                 }}
               >
                 I went through {scoutResult.username}&apos;s{" "}
-                {scoutResult.platform} archive and came back empty: no games in
-                this window. Try a longer window up top.
+                {PLATFORM_LABEL[scoutResult.platform] ?? scoutResult.platform}{" "}
+                archive and came back empty: no games in this window. Try a
+                longer window up top.
               </Typography>
             </Paper>
           )}
@@ -1473,7 +1482,7 @@ export default function ScoutPage() {
                   <MastiAvatar mood="thinking" size={28} ring={false} />
                   <Typography variant="body2" color="text.secondary">
                     Loading <strong>{yourUsername}</strong>&apos;s games and
-                    computing collisions…
+                    comparing them with theirs…
                   </Typography>
                 </Paper>
               )}
@@ -1548,12 +1557,12 @@ export default function ScoutPage() {
                       />
                       <Typography sx={{ ...TYPE.h5 }}>Opening tree</Typography>
                       <Tooltip
-                        title="Drill into the target's repertoire move-by-move. Use ← / → keys."
+                        title="Step through their openings move by move with the ← and → keys."
                         arrow
                       >
                         <Box
                           sx={{
-                            color: "rgba(255,255,255,0.5)",
+                            color: TEXT.secondary,
                             display: "flex",
                             cursor: "help",
                           }}

@@ -125,9 +125,7 @@ export function SessionRecapDialog({
         >
           <Typography
             sx={{
-              fontSize: "2.4rem",
-              fontWeight: 700,
-              letterSpacing: "-0.025em",
+              ...TYPE.h1,
               fontVariantNumeric: "tabular-nums",
               color: deltaColor,
               lineHeight: 1,
@@ -207,13 +205,13 @@ export function SessionRecapDialog({
               <CartesianGrid stroke={LINE.hairline} vertical={false} />
               <XAxis
                 dataKey="n"
-                tick={{ fill: TEXT.secondary, fontSize: 11 }}
+                tick={{ fill: TEXT.secondary, fontSize: 13 }}
                 axisLine={{ stroke: LINE.hairline }}
                 tickLine={false}
               />
               <YAxis
                 domain={["dataMin - 20", "dataMax + 20"]}
-                tick={{ fill: TEXT.secondary, fontSize: 11 }}
+                tick={{ fill: TEXT.secondary, fontSize: 13 }}
                 axisLine={false}
                 tickLine={false}
                 width={44}
@@ -305,7 +303,7 @@ function CountChip({
         gap: 0.6,
         px: 1.5,
         py: 0.6,
-        borderRadius: `${RADIUS.pill}px`,
+        borderRadius: `${RADIUS.control}px`,
         background: SURFACE.raisedSecondary,
         border: `1px solid ${LINE.hairline}`,
       }}

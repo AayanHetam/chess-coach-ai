@@ -4,13 +4,8 @@ import { Icon } from "@iconify/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthDialog } from "@/contexts/AuthDialogContext";
 import { Masti } from "@/components/masti";
-import {
-  MATERIAL,
-  MATERIAL_FALLBACK_SX,
-  RADIUS,
-  SHADOW,
-  TEXT,
-} from "@/theme/tokens";
+import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
+import { LINE, MATERIAL, RADIUS, SHADOW, SURFACE, TEXT } from "@/theme/tokens";
 
 /**
  * Cosmetic sign-in gate for the /puzzles/<rating> landing pages.
@@ -21,9 +16,13 @@ import {
  * aria-hidden neutralise the region for sight and input; the gated cards
  * render static diagrams only, so nothing focusable sits underneath.
  *
- * The card itself is the one translucent thing here: it is floating chrome
- * that the gated region scrolls under, so it wears the material (and goes
- * solid under reduced transparency or more contrast).
+ * The card is an opaque floating card (SURFACE.overlay, a hairline, the
+ * modal shadow). The gated grid under it is already dimmed by the scrim, so
+ * a blur would only be decoration.
+ *
+ * The whole gate, gated grid included, carries SIGN_IN_PROPS: under the
+ * partner preview prefix a sign-in ask is hidden, and hiding only the card
+ * would leave a dimmed, unclickable grid behind it.
  *
  * The PARENT owns the auth decision: mount this only once useViewer()
  * reports { loading: false, user: null }. While auth state is loading,
@@ -57,7 +56,7 @@ export function PuzzleSignInGate({
   };
 
   return (
-    <Box sx={{ position: "relative" }}>
+    <Box {...SIGN_IN_PROPS} sx={{ position: "relative" }}>
       <Box
         aria-hidden
         sx={{
@@ -92,12 +91,9 @@ export function PuzzleSignInGate({
             textAlign: "center",
             p: { xs: 3, md: 3.5 },
             borderRadius: `${RADIUS.sheet}px`,
-            background: MATERIAL.background,
-            backdropFilter: MATERIAL.backdropFilter,
-            WebkitBackdropFilter: MATERIAL.backdropFilter,
-            border: `1px solid ${MATERIAL.border}`,
+            background: SURFACE.overlay,
+            border: `1px solid ${LINE.hairline}`,
             boxShadow: SHADOW.modal,
-            ...MATERIAL_FALLBACK_SX,
           }}
         >
           <Masti mood="wave" size={88} decorative style={{ marginBottom: 8 }} />

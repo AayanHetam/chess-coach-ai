@@ -4,6 +4,7 @@ import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogContent,
   IconButton,
@@ -30,7 +31,7 @@ import { pieceSetAtom } from "@/components/board/states";
 // from shareCard is hardcoded to 720×1024 and unsuitable here — we use
 // renderSnippetSvgToPng from analysisSnippet instead.
 import { copyPngToClipboard, triggerDownload } from "@/lib/shareCard";
-import { ACCENT, TEXT, TYPE } from "@/theme/tokens";
+import { LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 
 export interface AnalysisSnippetDialogProps {
   open: boolean;
@@ -269,8 +270,8 @@ export default function AnalysisSnippetDialog({
                 Share this analysis
               </Typography>
             </Stack>
-            <Typography variant="caption" color="text.secondary">
-              Board + coach explanation · PNG, social, copy link
+            <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
+              The board and Masti&apos;s note, as a PNG, a post or a link.
             </Typography>
           </Box>
           <IconButton
@@ -282,9 +283,9 @@ export default function AnalysisSnippetDialog({
           </IconButton>
         </Stack>
 
-        {/* Share-mode segmented control. Two pills: just this insight vs.
-            whole conversation. Disabled when there's no real conversation
-            history (only the greeting + this message). */}
+        {/* Share-mode segmented control: just this note vs. the whole
+            conversation. Disabled when there's no real conversation history
+            (only the greeting + this message). */}
         <Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
           <ToggleButtonGroup
             value={shareKind}
@@ -293,32 +294,31 @@ export default function AnalysisSnippetDialog({
             onChange={(_, v) => v && setShareKind(v)}
             aria-label="Share mode"
             sx={{
-              bgcolor: "rgba(0,0,0,0.04)",
-              borderRadius: 999,
+              bgcolor: SURFACE.raisedSecondary,
+              borderRadius: `${RADIUS.control}px`,
               p: 0.5,
+              gap: 0.5,
               "& .MuiToggleButton-root": {
                 border: "none",
-                borderRadius: "999px !important",
-                textTransform: "none",
-                fontWeight: 700,
-                fontSize: "0.78rem",
+                borderRadius: `${RADIUS.small}px !important`,
+                fontWeight: 600,
+                fontSize: TYPE.bodySmall.fontSize,
                 px: 2,
                 py: 0.5,
-                color: "text.secondary",
+                color: TEXT.secondary,
                 gap: 0.75,
                 "&.Mui-selected": {
-                  bgcolor: "#fff",
-                  color: "#FF6B35",
-                  boxShadow: "0 2px 8px rgba(15,23,42,0.10)",
-                  "&:hover": { bgcolor: "#fff" },
+                  bgcolor: "rgba(255,255,255,0.10)",
+                  color: TEXT.primary,
+                  "&:hover": { bgcolor: "rgba(255,255,255,0.10)" },
                 },
-                "&.Mui-disabled": { opacity: 0.4 },
+                "&.Mui-disabled": { border: "none", color: TEXT.tertiary },
               },
             }}
           >
             <ToggleButton value="single">
               <Icon icon="mdi:bookmark-outline" width={14} />
-              Just this insight
+              Just this note
             </ToggleButton>
             <ToggleButton value="transcript" disabled={!transcriptHasContent}>
               <Icon icon="mdi:forum-outline" width={14} />
@@ -330,26 +330,17 @@ export default function AnalysisSnippetDialog({
         {/* Card preview (landscape — keep the 1200/675 = 16/9 aspect).
             Until piece assets resolve, show a centered spinner at the same
             aspect ratio so the dialog doesn't jump when the SVG lands. */}
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            bgcolor: "rgba(15,23,42,0.04)",
-            borderRadius: 2,
-            p: 1,
-            mb: 2.5,
-          }}
-        >
+        <Box sx={{ display: "flex", justifyContent: "center", mb: 2.5 }}>
           {pieceAssets ? (
             <Box
               sx={{
                 width: "100%",
                 maxWidth: 680,
                 aspectRatio: "1200 / 675",
-                boxShadow: "0 12px 36px rgba(15,23,42,0.25)",
-                borderRadius: 2,
+                borderRadius: `${RADIUS.control}px`,
+                border: `1px solid ${LINE.hairline}`,
                 overflow: "hidden",
-                bgcolor: "#0b1120",
+                bgcolor: SURFACE.raisedSecondary,
                 // Force inline SVG to fill the box. Without this, the SVG's
                 // intrinsic 1200×675 attrs render at full size and overflow:
                 // hidden clips the right/lower portions.
@@ -363,8 +354,9 @@ export default function AnalysisSnippetDialog({
                 width: "100%",
                 maxWidth: 680,
                 aspectRatio: "1200 / 675",
-                borderRadius: 2,
-                bgcolor: "#0b1120",
+                borderRadius: `${RADIUS.control}px`,
+                border: `1px solid ${LINE.hairline}`,
+                bgcolor: SURFACE.raisedSecondary,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -381,20 +373,32 @@ export default function AnalysisSnippetDialog({
           <Button
             fullWidth
             variant="contained"
-            startIcon={<Icon icon="mdi:download" />}
+            startIcon={
+              downloading ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <Icon icon="mdi:download" />
+              )
+            }
             onClick={handleDownload}
             disabled={downloading || !pieceAssets}
           >
-            {downloading ? "Rendering…" : "Download PNG"}
+            {downloading ? "Rendering" : "Download PNG"}
           </Button>
           <Button
             fullWidth
             variant="outlined"
-            startIcon={<Icon icon="mdi:content-copy" />}
+            startIcon={
+              copying ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <Icon icon="mdi:content-copy" />
+              )
+            }
             onClick={handleCopyImage}
             disabled={copying || !pieceAssets}
           >
-            {copying ? "Copying…" : "Copy image"}
+            {copying ? "Copying" : "Copy image"}
           </Button>
         </Stack>
 
@@ -406,7 +410,7 @@ export default function AnalysisSnippetDialog({
             display: "block",
             textAlign: "center",
             ...TYPE.label,
-            color: "text.secondary",
+            color: TEXT.secondary,
           }}
         >
           Or share to
@@ -457,33 +461,24 @@ export default function AnalysisSnippetDialog({
           size="small"
           startIcon={<Icon icon="mdi:link-variant" width={16} />}
           onClick={handleCopyLink}
-          sx={{
-            mt: 1.5,
-            color: "text.secondary",
-            "&:hover": { borderColor: ACCENT.hover, color: ACCENT.hover },
-          }}
+          sx={{ mt: 1.5 }}
         >
           Copy share link
         </Button>
 
         <Typography
-          variant="caption"
-          color="text.secondary"
           sx={{
             mt: 1.5,
             display: "block",
             textAlign: "center",
-            fontSize: "0.7rem",
-            lineHeight: 1.4,
+            ...TYPE.caption,
+            color: TEXT.secondary,
           }}
         >
-          Tip: download the PNG first, then attach it to your post for the full
-          effect.
+          Download the PNG first, then attach it to your post.
           <br />
-          <Box component="span" sx={{ opacity: 0.7 }}>
-            LinkedIn doesn&apos;t pre-fill text, so you&apos;ll write your own
-            caption.
-          </Box>
+          LinkedIn doesn&apos;t pre-fill text, so you&apos;ll write your own
+          caption.
         </Typography>
 
         <Snackbar

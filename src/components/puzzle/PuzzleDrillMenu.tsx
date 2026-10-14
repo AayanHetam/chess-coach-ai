@@ -8,7 +8,7 @@ import type { PuzzleContext } from "@/lib/validation/puzzleChatSchemas";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 import { prettyTheme } from "@/components/puzzle/prettyTheme";
 import { SERIF_DISPLAY } from "@/theme/fonts";
-import { FONT_MONO, LINE, MOTION, RADIUS, SURFACE, TEXT } from "@/theme/tokens";
+import { LINE, MOTION, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 
 /**
  * PuzzleDrillMenu — the "drill more like this" set, as an opt-in drag-down
@@ -116,9 +116,9 @@ export function PuzzleDrillMenu({ puzzles, onPick }: PuzzleDrillMenuProps) {
                 </Typography>
                 <Typography
                   sx={{
-                    fontSize: "0.72rem",
+                    ...TYPE.caption,
                     color: TEXT.secondary,
-                    fontFamily: FONT_MONO,
+                    fontVariantNumeric: "tabular-nums",
                     mb: 0.75,
                   }}
                 >
@@ -128,7 +128,7 @@ export function PuzzleDrillMenu({ puzzles, onPick }: PuzzleDrillMenuProps) {
                 <Button
                   onClick={() => onPick(p.id)}
                   size="small"
-                  variant="contained"
+                  variant="outlined"
                 >
                   Open on board
                 </Button>

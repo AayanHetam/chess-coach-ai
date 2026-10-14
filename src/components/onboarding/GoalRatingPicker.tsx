@@ -2,7 +2,15 @@
 
 import { useEffect, useMemo } from "react";
 import { Box, Slider, Typography } from "@mui/material";
-import { ACCENT, TEXT } from "@/theme/tokens";
+import {
+  ACCENT,
+  LINE,
+  MOTION,
+  RADIUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 import GoalProjection from "./GoalProjection";
 import type { QuizRatingStatus } from "./useQuizCurrentRating";
 
@@ -16,6 +24,34 @@ import type { QuizRatingStatus } from "./useQuizCurrentRating";
  */
 
 const SUGGESTED_STEPS = [100, 200, 300, 500];
+
+// The slider: ember track, flat thumb, a white ring when focused by keyboard.
+const sliderSx = {
+  color: ACCENT.main,
+  "& .MuiSlider-rail": {
+    backgroundColor: "rgba(255,255,255,0.14)",
+    opacity: 1,
+  },
+  "& .MuiSlider-thumb": {
+    width: 22,
+    height: 22,
+    boxShadow: "none",
+    "&:hover, &.Mui-active": { boxShadow: "none" },
+    "&.Mui-focusVisible": {
+      boxShadow: "none",
+      outline: `2px solid ${TEXT.primary}`,
+      outlineOffset: 2,
+    },
+  },
+} as const;
+
+// The goal number: a section-sized figure, never heavier than 600.
+const goalNumberSx = {
+  ...TYPE.h2,
+  color: TEXT.primary,
+  lineHeight: 1,
+  fontVariantNumeric: "tabular-nums",
+} as const;
 
 interface GoalRatingPickerProps {
   currentRating?: number;
@@ -52,7 +88,7 @@ export default function GoalRatingPicker({
   }, [currentRating]);
 
   if (ratingStatus === "loading") {
-    return <Hint>Reading your rating…</Hint>;
+    return <Hint>Reading your rating</Hint>;
   }
 
   // No anchor: say so rather than projecting from a number we invented.
@@ -76,18 +112,14 @@ export default function GoalRatingPicker({
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, mb: 0.5 }}>
+        <Typography sx={goalNumberSx}>{goal}</Typography>
         <Typography
           sx={{
-            color: "#fff",
-            fontWeight: 800,
-            fontSize: "2rem",
-            lineHeight: 1,
+            ...TYPE.bodySmall,
+            fontWeight: 600,
+            color: ACCENT.hover,
+            fontVariantNumeric: "tabular-nums",
           }}
-        >
-          {goal}
-        </Typography>
-        <Typography
-          sx={{ color: "#FB923C", fontWeight: 700, fontSize: "0.9rem" }}
         >
           +{goal - currentRating}
         </Typography>
@@ -99,24 +131,7 @@ export default function GoalRatingPicker({
         max={max}
         step={25}
         onChange={(_, v) => onChange(Array.isArray(v) ? v[0] : v)}
-        sx={{
-          color: ACCENT.main,
-          "& .MuiSlider-rail": {
-            backgroundColor: "rgba(255,255,255,0.14)",
-            opacity: 1,
-          },
-          "& .MuiSlider-thumb": {
-            width: 22,
-            height: 22,
-            boxShadow: "none",
-            "&:hover, &.Mui-active": { boxShadow: "none" },
-            "&.Mui-focusVisible": {
-              boxShadow: "none",
-              outline: `2px solid ${TEXT.primary}`,
-              outlineOffset: 2,
-            },
-          },
-        }}
+        sx={sliderSx}
       />
 
       <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", mt: 0.5 }}>
@@ -130,23 +145,29 @@ export default function GoalRatingPicker({
               component="button"
               type="button"
               onClick={() => onChange(target)}
+              aria-pressed={active}
               sx={{
                 appearance: "none",
                 font: "inherit",
                 cursor: "pointer",
                 px: 1.5,
                 py: 0.6,
-                borderRadius: "999px",
-                fontSize: "0.8rem",
+                minHeight: 32,
+                borderRadius: `${RADIUS.pill}px`,
+                fontSize: TYPE.caption.fontSize,
                 fontWeight: 600,
-                color: active ? "#FB923C" : "rgba(255,255,255,0.7)",
-                background: active
-                  ? "rgba(249,115,22,0.14)"
-                  : "rgba(255,255,255,0.04)",
+                color: active ? ACCENT.hover : TEXT.primary,
+                background: active ? ACCENT.tint : SURFACE.raisedSecondary,
                 border: active
-                  ? "1px solid rgba(249,115,22,0.5)"
-                  : "1px solid rgba(255,255,255,0.1)",
-                transition: "all 180ms ease-out",
+                  ? `1px solid ${ACCENT.border}`
+                  : `1px solid ${LINE.hairline}`,
+                transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
+                "&:hover": active ? undefined : { borderColor: LINE.strong },
+                "&:active": { transform: MOTION.pressScale },
+                "&:focus-visible": {
+                  outline: "2px solid #FFFFFF",
+                  outlineOffset: 2,
+                },
               }}
             >
               +{step}
@@ -163,9 +184,7 @@ export default function GoalRatingPicker({
       />
 
       {ratingStatus === "self_assessed" && (
-        <Typography
-          sx={{ color: "rgba(255,255,255,0.38)", fontSize: "0.72rem", mt: 1 }}
-        >
+        <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 1 }}>
           Starting point estimated from your answers. The placement test will
           sharpen it.
         </Typography>
@@ -180,9 +199,7 @@ function roundTo25(n: number): number {
 
 function Hint({ children }: { children: React.ReactNode }) {
   return (
-    <Typography
-      sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.88rem", mb: 1.5 }}
-    >
+    <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary, mb: 1.5 }}>
       {children}
     </Typography>
   );
@@ -199,24 +216,14 @@ function FreeGoal({
   const goal = value ?? 1500;
   return (
     <Box>
-      <Typography
-        sx={{
-          color: "#fff",
-          fontWeight: 800,
-          fontSize: "2rem",
-          lineHeight: 1,
-          mb: 0.5,
-        }}
-      >
-        {goal}
-      </Typography>
+      <Typography sx={{ ...goalNumberSx, mb: 0.5 }}>{goal}</Typography>
       <Slider
         value={goal}
         min={800}
         max={2400}
         step={25}
         onChange={(_, v) => onChange(Array.isArray(v) ? v[0] : v)}
-        sx={{ color: "#F97316" }}
+        sx={sliderSx}
       />
     </Box>
   );

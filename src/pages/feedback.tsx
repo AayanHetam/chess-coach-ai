@@ -17,7 +17,7 @@ export default function PlayerFeedback() {
 
   return (
     <>
-      <PageTitle title="Chess Masti AI - Player Feedback" />
+      <PageTitle title="Player feedback · Chess Masti AI" />
       <Grid
         container
         justifyContent="center"
@@ -55,7 +55,7 @@ export default function PlayerFeedback() {
             Player feedback
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-            We are building player feedback with:
+            Here is what we are building:
           </Typography>
 
           <Box sx={{ textAlign: "left", mb: 4, maxWidth: 400, mx: "auto" }}>

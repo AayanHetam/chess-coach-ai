@@ -1,9 +1,12 @@
 import { useState } from "react";
 import {
-  Backdrop,
   Box,
   Button,
+  ButtonBase,
   Chip,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   IconButton,
   Paper,
   Stack,
@@ -16,11 +19,13 @@ import {
   LINE,
   MOTION,
   RADIUS,
-  SHADOW,
   SURFACE,
   TEXT,
   TYPE,
 } from "@/theme/tokens";
+
+const TITLE_ID = "twin-bot-dialog-title";
+const COLOR_LABEL_ID = "twin-bot-color-label";
 
 export interface TwinBotDialogProps {
   open: boolean;
@@ -40,51 +45,53 @@ export default function TwinBotDialog({
   profile,
 }: TwinBotDialogProps) {
   const [color, setColor] = useState<"white" | "black">("white");
-  if (!open) return null;
 
+  // The theme styles the Dialog: SURFACE.overlay, RADIUS.sheet, a hairline,
+  // SHADOW.modal and the scrim. Dialog also traps focus and closes on Escape.
   return (
-    <Backdrop
-      open
-      sx={{ zIndex: (theme) => theme.zIndex.modal + 10 }}
-      onClick={onClose}
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="xs"
+      aria-labelledby={TITLE_ID}
     >
-      <Paper
-        elevation={0}
-        onClick={(e) => e.stopPropagation()}
+      <DialogTitle
+        id={TITLE_ID}
+        sx={{ display: "flex", alignItems: "center", gap: 1.5, pr: 7 }}
+      >
+        <Box
+          component="span"
+          sx={{ display: "flex", color: TEXT.secondary }}
+          aria-hidden
+        >
+          <Icon icon="mdi:robot-outline" width={20} />
+        </Box>
+        Twin bot
+      </DialogTitle>
+      <IconButton
+        onClick={onClose}
+        aria-label="Close"
         sx={{
-          width: 420,
-          maxWidth: "92vw",
-          p: 3,
-          borderRadius: `${RADIUS.sheet}px`,
-          background: SURFACE.overlay,
-          color: TEXT.primary,
-          border: `1px solid ${LINE.hairline}`,
-          boxShadow: SHADOW.modal,
-          position: "relative",
+          position: "absolute",
+          top: 10,
+          right: 12,
+          width: 40,
+          height: 40,
+          color: TEXT.secondary,
+          "&:hover": { color: TEXT.primary },
         }}
       >
-        {/* Header */}
-        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
-          <Box sx={{ display: "flex", color: TEXT.secondary }}>
-            <Icon icon="mdi:robot-outline" width={20} />
-          </Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography sx={{ ...TYPE.h4, lineHeight: 1.1 }}>
-              Twin bot
-            </Typography>
-            <Typography variant="caption" sx={{ color: TEXT.secondary }}>
-              Practice against {username}&apos;s style
-            </Typography>
-          </Box>
-          <IconButton
-            size="small"
-            onClick={onClose}
-            aria-label="Close"
-            sx={{ color: TEXT.secondary, "&:hover": { color: TEXT.primary } }}
-          >
-            <Icon icon="mdi:close" width={18} />
-          </IconButton>
-        </Stack>
+        <Icon icon="mdi:close" width={18} />
+      </IconButton>
+
+      <DialogContent sx={{ pb: 3 }}>
+        <Typography
+          variant="caption"
+          sx={{ color: TEXT.secondary, display: "block", mb: 2 }}
+        >
+          Practice against {username}&apos;s style
+        </Typography>
 
         {/* Player card */}
         <Paper
@@ -126,7 +133,7 @@ export default function TwinBotDialog({
                 height: 12,
                 borderRadius: "50%",
                 bgcolor: platform === "chess.com" ? "#7fa650" : "#bcbcbc",
-                border: `2px solid ${SURFACE.overlay}`,
+                border: `2px solid ${SURFACE.raisedSecondary}`,
               }}
             />
           </Box>
@@ -221,31 +228,38 @@ export default function TwinBotDialog({
             sx={{ color: TEXT.secondary, mt: 0.75, display: "block" }}
           >
             In opening theory the bot plays their <strong>actual moves</strong>.
-            After that, a human-like opponent at their strength in each phase.
+            After that, the engine plays at their rating for each phase.
           </Typography>
         </Box>
 
         {/* Color picker */}
         <Typography
+          id={COLOR_LABEL_ID}
           variant="caption"
           sx={{ ...TYPE.label, color: TEXT.secondary, display: "block", mb: 1 }}
         >
           Choose your color
         </Typography>
-        <Stack direction="row" spacing={1.5} sx={{ mb: 3 }}>
+        <Stack
+          direction="row"
+          spacing={1.5}
+          sx={{ mb: 3 }}
+          role="group"
+          aria-labelledby={COLOR_LABEL_ID}
+        >
           <ColorCard
             label="White"
             selected={color === "white"}
             onClick={() => setColor("white")}
-            bgColor="#fff"
-            pieceColor="#0f1724"
+            bgColor="#FFFFFF"
+            pieceColor="#000000"
           />
           <ColorCard
             label="Black"
             selected={color === "black"}
             onClick={() => setColor("black")}
-            bgColor="#facc15"
-            pieceColor="#0f1724"
+            bgColor="#000000"
+            pieceColor="#FFFFFF"
           />
         </Stack>
 
@@ -259,8 +273,8 @@ export default function TwinBotDialog({
         >
           Start game
         </Button>
-      </Paper>
-    </Backdrop>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -326,12 +340,14 @@ function ColorCard({
   pieceColor: string;
 }) {
   return (
-    <Box
+    <ButtonBase
       onClick={onClick}
       role="button"
       aria-pressed={selected}
       sx={{
         flex: 1,
+        display: "flex",
+        flexDirection: "column",
         py: 2,
         borderRadius: `${RADIUS.control}px`,
         border: "1px solid",
@@ -373,6 +389,7 @@ function ColorCard({
           height: 44,
           borderRadius: "50%",
           bgcolor: bgColor,
+          border: `1px solid ${LINE.strong}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -387,6 +404,6 @@ function ColorCard({
       >
         {label}
       </Typography>
-    </Box>
+    </ButtonBase>
   );
 }

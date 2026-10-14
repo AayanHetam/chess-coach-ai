@@ -11,14 +11,15 @@ import {
   Chip,
   Stack,
 } from "@mui/material";
-import SendIcon from "@mui/icons-material/Send";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import ThumbUpOutlinedIcon from "@mui/icons-material/ThumbUpOutlined";
-import ThumbDownOutlinedIcon from "@mui/icons-material/ThumbDownOutlined";
-import ThumbUpIcon from "@mui/icons-material/ThumbUp";
-import ThumbDownIcon from "@mui/icons-material/ThumbDown";
-import ShareIcon from "@mui/icons-material/IosShare";
+import {
+  ChevronDown,
+  ChevronUp,
+  Send,
+  Share,
+  Target,
+  ThumbsDown,
+  ThumbsUp,
+} from "lucide-react";
 import Tooltip from "@mui/material/Tooltip";
 import { styled } from "@mui/material/styles";
 import ReactMarkdown from "react-markdown";
@@ -74,6 +75,17 @@ import { FlagButton } from "@/components/intern/FlagButton";
 import AnalysisSnippetDialog from "@/components/AnalysisSnippetDialog";
 import type { AnalysisSnippetData } from "@/lib/analysisSnippet";
 import { FadeIn } from "@/components/ui/FadeIn";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -91,6 +103,72 @@ interface AICoachChatProps {
   game?: Chess;
   boardOrientation?: boolean;
 }
+
+// Inline tokens the coach's prose carries (moves, lines, practice offers).
+// A reference is a link in the accent; an action is an outlined pill; a
+// line block is a hairline group. All press and show focus.
+const inlineLinkSx = {
+  color: ACCENT.hover,
+  cursor: "pointer",
+  textDecoration: "underline",
+  textUnderlineOffset: "2px",
+  fontWeight: 600,
+  borderRadius: `${RADIUS.small}px`,
+  transition: `color ${MOTION.hover}`,
+  "&:hover": { color: ACCENT.main },
+  "&:focus-visible": { outline: "2px solid #FFFFFF", outlineOffset: 2 },
+} as const;
+
+// A move that leaves the game (an alternative or a what-if) explores off the
+// mainline, so it reads differently from a move that was played: the same
+// link colour with a dotted underline.
+const inlineAltLinkSx = {
+  ...inlineLinkSx,
+  textDecorationStyle: "dotted",
+} as const;
+
+// The inline links and actions are spans inside the coach's prose. These
+// props let them take keyboard focus and answer Enter and Space by running
+// the same handler a click runs.
+const pressableProps = (onPress: () => unknown) => ({
+  role: "button" as const,
+  tabIndex: 0,
+  onKeyDown: (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      void onPress();
+    }
+  },
+});
+
+const inlineActionSx = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "6px",
+  cursor: "pointer",
+  fontWeight: 600,
+  fontSize: TYPE.caption.fontSize,
+  lineHeight: 1.3,
+  px: 1.5,
+  py: 0.5,
+  mt: 0.5,
+  borderRadius: `${RADIUS.pill}px`,
+  border: `1px solid ${LINE.strong}`,
+  color: TEXT.primary,
+  touchAction: "manipulation",
+  WebkitTapHighlightColor: "transparent",
+  transition: `background-color ${MOTION.hover}, transform ${MOTION.press}`,
+  "&:hover": { background: "rgba(255,255,255,0.06)" },
+  "&:active": { transform: MOTION.pressScale },
+  "&:focus-visible": { outline: "2px solid #FFFFFF", outlineOffset: 2 },
+} as const;
+
+const inlineBlockSx = {
+  margin: "6px 0",
+  padding: "8px 12px",
+  borderRadius: `${RADIUS.control}px`,
+  border: `1px solid ${LINE.hairline}`,
+} as const;
 
 // Concept reinforcement strip — renders the anchor concept(s) detected for a
 // mistake + 3 same-concept reinforcement puzzles from concept-first retrieval.
@@ -139,10 +217,8 @@ const ConceptReinforcementStrip: React.FC<{
       sx={{
         mt: 1.5,
         p: 1.5,
-        border: "1px solid",
-        borderColor: "divider",
-        borderRadius: 1,
-        bgcolor: "action.hover",
+        border: `1px solid ${LINE.hairline}`,
+        borderRadius: `${RADIUS.control}px`,
       }}
     >
       <Stack
@@ -157,7 +233,7 @@ const ConceptReinforcementStrip: React.FC<{
         {unclassified ? (
           <Chip
             size="small"
-            label="concept: unclassified"
+            label="Concept not identified"
             color="warning"
             variant="outlined"
           />
@@ -173,7 +249,7 @@ const ConceptReinforcementStrip: React.FC<{
           ))
         )}
         {usedTheme && (
-          <Chip size="small" label="theme fallback" variant="outlined" />
+          <Chip size="small" label="Matched by theme" variant="outlined" />
         )}
       </Stack>
       {puzzles.length > 0 ? (
@@ -194,7 +270,7 @@ const ConceptReinforcementStrip: React.FC<{
         </Stack>
       ) : (
         <Typography variant="caption" color="text.secondary">
-          No same-concept puzzles found in corpus.
+          No matching puzzles yet.
         </Typography>
       )}
     </Box>
@@ -348,39 +424,15 @@ const PracticePuzzleButton: React.FC<{
   }
 
   return (
-    <span
+    <Box
+      component="span"
       onClick={handleClick}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "6px",
-        color: "#fff",
-        cursor: loading ? "wait" : "pointer",
-        fontWeight: 600,
-        padding: "6px 14px",
-        borderRadius: "8px",
-        background: "linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)",
-        fontSize: "0.85em",
-        transition: "all 0.2s ease",
-        boxShadow: "0 2px 6px rgba(76, 175, 80, 0.3)",
-        marginTop: "4px",
-      }}
-      onMouseEnter={(e) => {
-        if (!loading) {
-          e.currentTarget.style.background =
-            "linear-gradient(135deg, #43A047 0%, #1B5E20 100%)";
-          e.currentTarget.style.boxShadow = "0 3px 10px rgba(76, 175, 80, 0.4)";
-        }
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background =
-          "linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)";
-        e.currentTarget.style.boxShadow = "0 2px 6px rgba(76, 175, 80, 0.3)";
-      }}
+      {...pressableProps(handleClick)}
+      sx={{ ...inlineActionSx, cursor: loading ? "wait" : "pointer" }}
       title={`Practice ${displayTheme} puzzles`}
     >
-      {loading ? "Loading..." : `🧩 Practice ${displayTheme} Puzzles`}
-    </span>
+      {loading ? "Loading" : `Practice ${displayTheme} puzzles`}
+    </Box>
   );
 };
 
@@ -451,32 +503,15 @@ const SeeHowLink: React.FC<{
   };
 
   return (
-    <span
+    <Box
+      component="span"
       onClick={handleSequenceClick}
-      style={{
-        color: "#4CAF50",
-        cursor: "pointer",
-        textDecoration: "underline",
-        fontWeight: "bold",
-        padding: "2px 6px",
-        borderRadius: "4px",
-        backgroundColor: "rgba(76, 175, 80, 0.1)",
-        border: "1px solid rgba(76, 175, 80, 0.3)",
-        fontSize: "0.9em",
-        transition: "all 0.2s ease",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = "rgba(76, 175, 80, 0.2)";
-        e.currentTarget.style.borderColor = "rgba(76, 175, 80, 0.5)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = "rgba(76, 175, 80, 0.1)";
-        e.currentTarget.style.borderColor = "rgba(76, 175, 80, 0.3)";
-      }}
-      title={`Click to see how: ${description}`}
+      {...pressableProps(handleSequenceClick)}
+      sx={inlineLinkSx}
+      title={`See how: ${description}`}
     >
-      🔍 see how
-    </span>
+      See how
+    </Box>
   );
 };
 
@@ -501,32 +536,15 @@ const PositionLink: React.FC<{
   };
 
   return (
-    <span
+    <Box
+      component="span"
       onClick={handlePositionClick}
-      style={{
-        color: "#FF9800",
-        cursor: "pointer",
-        textDecoration: "underline",
-        fontWeight: "bold",
-        padding: "2px 6px",
-        borderRadius: "4px",
-        backgroundColor: "rgba(255, 152, 0, 0.1)",
-        border: "1px solid rgba(255, 152, 0, 0.3)",
-        fontSize: "0.9em",
-        transition: "all 0.2s ease",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = "rgba(255, 152, 0, 0.2)";
-        e.currentTarget.style.borderColor = "rgba(255, 152, 0, 0.5)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = "rgba(255, 152, 0, 0.1)";
-        e.currentTarget.style.borderColor = "rgba(255, 152, 0, 0.3)";
-      }}
-      title={`Click to jump to position ${positionNumber}${description ? `: ${description}` : ""}`}
+      {...pressableProps(handlePositionClick)}
+      sx={inlineLinkSx}
+      title={`Go to position ${positionNumber}${description ? `: ${description}` : ""}`}
     >
-      [position {positionNumber}]
-    </span>
+      Position {positionNumber}
+    </Box>
   );
 };
 
@@ -621,7 +639,7 @@ const ClickableMove: React.FC<{
     }
 
     if (isRecommended && moveNumber !== undefined) {
-      // GREEN LINK: Enter exploration mode at the correct position
+      // Alternative (dotted link): enter exploration mode at the correct position
       enterExplorationAt(halfMoveIdx, move);
       return;
     }
@@ -688,47 +706,19 @@ const ClickableMove: React.FC<{
   };
 
   return (
-    <span
+    <Box
+      component="span"
       onClick={handleMoveClick}
-      style={{
-        color: isRecommended ? "#2E7D32" : "#2196F3", // Green for recommended, blue for regular
-        cursor: "pointer",
-        textDecoration: "underline",
-        fontWeight: "bold",
-        padding: "1px 3px",
-        borderRadius: "3px",
-        backgroundColor: isRecommended
-          ? "rgba(46, 125, 50, 0.1)"
-          : "rgba(33, 150, 243, 0.08)",
-        transition: "all 0.2s ease",
-      }}
-      onMouseEnter={(e) => {
-        if (isRecommended) {
-          e.currentTarget.style.backgroundColor = "rgba(46, 125, 50, 0.2)";
-          e.currentTarget.style.color = "#1B5E20";
-        } else {
-          e.currentTarget.style.backgroundColor = "rgba(33, 150, 243, 0.15)";
-          e.currentTarget.style.color = "#1976D2";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (isRecommended) {
-          e.currentTarget.style.backgroundColor = "rgba(46, 125, 50, 0.1)";
-          e.currentTarget.style.color = "#2E7D32";
-        } else {
-          e.currentTarget.style.backgroundColor = "rgba(33, 150, 243, 0.08)";
-          e.currentTarget.style.color = "#2196F3";
-        }
-      }}
+      {...pressableProps(handleMoveClick)}
+      sx={isRecommended ? inlineAltLinkSx : inlineLinkSx}
       title={
         isRecommended
-          ? `Click to explore position after ${move}`
-          : `Click to jump to move ${moveNumber}${isBlackMove ? "..." : "."} ${move}`
+          ? `Explore the position after ${move}`
+          : `Go to ${moveNumber}${isBlackMove ? "..." : "."} ${move}`
       }
     >
-      {isRecommended && "🔍 "}
       {moveNumber}.{isBlackMove ? ".." : ""} {move}
-    </span>
+    </Box>
   );
 };
 
@@ -796,9 +786,9 @@ const EngineContinuation: React.FC<{
 
   if (!pvLine?.pv || pvLine.pv.length === 0) {
     return (
-      <span style={{ color: "#999", fontStyle: "italic", fontSize: "0.85em" }}>
+      <Box component="span" sx={{ color: TEXT.secondary }}>
         (Engine line not available for move {moveNum})
-      </span>
+      </Box>
     );
   }
 
@@ -819,9 +809,9 @@ const EngineContinuation: React.FC<{
   const pvSan = uciPvToSan(fenBeforeMove, pvLine.pv);
   if (pvSan.length === 0) {
     return (
-      <span style={{ color: "#999", fontStyle: "italic", fontSize: "0.85em" }}>
-        (Could not parse engine line)
-      </span>
+      <Box component="span" sx={{ color: TEXT.secondary }}>
+        (The engine line couldn't be read)
+      </Box>
     );
   }
 
@@ -861,49 +851,21 @@ const EngineContinuation: React.FC<{
   };
 
   return (
-    <div
-      style={{
-        margin: "6px 0",
-        padding: "8px 12px",
-        borderRadius: "8px",
-        backgroundColor: "rgba(76, 175, 80, 0.08)",
-        border: "1px solid rgba(76, 175, 80, 0.25)",
-        fontSize: "0.9em",
-      }}
-    >
+    <Box sx={inlineBlockSx}>
       <div style={{ marginBottom: "4px" }}>
-        <strong style={{ color: "#2E7D32" }}>
-          Engine Best Line {evalStr && `(${evalStr})`}:
-        </strong>{" "}
+        <strong>Engine's best line {evalStr && `(${evalStr})`}:</strong>{" "}
         <span>{displayText}</span>
       </div>
-      <span
+      <Box
+        component="span"
         onClick={handlePlayLine}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "4px",
-          color: "#4CAF50",
-          cursor: "pointer",
-          fontWeight: "bold",
-          padding: "3px 8px",
-          borderRadius: "6px",
-          backgroundColor: "rgba(76, 175, 80, 0.15)",
-          border: "1px solid rgba(76, 175, 80, 0.4)",
-          fontSize: "0.85em",
-          transition: "all 0.2s ease",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = "rgba(76, 175, 80, 0.3)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = "rgba(76, 175, 80, 0.15)";
-        }}
-        title={`Click to play this line on the board`}
+        {...pressableProps(handlePlayLine)}
+        sx={inlineActionSx}
+        title="Play this line on the board"
       >
-        ▶ Play on Board
-      </span>
-    </div>
+        Play on board
+      </Box>
+    </Box>
   );
 };
 
@@ -1080,89 +1042,66 @@ const MaiaContinuation: React.FC<{
     : "";
 
   return (
-    <div
-      style={{
-        margin: "6px 0",
-        padding: "8px 12px",
-        borderRadius: "8px",
-        backgroundColor: "rgba(156, 39, 176, 0.08)",
-        border: "1px solid rgba(156, 39, 176, 0.25)",
-        fontSize: "0.9em",
-      }}
-    >
+    <Box sx={inlineBlockSx}>
       <div style={{ marginBottom: "4px" }}>
-        <strong style={{ color: "#7B1FA2" }}>Maia Realistic Line</strong>
-        <span
-          style={{ color: "#9C27B0", fontSize: "0.8em", marginLeft: "6px" }}
+        <strong>Maia's likely line</strong>
+        <Box
+          component="span"
+          sx={{
+            color: TEXT.secondary,
+            fontSize: TYPE.caption.fontSize,
+            ml: 0.75,
+          }}
         >
-          (You play best moves, opponent plays most likely human responses)
-        </span>
+          (You play the best moves, your opponent plays the most likely human
+          replies)
+        </Box>
       </div>
       {!maiaLine && !loading && !error && (
-        <span
+        <Box
+          component="span"
           onClick={buildMaiaLine}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "4px",
-            color: "#9C27B0",
-            cursor: "pointer",
-            fontWeight: "bold",
-            padding: "3px 8px",
-            borderRadius: "6px",
-            backgroundColor: "rgba(156, 39, 176, 0.15)",
-            border: "1px solid rgba(156, 39, 176, 0.4)",
-            fontSize: "0.85em",
-            transition: "all 0.2s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "rgba(156, 39, 176, 0.3)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "rgba(156, 39, 176, 0.15)";
-          }}
+          {...pressableProps(buildMaiaLine)}
+          sx={inlineActionSx}
         >
-          🤖 Compute Maia Line
-        </span>
+          Show Maia's line
+        </Box>
       )}
       {loading && (
-        <span style={{ color: "#9C27B0" }}>Computing Maia predictions...</span>
+        <Box
+          component="span"
+          role="status"
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 1,
+            color: TEXT.secondary,
+          }}
+        >
+          <CircularProgress size={16} sx={{ color: TEXT.secondary }} />
+          Computing Maia's line
+        </Box>
       )}
       {error && (
-        <span style={{ color: "#999", fontStyle: "italic" }}>{error}</span>
+        <Box component="span" sx={{ color: TEXT.secondary }}>
+          {error}
+        </Box>
       )}
       {maiaLine && maiaLine.length > 0 && (
         <>
           <div style={{ margin: "4px 0" }}>{displayText}</div>
-          <span
+          <Box
+            component="span"
             onClick={handlePlayLine}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "4px",
-              color: "#9C27B0",
-              cursor: "pointer",
-              fontWeight: "bold",
-              padding: "3px 8px",
-              borderRadius: "6px",
-              backgroundColor: "rgba(156, 39, 176, 0.15)",
-              border: "1px solid rgba(156, 39, 176, 0.4)",
-              fontSize: "0.85em",
-              transition: "all 0.2s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "rgba(156, 39, 176, 0.3)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor =
-                "rgba(156, 39, 176, 0.15)";
-            }}
+            {...pressableProps(handlePlayLine)}
+            sx={inlineActionSx}
+            title="Play this line on the board"
           >
-            ▶ Play on Board
-          </span>
+            Play on board
+          </Box>
         </>
       )}
-    </div>
+    </Box>
   );
 };
 
@@ -1216,28 +1155,15 @@ const HypotheticalMove: React.FC<{
   };
 
   return (
-    <span
+    <Box
+      component="span"
       onClick={handleHypotheticalClick}
-      style={{
-        color: "#4CAF50", // Green color for hypothetical moves
-        cursor: "pointer",
-        textDecoration: "underline",
-        fontWeight: "bold",
-        padding: "2px 4px",
-        borderRadius: "4px",
-        backgroundColor: "rgba(76, 175, 80, 0.1)",
-        transition: "all 0.2s ease",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = "rgba(76, 175, 80, 0.2)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = "rgba(76, 175, 80, 0.1)";
-      }}
-      title={`Click to see what if ${moveNumber}${isBlackMove ? "..." : "."} ${move} was played instead of ${originalMove}`}
+      {...pressableProps(handleHypotheticalClick)}
+      sx={inlineAltLinkSx}
+      title={`See what happens if ${moveNumber}${isBlackMove ? "..." : "."} ${move} is played instead of ${originalMove}`}
     >
       {moveNumber}.{isBlackMove ? ".." : ""} {move}
-    </span>
+    </Box>
   );
 };
 
@@ -1666,7 +1592,7 @@ const renderMovesInText = (text: string) => {
       );
 
     if (isRecommendedMove) {
-      // Use green clickable move with exploration mode
+      // An alternative: a dotted link that enters exploration mode
       parts.push(
         <ClickableMove
           key={`recommended-${moveNumber}-${isBlackMove ? "black" : "white"}-${startIndex}`}
@@ -1677,7 +1603,7 @@ const renderMovesInText = (text: string) => {
         />
       );
     } else {
-      // Use regular blue clickable move
+      // A game move: a solid link that goes to it
       parts.push(
         <ClickableMove
           key={`${pattern.type}-${moveNumber}-${isBlackMove ? "black" : "white"}-${startIndex}`}
@@ -1755,6 +1681,9 @@ const ChatContainer = styled(Paper)(({ theme }) => ({
   display: "flex",
   flexDirection: "column",
   padding: theme.spacing(2),
+  background: SURFACE.raised,
+  borderRadius: RADIUS.card,
+  boxShadow: "none",
 }));
 
 const MessagesContainer = styled(Box, {
@@ -1764,7 +1693,6 @@ const MessagesContainer = styled(Box, {
   overflowY: "auto",
   marginBottom: theme.spacing(2),
   padding: theme.spacing(1),
-  transition: "all 0.3s ease",
   maxHeight: isExpanded ? "none" : "400px", // Increased from 200px to 400px for better readability
 }));
 
@@ -1780,34 +1708,33 @@ const MessageBubble = styled(Box, {
 })<{ isUser: boolean }>(({ theme, isUser }) => ({
   maxWidth: "85%",
   padding: theme.spacing(1.5),
-  borderRadius: theme.spacing(2),
+  borderRadius: RADIUS.card,
   marginBottom: theme.spacing(1.5),
-  backgroundColor: isUser
-    ? theme.palette.primary.main // Orange for user messages
-    : "#FF8C42", // Lighter orange for AI messages
-  color: isUser
-    ? "#FFFFFF" // White text on orange
-    : "#FFFFFF", // White text on light orange
+  backgroundColor: isUser ? ACCENT.tint : SURFACE.raisedSecondary,
+  border: `1px solid ${isUser ? ACCENT.border : LINE.hairline}`,
+  color: TEXT.primary,
+  // The coach's notes are read, so they sit at body size; the reader's own
+  // short questions stay at the dense size.
+  fontSize: isUser ? TYPE.bodySmall.fontSize : TYPE.body.fontSize,
+  lineHeight: isUser ? TYPE.bodySmall.lineHeight : TYPE.body.lineHeight,
   alignSelf: isUser ? "flex-end" : "flex-start",
   marginLeft: isUser ? "auto" : 0,
-  boxShadow: theme.shadows[2],
-  transition: "all 0.2s ease-in-out",
-  "&:hover": {
-    boxShadow: theme.shadows[3],
-  },
-  // Enhanced markdown styling
+  boxShadow: "none",
+  // Markdown inside the bubble
   "& h1, & h2, & h3, & h4, & h5, & h6": {
     marginTop: theme.spacing(2),
     marginBottom: theme.spacing(1),
     fontWeight: 600,
-    color: isUser ? "#FFFFFF" : "#FFFFFF",
+    color: TEXT.primary,
   },
-  "& h1": { fontSize: "1.5rem" },
-  "& h2": { fontSize: "1.3rem" },
-  "& h3": { fontSize: "1.2rem" },
+  "& h1": { fontSize: TYPE.h4.fontSize },
+  "& h2": { fontSize: TYPE.h5.fontSize },
+  "& h3": {
+    fontSize: isUser ? TYPE.bodySmall.fontSize : TYPE.body.fontSize,
+  },
   "& p": {
     marginBottom: theme.spacing(1),
-    lineHeight: 1.6,
+    lineHeight: 1.5,
   },
   "& ul, & ol": {
     paddingLeft: theme.spacing(3),
@@ -1817,44 +1744,40 @@ const MessageBubble = styled(Box, {
     marginBottom: theme.spacing(0.5),
   },
   "& blockquote": {
-    borderLeft: `4px solid ${isUser ? "#FFFFFF" : "#FFFFFF"}`,
+    borderLeft: `2px solid ${LINE.strong}`,
     paddingLeft: theme.spacing(2),
     marginLeft: 0,
     marginRight: 0,
     marginTop: theme.spacing(1),
     marginBottom: theme.spacing(1),
-    fontStyle: "italic",
-    backgroundColor: isUser
-      ? "rgba(255, 255, 255, 0.1)"
-      : "rgba(255, 255, 255, 0.1)",
-    borderRadius: theme.spacing(0.5),
+    color: TEXT.secondary,
   },
   "& table": {
     width: "100%",
     borderCollapse: "collapse",
     marginBottom: theme.spacing(1),
-    fontSize: "0.9rem",
+    fontSize: TYPE.caption.fontSize,
   },
   "& th, & td": {
-    border: `1px solid rgba(255, 255, 255, 0.3)`,
+    border: `1px solid ${LINE.hairline}`,
     padding: theme.spacing(1),
     textAlign: "left",
   },
   "& th": {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "rgba(255,255,255,0.06)",
     fontWeight: 600,
   },
   "& code": {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    color: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    color: TEXT.primary,
     padding: theme.spacing(0.25, 0.5),
-    borderRadius: theme.spacing(0.5),
+    borderRadius: RADIUS.small,
     fontSize: "0.9em",
-    fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+    fontFamily: FONT_MONO,
   },
   "& pre": {
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-    borderRadius: theme.spacing(1),
+    backgroundColor: SURFACE.page,
+    borderRadius: RADIUS.control,
     padding: theme.spacing(1.5),
     overflow: "auto",
     marginBottom: theme.spacing(1),
@@ -1867,7 +1790,7 @@ const MessageBubble = styled(Box, {
   },
   "& hr": {
     border: "none",
-    borderTop: `1px solid rgba(255, 255, 255, 0.3)`,
+    borderTop: `1px solid ${LINE.hairline}`,
     margin: theme.spacing(2, 0),
   },
   "& strong": {
@@ -1895,30 +1818,30 @@ function getSmartGameGreeting(
   if (game.isCheckmate()) {
     const winnerSide = game.turn() === "w" ? "b" : "w"; // side that delivered mate wins
     if (playerColor && playerColor === winnerSide) {
-      return `Nice win, ${playerName}! 🎉 You checkmated your opponent in ${moveCount} moves. I'm your AI chess coach — would you like me to review the game, point out your best moves, or focus on any particular part?`;
+      return `Nice win, ${playerName}! You checkmated your opponent in ${moveCount} moves. I'm Masti, your chess coach. Want me to review the game, point out your best moves, or look at one part of it?`;
     } else if (playerColor) {
-      return `Tough loss, ${playerName}. Your opponent found checkmate on move ${moveCount}. But every loss is a learning opportunity! I'm your AI chess coach — want me to analyze what went wrong and show you how to improve?`;
+      return `Tough loss, ${playerName}. Your opponent found checkmate on move ${moveCount}, and there is something to learn in it. I'm Masti, your chess coach. Want me to find where it went wrong and what to do next time?`;
     }
-    return `The game ended in checkmate after ${moveCount} moves. I'm your AI chess coach — what would you like to analyze?`;
+    return `The game ended in checkmate after ${moveCount} moves. I'm Masti, your chess coach. What would you like to look at?`;
   }
 
   if (game.isDraw()) {
     if (game.isStalemate()) {
-      return `The game ended in stalemate after ${moveCount} moves — so close! I'm your AI chess coach. Want me to review the endgame and show where the win was?`;
+      return `The game ended in stalemate after ${moveCount} moves, so close! I'm Masti, your chess coach. Want me to review the endgame and show where the win was?`;
     }
-    return `A hard-fought draw after ${moveCount} moves. I'm your AI chess coach — would you like me to analyze the key moments or find where you could have pushed for a win?`;
+    return `A hard-fought draw after ${moveCount} moves. I'm Masti, your chess coach. Want me to go through the key moments, or find where you could have pushed for a win?`;
   }
 
   if (game.isGameOver()) {
-    return `The game has ended after ${moveCount} moves. I'm your AI chess coach — what aspect would you like me to analyze?`;
+    return `The game ended after ${moveCount} moves. I'm Masti, your chess coach. What would you like me to look at?`;
   }
 
   // Game still in progress (imported mid-game or ongoing)
   if (moveCount > 0) {
-    return `I see a ${moveCount}-move game loaded. I'm your AI chess coach — you can ask me anything: analyze the full game, review specific moves, explain positions, suggest improvements, or ask about strategy. What would you like to do?`;
+    return `I see a ${moveCount}-move game loaded. I'm Masti, your chess coach. Ask me anything: review the whole game, a specific move, a position, or an idea. What would you like to do?`;
   }
 
-  return `Hi! I'm your AI chess coach. Import a game from the database, paste a PGN, or play moves on the board — then I'll help you analyze it. You can ask me about anything: mistakes, strategy, openings, endgames, or specific moves.`;
+  return "Hi! I'm Masti, your chess coach. Load a game from the database, paste a PGN, or play moves on the board, and I'll help you go through it. Ask me about mistakes, strategy, openings, endgames, or any move.";
 }
 
 const AICoachChat: React.FC<AICoachChatProps> = ({
@@ -2578,7 +2501,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
       // Route: OFF-TOPIC — short polite redirect, no big LLM call.
       if (classifiedIntent === "off_topic") {
         const offTopicReply =
-          "I'm your chess coach, so I'll stay focused on chess! Ask me to analyze your game, explain a move, or suggest tactics to practice — happy to dive into any of those.";
+          "I'm Masti, your chess coach, so I'll stick to chess. Ask me to analyze your game, explain a move, or suggest tactics to practice.";
         setMessages((prev) => [
           ...prev,
           userMessage,
@@ -3185,16 +3108,35 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
   };
 
   return (
-    <ChatContainer elevation={3}>
+    <ChatContainer elevation={0}>
       <Box sx={{ mb: 2, position: "relative" }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
-            AI Chess Coach
+            Masti
           </Typography>
           <MaiaStatusIndicator size="small" />
         </Box>
-        <ExpandButton onClick={() => setIsExpanded(!isExpanded)} size="small">
-          {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+        <Typography
+          sx={{
+            fontSize: TYPE.caption.fontSize,
+            lineHeight: TYPE.caption.lineHeight,
+            color: TEXT.secondary,
+            // Clear of the expand button, which sits absolutely at the right.
+            pr: 6,
+          }}
+        >
+          Masti&apos;s notes are written by an AI model.
+        </Typography>
+        <ExpandButton
+          onClick={() => setIsExpanded(!isExpanded)}
+          size="small"
+          aria-label={isExpanded ? "Collapse" : "Expand"}
+        >
+          {isExpanded ? (
+            <ChevronUp size={18} strokeWidth={1.75} />
+          ) : (
+            <ChevronDown size={18} strokeWidth={1.75} />
+          )}
         </ExpandButton>
       </Box>
 
@@ -3217,7 +3159,7 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
                     PreTag="div"
                     customStyle={{
                       margin: 0,
-                      borderRadius: "8px",
+                      borderRadius: `${RADIUS.small}px`,
                       fontSize: "0.85em",
                     }}
                   >
@@ -3240,13 +3182,10 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
                 return (
                   <blockquote
                     style={{
-                      borderLeft: "4px solid #1976d2",
-                      paddingLeft: "16px",
+                      borderLeft: `2px solid ${LINE.strong}`,
                       margin: "16px 0",
-                      fontStyle: "italic",
-                      backgroundColor: "#f5f5f5",
-                      borderRadius: "4px",
                       padding: "8px 16px",
+                      color: TEXT.secondary,
                     }}
                   >
                     {children}
@@ -3344,12 +3283,12 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
                           opacity: 0.7,
                         }}
                       >
-                        <CircularProgress size={12} sx={{ mr: 1 }} />
-                        <Typography
-                          variant="caption"
-                          sx={{ fontStyle: "italic" }}
-                        >
-                          Thinking...
+                        <CircularProgress
+                          size={16}
+                          sx={{ mr: 1, color: TEXT.secondary }}
+                        />
+                        <Typography variant="caption" role="status">
+                          Thinking
                         </Typography>
                       </Box>
                     )}
@@ -3359,44 +3298,66 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
                         display: "flex",
                         gap: 0.5,
                         mt: 0.5,
-                        opacity: messageFeedback[index] ? 1 : 0.4,
-                        "&:hover": { opacity: 1 },
-                        transition: "opacity 0.2s",
+                        color: TEXT.secondary,
                       }}
                     >
                       <IconButton
                         size="small"
                         onClick={() => handleFeedback(index, "positive")}
+                        aria-label="Helpful"
                         sx={{
                           padding: "2px",
                           color:
                             messageFeedback[index] === "positive"
-                              ? "#4caf50"
-                              : "inherit",
+                              ? STATUS.success
+                              : TEXT.secondary,
+                          transition: `color ${MOTION.hover}`,
+                          "&:hover": {
+                            color:
+                              messageFeedback[index] === "positive"
+                                ? STATUS.success
+                                : TEXT.primary,
+                          },
                         }}
                       >
-                        {messageFeedback[index] === "positive" ? (
-                          <ThumbUpIcon sx={{ fontSize: 14 }} />
-                        ) : (
-                          <ThumbUpOutlinedIcon sx={{ fontSize: 14 }} />
-                        )}
+                        <ThumbsUp
+                          size={14}
+                          strokeWidth={1.75}
+                          fill={
+                            messageFeedback[index] === "positive"
+                              ? "currentColor"
+                              : "none"
+                          }
+                        />
                       </IconButton>
                       <IconButton
                         size="small"
                         onClick={() => handleFeedback(index, "negative")}
+                        aria-label="Not helpful"
                         sx={{
                           padding: "2px",
                           color:
                             messageFeedback[index] === "negative"
-                              ? "#f44336"
-                              : "inherit",
+                              ? STATUS.error
+                              : TEXT.secondary,
+                          transition: `color ${MOTION.hover}`,
+                          "&:hover": {
+                            color:
+                              messageFeedback[index] === "negative"
+                                ? STATUS.error
+                                : TEXT.primary,
+                          },
                         }}
                       >
-                        {messageFeedback[index] === "negative" ? (
-                          <ThumbDownIcon sx={{ fontSize: 14 }} />
-                        ) : (
-                          <ThumbDownOutlinedIcon sx={{ fontSize: 14 }} />
-                        )}
+                        <ThumbsDown
+                          size={14}
+                          strokeWidth={1.75}
+                          fill={
+                            messageFeedback[index] === "negative"
+                              ? "currentColor"
+                              : "none"
+                          }
+                        />
                       </IconButton>
                       {/* CMIP intern flag — renders only when isIntern. */}
                       <FlagButton
@@ -3409,10 +3370,10 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
                       enough content to be worth sharing. Short canned replies
                       (off-topic, decline, errors) don't qualify. */}
                       {message.fen && message.content.trim().length > 100 && (
-                        <Tooltip title="Share Insight" arrow placement="top">
+                        <Tooltip title="Share this note" arrow placement="top">
                           <IconButton
                             size="small"
-                            aria-label="Share insight"
+                            aria-label="Share this note"
                             onClick={() => {
                               // Capture the conversation up to and including this
                               // message for the "Whole conversation" share mode.
@@ -3440,9 +3401,14 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
                                 transcript,
                               });
                             }}
-                            sx={{ padding: "2px", color: "inherit" }}
+                            sx={{
+                              padding: "2px",
+                              color: TEXT.secondary,
+                              transition: `color ${MOTION.hover}`,
+                              "&:hover": { color: TEXT.primary },
+                            }}
                           >
-                            <ShareIcon sx={{ fontSize: 14 }} />
+                            <Share size={14} strokeWidth={1.75} />
                           </IconButton>
                         </Tooltip>
                       )}
@@ -3470,12 +3436,12 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
           onKeyPress={handleKeyPress}
           placeholder={
             autoAnalyzeState === "pending"
-              ? `Analyzing your game... ${evaluationProgress}%`
+              ? `Analyzing your game, ${evaluationProgress}%`
               : autoAnalyzeState === "sent-awaiting-insights"
-                ? "Coach is reviewing your game…"
+                ? "Masti is reviewing your game"
                 : isAnalyzingGame
-                  ? `Analyzing your game... ${evaluationProgress}%`
-                  : "Ask specific questions about moves or positions..."
+                  ? `Analyzing your game, ${evaluationProgress}%`
+                  : "Ask about a move or a position"
           }
           disabled={isLoading || isAnalyzingGame || lockedByAutoAnalyze}
         />
@@ -3497,40 +3463,42 @@ const AICoachChat: React.FC<AICoachChatProps> = ({
             }
           }}
           disabled={isLoading || isAnalyzingGame || lockedByAutoAnalyze}
+          aria-label="Analyze game"
           sx={{
-            background: "linear-gradient(135deg, #FF8C42 0%, #FF6B42 100%)",
-            color: "white",
+            background: ACCENT.main,
+            color: TEXT.onAccent,
             width: 48,
             height: 48,
-            borderRadius: 2,
-            "&:hover": {
-              background: isLoading
-                ? "linear-gradient(135deg, #FF8C42 0%, #FF6B42 100%)"
-                : "linear-gradient(135deg, #FF6B42 0%, #FF5722 100%)",
-            },
+            borderRadius: `${RADIUS.control}px`,
+            "&:hover": { background: ACCENT.hover },
             "&.Mui-disabled": {
-              background: "linear-gradient(135deg, #FF8C42 0%, #FF6B42 100%)",
-              opacity: 0.6,
-              color: "white",
+              background: ACCENT.main,
+              opacity: 0.5,
+              color: TEXT.onAccent,
             },
           }}
-          title="Analyze My Game"
+          title="Analyze game"
         >
           {isLoading ? (
-            <CircularProgress size={20} sx={{ color: "white" }} />
+            <CircularProgress size={20} sx={{ color: TEXT.onAccent }} />
           ) : (
-            <>🎯</>
+            <Target size={20} strokeWidth={1.75} />
           )}
         </IconButton>
 
         <IconButton
-          color="primary"
+          aria-label="Send"
           onClick={handleSend}
           disabled={
             isLoading || isAnalyzingGame || lockedByAutoAnalyze || !input.trim()
           }
+          sx={{ color: TEXT.primary }}
         >
-          {isLoading ? <CircularProgress size={24} /> : <SendIcon />}
+          {isLoading ? (
+            <CircularProgress size={20} sx={{ color: TEXT.secondary }} />
+          ) : (
+            <Send size={18} strokeWidth={1.75} />
+          )}
         </IconButton>
       </Box>
 

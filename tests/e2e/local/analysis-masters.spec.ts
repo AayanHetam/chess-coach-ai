@@ -119,7 +119,7 @@ test("a click shows the new position's rows and never the old position's", async
   await expect(page.getByText("Exploring", { exact: true })).toBeVisible();
   // While the answer is held back: no rows, and the loading copy — not
   // d6 / Nc6 / e6 pretending to be White's replies.
-  await expect(panel.getByText("Querying master database…")).toBeVisible();
+  await expect(panel.getByText("Loading master games")).toBeVisible();
   await expect(rows).toHaveCount(0);
   // Then White's replies to 2...d6, of which 3.d4 is the book move.
   await expect(rows.filter({ hasText: /^d4/ })).toBeVisible({

@@ -1,23 +1,27 @@
 import {
-  Backdrop,
   Box,
   Button,
+  Dialog,
+  DialogTitle,
   LinearProgress,
   Paper,
   Stack,
   Typography,
 } from "@mui/material";
 import { Masti } from "@/components/masti";
+import { PLATFORM_LABEL } from "./dossier";
 import { Icon } from "@iconify/react";
 import {
   ACCENT,
   LINE,
+  MOTION,
   RADIUS,
-  SHADOW,
   SURFACE,
   TEXT,
   TYPE,
 } from "@/theme/tokens";
+
+const TITLE_ID = "scout-analyzing-title";
 
 export type AnalyzingStage = "connect" | "download" | "analyze";
 
@@ -53,11 +57,6 @@ const STAGE_BODY: Record<AnalyzingStage, { title: string; detail: string }> = {
   },
 };
 
-const PLATFORM_LABEL: Record<AnalyzingModalProps["platform"], string> = {
-  "chess.com": "Chess.com",
-  lichess: "Lichess",
-};
-
 export default function AnalyzingModal({
   open,
   username,
@@ -70,21 +69,22 @@ export default function AnalyzingModal({
   const { title, detail } = STAGE_BODY[stage];
   const pct = Math.round(progress * 100);
 
+  // The theme styles the Dialog (SURFACE.overlay, RADIUS.sheet, a hairline,
+  // SHADOW.modal, the scrim); Dialog traps focus and Escape cancels. A click
+  // on the scrim does nothing, as before: a stray click should not throw
+  // away a scout that is halfway through.
   return (
-    <Backdrop open={open} sx={{ zIndex: (theme) => theme.zIndex.modal + 10 }}>
-      <Paper
-        elevation={0}
-        sx={{
-          width: 420,
-          maxWidth: "92vw",
-          p: 3,
-          borderRadius: `${RADIUS.sheet}px`,
-          background: SURFACE.overlay,
-          color: TEXT.primary,
-          border: `1px solid ${LINE.hairline}`,
-          boxShadow: SHADOW.modal,
-        }}
-      >
+    <Dialog
+      open={open}
+      onClose={(_, reason) => {
+        if (reason === "escapeKeyDown") onCancel?.();
+      }}
+      disableEscapeKeyDown={!onCancel}
+      fullWidth
+      maxWidth="xs"
+      aria-labelledby={TITLE_ID}
+    >
+      <Box sx={{ p: 3 }}>
         {/* Avatar + username */}
         <Stack
           direction="column"
@@ -124,12 +124,9 @@ export default function AnalyzingModal({
           </Box>
 
           <Box sx={{ textAlign: "center" }}>
-            <Typography sx={{ ...TYPE.h4 }}>
-              Analyzing{" "}
-              <Box component="span" sx={{ color: ACCENT.main }}>
-                {username}
-              </Box>
-            </Typography>
+            <DialogTitle id={TITLE_ID} sx={{ p: 0 }}>
+              Analyzing {username}
+            </DialogTitle>
             <Typography variant="caption" sx={{ color: TEXT.secondary }}>
               {PLATFORM_LABEL[platform]}
             </Typography>
@@ -178,8 +175,7 @@ export default function AnalyzingModal({
                         : done
                           ? ACCENT.tint
                           : SURFACE.raisedSecondary,
-                      transition:
-                        "background-color 160ms ease-out, color 160ms ease-out",
+                      transition: `background-color ${MOTION.hover}, color ${MOTION.hover}`,
                     }}
                   >
                     {done ? <Icon icon="mdi:check-bold" width={18} /> : i + 1}
@@ -221,14 +217,23 @@ export default function AnalyzingModal({
             border: `1px solid ${LINE.hairline}`,
           }}
         >
-          <Typography
-            sx={{ fontWeight: 600, color: TEXT.primary, fontSize: 15, mb: 0.5 }}
-          >
-            {title}
-          </Typography>
-          <Typography sx={{ color: TEXT.secondary, fontSize: 13, mb: 1.5 }}>
-            {detail}
-          </Typography>
+          {/* The stage line is the live region; the bar below carries the
+              percentage as a progressbar so it is not read out every tick. */}
+          <Box role="status" aria-live="polite">
+            <Typography
+              sx={{
+                fontWeight: 600,
+                color: TEXT.primary,
+                fontSize: 15,
+                mb: 0.5,
+              }}
+            >
+              {title}
+            </Typography>
+            <Typography sx={{ color: TEXT.secondary, fontSize: 13, mb: 1.5 }}>
+              {detail}
+            </Typography>
+          </Box>
 
           {/* Masti thinks while the archive downloads: the still until the
               modal opens, the loop while it is open (when the pack has one),
@@ -254,6 +259,7 @@ export default function AnalyzingModal({
           <LinearProgress
             variant="determinate"
             value={pct}
+            aria-label="Scout progress"
             sx={{
               height: 6,
               borderRadius: 3,
@@ -279,7 +285,7 @@ export default function AnalyzingModal({
             Cancel
           </Button>
         )}
-      </Paper>
-    </Backdrop>
+      </Box>
+    </Dialog>
   );
 }

@@ -12,7 +12,7 @@
 // an accuracy score.
 //
 // The five outcomes render as five different things, and the two that are NOT
-// about the reader — their opponent going first, and the corpus running out —
+// about the reader (their opponent going first, and the corpus running out)
 // are worded so they cannot be mistaken for the one that is. "We have no data
 // here" read as "you left theory" would tell a player they went off book for
 // reaching a position nobody in the sample happened to reach.
@@ -23,9 +23,7 @@ import { Box, Typography } from "@mui/material";
 import { BookOpen } from "lucide-react";
 import type { BookExitResponse } from "@/pages/api/book-exit";
 import { renderBookExit } from "@/lib/book/copy";
-
-const EMBER = "#FB923C";
-const MONO = '"SF Mono", ui-monospace, Menlo, monospace';
+import { FONT_MONO, LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 
 const pct = (perMille: number) => `${Math.round(perMille / 10)}%`;
 
@@ -41,7 +39,7 @@ export default function BookExitCard({ sans, side }: BookExitCardProps) {
   const [failed, setFailed] = useState(false);
   // The request is keyed on the game's CONTENT, not the array's identity. The
   // parent rebuilds `sans` on every render, and /analysis re-renders on every
-  // engine evaluation tick — keyed on the array this effect fired ~20 times a
+  // engine evaluation tick: keyed on the array this effect fired ~20 times a
   // second and a signed-out reader produced a 401 storm in production
   // (2026-09-06, 1,000 POSTs in 49 s). SAN never contains a space.
   const sansKey = sans.join(" ");
@@ -80,34 +78,42 @@ export default function BookExitCard({ sans, side }: BookExitCardProps) {
       role="status"
       data-testid="book-exit"
       sx={{
-        borderRadius: "1.5rem",
-        border: "1px solid rgba(255,255,255,0.08)",
-        background: "rgba(255,255,255,0.03)",
-        backdropFilter: "blur(12px)",
+        // A nested block inside the coach panel, which is already the card.
+        borderRadius: `${RADIUS.control}px`,
+        background: SURFACE.raisedSecondary,
         px: 2,
         py: 1.75,
-        transition: "border-color 200ms ease",
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1 }}>
-        <BookOpen size={13} color={EMBER} aria-hidden />
-        <Typography
-          sx={{
-            fontSize: "0.68rem",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            color: "rgba(255,255,255,0.45)",
-          }}
-        >
+        <BookOpen
+          size={16}
+          strokeWidth={1.75}
+          color={TEXT.secondary}
+          aria-hidden
+        />
+        <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
           {body.label}
         </Typography>
       </Box>
-      <Typography sx={{ color: "#fff", fontSize: "0.95rem", fontWeight: 600, lineHeight: 1.45 }}>
+      <Typography
+        sx={{
+          color: TEXT.primary,
+          fontSize: TYPE.bodySmall.fontSize,
+          fontWeight: 600,
+          lineHeight: 1.45,
+        }}
+      >
         {body.headline}
       </Typography>
       {body.detail && (
         <Typography
-          sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.82rem", lineHeight: 1.6, mt: 0.75 }}
+          sx={{
+            color: TEXT.secondary,
+            fontSize: TYPE.caption.fontSize,
+            lineHeight: 1.5,
+            mt: 0.75,
+          }}
         >
           {body.detail}
         </Typography>
@@ -123,15 +129,26 @@ export default function BookExitCard({ sans, side }: BookExitCardProps) {
                 gap: 0.5,
                 px: 1,
                 py: 0.4,
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: `${RADIUS.small}px`,
+                border: `1px solid ${LINE.hairline}`,
+                background: "transparent",
               }}
             >
-              <Typography sx={{ fontFamily: MONO, fontSize: "0.8rem", color: "rgba(255,255,255,0.85)" }}>
+              <Typography
+                sx={{
+                  fontFamily: FONT_MONO,
+                  fontSize: TYPE.caption.fontSize,
+                  color: TEXT.primary,
+                }}
+              >
                 {m.san}
               </Typography>
               <Typography
-                sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.45)", fontVariantNumeric: "tabular-nums" }}
+                sx={{
+                  fontSize: TYPE.caption.fontSize,
+                  color: TEXT.secondary,
+                  fontVariantNumeric: "tabular-nums",
+                }}
               >
                 {pct(m.perMille)}
               </Typography>
@@ -140,7 +157,14 @@ export default function BookExitCard({ sans, side }: BookExitCardProps) {
         </Box>
       )}
       {body.disclaimer && (
-        <Typography sx={{ color: "rgba(255,255,255,0.4)", fontSize: "0.72rem", lineHeight: 1.6, mt: 1.25 }}>
+        <Typography
+          sx={{
+            color: TEXT.secondary,
+            fontSize: TYPE.caption.fontSize,
+            lineHeight: 1.5,
+            mt: 1.25,
+          }}
+        >
           {body.disclaimer}
         </Typography>
       )}

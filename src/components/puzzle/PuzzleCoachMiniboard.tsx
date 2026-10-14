@@ -155,11 +155,11 @@ export function PuzzleCoachMiniboard({
                 mt: 0.75,
                 px: 0.5,
                 color: TEXT.secondary,
-                fontSize: "0.7rem",
+                fontSize: TYPE.caption.fontSize,
                 fontFamily: FONT_MONO,
               }}
             >
-              after: {moves.join(" ")}
+              After {moves.join(" ")}
             </Typography>
           )}
         </>
@@ -170,7 +170,7 @@ export function PuzzleCoachMiniboard({
             sx={{
               display: "block",
               color: STATUS.error,
-              fontSize: "0.72rem",
+              fontSize: TYPE.caption.fontSize,
               fontWeight: 600,
               mb: 0.5,
             }}
@@ -182,8 +182,7 @@ export function PuzzleCoachMiniboard({
             sx={{
               display: "block",
               color: TEXT.secondary,
-              fontSize: "0.7rem",
-              fontFamily: FONT_MONO,
+              fontSize: TYPE.caption.fontSize,
             }}
           >
             {result.error}

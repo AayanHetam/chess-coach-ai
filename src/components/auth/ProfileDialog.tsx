@@ -4,6 +4,7 @@ import {
   Dialog,
   DialogContent,
   Box,
+  CircularProgress,
   TextField,
   Button,
   Typography,
@@ -349,26 +350,10 @@ export default function ProfileDialog({
         }}
         variant="fullWidth"
       >
-        <Tab
-          label="Account"
-          value="account"
-          sx={{ textTransform: "none", fontWeight: 600 }}
-        />
-        <Tab
-          label="Chess"
-          value="chess"
-          sx={{ textTransform: "none", fontWeight: 600 }}
-        />
-        <Tab
-          label="Coaching"
-          value="coaching"
-          sx={{ textTransform: "none", fontWeight: 600 }}
-        />
-        <Tab
-          label="Appearance"
-          value="appearance"
-          sx={{ textTransform: "none", fontWeight: 600 }}
-        />
+        <Tab label="Account" value="account" />
+        <Tab label="Chess" value="chess" />
+        <Tab label="Coaching" value="coaching" />
+        <Tab label="Appearance" value="appearance" />
       </Tabs>
 
       <DialogContent sx={{ py: 3, px: 3 }}>
@@ -461,9 +446,13 @@ export default function ProfileDialog({
                       type="submit"
                       variant="outlined"
                       disabled={pwSubmitting}
-                      sx={{ textTransform: "none", fontWeight: 600 }}
+                      startIcon={
+                        pwSubmitting ? (
+                          <CircularProgress size={16} color="inherit" />
+                        ) : undefined
+                      }
                     >
-                      {pwSubmitting ? "Updating…" : "Update password"}
+                      {pwSubmitting ? "Updating" : "Update password"}
                     </Button>
                   </Box>
                 </Stack>
@@ -485,7 +474,7 @@ export default function ProfileDialog({
                   alt="Chess.com"
                 />
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  Chess.com Username
+                  Chess.com username
                 </Typography>
               </Box>
               <TextField
@@ -510,7 +499,7 @@ export default function ProfileDialog({
                   alt="Lichess"
                 />
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  Lichess Username
+                  Lichess username
                 </Typography>
               </Box>
               <TextField
@@ -592,18 +581,17 @@ export default function ProfileDialog({
                     value={t.value}
                     sx={{
                       flexDirection: "column",
-                      textTransform: "none",
                       px: 1.5,
                       py: 1.25,
                       gap: 0.5,
                     }}
                   >
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       {t.label}
                     </Typography>
                     <Typography
                       variant="caption"
-                      sx={{ color: "#666", lineHeight: 1.2 }}
+                      sx={{ color: TEXT.secondary, lineHeight: 1.2 }}
                     >
                       {t.hint}
                     </Typography>
@@ -630,18 +618,17 @@ export default function ProfileDialog({
                     value={s.value}
                     sx={{
                       flexDirection: "column",
-                      textTransform: "none",
                       px: 1.5,
                       py: 1.25,
                       gap: 0.5,
                     }}
                   >
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       {s.label}
                     </Typography>
                     <Typography
                       variant="caption"
-                      sx={{ color: "#666", lineHeight: 1.2 }}
+                      sx={{ color: TEXT.secondary, lineHeight: 1.2 }}
                     >
                       {s.hint}
                     </Typography>
@@ -699,7 +686,7 @@ export default function ProfileDialog({
                   />
                 ))}
                 {coaching.favoriteOpenings.length === 0 && (
-                  <Typography variant="caption" sx={{ color: "#999" }}>
+                  <Typography variant="caption" sx={{ color: TEXT.secondary }}>
                     None yet. Add up to 20.
                   </Typography>
                 )}
@@ -713,11 +700,7 @@ export default function ProfileDialog({
                   onChange={(e) => setOpeningDraft(e.target.value)}
                   onKeyDown={onOpeningKeyDown}
                 />
-                <Button
-                  variant="outlined"
-                  onClick={addOpening}
-                  sx={{ textTransform: "none", fontWeight: 600 }}
-                >
+                <Button variant="outlined" onClick={addOpening}>
                   Add
                 </Button>
               </Box>
@@ -751,7 +734,7 @@ export default function ProfileDialog({
                   <ToggleButton
                     key={t.value}
                     value={t.value}
-                    sx={{ textTransform: "none", fontWeight: 600 }}
+                    sx={{ fontWeight: 600 }}
                   >
                     {t.label}
                   </ToggleButton>
@@ -775,7 +758,7 @@ export default function ProfileDialog({
                   <ToggleButton
                     key={p.value}
                     value={p.value}
-                    sx={{ textTransform: "none", fontWeight: 600 }}
+                    sx={{ fontWeight: 600 }}
                   >
                     {p.label}
                   </ToggleButton>
@@ -783,9 +766,8 @@ export default function ProfileDialog({
               </ToggleButtonGroup>
             </Box>
 
-            <Typography variant="caption" sx={{ color: "#999" }}>
-              Visual themes are saved but not yet applied to the board. Wiring
-              lands in a follow-up.
+            <Typography variant="caption" sx={{ color: TEXT.secondary }}>
+              Your board theme is saved. It will show on the board soon.
             </Typography>
 
             <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
@@ -817,9 +799,15 @@ function SaveButton({
       onClick={onClick}
       disabled={saving}
       sx={{ px: 3, py: 0.75 }}
-      startIcon={saved ? <Icon icon="mdi:check" /> : undefined}
+      startIcon={
+        saving ? (
+          <CircularProgress size={16} color="inherit" />
+        ) : saved ? (
+          <Icon icon="mdi:check" />
+        ) : undefined
+      }
     >
-      {saving ? "Saving..." : saved ? "Saved" : "Save changes"}
+      {saving ? "Saving" : saved ? "Saved" : "Save changes"}
     </Button>
   );
 }

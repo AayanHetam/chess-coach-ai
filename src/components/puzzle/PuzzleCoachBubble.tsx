@@ -1,10 +1,10 @@
 "use client";
 
-import { Box, Typography } from "@mui/material";
+import { Box, CircularProgress, Typography } from "@mui/material";
 import { User } from "lucide-react";
 import { MastiAvatar, type MastiMood } from "@/components/masti";
 import { FadeIn } from "@/components/ui/FadeIn";
-import { ACCENT, LINE, RADIUS, SURFACE, TEXT } from "@/theme/tokens";
+import { ACCENT, LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 import { PuzzleCoachMiniboard } from "./PuzzleCoachMiniboard";
 import { GlossifiedText } from "./ChessTermGlossary";
 import { DemoMoveCard } from "./DemoMoveCard";
@@ -41,8 +41,8 @@ interface PuzzleCoachBubbleProps {
   /** The puzzle's "student starting position" FEN — the anchor for legacy
    *  [POSITION_AFTER:...] miniboards. */
   startFen: string;
-  /** Streaming state — when true, render with a soft pulse so the user
-   *  knows tokens are still arriving. */
+  /** Streaming state: tokens are still arriving. The arriving text shows the
+   *  activity and Masti's face reads "thinking"; nothing blinks. */
   streaming?: boolean;
   /** Called when the user taps "Show on board" inside a DemoMoveCard.
    *  Bubble passes the SAN sequence up; parent opens DemoMoveDialog. */
@@ -198,23 +198,6 @@ export function PuzzleCoachBubble({
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
             position: "relative",
-            ...(streaming && {
-              "&::after": {
-                content: '""',
-                display: "inline-block",
-                width: "0.5em",
-                height: "1em",
-                marginLeft: "2px",
-                verticalAlign: "text-bottom",
-                background: ACCENT.main,
-                opacity: 0.7,
-                animation: "puzzleCoachCursor 800ms steps(1) infinite",
-              },
-              "@keyframes puzzleCoachCursor": {
-                "0%, 49%": { opacity: 0.7 },
-                "50%, 100%": { opacity: 0 },
-              },
-            }),
           }}
         >
           {isUser
@@ -233,10 +216,10 @@ export function PuzzleCoachBubble({
 }
 
 /**
- * Standalone "coach is thinking…" indicator shown between the user's
- * message and the first arriving token. Replaced in-place by the coach
- * bubble once the first text delta lands. The three dots only change
- * opacity: a typing indicator, not a bounce.
+ * Standalone "Masti is thinking" indicator shown between the user's message
+ * and the first arriving token. Replaced in-place by the coach bubble once
+ * the first text delta lands: a 16px spinner beside the status text, gone
+ * the frame the reply starts.
  */
 export function PuzzleCoachThinkingBubble() {
   return (
@@ -259,6 +242,7 @@ export function PuzzleCoachThinkingBubble() {
           loops={0}
         />
         <Box
+          role="status"
           sx={{
             px: 1.75,
             py: 1.5,
@@ -267,36 +251,23 @@ export function PuzzleCoachThinkingBubble() {
             border: `1px solid ${LINE.hairline}`,
             display: "flex",
             alignItems: "center",
-            gap: 0.6,
+            gap: 1,
           }}
         >
-          {[0, 1, 2].map((i) => (
-            <Box
-              key={i}
-              sx={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: TEXT.secondary,
-                opacity: 0.4,
-                animation: "puzzleCoachDot 1.2s ease-in-out infinite",
-                animationDelay: `${i * 0.15}s`,
-                "@keyframes puzzleCoachDot": {
-                  "0%, 100%": { opacity: 0.3 },
-                  "50%": { opacity: 1 },
-                },
-              }}
-            />
-          ))}
+          <CircularProgress
+            size={16}
+            thickness={4}
+            aria-hidden
+            sx={{ color: TEXT.secondary }}
+          />
           <Typography
             sx={{
-              ml: 0.75,
+              ...TYPE.caption,
               color: TEXT.secondary,
-              fontSize: "0.78rem",
               fontWeight: 500,
             }}
           >
-            thinking…
+            Masti is thinking
           </Typography>
         </Box>
       </Box>

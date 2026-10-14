@@ -18,7 +18,14 @@ import {
   type PgnErrorDescription,
 } from "@/lib/pgn/describePgnError";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bookmark, ClipboardPaste, Globe, Search, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Bookmark,
+  ClipboardPaste,
+  Globe,
+  Search,
+  X,
+} from "lucide-react";
 import React, {
   useCallback,
   useEffect,
@@ -28,14 +35,20 @@ import React, {
 } from "react";
 import {
   ACCENT,
+  FONT_MONO,
   LINE,
   MOTION,
   RADIUS,
   SHADOW,
+  STATUS,
   SURFACE,
   TEXT,
   TYPE,
 } from "@/theme/tokens";
+
+// A dialog arrives with a short cross-fade and a small scale from the
+// centre, and leaves the same way.
+const DIALOG_TRANSITION = { duration: 0.18, ease: "easeOut" } as const;
 
 // MUI Modal does cloneElement(child, { ref }) on its direct child. When
 // that child is <AnimatePresence> (a fragment-shaped framer-motion
@@ -91,13 +104,10 @@ export function LoadGameDialog({ open, onClose, onLoad }: LoadGameDialogProps) {
         <AnimatePresence>
           {open && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.98 }}
+              initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              transition={{
-                duration: 0.18,
-                ease: [0.2, 0, 0, 1],
-              }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={DIALOG_TRANSITION}
               // Centering handled by the parent Modal's flexbox (added in its sx).
               // Must NOT set position:fixed + translate(-50%,-50%) here —
               // framer-motion animates y/scale and owns `transform`, so it would
@@ -165,6 +175,8 @@ export function LoadGameDialog({ open, onClose, onLoad }: LoadGameDialogProps) {
 
                 {/* Tab strip */}
                 <Box
+                  role="tablist"
+                  aria-label="Game source"
                   sx={{
                     display: "flex",
                     alignItems: "center",
@@ -186,6 +198,10 @@ export function LoadGameDialog({ open, onClose, onLoad }: LoadGameDialogProps) {
                     return (
                       <Box
                         key={id}
+                        component="button"
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
                         onClick={() => setTab(id)}
                         sx={{
                           position: "relative",
@@ -196,6 +212,9 @@ export function LoadGameDialog({ open, onClose, onLoad }: LoadGameDialogProps) {
                           gap: 0.85,
                           px: 1.5,
                           py: 0.85,
+                          border: "none",
+                          background: "transparent",
+                          font: "inherit",
                           borderRadius: `${RADIUS.small}px`,
                           cursor: "pointer",
                           color: isActive ? TEXT.primary : TEXT.secondary,
@@ -203,6 +222,10 @@ export function LoadGameDialog({ open, onClose, onLoad }: LoadGameDialogProps) {
                           fontWeight: 600,
                           transition: `color ${MOTION.hover}`,
                           "&:hover": { color: TEXT.primary },
+                          "&:focus-visible": {
+                            outline: `2px solid ${TEXT.primary}`,
+                            outlineOffset: 2,
+                          },
                         }}
                       >
                         {isActive && (
@@ -247,11 +270,6 @@ export function LoadGameDialog({ open, onClose, onLoad }: LoadGameDialogProps) {
                     minHeight: 0,
                     overflowY: "auto",
                     p: 3,
-                    "&::-webkit-scrollbar": { width: 6 },
-                    "&::-webkit-scrollbar-thumb": {
-                      background: LINE.strong,
-                      borderRadius: "3px",
-                    },
                   }}
                 >
                   {tab === "paste" && (
@@ -338,7 +356,7 @@ function PastePgnTab({ onLoad }: { onLoad: (game: Chess) => void }) {
 
   return (
     <Stack spacing={1.5}>
-      <Typography sx={{ fontSize: "0.86rem", color: "rgba(255,255,255,0.65)" }}>
+      <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
         Paste a PGN from any source: Lichess, Chess.com, a database, your
         clipboard. Headers (Event, White, Black, Date) are optional.
       </Typography>
@@ -353,55 +371,43 @@ function PastePgnTab({ onLoad }: { onLoad: (game: Chess) => void }) {
         minRows={6}
         maxRows={14}
         fullWidth
-        sx={{
-          "& .MuiOutlinedInput-root": {
-            backgroundColor: "rgba(255,255,255,0.03)",
-            borderRadius: "12px",
-            fontFamily: "Monaco, Menlo, monospace",
-            fontSize: "0.82rem",
-            "& fieldset": { borderColor: "rgba(255,255,255,0.1)" },
-            "&:hover fieldset": { borderColor: "rgba(255,255,255,0.2)" },
-            "&.Mui-focused fieldset": {
-              borderColor: "rgba(249,115,22,0.5)",
-              borderWidth: "1px",
-            },
-          },
-          "& .MuiOutlinedInput-input": {
-            color: "rgba(255,255,255,0.95)",
-            "&::placeholder": {
-              color: "rgba(255,255,255,0.3)",
-              opacity: 1,
-            },
-          },
+        // Notation is the one place monospace belongs.
+        InputProps={{
+          sx: { fontFamily: FONT_MONO, fontSize: TYPE.bodySmall.fontSize },
         }}
       />
       {error && (
-        <Typography
+        <Box
+          role="alert"
           sx={{
-            fontSize: "0.8rem",
-            color: "#fca5a5",
-            background: "rgba(239,68,68,0.06)",
-            border: "1px solid rgba(239,68,68,0.2)",
-            borderRadius: "0.55rem",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 1,
             px: 1.25,
-            py: 0.85,
+            py: 1,
+            borderRadius: `${RADIUS.control}px`,
+            background: STATUS.errorTint,
+            border: `1px solid ${LINE.hairline}`,
           }}
         >
-          {error.headline}
-          {error.detail && (
-            <Box
-              component="span"
-              sx={{
-                display: "block",
-                mt: 0.5,
-                fontSize: "0.76rem",
-                color: "rgba(252,165,165,0.72)",
-              }}
-            >
-              {error.detail}
-            </Box>
-          )}
-        </Typography>
+          <AlertTriangle
+            size={16}
+            strokeWidth={1.75}
+            color={STATUS.error}
+            style={{ marginTop: 1, flexShrink: 0 }}
+          />
+          <Typography sx={{ ...TYPE.caption, color: TEXT.primary }}>
+            {error.headline}
+            {error.detail && (
+              <Box
+                component="span"
+                sx={{ display: "block", mt: 0.5, color: TEXT.secondary }}
+              >
+                {error.detail}
+              </Box>
+            )}
+          </Typography>
+        </Box>
       )}
       <Stack direction="row" justifyContent="flex-end" spacing={1}>
         <Button onClick={handleLoad} variant="contained" sx={primaryButtonSx}>
@@ -442,9 +448,10 @@ function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
       <Stack alignItems="center" spacing={1.5} sx={{ py: 4 }}>
         <Masti mood="thinking" size={72} loops={0} decorative />
         <Typography
-          sx={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.5)" }}
+          role="status"
+          sx={{ ...TYPE.caption, color: TEXT.secondary }}
         >
-          Loading your saved games…
+          Loading your saved games
         </Typography>
       </Stack>
     );
@@ -454,25 +461,19 @@ function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
     return (
       <Stack alignItems="center" spacing={1.5} sx={{ py: 5, px: 2 }}>
         <Masti mood="idea" size={80} loops={2} decorative />
-        <Typography
-          sx={{
-            fontSize: "0.92rem",
-            fontWeight: 700,
-            color: "rgba(255,255,255,0.88)",
-          }}
-        >
+        <Typography sx={{ ...TYPE.h5, color: TEXT.primary }}>
           No saved games yet
         </Typography>
         <Typography
           sx={{
-            fontSize: "0.82rem",
-            color: "rgba(255,255,255,0.5)",
+            ...TYPE.bodySmall,
+            color: TEXT.secondary,
             textAlign: "center",
             maxWidth: 320,
           }}
         >
           Hit{" "}
-          <Box component="span" sx={{ color: "#FB923C", fontWeight: 700 }}>
+          <Box component="span" sx={{ color: TEXT.primary, fontWeight: 600 }}>
             Save game
           </Box>{" "}
           in the analysis header once you&apos;ve loaded a game, and it&apos;ll
@@ -483,16 +484,16 @@ function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
   }
 
   return (
-    <Stack spacing={0.85}>
-      <Typography
-        sx={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.6)", mb: 0.5 }}
-      >
+    <Stack spacing={0.5}>
+      <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mb: 0.5 }}>
         {sortedGames.length} saved game{sortedGames.length === 1 ? "" : "s"}.
         Click any row to load.
       </Typography>
       {sortedGames.map((g) => (
         <Box
           key={g.id}
+          component="button"
+          type="button"
           onClick={() => {
             try {
               const chess = new Chess();
@@ -502,32 +503,21 @@ function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
               console.warn("[saved games] PGN load failed:", err);
             }
           }}
-          sx={{
-            cursor: "pointer",
-            p: 1.5,
-            borderRadius: "0.7rem",
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            transition: "all 180ms ease",
-            "&:hover": {
-              background: "rgba(249,115,22,0.08)",
-              borderColor: "rgba(249,115,22,0.32)",
-              transform: "translateY(-1px)",
-            },
-          }}
+          sx={listRowSx}
         >
           <Stack
             direction="row"
             alignItems="center"
             justifyContent="space-between"
             spacing={1}
+            sx={{ flex: 1, minWidth: 0 }}
           >
-            <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Box sx={{ minWidth: 0, flex: 1, textAlign: "left" }}>
               <Typography
                 sx={{
-                  fontSize: "0.92rem",
-                  fontWeight: 700,
-                  color: "rgba(255,255,255,0.94)",
+                  ...TYPE.bodySmall,
+                  fontWeight: 600,
+                  color: TEXT.primary,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -537,15 +527,15 @@ function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
               </Typography>
               <Typography
                 sx={{
-                  fontSize: "0.74rem",
-                  color: "rgba(255,255,255,0.45)",
+                  ...TYPE.caption,
+                  color: TEXT.secondary,
                   mt: 0.15,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
                 }}
               >
-                {[g.event, g.date].filter(Boolean).join(" · ") || "—"}
+                {[g.event, g.date].filter(Boolean).join(" · ") || "No details"}
               </Typography>
             </Box>
             {g.result && (
@@ -554,13 +544,15 @@ function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
                   flexShrink: 0,
                   px: 1,
                   py: 0.25,
-                  borderRadius: "999px",
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  fontSize: "0.72rem",
-                  fontWeight: 700,
-                  color: "rgba(255,255,255,0.7)",
-                  fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                  minHeight: 24,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  borderRadius: `${RADIUS.small}px`,
+                  background: SURFACE.raisedTertiary,
+                  fontSize: TYPE.caption.fontSize,
+                  fontWeight: 500,
+                  color: TEXT.primary,
+                  fontVariantNumeric: "tabular-nums",
                 }}
               >
                 {g.result}
@@ -614,7 +606,7 @@ function LichessTab({ onLoad }: { onLoad: (game: Chess) => void }) {
 
   return (
     <Stack spacing={1.5}>
-      <Typography sx={{ fontSize: "0.86rem", color: "rgba(255,255,255,0.65)" }}>
+      <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
         Search any Lichess username. We'll fetch their 50 most recent games.
         Click any one to analyze.
       </Typography>
@@ -630,16 +622,15 @@ function LichessTab({ onLoad }: { onLoad: (game: Chess) => void }) {
           }}
           placeholder="e.g. DrNykterstein"
           fullWidth
-          sx={textFieldSx}
         />
         <Button
           onClick={handleFetch}
           disabled={loading || !username.trim()}
           startIcon={
             loading ? (
-              <CircularProgress size={12} sx={{ color: "#0A0A0A" }} />
+              <CircularProgress size={16} color="inherit" />
             ) : (
-              <Search size={13} />
+              <Search size={14} strokeWidth={1.75} />
             )
           }
           sx={primaryButtonSx}
@@ -696,7 +687,7 @@ function ChessComTab({ onLoad }: { onLoad: (game: Chess) => void }) {
 
   return (
     <Stack spacing={1.5}>
-      <Typography sx={{ fontSize: "0.86rem", color: "rgba(255,255,255,0.65)" }}>
+      <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
         Search any Chess.com username. We fetch the current month's archive
         first, then last month if needed.
       </Typography>
@@ -712,16 +703,15 @@ function ChessComTab({ onLoad }: { onLoad: (game: Chess) => void }) {
           }}
           placeholder="e.g. Hikaru"
           fullWidth
-          sx={textFieldSx}
         />
         <Button
           onClick={handleFetch}
           disabled={loading || !username.trim()}
           startIcon={
             loading ? (
-              <CircularProgress size={12} sx={{ color: "#0A0A0A" }} />
+              <CircularProgress size={16} color="inherit" />
             ) : (
-              <Search size={13} />
+              <Search size={14} strokeWidth={1.75} />
             )
           }
           sx={primaryButtonSx}
@@ -750,19 +740,7 @@ function GameList({
 }) {
   if (games.length === 0) return null;
   return (
-    <Stack
-      spacing={0.5}
-      sx={{
-        maxHeight: 360,
-        overflowY: "auto",
-        pr: 0.5,
-        "&::-webkit-scrollbar": { width: 4 },
-        "&::-webkit-scrollbar-thumb": {
-          background: "rgba(249,115,22,0.18)",
-          borderRadius: "2px",
-        },
-      }}
-    >
+    <Stack spacing={0.5} sx={{ maxHeight: 360, overflowY: "auto", pr: 0.5 }}>
       {games.map((g) => {
         const meta =
           kind === "lichess"
@@ -771,6 +749,8 @@ function GameList({
         return (
           <Box
             key={meta.id}
+            component="button"
+            type="button"
             onClick={() => {
               try {
                 const chess = new Chess();
@@ -780,29 +760,14 @@ function GameList({
                 console.warn("Couldn't load selected game:", err);
               }
             }}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              px: 1.25,
-              py: 0.85,
-              borderRadius: "0.55rem",
-              cursor: "pointer",
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.05)",
-              transition: "all 160ms ease",
-              "&:hover": {
-                background: "rgba(249,115,22,0.06)",
-                borderColor: "rgba(249,115,22,0.3)",
-              },
-            }}
+            sx={listRowSx}
           >
-            <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Box sx={{ flex: 1, minWidth: 0, textAlign: "left" }}>
               <Typography
                 sx={{
-                  fontSize: "0.85rem",
+                  ...TYPE.bodySmall,
                   fontWeight: 600,
-                  color: "rgba(255,255,255,0.94)",
+                  color: TEXT.primary,
                   lineHeight: 1.2,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
@@ -810,7 +775,7 @@ function GameList({
                 }}
               >
                 {meta.white}{" "}
-                <Box component="span" sx={{ color: "rgba(255,255,255,0.4)" }}>
+                <Box component="span" sx={{ color: TEXT.secondary }}>
                   vs
                 </Box>{" "}
                 {meta.black}
@@ -820,9 +785,9 @@ function GameList({
                 spacing={1.5}
                 sx={{
                   mt: 0.25,
-                  fontSize: "0.72rem",
-                  color: "rgba(255,255,255,0.5)",
-                  fontFamily: "Monaco, Menlo, monospace",
+                  ...TYPE.caption,
+                  color: TEXT.secondary,
+                  fontVariantNumeric: "tabular-nums",
                 }}
               >
                 <Box>{meta.dateLabel}</Box>
@@ -864,42 +829,61 @@ function chessComMeta(g: ChessComGame) {
 
 function ErrorPill({ text }: { text: string }) {
   return (
-    <Typography
+    <Box
+      role="alert"
       sx={{
-        fontSize: "0.8rem",
-        color: "#fca5a5",
-        background: "rgba(239,68,68,0.06)",
-        border: "1px solid rgba(239,68,68,0.2)",
-        borderRadius: "0.55rem",
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 1,
         px: 1.25,
-        py: 0.85,
+        py: 1,
+        borderRadius: `${RADIUS.control}px`,
+        background: STATUS.errorTint,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
-      {text}
-    </Typography>
+      <AlertTriangle
+        size={16}
+        strokeWidth={1.75}
+        color={STATUS.error}
+        style={{ marginTop: 1, flexShrink: 0 }}
+      />
+      <Typography sx={{ ...TYPE.caption, color: TEXT.primary }}>
+        {text}
+      </Typography>
+    </Box>
   );
 }
 
-const textFieldSx = {
-  "& .MuiOutlinedInput-root": {
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: "12px",
-    fontSize: "0.88rem",
-    "& fieldset": { borderColor: "rgba(255,255,255,0.1)" },
-    "&:hover fieldset": { borderColor: "rgba(255,255,255,0.2)" },
-    "&.Mui-focused fieldset": {
-      borderColor: "rgba(249,115,22,0.5)",
-      borderWidth: "1px",
-    },
+// A game row: a real button, the list-row recipe (hover one step lighter,
+// press darkens, no lift). The theme styles the inputs, so the username and
+// PGN fields carry no sx of their own.
+const listRowSx = {
+  display: "flex",
+  alignItems: "center",
+  gap: 1,
+  width: "100%",
+  px: 1.5,
+  py: 1.25,
+  minHeight: 44,
+  border: `1px solid ${LINE.hairline}`,
+  background: SURFACE.raisedSecondary,
+  color: TEXT.primary,
+  font: "inherit",
+  textAlign: "left",
+  cursor: "pointer",
+  borderRadius: `${RADIUS.small}px`,
+  transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
+  "&:hover": {
+    background: SURFACE.raisedTertiary,
+    borderColor: LINE.strong,
   },
-  "& .MuiOutlinedInput-input": {
-    color: "rgba(255,255,255,0.95)",
-    "&::placeholder": {
-      color: "rgba(255,255,255,0.3)",
-      opacity: 1,
-    },
+  "&:active": { background: SURFACE.raisedTertiary },
+  "&:focus-visible": {
+    outline: `2px solid ${TEXT.primary}`,
+    outlineOffset: 2,
   },
-};
+} as const;
 
 // The theme gives the Button its pill, size and press feedback; this only
 // picks the ember look of the one primary action.

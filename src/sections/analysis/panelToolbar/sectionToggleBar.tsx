@@ -1,10 +1,7 @@
 import { Box, Stack, Tooltip, IconButton, useTheme } from "@mui/material";
 import { Icon } from "@iconify/react";
 import { useAtom } from "jotai";
-import {
-  AnalysisSectionId,
-  visibleSectionsAtom,
-} from "../states";
+import { AnalysisSectionId, visibleSectionsAtom } from "../states";
 
 interface SectionDef {
   id: AnalysisSectionId;
@@ -48,8 +45,8 @@ export default function SectionToggleBar() {
                 borderColor: active
                   ? "primary.main"
                   : isDarkMode
-                  ? "rgba(255,255,255,0.25)"
-                  : "rgba(0,0,0,0.25)",
+                    ? "rgba(255,255,255,0.25)"
+                    : "rgba(0,0,0,0.25)",
                 backgroundColor: active
                   ? isDarkMode
                     ? "rgba(255,107,53,0.15)"
@@ -58,9 +55,10 @@ export default function SectionToggleBar() {
                 color: active
                   ? "primary.main"
                   : isDarkMode
-                  ? "rgba(255,255,255,0.65)"
-                  : "rgba(0,0,0,0.55)",
-                transition: "all 0.15s ease",
+                    ? "rgba(255,255,255,0.65)"
+                    : "rgba(0,0,0,0.55)",
+                transition:
+                  "background-color 160ms ease-out, color 160ms ease-out",
                 "&:hover": {
                   borderColor: "primary.main",
                   backgroundColor: isDarkMode

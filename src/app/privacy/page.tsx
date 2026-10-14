@@ -93,8 +93,8 @@ export default function PrivacyPage() {
                 PGN, coaching query and chat messages, ratings, Chess.com or
                 Lichess usernames, the coach personality you have selected, and
                 the coaching preferences saved on your profile &mdash; coaching
-                tone, playing style, study goals, and favorite openings
-                &mdash; all used to personalize the coaching.
+                tone, playing style, study goals, and favorite openings &mdash;
+                all used to personalize the coaching.
               </li>
               <li>
                 <strong>The Maia-2 microservice</strong> receives the current
@@ -140,17 +140,16 @@ export default function PrivacyPage() {
             <h3>Opponents and other players you look up</h3>
             <p>
               Scout works on people who do not have a Chess Masti account and
-              have not agreed to anything. When you scout a Chess.com or
-              Lichess username &mdash; and also when we read your opponent&apos;s
-              name out of a PGN you analyse, without you asking for a scout
-              &mdash; our server fetches that player&apos;s publicly listed
-              recent games and computes a profile from them: their opening
-              repertoire, apparent strengths by phase of the game, frequent
-              opponents, and behavioural estimates such as how often they lose
-              on time, how long their games run, and how they do straight after
-              a loss. Their username also reaches Anthropic or OpenAI, both as
-              part of the PGN and when our validator checks what the coach said
-              about them.
+              have not agreed to anything. When you scout a Chess.com or Lichess
+              username &mdash; and also when we read your opponent&apos;s name
+              out of a PGN you analyse, without you asking for a scout &mdash;
+              our server fetches that player&apos;s publicly listed recent games
+              and computes a profile from them: their opening repertoire,
+              apparent strengths by phase of the game, frequent opponents, and
+              behavioural estimates such as how often they lose on time, how
+              long their games run, and how they do straight after a loss. Their
+              username also reaches Anthropic or OpenAI, both as part of the PGN
+              and when our validator checks what the coach said about them.
             </p>
             <p>
               These profiles are inferences drawn from public game records, not
@@ -227,9 +226,9 @@ export default function PrivacyPage() {
               consent-controlled event, puzzle-attempt, and analysis-session
               analytics described above are also disabled unless the
               server&apos;s
-              <code>TRACKING_ENABLED</code> configuration is on. Google
-              Firebase Analytics, the GA4 tag, and Vercel Analytics honor the
-              same choice: none of them load unless <code>cm_consent</code> is
+              <code>TRACKING_ENABLED</code> configuration is on. Google Firebase
+              Analytics, the GA4 tag, and Vercel Analytics honor the same
+              choice: none of them load unless <code>cm_consent</code> is
               &quot;accepted&quot; and your browser is not sending the Global
               Privacy Control signal.
             </p>
@@ -354,8 +353,8 @@ export default function PrivacyPage() {
           </section>
 
           <nav className="cm-cross-links" aria-label="Related pages">
-            <Link href="/faq">FAQ →</Link>
-            <Link href="/how-it-works">How the coaching pipeline works →</Link>
+            <Link href="/faq">FAQ</Link>
+            <Link href="/how-it-works">How the coaching works</Link>
           </nav>
         </article>
       </main>

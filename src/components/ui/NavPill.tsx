@@ -303,7 +303,7 @@ export function NavPill({
             fontSize: "0.84rem",
             textDecoration: "none",
             transition: "background-color 160ms ease-out",
-            "&:hover": { background: "rgba(249,115,22,0.22)" },
+            "&:hover": { background: ACCENT.tintHover },
             "&:active": { transform: "scale(0.97)" },
           }}
         >

@@ -15,7 +15,6 @@ import {
 } from "@/components/onboarding/welcomeTourSteps";
 import {
   ACCENT,
-  FONT_SANS,
   LINE,
   MATERIAL,
   MOTION,
@@ -78,7 +77,8 @@ const STEPS: TourStep[] = [
   },
 ];
 
-const ease = [0.2, 0, 0, 1] as const;
+// A step swap is a short cross-fade.
+const STEP_TRANSITION = { duration: 0.18, ease: "easeOut" } as const;
 
 /**
  * One-time "find your way around" tour for first-time visitors, introducing
@@ -170,6 +170,10 @@ export default function WelcomeTour() {
         p: 2,
       }}
     >
+      {/* Mounted in _app.tsx outside Layout's ThemeProvider, so MUI
+          Typography here would take the default theme's Roboto stack. Text
+          and buttons take `font: "inherit"` (the baseline's system stack on
+          body) until the mount moves inside Layout. */}
       <Box
         role="dialog"
         aria-modal="true"
@@ -184,7 +188,6 @@ export default function WelcomeTour() {
           border: `1px solid ${LINE.hairline}`,
           boxShadow: SHADOW.modal,
           color: TEXT.primary,
-          fontFamily: FONT_SANS,
           outline: "none",
         }}
       >
@@ -222,7 +225,9 @@ export default function WelcomeTour() {
           <X size={16} />
         </Box>
 
-        <Typography sx={{ ...TYPE.h4, color: TEXT.primary, pr: 4 }}>
+        <Typography
+          sx={{ font: "inherit", ...TYPE.h4, color: TEXT.primary, pr: 4 }}
+        >
           Find your way around
         </Typography>
 
@@ -235,7 +240,9 @@ export default function WelcomeTour() {
             display: "flex",
             justifyContent: "center",
             background: SURFACE.raisedSecondary,
-            borderRadius: `${RADIUS.pill}px`,
+            // The real NavPill's outer is RADIUS.card; the lesson is "this
+            // is the nav", so the miniature keeps its shape.
+            borderRadius: `${RADIUS.card}px`,
             p: 0.5,
           }}
         >
@@ -246,9 +253,9 @@ export default function WelcomeTour() {
                 key={label}
                 sx={{
                   position: "relative",
-                  px: { xs: 0.9, sm: 1.4 },
+                  px: { xs: 0.75, sm: 1.4 },
                   py: 0.6,
-                  fontSize: { xs: "0.68rem", sm: "0.78rem" },
+                  fontSize: { xs: "0.75rem", sm: TYPE.caption.fontSize },
                   fontWeight: indicated ? 600 : 500,
                   color: indicated ? TEXT.primary : TEXT.secondary,
                   transition: `color ${MOTION.hover}`,
@@ -286,7 +293,7 @@ export default function WelcomeTour() {
               initial={reduceMotion ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={reduceMotion ? undefined : { opacity: 0 }}
-              transition={{ duration: 0.18, ease }}
+              transition={STEP_TRANSITION}
             >
               <Masti
                 mood={current.mood}
@@ -298,12 +305,17 @@ export default function WelcomeTour() {
               />
               <Typography
                 component="h2"
-                sx={{ ...TYPE.h5, color: TEXT.primary }}
+                sx={{ font: "inherit", ...TYPE.h5, color: TEXT.primary }}
               >
                 {current.title}
               </Typography>
               <Typography
-                sx={{ mt: 0.75, ...TYPE.bodySmall, color: TEXT.secondary }}
+                sx={{
+                  font: "inherit",
+                  mt: 0.75,
+                  ...TYPE.bodySmall,
+                  color: TEXT.secondary,
+                }}
               >
                 {/* The card for the page under the dialog says so, because
                     "Practice serves puzzles…" read as describing some OTHER
@@ -336,7 +348,7 @@ export default function WelcomeTour() {
                 sx={{
                   width: i === step ? 18 : 6,
                   height: 6,
-                  borderRadius: "999px",
+                  borderRadius: 3,
                   background: i === step ? ACCENT.main : LINE.strong,
                   transition: `width ${MOTION.hover}, background-color ${MOTION.hover}`,
                 }}
@@ -351,6 +363,7 @@ export default function WelcomeTour() {
               onClick={() => setStep((s) => Math.max(0, s - 1))}
               sx={{
                 cursor: "pointer",
+                font: "inherit",
                 border: `1px solid ${LINE.strong}`,
                 outline: "none",
                 px: 2,
@@ -358,7 +371,6 @@ export default function WelcomeTour() {
                 borderRadius: `${RADIUS.pill}px`,
                 fontWeight: 600,
                 fontSize: TYPE.bodySmall.fontSize,
-                fontFamily: "inherit",
                 color: TEXT.primary,
                 background: "transparent",
                 transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
@@ -382,6 +394,7 @@ export default function WelcomeTour() {
             onClick={isLast ? finish : () => setStep((s) => s + 1)}
             sx={{
               cursor: "pointer",
+              font: "inherit",
               border: "none",
               outline: "none",
               px: 2.5,
@@ -389,7 +402,6 @@ export default function WelcomeTour() {
               borderRadius: `${RADIUS.pill}px`,
               fontWeight: 600,
               fontSize: TYPE.bodySmall.fontSize,
-              fontFamily: "inherit",
               color: TEXT.onAccent,
               background: ACCENT.main,
               transition: `background-color ${MOTION.hover}, transform ${MOTION.press}`,

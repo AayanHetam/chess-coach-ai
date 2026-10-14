@@ -2,9 +2,18 @@
 
 import type { ReactNode } from "react";
 import { Box, Tooltip, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { BookOpen, Clock, Eye, EyeOff, Ban, LineChart } from "lucide-react";
 import { formatSolveClock } from "@/lib/puzzle/solveClock";
-import { ACCENT, FONT_MONO, LINE, MOTION, RADIUS, TEXT } from "@/theme/tokens";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 /**
  * The board card's toolbar strip.
@@ -27,7 +36,9 @@ import { ACCENT, FONT_MONO, LINE, MOTION, RADIUS, TEXT } from "@/theme/tokens";
 
 const SELECTED = "rgba(255,255,255,0.10)";
 const HOVER = "rgba(255,255,255,0.06)";
-const ACCENT_TINT_HOVER = "rgba(249,115,22,0.22)";
+/** The tinted chip's hover, one step past ACCENT.tint. Derived from the token
+ *  so no accent alpha is retyped here. */
+const ACCENT_TINT_HOVER = alpha(ACCENT.main, 0.22);
 
 function ToolButton({
   icon,
@@ -75,10 +86,14 @@ function ToolButton({
         flexDirection: "column",
         alignItems: "center",
         // Tighter at lg: the toolbar sits above the board inside the
-        // one-screen card, so its height is paid for in board pixels.
+        // one-screen card, so its height is paid for in board pixels. The
+        // 13px label is ~2px taller and ~10px wider than the 0.68rem one it
+        // replaced, so lg trims 1px off each vertical pad and 5px off each
+        // side: the button keeps its old box and the row still fits one line
+        // at 1280 wide.
         gap: { xs: 0.4, lg: 0.25 },
-        px: { xs: 1.25, lg: 1 },
-        py: { xs: 0.75, lg: 0.5 },
+        px: { xs: 1.25, lg: "3px" },
+        py: { xs: 0.75, lg: "3px" },
         // Accent tint + hairline, not just a colour shift. Against two flat
         // borderless neighbours, a tinted chip is what the eye actually
         // lands on — alpha alone reads as "same button, slightly brighter".
@@ -126,7 +141,7 @@ function ToolButton({
       {icon}
       <Typography
         component="span"
-        sx={{ fontSize: "0.68rem", fontWeight: 600, lineHeight: 1 }}
+        sx={{ fontSize: TYPE.label.fontSize, fontWeight: 600, lineHeight: 1 }}
       >
         {label}
       </Typography>

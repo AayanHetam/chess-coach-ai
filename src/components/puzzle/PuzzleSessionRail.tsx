@@ -2,6 +2,7 @@
 
 import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
 import { addressAs } from "@/lib/auth/displayIdentity";
+import NextLink from "next/link";
 import { useRouter } from "next/router";
 import {
   Avatar,
@@ -142,17 +143,29 @@ export function PuzzleSessionRail({
       }}
     >
       <Box sx={{ p: 2.5, pb: 1.5 }}>
+        {/* A real link, so it is reachable by keyboard and opens in a new
+            tab like any other; next/link keeps the partner prefix. */}
         <Stack
+          component={NextLink}
+          href="/plan"
           direction="row"
           alignItems="center"
           spacing={0.75}
-          onClick={() => router.push("/plan")}
           sx={{
-            cursor: "pointer",
+            width: "fit-content",
             color: TEXT.secondary,
+            textDecoration: "none",
+            borderRadius: `${RADIUS.small}px`,
             mb: 2,
+            touchAction: "manipulation",
+            WebkitTapHighlightColor: "transparent",
             "&:hover": { color: TEXT.primary },
-            transition: `color ${MOTION.hover}`,
+            "&:active": { transform: MOTION.pressScale },
+            "&:focus-visible": {
+              outline: `2px solid ${TEXT.primary}`,
+              outlineOffset: 2,
+            },
+            transition: `color ${MOTION.hover}, transform ${MOTION.press}`,
           }}
         >
           <ArrowLeft size={16} strokeWidth={1.75} />
@@ -171,7 +184,6 @@ export function PuzzleSessionRail({
             fontFamily: SERIF_DISPLAY,
             fontSize: "1.6rem",
             fontWeight: 500,
-            letterSpacing: "-0.01em",
             mb: 2.25,
           }}
         >
@@ -200,11 +212,9 @@ export function PuzzleSessionRail({
           overflowY: "auto",
           px: 1.25,
           pb: 1,
+          // Narrower than the baseline's 12px: the rail sits in the
+          // one-screen layout. The thumb colour comes from the baseline.
           "&::-webkit-scrollbar": { width: 6 },
-          "&::-webkit-scrollbar-thumb": {
-            background: "rgba(255,255,255,0.12)",
-            borderRadius: 3,
-          },
         }}
       >
         {rows.length === 0 ? (
@@ -219,14 +229,22 @@ export function PuzzleSessionRail({
             return (
               <Stack
                 key={row.key}
+                // A queued row you can jump to is a real button (keyboard,
+                // focus, press); graded and current rows are not clickable
+                // and stay plain rows.
+                {...(clickable
+                  ? {
+                      component: "button" as const,
+                      type: "button" as const,
+                      onClick: () => onJumpTo(row.jumpId as string),
+                    }
+                  : {})}
                 direction="row"
                 alignItems="center"
                 spacing={1.5}
                 aria-current={row.isCurrent ? "true" : undefined}
-                onClick={
-                  clickable ? () => onJumpTo(row.jumpId as string) : undefined
-                }
                 sx={{
+                  width: "100%",
                   px: 1.25,
                   py: 1.15,
                   borderRadius: `${RADIUS.small}px`,
@@ -239,9 +257,22 @@ export function PuzzleSessionRail({
                     ? `1px solid ${ACCENT.border}`
                     : "1px solid transparent",
                   transition: `background-color ${MOTION.hover}`,
-                  "&:hover": clickable
-                    ? { background: "rgba(255,255,255,0.06)" }
-                    : undefined,
+                  ...(clickable && {
+                    // Button reset: the row looks like its neighbours.
+                    font: "inherit",
+                    color: "inherit",
+                    textAlign: "left",
+                    margin: 0,
+                    touchAction: "manipulation",
+                    WebkitTapHighlightColor: "transparent",
+                    "&:hover": { background: "rgba(255,255,255,0.06)" },
+                    // A wide row darkens on press rather than scaling.
+                    "&:active": { background: SURFACE.raisedTertiary },
+                    "&:focus-visible": {
+                      outline: `2px solid ${TEXT.primary}`,
+                      outlineOffset: -2,
+                    },
+                  }),
                 }}
               >
                 <StatusGlyph state={row.state} />

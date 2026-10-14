@@ -99,7 +99,6 @@ export default function PuzzleSessionsPage() {
       <Head>
         <title>Puzzle Sessions · Chess Masti</title>
         <meta name="color-scheme" content="dark" />
-        <style>{`html,body{background:${SURFACE.page};color-scheme:dark;margin:0;}`}</style>
       </Head>
 
       <Box
@@ -166,8 +165,8 @@ export default function PuzzleSessionsPage() {
               <Typography
                 sx={{ color: TEXT.secondary, fontSize: "0.9rem", mb: 2.5 }}
               >
-                Solve a few puzzles and tap Finish (or just go idle for 15 min)
-                to bank a session here.
+                Solve a few puzzles and tap Finish to save a session here. It
+                also saves itself after 15 minutes idle.
               </Typography>
               <Button
                 variant="contained"
@@ -228,25 +227,45 @@ function SessionCard({
         overflow: "hidden",
       }}
     >
-      {/* Summary row (click to expand) */}
+      {/* Summary row (click to expand): a real button, so it takes focus
+          and Enter or Space toggles it. */}
       <Box
-        role="button"
+        component="button"
+        type="button"
         aria-expanded={open}
         onClick={onToggle}
         sx={{
           display: "flex",
           alignItems: "center",
           gap: { xs: 1.5, sm: 2.5 },
+          width: "100%",
           px: { xs: 2, sm: 2.5 },
           py: 1.75,
+          m: 0,
+          border: "none",
+          background: "transparent",
+          font: "inherit",
+          color: "inherit",
+          textAlign: "left",
           cursor: "pointer",
           flexWrap: "wrap",
+          touchAction: "manipulation",
+          WebkitTapHighlightColor: "transparent",
           transition: `background-color ${MOTION.hover}`,
           "&:hover": { background: "rgba(255,255,255,0.06)" },
+          // A wide row darkens on press rather than scaling.
+          "&:active": { background: SURFACE.raisedTertiary },
+          "&:focus-visible": {
+            outline: `2px solid ${TEXT.primary}`,
+            outlineOffset: -2,
+          },
         }}
       >
+        {/* Spans throughout: a button holds phrasing content only. */}
         <Box
+          component="span"
           sx={{
+            display: "block",
             fontFamily: FONT_MONO,
             fontVariantNumeric: "tabular-nums",
             fontSize: "1.05rem",
@@ -259,11 +278,19 @@ function SessionCard({
           {delta}
         </Box>
 
-        <Box sx={{ minWidth: 150, flex: 1 }}>
-          <Typography sx={{ fontSize: "0.9rem", fontWeight: 600 }}>
+        <Box component="span" sx={{ display: "block", minWidth: 150, flex: 1 }}>
+          <Typography
+            component="span"
+            sx={{ display: "block", fontSize: "0.9rem", fontWeight: 600 }}
+          >
             {when}
           </Typography>
-          <Stack direction="row" spacing={1.5} sx={{ mt: 0.4 }}>
+          <Stack
+            component="span"
+            direction="row"
+            spacing={1.5}
+            sx={{ mt: 0.4 }}
+          >
             <Stat
               icon={<Check size={12} color={STATUS.success} />}
               text={`${solved} solved`}
@@ -280,6 +307,7 @@ function SessionCard({
         </Box>
 
         <Chip
+          component="span"
           size="small"
           variant="outlined"
           icon={
@@ -387,9 +415,9 @@ function PuzzleRow({
             component="span"
             sx={{
               ml: 0.75,
-              fontSize: "0.74rem",
-              color: TEXT.tertiary,
-              fontFamily: FONT_MONO,
+              fontSize: TYPE.caption.fontSize,
+              fontWeight: 400,
+              color: TEXT.secondary,
               fontVariantNumeric: "tabular-nums",
             }}
           >
@@ -431,9 +459,15 @@ function PuzzleRow({
 
 function Stat({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
-    <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.4 }}>
+    <Box
+      component="span"
+      sx={{ display: "inline-flex", alignItems: "center", gap: 0.4 }}
+    >
       {icon}
-      <Typography sx={{ fontSize: "0.74rem", color: TEXT.secondary }}>
+      <Typography
+        component="span"
+        sx={{ fontSize: TYPE.caption.fontSize, color: TEXT.secondary }}
+      >
         {text}
       </Typography>
     </Box>

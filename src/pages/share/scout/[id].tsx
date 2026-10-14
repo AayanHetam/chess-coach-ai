@@ -12,11 +12,11 @@ import { getScoutSnapshot } from "@/lib/scoutSnapshots";
 import { Masti, MastiSays } from "@/components/masti";
 import type { ScoutSnapshotRecord } from "@/types/scoutSnapshot";
 import type { OpeningSummary } from "@/types/scout";
+import { PLATFORM_LABEL } from "@/components/scout/dossier";
 import {
   ACCENT,
   FONT_MONO,
   LINE,
-  MOTION,
   RADIUS,
   STATUS,
   SURFACE,
@@ -28,37 +28,8 @@ interface ShareScoutProps {
   snapshot: ScoutSnapshotRecord | null;
 }
 
-// This page renders outside the app's ThemeProvider, so the two buttons carry
-// the theme's button recipe inline.
-const PRIMARY_BUTTON_SX = {
-  bgcolor: ACCENT.main,
-  color: TEXT.onAccent,
-  borderRadius: `${RADIUS.pill}px`,
-  boxShadow: "none",
-  fontWeight: 600,
-  px: 3,
-  py: 1.25,
-  textTransform: "none",
-  fontSize: "1rem",
-  "&:hover": { bgcolor: ACCENT.hover, boxShadow: "none" },
-  "&:active": { transform: MOTION.pressScale },
-} as const;
-
-const SECONDARY_BUTTON_SX = {
-  borderColor: LINE.strong,
-  color: TEXT.primary,
-  borderRadius: `${RADIUS.pill}px`,
-  fontWeight: 600,
-  px: 3,
-  py: 1.25,
-  textTransform: "none",
-  fontSize: "1rem",
-  "&:hover": {
-    borderColor: TEXT.secondary,
-    bgcolor: "rgba(255,255,255,0.06)",
-  },
-  "&:active": { transform: MOTION.pressScale },
-} as const;
+// The page renders inside Layout, so buttons, the page background and the
+// body text all come from buildChessMastiTheme().
 
 const CARD_SX = {
   background: SURFACE.raised,
@@ -164,7 +135,14 @@ function OpeningRow({ opening }: { opening: OpeningSummary }) {
       >
         {opening.moves.slice(0, 6).join(" ")}
       </Typography>
-      <Typography sx={{ color: TEXT.tertiary, fontSize: "0.75rem", mt: 0.5 }}>
+      <Typography
+        sx={{
+          color: TEXT.secondary,
+          fontSize: "0.75rem",
+          mt: 0.5,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
         {opening.totalGames} games · {opening.wins}W / {opening.draws}D /{" "}
         {opening.losses}L
       </Typography>
@@ -175,14 +153,7 @@ function OpeningRow({ opening }: { opening: OpeningSummary }) {
 export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
   if (!snapshot) {
     return (
-      <Box
-        sx={{
-          background: SURFACE.page,
-          minHeight: "100vh",
-          color: TEXT.primary,
-          py: 8,
-        }}
-      >
+      <Box sx={{ color: TEXT.primary, py: 8 }}>
         <Container maxWidth="md">
           <Masti
             mood="defeated"
@@ -201,8 +172,7 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
             component={Link}
             href="/scout"
             variant="contained"
-            disableElevation
-            sx={PRIMARY_BUTTON_SX}
+            size="large"
           >
             Scout someone yourself
           </Button>
@@ -217,8 +187,9 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
   const prepWhite = analytics.prep.asWhite.weaknesses.slice(0, 3);
   const prepBlack = analytics.prep.asBlack.weaknesses.slice(0, 3);
   const hasPrep = prepWhite.length > 0 || prepBlack.length > 0;
-  const titleLine = `${username} · ${platform}`;
-  const description = `Scout report for ${username} on ${platform}. Tells ${Math.round(
+  const platformLabel = PLATFORM_LABEL[platform] ?? platform;
+  const titleLine = `${username} · ${platformLabel}`;
+  const description = `Scout report for ${username} on ${platformLabel}. Tells ${Math.round(
     tells.total
   )}/100, ${profile.totalGames} games analyzed.`;
 
@@ -253,32 +224,26 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
         />
       </Head>
 
-      <Box
-        sx={{
-          background: SURFACE.page,
-          minHeight: "100vh",
-          color: TEXT.primary,
-          py: { xs: 3, md: 6 },
-        }}
-      >
+      <Box sx={{ color: TEXT.primary, py: { xs: 3, md: 6 } }}>
         <Container maxWidth="lg">
           {/* Header */}
           <Box sx={{ mb: 4, textAlign: "center" }}>
-            <Typography sx={SECTION_LABEL_SX}>Scout report</Typography>
             <Typography
               component="h1"
               sx={{
+                ...TYPE.h1,
                 fontSize: { xs: "2rem", md: "3rem" },
-                fontWeight: 700,
-                letterSpacing: "-0.02em",
                 color: TEXT.primary,
                 mb: 1,
               }}
             >
               {username}
             </Typography>
-            <Typography sx={{ color: TEXT.secondary }}>
-              {platform} · {profile.totalGames} games · {snapshot.months} months
+            <Typography
+              sx={{ color: TEXT.secondary, fontVariantNumeric: "tabular-nums" }}
+            >
+              Scout report · {platformLabel} · {profile.totalGames} games ·{" "}
+              {snapshot.months} months
             </Typography>
             {profile.archetype && (
               <Box
@@ -345,11 +310,9 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
               >
                 <Typography
                   sx={{
+                    ...TYPE.display,
                     color: TEXT.primary,
-                    fontSize: "3.5rem",
-                    fontWeight: 700,
                     lineHeight: 1,
-                    letterSpacing: "-0.025em",
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
@@ -389,11 +352,9 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
               >
                 <Typography
                   sx={{
+                    ...TYPE.display,
                     color: TEXT.primary,
-                    fontSize: "3.5rem",
-                    fontWeight: 700,
                     lineHeight: 1,
-                    letterSpacing: "-0.025em",
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
@@ -430,13 +391,21 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
                       fontSize: "0.75rem",
                       fontWeight: 600,
                       color: TEXT.primary,
+                      // Data colour: a win and a loss read apart at a glance,
+                      // by a full-strength edge as well as the letter.
                       background:
                         r.outcome === "win"
                           ? STATUS.successTint
                           : r.outcome === "loss"
                             ? STATUS.errorTint
                             : SURFACE.raisedSecondary,
-                      border: `1px solid ${LINE.hairline}`,
+                      border: `1px solid ${
+                        r.outcome === "win"
+                          ? STATUS.success
+                          : r.outcome === "loss"
+                            ? STATUS.error
+                            : LINE.hairline
+                      }`,
                     }}
                   >
                     {r.outcome[0].toUpperCase()}
@@ -534,8 +503,7 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
                 component={Link}
                 href="/scout"
                 variant="contained"
-                disableElevation
-                sx={PRIMARY_BUTTON_SX}
+                size="large"
               >
                 Scout an opponent
               </Button>
@@ -543,7 +511,7 @@ export default function ShareScoutPage({ snapshot }: ShareScoutProps) {
                 component={Link}
                 href="/free-ai-chess-coach"
                 variant="outlined"
-                sx={SECONDARY_BUTTON_SX}
+                size="large"
               >
                 Meet Masti, your chess coach
               </Button>

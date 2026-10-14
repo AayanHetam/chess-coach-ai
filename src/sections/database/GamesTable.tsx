@@ -3,12 +3,13 @@ import {
   Typography,
   Dialog,
   DialogContent,
+  DialogTitle,
   Box,
   Button,
   ToggleButtonGroup,
   ToggleButton,
 } from "@mui/material";
-import { Icon } from "@iconify/react";
+import { ClipboardCopy, Search, Trash2 } from "lucide-react";
 import {
   DataGrid,
   GridColDef,
@@ -21,7 +22,6 @@ import {
   GAMES_TABLE_MAX_WIDTH,
   GAMES_TABLE_MIN_HEIGHT,
 } from "./gamesTableLayout";
-import { blue, red } from "@mui/material/colors";
 import { useGameDatabase } from "@/hooks/useGameDatabase";
 import { useRouter } from "next/router";
 import { useSetAtom } from "jotai";
@@ -30,6 +30,7 @@ import {
   boardOrientationAtom,
 } from "@/sections/analysis/states";
 import type { Game } from "@/types/game";
+import { LINE, MOTION, RADIUS, STATUS, SURFACE, TEXT } from "@/theme/tokens";
 
 /**
  * Extracted from src/pages/database.tsx so the heavy @mui/x-data-grid
@@ -61,7 +62,9 @@ export default function GamesTable({ games }: Props) {
   // Perspective toggle dialog state
   const [perspectiveDialogOpen, setPerspectiveDialogOpen] = useState(false);
   const [pendingGameId, setPendingGameId] = useState<GridRowId | null>(null);
-  const [selectedColor, setSelectedColor] = useState<"white" | "black">("white");
+  const [selectedColor, setSelectedColor] = useState<"white" | "black">(
+    "white"
+  );
 
   const handleAnalyzeClick = (id: GridRowId) => {
     setPendingGameId(id);
@@ -93,7 +96,7 @@ export default function GamesTable({ games }: Props) {
       }
       await deleteGame(id);
     },
-    [deleteGame],
+    [deleteGame]
   );
 
   const handleCopyGameRow = useCallback(
@@ -103,7 +106,7 @@ export default function GamesTable({ games }: Props) {
       }
       await navigator.clipboard?.writeText?.(games[id - 1].pgn);
     },
-    [games],
+    [games]
   );
 
   const columns: GridColDef[] = useMemo(
@@ -173,9 +176,7 @@ export default function GamesTable({ games }: Props) {
         getActions: ({ id }) => {
           return [
             <GridActionsCellItem
-              icon={
-                <Icon icon="streamline:magnifying-glass-solid" width="20px" />
-              }
+              icon={<Search size={20} strokeWidth={1.75} aria-hidden />}
               label="Open Evaluation"
               onClick={() => handleAnalyzeClick(id)}
               color="inherit"
@@ -194,7 +195,12 @@ export default function GamesTable({ games }: Props) {
           return [
             <GridActionsCellItem
               icon={
-                <Icon icon="mdi:delete-outline" color={red[400]} width="20px" />
+                <Trash2
+                  size={20}
+                  strokeWidth={1.75}
+                  color={STATUS.error}
+                  aria-hidden
+                />
               }
               label="Delete"
               onClick={handleDeleteGameRow(id)}
@@ -213,9 +219,7 @@ export default function GamesTable({ games }: Props) {
         getActions: ({ id }) => {
           return [
             <GridActionsCellItem
-              icon={
-                <Icon icon="ri:clipboard-line" color={blue[400]} width="20px" />
-              }
+              icon={<ClipboardCopy size={20} strokeWidth={1.75} aria-hidden />}
               label="Copy pgn"
               onClick={handleCopyGameRow(id)}
               color="inherit"
@@ -225,11 +229,13 @@ export default function GamesTable({ games }: Props) {
         },
       },
     ],
-    [handleDeleteGameRow, handleCopyGameRow],
+    [handleDeleteGameRow, handleCopyGameRow]
   );
 
   const pendingGame =
-    pendingGameId !== null ? games.find((gm) => gm.id === pendingGameId) : undefined;
+    pendingGameId !== null
+      ? games.find((gm) => gm.id === pendingGameId)
+      : undefined;
 
   return (
     <>
@@ -259,118 +265,83 @@ export default function GamesTable({ games }: Props) {
           width: "100%",
           maxWidth: GAMES_TABLE_MAX_WIDTH,
           mx: "auto",
-          // Neutral glass card frame around the table.
-          borderRadius: "1.5rem",
-          border: "1px solid rgba(255,255,255,0.08)",
-          background: "rgba(20,22,28,0.55)",
-          backdropFilter: "blur(14px) saturate(140%)",
-          WebkitBackdropFilter: "blur(14px) saturate(140%)",
-          boxShadow:
-            "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+          // One flat card around the table.
+          borderRadius: `${RADIUS.card}px`,
+          border: `1px solid ${LINE.hairline}`,
+          background: SURFACE.raised,
           overflow: "hidden",
-          color: "rgba(255,255,255,0.94)",
-          // Flip the light tracks/gridlines to white-alpha so they're
-          // visible on the dark glass instead of painting black/grey hairlines.
-          "--DataGrid-rowBorderColor": "rgba(255,255,255,0.06)",
+          color: TEXT.primary,
+          // Flip the light tracks/gridlines to the hairline so they read on
+          // the dark surface instead of painting black/grey lines.
+          "--DataGrid-rowBorderColor": LINE.hairline,
           "--DataGrid-containerBackground": "transparent",
           "& .MuiDataGrid-columnHeaders": {
             background: "transparent",
-            borderBottom: "1px solid rgba(255,255,255,0.08)",
+            borderBottom: `1px solid ${LINE.hairline}`,
           },
           "& .MuiDataGrid-columnHeader": {
             background: "transparent",
-            color: "rgba(255,255,255,0.62)",
+            color: TEXT.secondary,
           },
           "& .MuiDataGrid-columnSeparator": {
-            color: "rgba(255,255,255,0.06)",
+            color: LINE.hairline,
           },
           "& .MuiDataGrid-cell": {
-            borderTop: "1px solid rgba(255,255,255,0.06)",
-            color: "rgba(255,255,255,0.94)",
+            borderTop: `1px solid ${LINE.hairline}`,
+            color: TEXT.primary,
           },
           "& .MuiDataGrid-row": {
-            transition: "background-color 180ms ease",
+            transition: `background-color ${MOTION.hover}`,
           },
           "& .MuiDataGrid-row:hover": {
-            backgroundColor: "rgba(255,255,255,0.04)",
+            backgroundColor: "rgba(255,255,255,0.06)",
           },
           "& .MuiDataGrid-row.Mui-selected": {
-            backgroundColor: "rgba(249,115,22,0.12)",
-            boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.35)",
-            "&:hover": { backgroundColor: "rgba(249,115,22,0.16)" },
+            backgroundColor: "rgba(255,255,255,0.10)",
+            "&:hover": { backgroundColor: "rgba(255,255,255,0.10)" },
           },
           // Right-edge scrollbar filler / pinned fillers paint white in v7
           // unless these are flipped transparent.
           "& .MuiDataGrid-filler, & .MuiDataGrid-filler--borderTop, & .MuiDataGrid-scrollbarFiller, & .MuiDataGrid-scrollbarFiller--header":
             {
               background: "transparent",
-              borderColor: "rgba(255,255,255,0.06)",
+              borderColor: LINE.hairline,
             },
           "& .MuiDataGrid-virtualScroller": {
             background: "transparent",
           },
           "& .MuiDataGrid-footerContainer": {
-            borderTop: "1px solid rgba(255,255,255,0.08)",
-            color: "rgba(255,255,255,0.62)",
+            borderTop: `1px solid ${LINE.hairline}`,
+            color: TEXT.secondary,
           },
           // 'No games found' overlay reads at the muted floor.
           "& .MuiDataGrid-overlay": {
             background: "transparent",
-            color: "rgba(255,255,255,0.5)",
+            color: TEXT.secondary,
           },
           "& .MuiDataGrid-iconButtonContainer .MuiSvgIcon-root, & .MuiDataGrid-sortIcon, & .MuiDataGrid-menuIconButton .MuiSvgIcon-root":
             {
-              color: "rgba(255,255,255,0.62)",
+              color: TEXT.secondary,
             },
         }}
       />
 
-      {/* Perspective Toggle Dialog */}
+      {/* Perspective dialog. The paper, scrim, toggle group and buttons are
+          styled by the theme. */}
       <Dialog
         open={perspectiveDialogOpen}
         onClose={() => setPerspectiveDialogOpen(false)}
         maxWidth="xs"
         fullWidth
-        slotProps={{
-          backdrop: {
-            sx: {
-              backgroundColor: "rgba(8,9,12,0.72)",
-              backdropFilter: "blur(8px)",
-              WebkitBackdropFilter: "blur(8px)",
-            },
-          },
-        }}
-        PaperProps={{
-          sx: {
-            borderRadius: "1.5rem",
-            background:
-              "linear-gradient(180deg, rgba(20,22,28,0.92), rgba(12,14,20,0.92))",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            boxShadow:
-              "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
-            color: "rgba(255,255,255,0.94)",
-          },
-        }}
       >
-        <DialogContent sx={{ textAlign: "center", py: 4, px: 3 }}>
-          <Icon
-            icon="mdi:chess-king"
-            width={40}
-            style={{ marginBottom: 12, color: "#FB923C" }}
-          />
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: 700, mb: 1, color: "rgba(255,255,255,0.94)" }}
-          >
-            Analyze from which perspective?
-          </Typography>
-          <Typography
-            variant="body2"
-            sx={{ color: "rgba(255,255,255,0.62)", mb: 3 }}
-          >
-            Choose the color you played so the AI coach analyzes from your point of view.
+        {/* A real DialogTitle, so the dialog takes its accessible name from
+            it (MUI wires aria-labelledby to the title's id). */}
+        <DialogTitle sx={{ textAlign: "center", pt: 4, px: 3, pb: 1 }}>
+          Analyze from which perspective?
+        </DialogTitle>
+        <DialogContent sx={{ textAlign: "center", pb: 4, px: 3 }}>
+          <Typography variant="body2" sx={{ color: TEXT.secondary, mb: 3 }}>
+            Choose the color you played so Masti analyzes from your side.
           </Typography>
 
           <ToggleButtonGroup
@@ -381,58 +352,14 @@ export default function GamesTable({ games }: Props) {
           >
             <ToggleButton
               value="white"
-              sx={{
-                px: 4,
-                py: 1.5,
-                textTransform: "none",
-                fontWeight: 600,
-                fontSize: "1rem",
-                borderRadius: "12px 0 0 12px !important",
-                color: "rgba(255,255,255,0.62)",
-                bgcolor: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                transition: "all 180ms ease",
-                "&:hover": { bgcolor: "rgba(255,255,255,0.06)" },
-                "&.Mui-selected": {
-                  bgcolor: "rgba(255,255,255,0.92)",
-                  color: "#0A0A0A",
-                  border: "1px solid rgba(249,115,22,0.4)",
-                  boxShadow: "0 0 0 1px rgba(249,115,22,0.18)",
-                  "&:hover": { bgcolor: "rgba(255,255,255,0.98)" },
-                },
-              }}
+              sx={{ px: 4, py: 1.5, fontWeight: 600 }}
             >
-              <Icon icon="mdi:chess-king" width={20} style={{ marginRight: 8 }} />
               White
             </ToggleButton>
             <ToggleButton
               value="black"
-              sx={{
-                px: 4,
-                py: 1.5,
-                textTransform: "none",
-                fontWeight: 600,
-                fontSize: "1rem",
-                borderRadius: "0 12px 12px 0 !important",
-                color: "rgba(255,255,255,0.62)",
-                bgcolor: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                transition: "all 180ms ease",
-                "&:hover": { bgcolor: "rgba(255,255,255,0.06)" },
-                "&.Mui-selected": {
-                  bgcolor: "rgba(20,22,28,0.9)",
-                  color: "rgba(255,255,255,0.94)",
-                  border: "1px solid rgba(249,115,22,0.4)",
-                  boxShadow: "0 0 0 1px rgba(249,115,22,0.18)",
-                  "&:hover": { bgcolor: "rgba(28,30,38,0.95)" },
-                },
-              }}
+              sx={{ px: 4, py: 1.5, fontWeight: 600 }}
             >
-              <Icon
-                icon="mdi:chess-king"
-                width={20}
-                style={{ marginRight: 8, filter: "invert(1)" }}
-              />
               Black
             </ToggleButton>
           </ToggleButtonGroup>
@@ -440,9 +367,10 @@ export default function GamesTable({ games }: Props) {
           {pendingGame && (
             <Typography
               variant="caption"
-              sx={{ display: "block", mb: 2, color: "rgba(255,255,255,0.5)" }}
+              sx={{ display: "block", mb: 2, color: TEXT.secondary }}
             >
-              {pendingGame.white?.name || "White"} vs {pendingGame.black?.name || "Black"}
+              {pendingGame.white?.name || "White"} vs{" "}
+              {pendingGame.black?.name || "Black"}
             </Typography>
           )}
 
@@ -450,35 +378,10 @@ export default function GamesTable({ games }: Props) {
             <Button
               onClick={() => setPerspectiveDialogOpen(false)}
               variant="text"
-              sx={{
-                textTransform: "none",
-                color: "rgba(255,255,255,0.62)",
-                "&:hover": {
-                  color: "rgba(255,255,255,0.92)",
-                  bgcolor: "rgba(255,255,255,0.04)",
-                },
-              }}
             >
               Cancel
             </Button>
-            <Button
-              onClick={handleConfirmAnalyze}
-              variant="contained"
-              sx={{
-                px: 4,
-                fontWeight: 700,
-                borderRadius: "12px",
-                textTransform: "none",
-                bgcolor: "#F97316",
-                color: "#0A0A0A",
-                boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
-                transition: "all 180ms ease",
-                "&:hover": {
-                  bgcolor: "#FB923C",
-                  boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
-                },
-              }}
-            >
+            <Button onClick={handleConfirmAnalyze} variant="contained">
               Analyze
             </Button>
           </Box>

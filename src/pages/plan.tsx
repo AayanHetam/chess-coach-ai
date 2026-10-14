@@ -43,7 +43,6 @@ import {
 import { resolveUserRating } from "@/lib/coach/userRating";
 import { firstNameOf } from "@/lib/auth/displayIdentity";
 import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
-import { themeAccent, type Accent } from "@/components/ui/accents";
 import {
   ACCENT,
   LINE,
@@ -89,24 +88,36 @@ function PlanCard({
   highlight?: boolean;
   onClick?: () => void;
 }) {
+  const cardSx = {
+    position: "relative",
+    overflow: "hidden",
+    p: { xs: 2.5, md: 3 },
+    borderRadius: `${RADIUS.card}px`,
+    background: SURFACE.raised,
+    border: `1px solid ${highlight ? ACCENT.border : LINE.hairline}`,
+  } as const;
+  if (!onClick) return <Box sx={cardSx}>{children}</Box>;
+  // A clickable card is a real button, so it takes focus and answers Enter
+  // and Space. It darkens on press rather than scaling, because it is wide.
   return (
     <Box
+      component="button"
+      type="button"
       onClick={onClick}
       sx={{
-        position: "relative",
-        overflow: "hidden",
-        p: { xs: 2.5, md: 3 },
-        borderRadius: `${RADIUS.card}px`,
-        background: SURFACE.raised,
-        border: `1px solid ${highlight ? ACCENT.border : LINE.hairline}`,
-        cursor: onClick ? "pointer" : "default",
+        ...cardSx,
+        display: "block",
+        width: "100%",
+        textAlign: "left",
+        font: "inherit",
+        color: "inherit",
+        cursor: "pointer",
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
         transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
-        ...(onClick
-          ? {
-              "&:hover": { borderColor: LINE.strong },
-              "&:active": { background: SURFACE.raisedTertiary },
-            }
-          : {}),
+        "&:hover": { borderColor: LINE.strong },
+        "&:active": { background: SURFACE.raisedTertiary },
+        "&:focus-visible": { outline: "2px solid #FFFFFF", outlineOffset: 2 },
       }}
     >
       {children}
@@ -628,7 +639,6 @@ export default function PlanPage() {
                 key={task.key}
                 label={task.label}
                 done={task.done}
-                accent={themeAccent(task.theme)}
                 kind={task.kind}
               />
             ))
@@ -770,14 +780,18 @@ function SecondaryTaskRow({ task }: { task: DailyTask }) {
           >
             {task.label}
           </Typography>
-          <Typography sx={{ color: TEXT.secondary, fontSize: "0.75rem" }}>
+          <Typography
+            sx={{
+              ...TYPE.caption,
+              color: TEXT.secondary,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
             ~{task.minutes} min
           </Typography>
           {task.external && <ExternalLink size={12} color={TEXT.tertiary} />}
         </Box>
-        <Typography
-          sx={{ color: TEXT.secondary, fontSize: "0.78rem", mt: 0.25 }}
-        >
+        <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 0.25 }}>
           {task.detail}
         </Typography>
       </Box>
@@ -788,13 +802,10 @@ function SecondaryTaskRow({ task }: { task: DailyTask }) {
 function TaskRow({
   label,
   done,
-  accent,
   kind,
 }: {
   label: string;
   done: boolean;
-  /** The theme's own colour — stable per theme, so a fork is always gold. */
-  accent: Accent;
   kind: "new" | "review";
 }) {
   const Icon = kind === "review" ? RotateCcw : Zap;
@@ -820,7 +831,7 @@ function TaskRow({
         {done ? (
           <Check size={18} color={STATUS.success} strokeWidth={1.75} />
         ) : (
-          <Icon size={18} color={accent.bright} strokeWidth={1.75} />
+          <Icon size={18} color={TEXT.secondary} strokeWidth={1.75} />
         )}
       </Box>
       <Typography
@@ -846,42 +857,32 @@ function DayCell({
   done: boolean;
   onStart: () => void;
 }) {
-  // A future day that has SRS reviews genuinely falling due wears the cyan of
-  // the review identity, so the week strip shows WHERE the review load lands
-  // rather than reading as six identical grey boxes.
+  // A future day that has SRS reviews genuinely falling due wears the info
+  // status tint, so the week strip shows WHERE the review load lands rather
+  // than reading as six identical grey boxes.
   const hasReviews = !day.isToday && !done && day.reviewThemes.length > 0;
-  return (
-    <Box
-      onClick={day.isToday ? onStart : undefined}
-      sx={{
-        p: 1.25,
-        borderRadius: `${RADIUS.control}px`,
-        minHeight: 104,
-        display: "flex",
-        flexDirection: "column",
-        gap: 0.5,
-        cursor: day.isToday ? "pointer" : "default",
-        // A trained day reads green whether or not it is today: the grid's
-        // whole job is showing what you have actually done, which it could
-        // never do before completion was recorded. Status tints only; the
-        // accent marks today, the one cell that is also a button.
-        background: done
-          ? STATUS.successTint
-          : day.isToday
-            ? ACCENT.tint
-            : hasReviews
-              ? STATUS.infoTint
-              : SURFACE.raised,
-        border: `1px solid ${day.isToday ? ACCENT.border : LINE.hairline}`,
-        transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
-        ...(day.isToday
-          ? {
-              "&:hover": { borderColor: ACCENT.main },
-              "&:active": { background: SURFACE.raisedTertiary },
-            }
-          : {}),
-      }}
-    >
+  const cellSx = {
+    p: 1.25,
+    borderRadius: `${RADIUS.control}px`,
+    minHeight: 104,
+    display: "flex",
+    flexDirection: "column",
+    gap: 0.5,
+    // A trained day reads green whether or not it is today: the grid's
+    // whole job is showing what you have actually done, which it could
+    // never do before completion was recorded. Status tints only; the
+    // accent marks today, the one cell that is also a button.
+    background: done
+      ? STATUS.successTint
+      : day.isToday
+        ? ACCENT.tint
+        : hasReviews
+          ? STATUS.infoTint
+          : SURFACE.raised,
+    border: `1px solid ${day.isToday ? ACCENT.border : LINE.hairline}`,
+  } as const;
+  const content = (
+    <>
       <Typography
         sx={{
           ...TYPE.label,
@@ -910,17 +911,48 @@ function DayCell({
       >
         {day.totalPuzzles}
       </Typography>
-      <Typography sx={{ color: TEXT.secondary, fontSize: "0.75rem" }}>
+      <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
         puzzles
       </Typography>
       <Box sx={{ flex: 1 }} />
-      <Typography sx={{ color: TEXT.secondary, fontSize: "0.75rem" }}>
+      <Typography
+        sx={{
+          ...TYPE.caption,
+          color: TEXT.secondary,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
         {day.reviewThemes.length > 0
           ? `${day.reviewThemes.length} review${
               day.reviewThemes.length > 1 ? "s" : ""
             } · ~${day.estMinutes}m`
           : `~${day.estMinutes}m`}
       </Typography>
+    </>
+  );
+  if (!day.isToday) return <Box sx={cellSx}>{content}</Box>;
+  // Today's cell starts the session, so it is a real button.
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onStart}
+      sx={{
+        ...cellSx,
+        width: "100%",
+        textAlign: "left",
+        font: "inherit",
+        color: "inherit",
+        cursor: "pointer",
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
+        transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
+        "&:hover": { borderColor: ACCENT.main },
+        "&:active": { background: SURFACE.raisedTertiary },
+        "&:focus-visible": { outline: "2px solid #FFFFFF", outlineOffset: 2 },
+      }}
+    >
+      {content}
     </Box>
   );
 }
@@ -960,7 +992,7 @@ function StatTile({
       >
         {children}
       </Typography>
-      <Typography sx={{ color: TEXT.secondary, fontSize: "0.75rem" }}>
+      <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
         {sub}
       </Typography>
     </Box>

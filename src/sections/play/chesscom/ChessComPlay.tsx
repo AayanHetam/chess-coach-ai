@@ -24,6 +24,7 @@ import {
   Typography,
 } from "@mui/material";
 import { Icon } from "@iconify/react";
+import { ChessPawn, Info, RefreshCw, Search, User } from "lucide-react";
 import { Chessboard } from "react-chessboard";
 import {
   ACCENT,
@@ -71,8 +72,7 @@ function humanMoveBy(moveBy: number | null): string {
 }
 
 /** Convert "1/86400" etc. into "1 move / day". */
-function humanTimeControl(tc?: string): string {
-  if (!tc) return "Unknown";
+function humanTimeControl(tc: string): string {
   const m = tc.match(/^(\d+)\/(\d+)$/);
   if (!m) return tc;
   const moves = parseInt(m[1], 10);
@@ -151,23 +151,33 @@ export default function ChessComPlay() {
                   Your Chess.com daily games
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Read-only. Chess.com has no public API for playing.
+                  Your daily games, read-only.
                 </Typography>
               </Box>
             </Stack>
             {username && (
-              <IconButton
-                size="small"
-                onClick={() => fetchGames(username)}
-                disabled={loading}
-                sx={{ color: "text.secondary" }}
-              >
-                <Icon icon="mdi:refresh" width={18} />
-              </IconButton>
+              <Tooltip title="Refresh games">
+                {/* The span keeps the tooltip working while the button is
+                    disabled during a load. */}
+                <span>
+                  <IconButton
+                    size="small"
+                    aria-label="Refresh games"
+                    onClick={() => fetchGames(username)}
+                    disabled={loading}
+                    sx={{ color: "text.secondary" }}
+                  >
+                    <RefreshCw size={18} strokeWidth={1.75} aria-hidden />
+                  </IconButton>
+                </span>
+              </Tooltip>
             )}
           </Stack>
 
-          <Alert severity="info" icon={<Icon icon="mdi:information-outline" />}>
+          <Alert
+            severity="info"
+            icon={<Info size={20} strokeWidth={1.75} aria-hidden />}
+          >
             Chess.com has no public API for live play. Your ongoing daily games
             are listed here; open one on chess.com to make your move. To play
             live on Chess Masti, use the Lichess tab.
@@ -189,10 +199,12 @@ export default function ChessComPlay() {
               }}
               InputProps={{
                 startAdornment: (
-                  <Icon
-                    icon="mdi:account"
-                    width={18}
-                    style={{ color: TEXT.tertiary, marginRight: 6 }}
+                  <User
+                    size={18}
+                    strokeWidth={1.75}
+                    color={TEXT.secondary}
+                    aria-hidden
+                    style={{ marginRight: 6, flexShrink: 0 }}
                   />
                 ),
               }}
@@ -203,9 +215,9 @@ export default function ChessComPlay() {
               disabled={!input.trim() || loading}
               startIcon={
                 loading ? (
-                  <CircularProgress size={14} />
+                  <CircularProgress size={16} aria-hidden />
                 ) : (
-                  <Icon icon="mdi:magnify" />
+                  <Search size={16} strokeWidth={1.75} aria-hidden />
                 )
               }
               sx={{ minWidth: 120 }}
@@ -236,7 +248,12 @@ export default function ChessComPlay() {
           {/* Games grid */}
           {data && data.games.length === 0 && !error && (
             <Box sx={{ py: 4, textAlign: "center", color: TEXT.secondary }}>
-              <Icon icon="mdi:chess-pawn" width={40} style={{ opacity: 0.4 }} />
+              <ChessPawn
+                size={40}
+                strokeWidth={1.75}
+                aria-hidden
+                style={{ opacity: 0.4 }}
+              />
               <Typography variant="body2" sx={{ mt: 1 }}>
                 No ongoing daily games for <strong>{data.username}</strong>.
               </Typography>
@@ -343,7 +360,9 @@ function ChessComGameCard({ game, you }: { game: ChessComGame; you: string }) {
         alignItems="center"
         sx={{ flexWrap: "wrap", gap: 0.5 }}
       >
-        <Chip size="small" label={humanTimeControl(game.timeControl)} />
+        {game.timeControl && (
+          <Chip size="small" label={humanTimeControl(game.timeControl)} />
+        )}
         <Tooltip
           title={
             game.moveBy ? new Date(game.moveBy * 1000).toLocaleString() : ""

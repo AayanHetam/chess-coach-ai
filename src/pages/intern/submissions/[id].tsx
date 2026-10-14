@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import { Loader } from "@/components/ui/Loader";
 import { useViewer } from "@/hooks/useViewer";
-import { INTERN_THEME_COLOR, INTERN_THEME_COLOR_DARK } from "@/constants";
+import { FONT_MONO, STATUS, TEXT, TYPE } from "@/theme/tokens";
 import type { SubmissionDetail } from "@/app/api/intern/submissions/[id]/route";
 
 /**
@@ -29,11 +29,17 @@ const CATEGORY_LABEL: Record<SubmissionDetail["category"], string> = {
   incomplete: "Incomplete",
 };
 
-const CATEGORY_COLOR: Record<SubmissionDetail["category"], { bg: string; fg: string }> = {
+const CATEGORY_COLOR: Record<
+  SubmissionDetail["category"],
+  { bg: string; fg: string }
+> = {
   bad: { bg: "#FBE9E7", fg: "#C62828" },
   inaccurate: { bg: "#FFF8E1", fg: "#9A6300" },
   incomplete: { bg: "#E8EAF6", fg: "#3949AB" },
 };
+
+/** "assistant" as a word on a label: "Assistant". */
+const roleWord = (role: string) => role.charAt(0).toUpperCase() + role.slice(1);
 
 export default function SubmissionDetailPage() {
   const router = useRouter();
@@ -57,7 +63,9 @@ export default function SubmissionDetailPage() {
       .then(async (res) => {
         if (res.status === 404) throw new Error("Submission not found.");
         if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as { error?: string };
+          const body = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
           throw new Error(body.error ?? `Failed (${res.status})`);
         }
         return res.json() as Promise<SubmissionDetail>;
@@ -116,7 +124,12 @@ export default function SubmissionDetailPage() {
         {detail && (
           <Stack spacing={3}>
             <Box>
-              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
+              <Stack
+                direction="row"
+                spacing={1.5}
+                alignItems="center"
+                sx={{ mb: 1 }}
+              >
                 <Chip
                   label={CATEGORY_LABEL[detail.category]}
                   size="small"
@@ -133,20 +146,23 @@ export default function SubmissionDetailPage() {
                   · Prompt v{detail.promptVersion}
                 </Typography>
               </Stack>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: INTERN_THEME_COLOR_DARK }}>
+              <Typography
+                variant="h5"
+                sx={{ fontWeight: 700, color: TEXT.primary }}
+              >
                 Submission detail
               </Typography>
             </Box>
 
             {detail.gamePgn && (
               <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                <Typography variant="overline" sx={{ color: "text.secondary" }}>
+                <Typography sx={{ ...TYPE.label, color: "text.secondary" }}>
                   Game
                 </Typography>
                 <Typography
                   variant="body2"
                   sx={{
-                    fontFamily: "monospace",
+                    fontFamily: FONT_MONO,
                     fontSize: "0.82rem",
                     mt: 0.5,
                     whiteSpace: "pre-wrap",
@@ -160,7 +176,7 @@ export default function SubmissionDetailPage() {
                     sx={{
                       display: "block",
                       mt: 1,
-                      fontFamily: "monospace",
+                      fontFamily: FONT_MONO,
                       color: "text.secondary",
                     }}
                   >
@@ -170,15 +186,18 @@ export default function SubmissionDetailPage() {
               </Paper>
             )}
 
-            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderColor: "#FFAB91" }}>
-              <Typography variant="overline" sx={{ color: "#C62828" }}>
+            <Paper
+              variant="outlined"
+              sx={{ p: 2, borderRadius: 2, borderColor: "#FFAB91" }}
+            >
+              <Typography sx={{ ...TYPE.label, color: STATUS.error }}>
                 What the coach said (bad)
               </Typography>
               <Typography
                 variant="body2"
                 sx={{
                   mt: 0.5,
-                  fontFamily: "monospace",
+                  fontFamily: FONT_MONO,
                   fontSize: "0.85rem",
                   whiteSpace: "pre-wrap",
                   backgroundColor: "rgba(244, 67, 54, 0.04)",
@@ -191,10 +210,13 @@ export default function SubmissionDetailPage() {
             </Paper>
 
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-              <Typography variant="overline" sx={{ color: "text.secondary" }}>
+              <Typography sx={{ ...TYPE.label, color: "text.secondary" }}>
                 Why it&apos;s wrong
               </Typography>
-              <Typography variant="body1" sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}>
+              <Typography
+                variant="body1"
+                sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}
+              >
                 {detail.whyWrong}
               </Typography>
             </Paper>
@@ -203,7 +225,7 @@ export default function SubmissionDetailPage() {
               variant="outlined"
               sx={{ p: 2, borderRadius: 2, borderColor: "#A5D6A7" }}
             >
-              <Typography variant="overline" sx={{ color: "#2E7D32" }}>
+              <Typography sx={{ ...TYPE.label, color: STATUS.success }}>
                 Ideal response
               </Typography>
               <Typography
@@ -223,7 +245,7 @@ export default function SubmissionDetailPage() {
             <Divider />
 
             <Box>
-              <Typography variant="overline" sx={{ color: "text.secondary" }}>
+              <Typography sx={{ ...TYPE.label, color: "text.secondary" }}>
                 Full chat history at flag time
               </Typography>
               <Stack spacing={1} sx={{ mt: 1 }}>
@@ -250,20 +272,23 @@ export default function SubmissionDetailPage() {
                         sx={{
                           fontWeight: 600,
                           color: isFlagged
-                            ? "#C62828"
+                            ? STATUS.error
                             : isAssistant
-                              ? INTERN_THEME_COLOR
+                              ? TEXT.primary
                               : "text.secondary",
-                          letterSpacing: "0.04em",
                         }}
                       >
                         {isFlagged
-                          ? `${msg.role.toUpperCase()} · FLAGGED`
-                          : msg.role.toUpperCase()}
+                          ? `${roleWord(msg.role)} · Flagged`
+                          : roleWord(msg.role)}
                       </Typography>
                       <Typography
                         variant="body2"
-                        sx={{ mt: 0.5, whiteSpace: "pre-wrap", fontSize: "0.88rem" }}
+                        sx={{
+                          mt: 0.5,
+                          whiteSpace: "pre-wrap",
+                          fontSize: "0.88rem",
+                        }}
                       >
                         {msg.content}
                       </Typography>

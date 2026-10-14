@@ -4,6 +4,7 @@ import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Paper,
   TextField,
   Typography,
@@ -95,7 +96,7 @@ export default function ResetPasswordPage() {
       setDone(true);
       setTimeout(() => router.push("/"), 1500);
     } catch {
-      setError("Network error. Please try again.");
+      setError("We couldn't reach the server. Try again.");
     } finally {
       setSubmitting(false);
     }
@@ -152,7 +153,7 @@ export default function ResetPasswordPage() {
           <Box component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>
             {done ? (
               <Alert severity="success">
-                Password updated. Redirecting you to the app…
+                Password updated. Taking you back to Chess Masti.
               </Alert>
             ) : (
               <>
@@ -188,9 +189,14 @@ export default function ResetPasswordPage() {
                   fullWidth
                   variant="contained"
                   disabled={submitting}
+                  startIcon={
+                    submitting ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : undefined
+                  }
                   sx={{ py: 1.5 }}
                 >
-                  {submitting ? "Resetting…" : "Reset password"}
+                  {submitting ? "Resetting" : "Reset password"}
                 </Button>
 
                 <Typography

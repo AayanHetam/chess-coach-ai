@@ -143,9 +143,7 @@ test("Analyse renders a real evaluation, not just a loading state", async ({
   await expect(page.getByText(/^[+-](\d+\.\d\d|M\d+)$/)).toBeVisible();
   // And the failure copy must NOT be on screen — the exact message every
   // production user saw while the multiPv bug shipped.
-  await expect(
-    page.getByText(/didn't return an evaluation/)
-  ).toHaveCount(0);
+  await expect(page.getByText(/didn't return an evaluation/)).toHaveCount(0);
 });
 
 test("a solved-out mate reads as checkmate, not as an engine failure", async ({
@@ -186,9 +184,9 @@ test("a solved-out mate reads as checkmate, not as an engine failure", async ({
   await expect(analyseButton(page)).toBeEnabled();
   await analyseButton(page).click();
 
-  await expect(
-    page.getByText(/Checkmate — (White|Black) has won/)
-  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/Checkmate: (White|Black) has won/)).toBeVisible({
+    timeout: 15_000,
+  });
   await expect(page.getByText(/didn't return an evaluation/)).toHaveCount(0);
   expect(engineRequests).toEqual([]);
 });
@@ -232,7 +230,8 @@ test("unlocking Analyse is visible, not just enabled", async ({ page }) => {
   // on mobile purely on timing, which is the same trap as the force-click above.
   await expect
     .poll(async () => (await styles()).background, { timeout: 5000 })
-    .toMatch(/rgba?\(255, 122, 26/);
+    // ACCENT.tint (rgba(249,115,22,0.14)) in src/theme/tokens.ts.
+    .toMatch(/rgba?\(249, 115, 22/);
 
   const unlocked = await styles();
   // Unlocked carries a real ember fill AND a border — the two things that make

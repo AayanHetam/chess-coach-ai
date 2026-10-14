@@ -27,7 +27,7 @@ const REVIEW =
   "The fork was tempting, but you should have played 8. Qxc1 instead of 8. Nc7+ — " +
   "the hanging queen was the bigger prize.";
 
-const COMPOSER = "Ask anything — answering without engine analysis.";
+const COMPOSER = "Ask anything. The answer comes without engine analysis.";
 
 async function pinComposerOpen(page: Page) {
   await page.route("**/engines/**", (route) => route.abort());
@@ -59,19 +59,28 @@ test.describe("coach move links", () => {
       .waitFor({ state: "visible", timeout: 60_000 })
       .then(() => true)
       .catch(() => false);
-    test.skip(!appeared, "coach composer never unlocked on this machine — resolveMoveRef is unit-tested");
+    test.skip(
+      !appeared,
+      "coach composer never unlocked on this machine — resolveMoveRef is unit-tested"
+    );
 
     // The greeting no longer promises that a tab will "light up".
     await expect(page.getByText(/light up/)).toHaveCount(0);
-    await expect(page.getByText(/fills in with each move's verdict/)).toBeVisible();
+    await expect(
+      page.getByText(/fills in with each move's verdict/)
+    ).toBeVisible();
 
     await composer.fill("analyse this game");
     await composer.press("Enter");
 
     // The recommendation is an ALTERNATIVE link — not a jump to the later 7...Qxc1 / any Qxc1.
-    const alternative = page.locator('[title="Alternative: Qxc1 — shows the position after it"]');
+    const alternative = page.locator(
+      '[title="Alternative: Qxc1. Shows the position after it"]'
+    );
     await expect(alternative).toBeVisible({ timeout: 30_000 });
-    await expect(page.locator('[title^="Jump to"][title*="Qxc1"]')).toHaveCount(0);
+    await expect(page.locator('[title^="Jump to"][title*="Qxc1"]')).toHaveCount(
+      0
+    );
     // The move that WAS played at move 8 stays a jump.
     await expect(page.locator('[title="Jump to 8. Nc7+"]')).toBeVisible();
 
@@ -79,7 +88,9 @@ test.describe("coach move links", () => {
     // and the exploration chip says so — the line is "Qxc1" and the way back
     // is the anchor (the position after Black's 7th move).
     await alternative.click();
-    await expect(page.getByText("Exploring").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Exploring").first()).toBeVisible({
+      timeout: 10_000,
+    });
     await expect(page.getByTitle("Qxc1", { exact: true })).toBeVisible();
     await expect(page.getByText(/Back to move 7/)).toBeVisible();
   });

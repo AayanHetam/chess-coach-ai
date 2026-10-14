@@ -123,7 +123,7 @@ export default function OpeningLineCard({
 function Header() {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.25 }}>
-      <BookOpen size={18} color={ACCENT.main} strokeWidth={1.75} />
+      <BookOpen size={18} color={TEXT.secondary} strokeWidth={1.75} />
       <Typography sx={{ ...TYPE.h5, color: TEXT.primary }}>
         Your weakest line
       </Typography>
@@ -321,13 +321,17 @@ function TrainCta({
           minHeight: 44,
           px: 2.25,
           borderRadius: `${RADIUS.pill}px`,
-          background: ACCENT.main,
-          color: TEXT.onAccent,
+          // The quiet tinted action: /plan's one solid ember is "Start
+          // today's session", so this one stays a tint.
+          background: ACCENT.tint,
+          color: ACCENT.hover,
           fontSize: TYPE.bodySmall.fontSize,
           fontWeight: 600,
           textDecoration: "none",
+          touchAction: "manipulation",
+          WebkitTapHighlightColor: "transparent",
           transition: `background-color ${MOTION.hover}, transform ${MOTION.press}`,
-          "&:hover": { background: ACCENT.hover },
+          "&:hover": { background: ACCENT.tintHover },
           "&:active": { transform: MOTION.pressScale },
           "&:focus-visible": {
             outline: `2px solid ${TEXT.primary}`,
@@ -341,7 +345,7 @@ function TrainCta({
       {status === "repaired" && (
         <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.6 }}>
           <Check size={14} color={STATUS.success} aria-hidden />
-          <Typography sx={{ fontSize: "0.78rem", color: STATUS.success }}>
+          <Typography sx={{ ...TYPE.caption, color: STATUS.success }}>
             Repaired
           </Typography>
         </Box>
@@ -388,9 +392,10 @@ function QueueRow({ hole }: { hole: RepertoireHole }) {
       >
         <Typography
           sx={{
-            fontSize: "0.78rem",
+            ...TYPE.caption,
             color: TEXT.secondary,
             whiteSpace: "nowrap",
+            fontVariantNumeric: "tabular-nums",
           }}
         >
           {pct(hole.score)}% · {hole.games} games
@@ -495,7 +500,7 @@ function DueForReview({
           </Box>
           <Typography
             sx={{
-              fontSize: "0.75rem",
+              ...TYPE.caption,
               color: TEXT.secondary,
               whiteSpace: "nowrap",
             }}
@@ -533,7 +538,7 @@ function LineBlock({ line }: { line: RepertoireHole }) {
           {formatLine(line.line, line.color)}
         </Typography>
         <TierPill tier={line.tier} />
-        <Typography sx={{ fontSize: "0.75rem", color: TEXT.secondary }}>
+        <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
           as {line.color === "white" ? "White" : "Black"}
         </Typography>
       </Box>
@@ -542,7 +547,10 @@ function LineBlock({ line }: { line: RepertoireHole }) {
         <Stat label="You score here" value={`${pct(line.score)}%`} tone="bad" />
         <Stat label="Your average" value={`${pct(line.baseline)}%`} />
         <Stat label="Games" value={String(line.games)} />
-        <Stat label="p" value={line.p < 0.001 ? "<0.001" : line.p.toFixed(3)} />
+        <Stat
+          label="Chance it's noise"
+          value={line.p < 0.001 ? "<0.001" : line.p.toFixed(3)}
+        />
       </Box>
 
       <Diagnosis line={line} />
@@ -629,7 +637,7 @@ function TheoryNote({ line }: { line: RepertoireHole }) {
           {para}
         </Typography>
       ))}
-      <Typography sx={{ fontSize: "0.75rem", color: TEXT.tertiary, mt: 1 }}>
+      <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 1 }}>
         From{" "}
         <Box
           component="a"
@@ -743,7 +751,13 @@ function Footer({
         flexWrap: "wrap",
       }}
     >
-      <Typography sx={{ fontSize: "0.75rem", color: TEXT.secondary }}>
+      <Typography
+        sx={{
+          ...TYPE.caption,
+          color: TEXT.secondary,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
         {games.toLocaleString()} of your games · {tests} independent lines
         tested
         {cachedAt
@@ -752,13 +766,16 @@ function Footer({
       </Typography>
       <Box
         component="button"
+        type="button"
         onClick={onRun}
         sx={{
           background: "none",
           border: "none",
           p: 0,
           cursor: "pointer",
-          fontSize: "0.75rem",
+          font: "inherit",
+          fontSize: TYPE.caption.fontSize,
+          lineHeight: TYPE.caption.lineHeight,
           color: ACCENT.main,
           "&:hover": { color: EMBER },
           "&:focus-visible": {
@@ -767,7 +784,7 @@ function Footer({
           },
         }}
       >
-        measure again
+        Measure again
       </Box>
     </Box>
   );

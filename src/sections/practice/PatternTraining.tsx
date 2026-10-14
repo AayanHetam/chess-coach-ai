@@ -16,18 +16,17 @@ import {
 } from "@mui/material";
 import { Chessboard } from "react-chessboard";
 import { Chess, Square } from "chess.js";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue } from "jotai";
 import { useScreenSize } from "@/hooks/useScreenSize";
 import { useLostDragRecovery } from "@/hooks/useLostDragRecovery";
 import { pieceSetAtom } from "@/components/board/states";
 import { Piece, CustomPieces } from "react-chessboard/dist/chessboard/types";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import PsychologyIcon from "@mui/icons-material/Psychology";
+import { Brain, Eye } from "lucide-react";
 import type { DifficultyBand } from "@/types/puzzles";
 import type { ChessPuzzle } from "@/lib/chessPuzzlesService";
 import { puzzleSolvedStatusAtom } from "./states";
 import { parseSolutionMoves as parseSolution } from "@/lib/puzzleSolution";
-import { ACCENT, LINE, RADIUS, STATUS, SURFACE, TEXT } from "@/theme/tokens";
+import { LINE, RADIUS, STATUS, SURFACE, TEXT } from "@/theme/tokens";
 
 const PIECE_CODES: Piece[] = [
   "wP",
@@ -380,7 +379,12 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-          <PsychologyIcon sx={{ color: ACCENT.main, fontSize: 28 }} />
+          <Brain
+            size={20}
+            strokeWidth={1.75}
+            color={TEXT.secondary}
+            aria-hidden
+          />
           <Typography variant="h5" sx={{ color: TEXT.primary }}>
             Pattern training
           </Typography>
@@ -431,7 +435,7 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
           <Button
             variant="contained"
             onClick={handleStart}
-            startIcon={<PsychologyIcon />}
+            startIcon={<Brain size={18} strokeWidth={1.75} aria-hidden />}
           >
             Start training
           </Button>
@@ -462,7 +466,12 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <PsychologyIcon sx={{ color: ACCENT.main }} />
+          <Brain
+            size={20}
+            strokeWidth={1.75}
+            color={TEXT.secondary}
+            aria-hidden
+          />
           <Typography variant="subtitle1">Pattern training</Typography>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -483,7 +492,12 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
       {phase === "flash" && (
         <Box sx={{ mb: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-            <VisibilityIcon sx={{ color: STATUS.warning, fontSize: 18 }} />
+            <Eye
+              size={18}
+              strokeWidth={1.75}
+              color={STATUS.warning}
+              aria-hidden
+            />
             <Typography
               variant="body2"
               sx={{
@@ -576,7 +590,13 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
       {/* Finish Dialog */}
       <Dialog open={showFinishDialog} maxWidth="xs" fullWidth>
         <DialogContent sx={{ textAlign: "center", py: 4 }}>
-          <PsychologyIcon sx={{ fontSize: 40, color: ACCENT.main, mb: 1 }} />
+          <Brain
+            size={40}
+            strokeWidth={1.75}
+            color={TEXT.secondary}
+            aria-hidden
+            style={{ marginBottom: 8 }}
+          />
           <Typography variant="h4" sx={{ mb: 1, color: TEXT.primary }}>
             Session complete
           </Typography>
@@ -610,7 +630,7 @@ export default function PatternTraining({ onBack }: PatternTrainingProps) {
               setShowFinishDialog(false);
               handleStart();
             }}
-            startIcon={<PsychologyIcon />}
+            startIcon={<Brain size={18} strokeWidth={1.75} aria-hidden />}
           >
             Play again
           </Button>

@@ -15,7 +15,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
 import { Chess } from "chess.js";
-import { motion } from "framer-motion";
 import { BookOpen, Check, Search, Shapes, X } from "lucide-react";
 import type {
   OpeningEntry,
@@ -25,20 +24,31 @@ import type {
 } from "@/types/repertoire";
 import { numberedLine, share as pctOf } from "@/lib/repertoire/bracket";
 import { classify, skeletonOf } from "@/lib/repertoire/structure";
-import { rankChoices, type Churn, type QuizAnswers } from "@/lib/repertoire/store";
+import {
+  rankChoices,
+  type Churn,
+  type QuizAnswers,
+} from "@/lib/repertoire/store";
 import { levelFit, withinCeiling, type Band } from "@/lib/repertoire/levels";
 import { CHARACTER_STYLE, fitOf } from "@/lib/repertoire/character";
 import { coverageSentence } from "@/lib/repertoire/sentences";
 import OpeningDiagram from "@/components/learn/OpeningDiagram";
-import { ACCENTS } from "@/components/ui/accents";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
-// Ember stays the action colour (focus rings, the move you would play); gold
-// is /learn's surface identity; rose carries warnings.
-const EMBER = ACCENTS.ember.bright;
-const GOLD = ACCENTS.gold;
-const ROSE = ACCENTS.rose;
-const GOOD = "#86EFAC";
-const MONO = '"SF Mono", ui-monospace, Menlo, monospace';
+const FOCUS_RING = {
+  outline: `2px solid ${TEXT.primary}`,
+  outlineOffset: 2,
+} as const;
 
 const LOAD_WORDS: Record<string, string> = {
   light: "little to learn",
@@ -78,7 +88,11 @@ export default function SlotChooser({
   churn = null,
 }: SlotChooserProps) {
   const ranked = useMemo(
-    () => rankChoices(slot.choices, quiz, band, { churn, youPlay: youPlay?.san ?? null }),
+    () =>
+      rankChoices(slot.choices, quiz, band, {
+        churn,
+        youPlay: youPlay?.san ?? null,
+      }),
     [slot.choices, quiz, band, churn, youPlay]
   );
   const panel = useRef<HTMLDivElement>(null);
@@ -102,20 +116,27 @@ export default function SlotChooser({
       ref={panel}
       tabIndex={-1}
       role="group"
-      aria-label={`Choose what to play`}
+      aria-label="Choose what to play"
       sx={{
         mt: 1.5,
-        borderRadius: "1.25rem",
-        border: `1px solid ${GOLD.border}`,
-        background: `radial-gradient(120% 55% at 50% 0%, ${GOLD.tint}, transparent 70%), linear-gradient(180deg, rgba(20,22,28,0.96) 0%, rgba(12,14,20,0.96) 100%)`,
-        boxShadow: GOLD.glow,
-        backdropFilter: "blur(12px)",
+        borderRadius: `${RADIUS.card}px`,
+        border: `1px solid ${LINE.hairline}`,
+        background: SURFACE.raised,
         p: { xs: 2, md: 2.5 },
         outline: "none",
+        "&:focus-visible": FOCUS_RING,
       }}
     >
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2, mb: 1.5 }}>
-        <Typography sx={{ color: GOLD.bright, fontSize: "0.72rem", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 2,
+          mb: 1.5,
+        }}
+      >
+        <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
           Our suggestions
         </Typography>
         <Box
@@ -123,11 +144,23 @@ export default function SlotChooser({
           onClick={onClose}
           aria-label="Close without choosing"
           sx={{
-            display: "grid", placeItems: "center", width: 32, height: 32, mt: -0.5, mr: -0.5,
-            background: "none", border: "none", cursor: "pointer", borderRadius: "8px",
-            color: "rgba(255,255,255,0.4)",
-            "&:hover": { color: "#fff" },
-            "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+            display: "grid",
+            placeItems: "center",
+            width: 32,
+            height: 32,
+            mt: -0.5,
+            mr: -0.5,
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            borderRadius: `${RADIUS.small}px`,
+            color: TEXT.secondary,
+            touchAction: "manipulation",
+            WebkitTapHighlightColor: "transparent",
+            transition: `color ${MOTION.hover}, transform ${MOTION.press}`,
+            "&:hover": { color: TEXT.primary },
+            "&:active": { transform: MOTION.pressScale },
+            "&:focus-visible": FOCUS_RING,
           }}
         >
           <X size={16} aria-hidden />
@@ -139,23 +172,28 @@ export default function SlotChooser({
 
       {ranked.length > 0 ? (
         <Box sx={{ display: "grid", gap: 1 }}>
-          {ranked.map((choice, i) => (
+          {ranked.map((choice) => (
             <ChoiceCard
               key={choice.id}
               choice={choice}
               slot={slot}
-              index={i}
               band={band}
               quiz={quiz}
               youPlay={youPlay}
-              onPick={() => onPick({ slotId: slot.id, choiceId: choice.id, label: choice.name })}
+              onPick={() =>
+                onPick({
+                  slotId: slot.id,
+                  choiceId: choice.id,
+                  label: choice.name,
+                })
+              }
             />
           ))}
         </Box>
       ) : (
-        <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.86rem", lineHeight: 1.6 }}>
-          We have no curated recommendation this deep. What people actually play is below, and the
-          full library is searchable.
+        <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
+          We have no curated recommendation this deep. What people actually play
+          is below, and the full library is searchable.
         </Typography>
       )}
 
@@ -172,18 +210,26 @@ export default function SlotChooser({
  * Grünfeld does not cover 1.c4: it covers about a quarter of it, and only when
  * White cooperates by playing d4.
  */
-function Transposes({ transposes }: { transposes: SlotChooserProps["transposes"] }) {
+function Transposes({
+  transposes,
+}: {
+  transposes: SlotChooserProps["transposes"];
+}) {
   const best = transposes[0];
   return (
     <Box
       sx={{
-        mb: 1.5, p: 1.5, borderRadius: "12px",
-        border: "1px solid rgba(134,239,172,0.25)", background: "rgba(134,239,172,0.06)",
+        mb: 1.5,
+        p: 1.5,
+        borderRadius: `${RADIUS.control}px`,
+        border: `1px solid ${LINE.hairline}`,
+        background: STATUS.successTint,
       }}
     >
-      <Typography sx={{ color: GOOD, fontSize: "0.82rem", lineHeight: 1.6 }}>
-        Your <strong>{best.name}</strong> already answers at least {pctOf(best.atLeast)} of this by
-        transposition. The rest is a different opening and still needs a move.
+      <Typography sx={{ ...TYPE.bodySmall, color: TEXT.primary }}>
+        Your <strong>{best.name}</strong> already answers at least{" "}
+        {pctOf(best.atLeast)} of this by transposition. The rest is a different
+        opening and still needs a move.
       </Typography>
     </Box>
   );
@@ -203,7 +249,8 @@ function Brief({ slot }: { slot: RepertoireSlot }) {
     if (!brief || brief.mainline.length === 0) return null;
     try {
       const board = new Chess();
-      for (const san of [...slot.line, ...brief.mainline]) if (!board.move(san)) return null;
+      for (const san of [...slot.line, ...brief.mainline])
+        if (!board.move(san)) return null;
       return classify(skeletonOf(board.fen()));
     } catch {
       return null;
@@ -212,30 +259,56 @@ function Brief({ slot }: { slot: RepertoireSlot }) {
 
   if (!brief || brief.games < 200) return null;
   return (
-    <Box sx={{ mb: 2, p: 1.75, borderRadius: "12px", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)" }}>
+    <Box
+      sx={{
+        mb: 2,
+        p: 1.75,
+        borderRadius: `${RADIUS.control}px`,
+        border: `1px solid ${LINE.hairline}`,
+        background: SURFACE.raisedSecondary,
+      }}
+    >
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1 }}>
-        <Shapes size={13} color="rgba(255,255,255,0.4)" aria-hidden />
-        <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.7rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+        <Shapes
+          size={16}
+          strokeWidth={1.75}
+          color={TEXT.secondary}
+          aria-hidden
+        />
+        <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
           What this becomes
         </Typography>
       </Box>
-      <Typography sx={{ fontFamily: MONO, fontSize: "0.8rem", color: "rgba(255,255,255,0.75)", mb: 0.75 }}>
+      <Typography
+        sx={{
+          ...TYPE.caption,
+          fontFamily: FONT_MONO,
+          color: TEXT.secondary,
+          mb: 0.75,
+        }}
+      >
         {numberedLine([...slot.line, ...brief.mainline], slot.line.length)}
       </Typography>
       {structure && (
-        <Typography sx={{ fontSize: "0.85rem", color: "#fff", lineHeight: 1.55, mb: 0.5 }}>
+        <Typography sx={{ ...TYPE.bodySmall, color: TEXT.primary, mb: 0.5 }}>
           A <strong>{structure.name}</strong>. {structure.summary}
         </Typography>
       )}
-      <Typography sx={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.55)", lineHeight: 1.55 }}>
+      <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
         {brief.score !== null && (
-          <>White scores {Math.round(brief.score * 100)}% across {brief.games.toLocaleString()} games. </>
+          <>
+            White scores {Math.round(brief.score * 100)}% across{" "}
+            {brief.games.toLocaleString()} games.{" "}
+          </>
         )}
         {brief.breaks.length > 0 && (
-          <>The pawn breaks that actually happen: {brief.breaks.map((b) => `${b.san} ${pctOf(b.share)}`).join(", ")}.</>
+          <>
+            The pawn breaks that actually happen:{" "}
+            {brief.breaks.map((b) => `${b.san} ${pctOf(b.share)}`).join(", ")}.
+          </>
         )}
       </Typography>
-      <Typography sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.35)", mt: 0.75 }}>
+      <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 0.75 }}>
         Most played, not best. Counted, not recommended.
       </Typography>
     </Box>
@@ -245,7 +318,6 @@ function Brief({ slot }: { slot: RepertoireSlot }) {
 function ChoiceCard({
   choice,
   slot,
-  index,
   band,
   quiz,
   youPlay,
@@ -253,7 +325,6 @@ function ChoiceCard({
 }: {
   choice: RepertoireChoice;
   slot: RepertoireSlot;
-  index: number;
   band: Band;
   quiz: QuizAnswers | null;
   youPlay: SlotChooserProps["youPlay"];
@@ -270,41 +341,36 @@ function ChoiceCard({
   const already = Boolean(youPlay && youPlay.san === choice.play);
   return (
     <Box
-      component={motion.button}
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, delay: Math.min(index * 0.04, 0.2), ease: [0.16, 1, 0.3, 1] }}
+      component="button"
       onClick={onPick}
       sx={{
-        textAlign: "left", width: "100%", cursor: "pointer",
-        position: "relative", overflow: "hidden",
-        p: 1.75, pl: 2.25, borderRadius: "14px",
-        // The BOX carries the character, not just a tag on it. Scanning eleven
-        // options against 1.d4, the hue is read before any word is — you see
-        // which of them are red before you have read a single opening name.
-        //
-        // Three restraints keep eleven coloured cards from becoming a fruit
-        // salad. The wash is a 4%-alpha gradient that fades out by halfway, so
-        // the colour sits under the title and the body text is on plain dark.
-        // The border is 20% alpha, enough to bound the card and not enough to
-        // ring it. And the saturated version of the hue appears only on the
-        // 3px edge, which is the one element small enough to take it.
-        borderTop: `1px solid ${style.colour}33`,
-        borderRight: `1px solid ${style.colour}33`,
-        borderBottom: `1px solid ${style.colour}33`,
+        textAlign: "left",
+        width: "100%",
+        cursor: "pointer",
+        position: "relative",
+        overflow: "hidden",
+        p: 1.75,
+        pl: 2.25,
+        borderRadius: `${RADIUS.control}px`,
+        // The character's hue is the 3px edge and nothing else. Scanning
+        // eleven options against 1.d4, the edge is read before any word is,
+        // and the rest of the card is a plain surface so the text sits on it.
+        border: `1px solid ${LINE.hairline}`,
         borderLeft: `3px solid ${style.colour}`,
-        background: `linear-gradient(105deg, ${style.colour}14 0%, ${style.colour}08 42%, rgba(255,255,255,0.03) 78%)`,
-        transition: "border-color 180ms ease, background 180ms ease, transform 180ms ease",
+        background: SURFACE.raisedSecondary,
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
+        transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
         "&:hover": {
-          borderTopColor: `${style.colour}66`,
-          borderRightColor: `${style.colour}66`,
-          borderBottomColor: `${style.colour}66`,
-          background: `linear-gradient(105deg, ${style.colour}26 0%, ${style.colour}12 42%, rgba(255,255,255,0.05) 78%)`,
+          borderTopColor: LINE.strong,
+          borderRightColor: LINE.strong,
+          borderBottomColor: LINE.strong,
         },
-        // Focus stays EMBER rather than taking the character hue. A focus ring
+        "&:active": { background: SURFACE.raisedTertiary },
+        // The focus ring is white rather than the character hue. A focus ring
         // is a statement about where the keyboard is, and if it changed colour
         // per card it would read as part of the content.
-        "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+        "&:focus-visible": FOCUS_RING,
       }}
     >
       <Box sx={{ display: "flex", gap: 1.75, alignItems: "flex-start", mb: 1 }}>
@@ -313,15 +379,29 @@ function ChoiceCard({
             and glyphs as the onboarding quiz, so the two read as one product. */}
         <OpeningDiagram moves={choice.diagram} side={slot.side} px={84} />
         <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, flexWrap: "wrap", mb: 0.5 }}>
-            <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: "0.95rem" }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "baseline",
+              gap: 1,
+              flexWrap: "wrap",
+              mb: 0.5,
+            }}
+          >
+            <Typography sx={{ ...TYPE.h5, color: TEXT.primary }}>
               {choice.name}
             </Typography>
-            <Typography sx={{ fontFamily: MONO, fontSize: "0.78rem", color: EMBER }}>
+            <Typography
+              sx={{
+                ...TYPE.caption,
+                fontFamily: FONT_MONO,
+                color: TEXT.secondary,
+              }}
+            >
               {choice.play}
             </Typography>
           </Box>
-          <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.84rem", lineHeight: 1.55 }}>
+          <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
             {choice.blurb}
           </Typography>
         </Box>
@@ -331,11 +411,10 @@ function ChoiceCard({
           job and the other leaves homework. */}
       <Typography
         sx={{
-          color: "rgba(255,255,255,0.78)",
-          fontSize: "0.85rem",
-          lineHeight: 1.55,
+          ...TYPE.bodySmall,
+          color: TEXT.primary,
           mb: 1,
-          borderLeft: `2px solid ${GOLD.border}`,
+          borderLeft: `2px solid ${LINE.strong}`,
           pl: 1.25,
         }}
       >
@@ -343,7 +422,13 @@ function ChoiceCard({
       </Typography>
       {/* Why it suits the level, or why it does not. The honest version of a
           recommendation is the reason attached to it. */}
-      <Typography sx={{ color: fit < 0 ? ROSE.bright : "rgba(255,255,255,0.45)", fontSize: "0.79rem", lineHeight: 1.5, mb: 1 }}>
+      <Typography
+        sx={{
+          ...TYPE.caption,
+          color: fit < 0 ? STATUS.warning : TEXT.secondary,
+          mb: 1,
+        }}
+      >
         {fit < 0 && <strong>A long way above your level. </strong>}
         {choice.why}
       </Typography>
@@ -362,7 +447,9 @@ function ChoiceCard({
         {/* Theory load and level are different things, and the King's Indian is
             the case that proves it: a lot to memorise, one plan, and a fine
             choice at 900. A single difficulty number could not say that. */}
-        <Tag tone={heavyForBand ? "warn" : undefined}>{LOAD_WORDS[choice.load] ?? choice.load}</Tag>
+        <Tag tone={heavyForBand ? "warn" : undefined}>
+          {LOAD_WORDS[choice.load] ?? choice.load}
+        </Tag>
         {/* At most two, and never more: everything lining up collapses to one
             tag, and a two-band stretch swallows the style note because the
             expensive objection is the one that should be read. */}
@@ -387,14 +474,18 @@ function ChoiceCard({
           <Tag tone="warn">costs you a year first</Tag>
         ) : (
           <>
-            {fitted.level === "suits" && <Tag tone="good">suits your level</Tag>}
+            {fitted.level === "suits" && (
+              <Tag tone="good">suits your level</Tag>
+            )}
             {/* Only for a choice that agrees with them on NEITHER axis. A
                 merely-different character is the default state for three cards
                 in four, and a label on the default is wallpaper.
                 Neutral tone on purpose: not liking the shape of a game is a
                 preference, not a hazard, and colouring this like the year-long
                 warning above would rank taste alongside cost. */}
-            {fitted.style === "poor" && <Tag>doesn&apos;t fit your playstyle</Tag>}
+            {fitted.style === "poor" && (
+              <Tag>doesn&apos;t fit your playstyle</Tag>
+            )}
           </>
         )}
         {/* A `move` choice absorbs nothing by definition — it is a move, not a
@@ -413,7 +504,13 @@ function ChoiceCard({
 }
 
 /** What people actually play here, measured. Always available, never curated. */
-function MoveList({ slot, onPick }: { slot: RepertoireSlot; onPick: (p: RepertoirePick) => void }) {
+function MoveList({
+  slot,
+  onPick,
+}: {
+  slot: RepertoireSlot;
+  onPick: (p: RepertoirePick) => void;
+}) {
   if (slot.moves.length === 0) return null;
   return (
     <Box sx={{ mt: 2.5 }}>
@@ -424,21 +521,46 @@ function MoveList({ slot, onPick }: { slot: RepertoireSlot; onPick: (p: Repertoi
             key={move.san}
             component="button"
             onClick={() =>
-              onPick({ slotId: slot.id, san: move.san, label: move.name ?? move.san })
+              onPick({
+                slotId: slot.id,
+                san: move.san,
+                label: move.name ?? move.san,
+              })
             }
             sx={{
-              display: "inline-flex", alignItems: "center", gap: 0.75,
-              minHeight: 40, px: 1.5, borderRadius: "10px", cursor: "pointer",
-              border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.02)",
-              transition: "border-color 180ms ease",
-              "&:hover": { borderColor: "rgba(249,115,22,0.5)" },
-              "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 0.75,
+              minHeight: 40,
+              px: 1.5,
+              borderRadius: `${RADIUS.control}px`,
+              cursor: "pointer",
+              border: `1px solid ${LINE.hairline}`,
+              background: SURFACE.raisedSecondary,
+              touchAction: "manipulation",
+              WebkitTapHighlightColor: "transparent",
+              transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
+              "&:hover": { borderColor: LINE.strong },
+              "&:active": { background: SURFACE.raisedTertiary },
+              "&:focus-visible": FOCUS_RING,
             }}
           >
-            <Typography sx={{ fontFamily: MONO, fontSize: "0.82rem", color: "#fff" }}>
+            <Typography
+              sx={{
+                ...TYPE.bodySmall,
+                fontFamily: FONT_MONO,
+                color: TEXT.primary,
+              }}
+            >
               {move.san}
             </Typography>
-            <Typography sx={{ fontSize: "0.74rem", color: "rgba(255,255,255,0.4)", fontVariantNumeric: "tabular-nums" }}>
+            <Typography
+              sx={{
+                ...TYPE.caption,
+                color: TEXT.secondary,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
               {pctOf(move.share)}
             </Typography>
           </Box>
@@ -456,7 +578,13 @@ function MoveList({ slot, onPick }: { slot: RepertoireSlot; onPick: (p: Repertoi
  * they are real openings and they are unreachable from where the player is
  * standing, which makes them worse than no result at all.
  */
-function LibrarySearch({ slot, onPick }: { slot: RepertoireSlot; onPick: (p: RepertoirePick) => void }) {
+function LibrarySearch({
+  slot,
+  onPick,
+}: {
+  slot: RepertoireSlot;
+  onPick: (p: RepertoirePick) => void;
+}) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<OpeningEntry[]>([]);
   const [more, setMore] = useState(0);
@@ -475,7 +603,9 @@ function LibrarySearch({ slot, onPick }: { slot: RepertoireSlot; onPick: (p: Rep
     const timer = setTimeout(() => {
       const url = `/api/openings/search?q=${encodeURIComponent(query)}&line=${encodeURIComponent(slot.line.join(","))}`;
       fetch(url)
-        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then((r) =>
+          r.ok ? r.json() : Promise.reject(new Error(String(r.status)))
+        )
         .then((data) => {
           if (cancelled) return;
           setResults(data.results ?? []);
@@ -497,35 +627,65 @@ function LibrarySearch({ slot, onPick }: { slot: RepertoireSlot; onPick: (p: Rep
       <Heading>Or pick your own</Heading>
       <Box
         sx={{
-          display: "flex", alignItems: "center", gap: 1, px: 1.5,
-          borderRadius: "12px", border: "1px solid rgba(255,255,255,0.12)",
-          background: "rgba(0,0,0,0.25)",
-          "&:focus-within": { borderColor: EMBER },
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          px: 1.5,
+          borderRadius: `${RADIUS.control}px`,
+          border: `1px solid ${LINE.hairline}`,
+          background: "rgba(255,255,255,0.06)",
+          transition: `border-color ${MOTION.hover}`,
+          "&:hover": { borderColor: LINE.strong },
+          // The field's focus ring, as the theme's inputs draw it.
+          "&:focus-within": { borderColor: ACCENT.main },
         }}
       >
-        <Search size={15} color="rgba(255,255,255,0.4)" aria-hidden />
+        <Search
+          size={16}
+          strokeWidth={1.75}
+          color={TEXT.secondary}
+          aria-hidden
+        />
         <Box
           component="input"
           value={query}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setQuery(e.target.value)
+          }
           placeholder="Search every named opening"
           aria-label="Search every named opening"
           sx={{
-            flex: 1, minHeight: 44, background: "none", border: "none", outline: "none",
-            color: "#fff", fontSize: "0.9rem",
-            "&::placeholder": { color: "rgba(255,255,255,0.35)" },
+            flex: 1,
+            minHeight: 44,
+            background: "none",
+            border: "none",
+            outline: "none",
+            color: TEXT.primary,
+            fontSize: TYPE.bodySmall.fontSize,
+            "&::placeholder": { color: TEXT.tertiary },
           }}
         />
       </Box>
 
       {state === "failed" && (
-        <Typography role="status" sx={{ mt: 1, fontSize: "0.8rem", color: "rgba(255,255,255,0.5)" }}>
+        <Typography
+          role="status"
+          sx={{ ...TYPE.caption, mt: 1, color: TEXT.secondary }}
+        >
           Could not reach the library. The suggestions above still work.
         </Typography>
       )}
 
       {results.length > 0 && (
-        <Box sx={{ mt: 1, maxHeight: 240, overflowY: "auto", display: "grid", gap: 0.25 }}>
+        <Box
+          sx={{
+            mt: 1,
+            maxHeight: 240,
+            overflowY: "auto",
+            display: "grid",
+            gap: 0.25,
+          }}
+        >
           {results.map((entry) => (
             <Box
               key={`${entry.name}-${entry.moves.length}`}
@@ -539,22 +699,47 @@ function LibrarySearch({ slot, onPick }: { slot: RepertoireSlot; onPick: (p: Rep
                 })
               }
               sx={{
-                textAlign: "left", width: "100%", cursor: "pointer", minHeight: 44,
-                px: 1.25, py: 0.75, borderRadius: "10px",
-                background: "none", border: "1px solid transparent",
-                "&:hover": { background: "rgba(255,255,255,0.05)" },
-                "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: -2 },
+                textAlign: "left",
+                width: "100%",
+                cursor: "pointer",
+                minHeight: 44,
+                px: 1.25,
+                py: 0.75,
+                borderRadius: `${RADIUS.small}px`,
+                background: "none",
+                border: "none",
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
+                transition: `background-color ${MOTION.hover}`,
+                "&:hover": { background: "rgba(255,255,255,0.06)" },
+                "&:active": { background: SURFACE.raisedTertiary },
+                "&:focus-visible": { ...FOCUS_RING, outlineOffset: -2 },
               }}
             >
-              <Typography sx={{ color: "#fff", fontSize: "0.85rem" }}>{entry.name}</Typography>
-              <Typography sx={{ fontFamily: MONO, fontSize: "0.74rem", color: "rgba(255,255,255,0.4)" }}>
+              <Typography sx={{ ...TYPE.bodySmall, color: TEXT.primary }}>
+                {entry.name}
+              </Typography>
+              <Typography
+                sx={{
+                  ...TYPE.caption,
+                  fontFamily: FONT_MONO,
+                  color: TEXT.secondary,
+                }}
+              >
                 {entry.eco ? `${entry.eco} · ` : ""}
                 {numberedLine(entry.moves.slice(0, 8))}
               </Typography>
             </Box>
           ))}
           {more > 0 && (
-            <Typography sx={{ px: 1.25, py: 0.75, fontSize: "0.76rem", color: "rgba(255,255,255,0.4)" }}>
+            <Typography
+              sx={{
+                ...TYPE.caption,
+                px: 1.25,
+                py: 0.75,
+                color: TEXT.secondary,
+              }}
+            >
               {more} more. Keep typing to narrow it down.
             </Typography>
           )}
@@ -562,9 +747,10 @@ function LibrarySearch({ slot, onPick }: { slot: RepertoireSlot; onPick: (p: Rep
       )}
 
       {query.trim().length >= 2 && results.length === 0 && state === "idle" && (
-        <Typography sx={{ mt: 1, fontSize: "0.8rem", color: "rgba(255,255,255,0.5)", lineHeight: 1.55 }}>
-          Nothing named that is reachable from {slot.line.length ? numberedLine(slot.line) : "the start"}.
-          An opening can be real and still not arise here.
+        <Typography sx={{ ...TYPE.bodySmall, mt: 1, color: TEXT.secondary }}>
+          Nothing named that is reachable from{" "}
+          {slot.line.length ? numberedLine(slot.line) : "the start"}. An opening
+          can be real and still not arise here.
         </Typography>
       )}
     </Box>
@@ -574,8 +760,13 @@ function LibrarySearch({ slot, onPick }: { slot: RepertoireSlot; onPick: (p: Rep
 function Heading({ children }: { children: React.ReactNode }) {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1 }}>
-      <BookOpen size={13} color={GOLD.base} aria-hidden />
-      <Typography sx={{ color: GOLD.bright, fontSize: "0.72rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+      <BookOpen
+        size={16}
+        strokeWidth={1.75}
+        color={TEXT.secondary}
+        aria-hidden
+      />
+      <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
         {children}
       </Typography>
     </Box>
@@ -595,19 +786,40 @@ function Tag({
   /** Emphasised: this is the thing they asked for. */
   filled?: boolean;
 }) {
-  // Warn is rose, not ember: a cost warning is a hazard note, not an action.
-  const colour = explicit ?? (tone === "good" ? GOOD : tone === "warn" ? ROSE.bright : "rgba(255,255,255,0.5)");
+  // A cost warning is a hazard note, not an action, so it wears the warning
+  // colour and never the accent. A neutral tag is the plain chip.
+  const colour =
+    explicit ??
+    (tone === "good"
+      ? STATUS.success
+      : tone === "warn"
+        ? STATUS.warning
+        : null);
   return (
     <Box
       sx={{
-        display: "inline-flex", alignItems: "center", gap: 0.4,
-        px: 0.9, py: 0.3, borderRadius: "999px",
-        border: `1px solid ${colour}${filled ? "88" : "33"}`,
-        background: `${colour}${filled ? "24" : "0F"}`,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 0.4,
+        px: 1,
+        py: 0.25,
+        minHeight: 24,
+        borderRadius: `${RADIUS.small}px`,
+        background: colour
+          ? `${colour}${filled ? "29" : "1F"}`
+          : SURFACE.raisedSecondary,
       }}
     >
-      {(tone === "good" || filled) && <Check size={11} color={colour} aria-hidden />}
-      <Typography sx={{ fontSize: "0.7rem", color: colour, fontWeight: filled ? 600 : 400 }}>
+      {(tone === "good" || filled) && (
+        <Check size={12} color={colour ?? TEXT.primary} aria-hidden />
+      )}
+      <Typography
+        sx={{
+          ...TYPE.caption,
+          color: colour ?? TEXT.primary,
+          fontWeight: filled ? 600 : 500,
+        }}
+      >
         {children}
       </Typography>
     </Box>

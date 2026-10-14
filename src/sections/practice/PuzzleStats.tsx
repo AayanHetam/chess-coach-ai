@@ -12,10 +12,7 @@ import {
   TEXT,
   TYPE,
 } from "@/theme/tokens";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import TimerIcon from "@mui/icons-material/Timer";
-import WhatshotIcon from "@mui/icons-material/Whatshot";
+import { CircleCheck, Flame, Timer, TrendingUp } from "lucide-react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -41,22 +38,22 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
     {
       label: "Puzzle rating",
       value: stats.rating,
-      icon: <TrendingUpIcon sx={{ fontSize: 18 }} />,
+      icon: <TrendingUp size={18} strokeWidth={1.75} aria-hidden />,
     },
     {
       label: "Solve rate",
       value: `${solveRate}%`,
-      icon: <CheckCircleIcon sx={{ fontSize: 18 }} />,
+      icon: <CircleCheck size={18} strokeWidth={1.75} aria-hidden />,
     },
     {
       label: "Average time",
       value: stats.totalAttempts > 0 ? formatTime(stats.averageTimeMs) : "-",
-      icon: <TimerIcon sx={{ fontSize: 18 }} />,
+      icon: <Timer size={18} strokeWidth={1.75} aria-hidden />,
     },
     {
       label: "Best streak",
       value: stats.bestStreak,
-      icon: <WhatshotIcon sx={{ fontSize: 18 }} />,
+      icon: <Flame size={18} strokeWidth={1.75} aria-hidden />,
     },
   ];
 

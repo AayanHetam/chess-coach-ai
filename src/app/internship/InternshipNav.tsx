@@ -3,6 +3,7 @@
 import { Box, Button, Container, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { BrandMark } from "@/components/ui/BrandMark";
+import { MOTION, TYPE } from "@/theme/tokens";
 
 export default function InternshipNav() {
   const [scrolled, setScrolled] = useState(false);
@@ -23,15 +24,21 @@ export default function InternshipNav() {
         right: 0,
         zIndex: 1100,
         py: scrolled ? 1.5 : 2.5,
-        backgroundColor: scrolled ? "rgba(255,255,255,0.92)" : "transparent",
-        backdropFilter: scrolled ? "blur(12px)" : "none",
-        borderBottom: scrolled ? "1px solid rgba(255,107,53,0.1)" : "1px solid transparent",
-        transition: "all 0.3s ease",
+        // Opaque once content scrolls under it: the App Router pages are the
+        // light theme, so the dark nav material does not apply here.
+        bgcolor: scrolled ? "background.default" : "transparent",
+        borderBottom: "1px solid",
+        borderColor: scrolled ? "divider" : "transparent",
+        transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
       }}
     >
       <Container
         maxWidth="lg"
-        sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
       >
         <Box
           component="a"
@@ -46,14 +53,8 @@ export default function InternshipNav() {
           <BrandMark size={32} />
           <Typography
             variant="h6"
-            sx={{
-              fontWeight: 800,
-              background: "linear-gradient(45deg, #FF6B35 30%, #FF8C42 90%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-              fontSize: "1.1rem",
-            }}
+            component="span"
+            sx={{ fontWeight: 600, color: "text.primary" }}
           >
             Chess Masti
           </Typography>
@@ -65,35 +66,20 @@ export default function InternshipNav() {
             href="/"
             sx={{
               display: { xs: "none", sm: "inline" },
-              color: scrolled ? "#555" : "#444",
+              color: "text.secondary",
               textDecoration: "none",
-              fontSize: "0.9rem",
+              fontSize: TYPE.bodySmall.fontSize,
               fontWeight: 500,
-              "&:hover": { color: "#FF6B35" },
+              transition: `color ${MOTION.hover}`,
+              "&:hover": { color: "text.primary" },
             }}
           >
-            ← Home
+            Home
           </Typography>
-          <Button
-            variant="contained"
-            size="small"
-            href="/internship/apply"
-            sx={{
-              px: 3,
-              py: 1,
-              fontSize: "0.85rem",
-              fontWeight: 700,
-              borderRadius: 2.5,
-              background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
-              boxShadow: "0 4px 16px rgba(255,107,53,0.3)",
-              textTransform: "none",
-              "&:hover": {
-                background: "linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)",
-                boxShadow: "0 6px 20px rgba(255,107,53,0.4)",
-              },
-            }}
-          >
-            Apply Now
+          {/* Outlined: each page's own primary is the one solid ember. The
+              inherited colour keeps the label at text.primary on white. */}
+          <Button variant="outlined" color="inherit" href="/internship/apply">
+            Apply now
           </Button>
         </Box>
       </Container>

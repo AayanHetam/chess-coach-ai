@@ -11,7 +11,7 @@ import { LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
  *
  * Renders nothing when the viewer is not an intern (the public hero shows
  * instead). The card frames the visit as "you are an employee here," with
- * direct CTAs into the two intern workflows (dogfooding and authoring).
+ * direct CTAs into the two intern workflows (using the coach and authoring).
  *
  * In CMIP-1.A, both CTAs land at /intern (dashboard is a placeholder).
  * In CMIP-1.C, "Author pending submissions" deep-links to
@@ -37,18 +37,17 @@ export function InternalHomeCard() {
       >
         <Stack spacing={2.5}>
           <Stack direction="row" spacing={1} alignItems="center">
+            {/* White text on the blue tint: the blue itself is about 3.4:1
+                on the card, under 4.5:1 for 13px text. */}
             <Chip
               label="Employee"
               size="small"
               sx={{
                 backgroundColor: `${INTERN_THEME_COLOR_LIGHT}24`,
-                color: INTERN_THEME_COLOR_LIGHT,
+                color: TEXT.primary,
                 height: 22,
               }}
             />
-            <Typography variant="caption" sx={{ color: TEXT.secondary }}>
-              Chess Masti, internal
-            </Typography>
           </Stack>
 
           <Box>
@@ -58,10 +57,10 @@ export function InternalHomeCard() {
               sx={{ mt: 1.5, color: TEXT.secondary, maxWidth: 620 }}
             >
               You&apos;re viewing chessmasti.com as an employee, not a customer.
-              The full feedback loop is live: dogfood the coach, flag any
-              response that&apos;s wrong, inaccurate or incomplete, and track
-              your weekly progress on your dashboard. Target: 10 submissions per
-              week once the program starts on June 30.
+              The full feedback loop is live: use the coach as a player would,
+              flag any response that&apos;s wrong, inaccurate or incomplete, and
+              track your weekly progress on your dashboard. Target: 10
+              submissions per week.
             </Typography>
           </Box>
 

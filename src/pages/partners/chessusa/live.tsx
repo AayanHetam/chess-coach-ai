@@ -18,7 +18,7 @@
  *
  * Route registration: this path is listed in SELF_CHROMED_ROUTES in
  * src/sections/layout/index.tsx, so Layout hands over the tree and does not
- * stack a second NavPill and GradientBackdrop on top of the ones here.
+ * stack a second NavPill on top of the one here.
  */
 
 import type { GetServerSideProps } from "next";
@@ -226,11 +226,9 @@ function AnalyzeSurface({ banner }: { banner: React.ReactNode }) {
           >
             <Typography
               sx={{
-                fontSize: "0.68rem",
-                fontWeight: 700,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-                color: "rgba(255,255,255,0.45)",
+                fontSize: "0.8125rem",
+                fontWeight: 600,
+                color: "rgba(235,235,245,0.6)",
               }}
             >
               Moves
@@ -254,11 +252,9 @@ function AnalyzeSurface({ banner }: { banner: React.ReactNode }) {
 
             <Typography
               sx={{
-                fontSize: "0.68rem",
-                fontWeight: 700,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-                color: "rgba(255,255,255,0.45)",
+                fontSize: "0.8125rem",
+                fontWeight: 600,
+                color: "rgba(235,235,245,0.6)",
               }}
             >
               Coach

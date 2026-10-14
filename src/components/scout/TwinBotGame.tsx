@@ -24,7 +24,35 @@ import { useEngine } from "@/hooks/useEngine";
 import { useLostDragRecovery } from "@/hooks/useLostDragRecovery";
 import { getTwinBotMove, TwinBotMove } from "@/lib/twinBot";
 import { OpeningTreeNode, Platform, ProfileSnapshot } from "@/types/scout";
-import { RADIUS, STATUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
+import {
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
+
+/** A small neutral chip: a rating, an ECO code, a status line. */
+const NEUTRAL_CHIP_SX = {
+  ...TYPE.caption,
+  fontWeight: 600,
+  height: 22,
+  bgcolor: SURFACE.raisedSecondary,
+  color: TEXT.primary,
+  fontVariantNumeric: "tabular-nums",
+} as const;
+
+/** A card in the side columns. */
+const SIDE_CARD_SX = {
+  p: 1.5,
+  borderRadius: `${RADIUS.control}px`,
+  bgcolor: SURFACE.raised,
+  border: `1px solid ${LINE.hairline}`,
+  color: TEXT.primary,
+} as const;
 
 /** Proper chess.js clone preserving full move history. */
 function cloneGame(g: Chess): Chess {
@@ -372,8 +400,8 @@ export default function TwinBotGame({
         position: "fixed",
         inset: 0,
         zIndex: (theme) => theme.zIndex.modal + 5,
-        bgcolor: "#0b1120",
-        color: "#fff",
+        bgcolor: SURFACE.page,
+        color: TEXT.primary,
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -387,7 +415,7 @@ export default function TwinBotGame({
         sx={{
           px: 2,
           py: 1.25,
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          borderBottom: `1px solid ${LINE.hairline}`,
         }}
       >
         <Stack direction="row" spacing={1.25} alignItems="center">
@@ -399,15 +427,8 @@ export default function TwinBotGame({
           </Typography>
           <Chip
             size="small"
-            label={`v ${yourUsername || "you"}`}
-            sx={{
-              fontSize: "0.68rem",
-              fontWeight: 700,
-              bgcolor: "rgba(255,255,255,0.08)",
-              color: "rgba(255,255,255,0.8)",
-              letterSpacing: 0.5,
-              height: 20,
-            }}
+            label={`vs ${yourUsername || "you"}`}
+            sx={NEUTRAL_CHIP_SX}
           />
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center">
@@ -420,11 +441,11 @@ export default function TwinBotGame({
                     width: 8,
                     height: 8,
                     borderRadius: "50%",
-                    bgcolor: "#22c55e",
+                    bgcolor: STATUS.success,
                   }}
                 />
               ) : (
-                <CircularProgress size={10} sx={{ color: "#f59e0b" }} />
+                <CircularProgress size={10} sx={{ color: TEXT.secondary }} />
               )
             }
             label={
@@ -434,19 +455,16 @@ export default function TwinBotGame({
                   ? `Your turn · Move ${currentMoveNumber}`
                   : `${username} thinking…`
             }
-            sx={{
-              bgcolor: "rgba(255,255,255,0.05)",
-              color: "#fff",
-              fontWeight: 700,
-              fontSize: "0.78rem",
-            }}
+            sx={NEUTRAL_CHIP_SX}
           />
           <IconButton
-            size="small"
             onClick={onClose}
+            aria-label="Close"
             sx={{
-              color: "rgba(255,255,255,0.6)",
-              "&:hover": { color: "#fff" },
+              width: 40,
+              height: 40,
+              color: TEXT.secondary,
+              "&:hover": { color: TEXT.primary },
             }}
           >
             <Icon icon="mdi:close" width={20} />
@@ -469,23 +487,13 @@ export default function TwinBotGame({
           sx={{
             display: { xs: "none", lg: "flex" },
             flexDirection: "column",
-            borderRight: "1px solid rgba(255,255,255,0.06)",
-            bgcolor: "rgba(255,255,255,0.02)",
+            borderRight: `1px solid ${LINE.hairline}`,
             p: 1.5,
             gap: 1.5,
             overflowY: "auto",
           }}
         >
-          <Paper
-            elevation={0}
-            sx={{
-              p: 1.5,
-              borderRadius: 2,
-              bgcolor: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              color: "#fff",
-            }}
-          >
+          <Paper elevation={0} sx={SIDE_CARD_SX}>
             <Stack direction="row" spacing={1.5} alignItems="center">
               <Box
                 sx={{
@@ -504,7 +512,11 @@ export default function TwinBotGame({
               </Box>
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography
-                  sx={{ fontWeight: 700, fontSize: "0.88rem", color: "#fff" }}
+                  sx={{
+                    fontWeight: 600,
+                    fontSize: "0.88rem",
+                    color: TEXT.primary,
+                  }}
                 >
                   {username}
                 </Typography>
@@ -512,17 +524,14 @@ export default function TwinBotGame({
                   <Chip
                     label={`${profile.phaseElo.baseline}`}
                     size="small"
-                    sx={{
-                      fontSize: "0.65rem",
-                      height: 18,
-                      fontWeight: 700,
-                      bgcolor: "rgba(234, 179, 8, 0.15)",
-                      color: "#facc15",
-                    }}
+                    sx={NEUTRAL_CHIP_SX}
                   />
                   <Typography
                     variant="caption"
-                    sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.7rem" }}
+                    sx={{
+                      color: TEXT.secondary,
+                      fontVariantNumeric: "tabular-nums",
+                    }}
                   >
                     {profile.totalGames.toLocaleString()} games
                   </Typography>
@@ -534,9 +543,8 @@ export default function TwinBotGame({
               sx={{
                 mt: 1.25,
                 p: 1,
-                borderRadius: 1,
-                bgcolor: "rgba(234, 179, 8, 0.08)",
-                border: "1px solid rgba(234, 179, 8, 0.2)",
+                borderRadius: `${RADIUS.small}px`,
+                bgcolor: SURFACE.raisedSecondary,
               }}
             >
               <Typography
@@ -546,7 +554,11 @@ export default function TwinBotGame({
                 Archetype
               </Typography>
               <Typography
-                sx={{ fontWeight: 800, fontSize: "0.85rem", color: "#facc15" }}
+                sx={{
+                  fontWeight: 600,
+                  fontSize: "0.85rem",
+                  color: TEXT.primary,
+                }}
               >
                 {profile.archetype}
               </Typography>
@@ -554,15 +566,7 @@ export default function TwinBotGame({
           </Paper>
 
           {topWeakness && (
-            <Paper
-              elevation={0}
-              sx={{
-                p: 1.5,
-                borderRadius: 2,
-                bgcolor: "rgba(239, 68, 68, 0.08)",
-                border: "1px solid rgba(239, 68, 68, 0.18)",
-              }}
-            >
+            <Paper elevation={0} sx={SIDE_CARD_SX}>
               <Stack
                 direction="row"
                 spacing={0.75}
@@ -571,42 +575,32 @@ export default function TwinBotGame({
               >
                 <Icon
                   icon="mdi:shield-alert-outline"
-                  width={14}
-                  style={{ color: "#f87171" }}
+                  width={16}
+                  style={{ color: STATUS.error }}
                 />
                 <Typography
                   variant="caption"
-                  sx={{
-                    color: "#f87171",
-                    fontWeight: 800,
-                    letterSpacing: 0.5,
-                    fontSize: "0.68rem",
-                  }}
+                  sx={{ ...TYPE.label, color: STATUS.error }}
                 >
-                  WEAKNESS WITH {botColor.toUpperCase()}
+                  Weak spot as {botColor === "white" ? "White" : "Black"}
                 </Typography>
               </Stack>
               <Chip
                 label={topWeakness.eco}
                 size="small"
-                sx={{
-                  bgcolor: "#0b1120",
-                  color: "#fff",
-                  fontWeight: 700,
-                  fontFamily: "monospace",
-                  height: 20,
-                  fontSize: "0.65rem",
-                  mb: 0.5,
-                }}
+                sx={{ ...NEUTRAL_CHIP_SX, fontFamily: FONT_MONO, mb: 0.5 }}
               />
               <Typography
-                sx={{ fontWeight: 700, fontSize: "0.78rem", lineHeight: 1.3 }}
+                sx={{ fontWeight: 600, fontSize: "0.8125rem", lineHeight: 1.3 }}
               >
                 {topWeakness.name}
               </Typography>
               <Typography
                 variant="caption"
-                sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.7rem" }}
+                sx={{
+                  color: TEXT.secondary,
+                  fontVariantNumeric: "tabular-nums",
+                }}
               >
                 {topWeakness.totalGames} games ·{" "}
                 {(100 - topWeakness.scorePct).toFixed(0)}% losses
@@ -614,33 +608,20 @@ export default function TwinBotGame({
             </Paper>
           )}
 
-          <Paper
-            elevation={0}
-            sx={{
-              p: 1.5,
-              borderRadius: 2,
-              bgcolor: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
-          >
+          <Paper elevation={0} sx={SIDE_CARD_SX}>
             <Typography
               variant="caption"
               sx={{
-                color: "rgba(255,255,255,0.55)",
-                letterSpacing: 1,
-                fontWeight: 700,
-                fontSize: "0.65rem",
+                ...TYPE.label,
+                color: TEXT.secondary,
                 display: "block",
                 mb: 0.5,
               }}
             >
-              BOT REPERTOIRE
+              Bot repertoire
             </Typography>
             {opponentTree.children.length === 0 ? (
-              <Typography
-                variant="caption"
-                sx={{ color: "rgba(255,255,255,0.4)" }}
-              >
+              <Typography variant="caption" sx={{ color: TEXT.secondary }}>
                 No book available
               </Typography>
             ) : (
@@ -660,23 +641,24 @@ export default function TwinBotGame({
                           display: "flex",
                           justifyContent: "space-between",
                           alignItems: "center",
-                          fontFamily: "monospace",
                         }}
                       >
                         <Typography
                           sx={{
+                            fontFamily: FONT_MONO,
                             fontWeight: 700,
-                            fontSize: "0.75rem",
-                            color: "#fff",
+                            fontSize: "0.8125rem",
+                            color: TEXT.primary,
                           }}
                         >
                           {c.move}
                         </Typography>
                         <Typography
                           sx={{
-                            fontSize: "0.7rem",
-                            color: "rgba(255,255,255,0.6)",
-                            fontWeight: 700,
+                            fontSize: "0.8125rem",
+                            color: TEXT.secondary,
+                            fontWeight: 600,
+                            fontVariantNumeric: "tabular-nums",
                           }}
                         >
                           {pct}%
@@ -690,14 +672,12 @@ export default function TwinBotGame({
 
           <Box sx={{ flex: 1 }} />
 
-          {/* Maia badge at bottom */}
+          {/* Engine badge at bottom */}
           <Paper
             elevation={0}
             sx={{
+              ...SIDE_CARD_SX,
               p: 1,
-              borderRadius: 1.5,
-              bgcolor: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.08)",
               display: "flex",
               alignItems: "center",
               gap: 1,
@@ -713,9 +693,9 @@ export default function TwinBotGame({
             />
             <Typography
               variant="caption"
-              sx={{ fontWeight: 700, fontSize: "0.7rem" }}
+              sx={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}
             >
-              Human-like opponent · {profile.phaseElo.baseline}
+              Engine · {profile.phaseElo.baseline}
             </Typography>
           </Paper>
         </Box>
@@ -792,15 +772,10 @@ export default function TwinBotGame({
                   result
                     ? formatResult(result, botColor)
                     : isUserTurn
-                      ? "Your turn · White"
-                      : `${username} · Black`
+                      ? `Your turn · ${yourColor === "white" ? "White" : "Black"}`
+                      : `${username} · ${botColor === "white" ? "White" : "Black"}`
                 }
-                sx={{
-                  bgcolor: "rgba(255,255,255,0.06)",
-                  color: "#fff",
-                  fontSize: "0.72rem",
-                  fontWeight: 700,
-                }}
+                sx={NEUTRAL_CHIP_SX}
               />
               <Stack direction="row" spacing={1}>
                 <Button
@@ -809,20 +784,7 @@ export default function TwinBotGame({
                   startIcon={<Icon icon="mdi:undo" width={14} />}
                   onClick={handleBack}
                   disabled={sanHistory.length === 0}
-                  sx={{
-                    textTransform: "none",
-                    fontWeight: 700,
-                    color: "#fff",
-                    borderColor: "rgba(255,255,255,0.2)",
-                    "&:hover": {
-                      borderColor: "#fff",
-                      bgcolor: "rgba(255,255,255,0.04)",
-                    },
-                    "&.Mui-disabled": {
-                      color: "rgba(255,255,255,0.3)",
-                      borderColor: "rgba(255,255,255,0.08)",
-                    },
-                  }}
+                  sx={{ color: TEXT.primary }}
                 >
                   Back
                 </Button>
@@ -831,30 +793,22 @@ export default function TwinBotGame({
                   variant="outlined"
                   startIcon={<Icon icon="mdi:refresh" width={14} />}
                   onClick={handleNew}
-                  sx={{
-                    textTransform: "none",
-                    fontWeight: 700,
-                    color: "#fff",
-                    borderColor: "rgba(255,255,255,0.2)",
-                    "&:hover": {
-                      borderColor: "#fff",
-                      bgcolor: "rgba(255,255,255,0.04)",
-                    },
-                  }}
+                  sx={{ color: TEXT.primary }}
                 >
                   New
                 </Button>
                 <Button
                   size="small"
-                  variant="contained"
+                  variant="outlined"
                   startIcon={<Icon icon="mdi:flag" width={14} />}
                   onClick={handleResign}
                   disabled={!!result}
                   sx={{
-                    textTransform: "none",
-                    fontWeight: 700,
-                    bgcolor: "#ef4444",
-                    "&:hover": { bgcolor: "#dc2626" },
+                    color: STATUS.error,
+                    "&:hover": {
+                      borderColor: STATUS.error,
+                      bgcolor: STATUS.errorTint,
+                    },
                   }}
                 >
                   Resign
@@ -866,16 +820,12 @@ export default function TwinBotGame({
               <Paper
                 elevation={0}
                 sx={{
+                  ...SIDE_CARD_SX,
                   mt: 1,
-                  p: 1.5,
-                  borderRadius: 2,
-                  bgcolor: "rgba(34, 197, 94, 0.1)",
-                  border: "1px solid rgba(34,197,94,0.3)",
-                  color: "#fff",
                   textAlign: "center",
                 }}
               >
-                <Typography sx={{ fontWeight: 800, fontSize: "1rem" }}>
+                <Typography sx={{ ...TYPE.h5 }}>
                   {formatResult(result, botColor, true)}
                 </Typography>
               </Paper>
@@ -888,8 +838,7 @@ export default function TwinBotGame({
           sx={{
             display: { xs: "none", lg: "flex" },
             flexDirection: "column",
-            borderLeft: "1px solid rgba(255,255,255,0.06)",
-            bgcolor: "rgba(255,255,255,0.02)",
+            borderLeft: `1px solid ${LINE.hairline}`,
             minHeight: 0,
           }}
         >
@@ -900,43 +849,27 @@ export default function TwinBotGame({
             sx={{
               px: 1.5,
               py: 1,
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              borderBottom: `1px solid ${LINE.hairline}`,
             }}
           >
             <Typography
               variant="caption"
-              sx={{ fontWeight: 800, letterSpacing: 1, fontSize: "0.7rem" }}
+              sx={{ ...TYPE.label, color: TEXT.primary }}
             >
-              HISTORY
+              Moves
             </Typography>
             <Stack direction="row" spacing={0.5} alignItems="center">
-              <Typography
-                variant="caption"
-                sx={{
-                  color: evalMode ? "#22c55e" : "rgba(255,255,255,0.5)",
-                  fontSize: "0.65rem",
-                  fontWeight: 700,
-                }}
-              >
-                {evalMode ? "ON" : "OFF"}
-              </Typography>
               <Switch
                 size="small"
                 checked={evalMode}
                 onChange={(e) => setEvalMode(e.target.checked)}
-                sx={{
-                  "& .MuiSwitch-switchBase.Mui-checked": { color: "#22c55e" },
-                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                    bgcolor: "#22c55e",
-                  },
-                }}
+                slotProps={{ input: { "aria-label": "Show best line" } }}
               />
               <Typography
                 variant="caption"
                 sx={{
-                  color: "rgba(255,255,255,0.45)",
-                  fontSize: "0.65rem",
-                  fontWeight: 700,
+                  color: TEXT.secondary,
+                  fontVariantNumeric: "tabular-nums",
                 }}
               >
                 {sanHistory.length}
@@ -949,27 +882,25 @@ export default function TwinBotGame({
               sx={{
                 px: 1.5,
                 py: 1,
-                borderBottom: "1px solid rgba(255,255,255,0.06)",
+                borderBottom: `1px solid ${LINE.hairline}`,
               }}
             >
               <Typography
                 variant="caption"
                 sx={{
-                  color: "rgba(255,255,255,0.45)",
-                  fontSize: "0.65rem",
-                  fontWeight: 700,
-                  letterSpacing: 1,
+                  ...TYPE.label,
+                  color: TEXT.secondary,
                   display: "block",
                   mb: 0.25,
                 }}
               >
-                BEST LINE
+                Best line
               </Typography>
               <Typography
                 sx={{
-                  fontFamily: "monospace",
-                  fontSize: "0.72rem",
-                  color: "rgba(255,255,255,0.85)",
+                  fontFamily: FONT_MONO,
+                  fontSize: "0.8125rem",
+                  color: TEXT.primary,
                   lineHeight: 1.4,
                 }}
               >
@@ -983,9 +914,9 @@ export default function TwinBotGame({
               <Box
                 sx={{
                   textAlign: "center",
-                  color: "rgba(255,255,255,0.4)",
+                  color: TEXT.secondary,
                   mt: 3,
-                  fontSize: "0.8rem",
+                  fontSize: "0.8125rem",
                 }}
               >
                 No moves yet. {isUserTurn ? "Your move." : "Bot thinking…"}
@@ -1001,16 +932,17 @@ export default function TwinBotGame({
                   alignItems: "center",
                   px: 0.5,
                   py: 0.5,
-                  fontFamily: "monospace",
-                  borderRadius: 0.75,
-                  "&:hover": { bgcolor: "rgba(255,255,255,0.04)" },
+                  fontFamily: FONT_MONO,
+                  borderRadius: `${RADIUS.small}px`,
+                  "&:hover": { bgcolor: "rgba(255,255,255,0.06)" },
                 }}
               >
                 <Typography
                   sx={{
-                    fontSize: "0.72rem",
-                    color: "rgba(255,255,255,0.45)",
-                    fontWeight: 700,
+                    fontFamily: FONT_MONO,
+                    fontSize: "0.8125rem",
+                    color: TEXT.secondary,
+                    fontWeight: 600,
                   }}
                 >
                   {r.moveNumber}.
@@ -1043,7 +975,7 @@ function formatResult(
     const you =
       botColor === "white" ? r.winner === "black" : r.winner === "white";
     return verbose
-      ? `${you ? "You win" : "Bot wins"} by checkmate!`
+      ? `${you ? "You win" : "The bot wins"} by checkmate.`
       : you
         ? "You win · Mate"
         : "Bot wins · Mate";
@@ -1087,15 +1019,15 @@ function PlayerBanner({
       elevation={0}
       sx={{
         p: 1,
-        borderRadius: 1.5,
-        bgcolor: "rgba(255,255,255,0.04)",
+        borderRadius: `${RADIUS.control}px`,
+        bgcolor: SURFACE.raised,
         border: "1px solid",
-        borderColor: active ? "rgba(34,197,94,0.4)" : "rgba(255,255,255,0.06)",
-        color: "#fff",
+        borderColor: active ? STATUS.success : LINE.hairline,
+        color: TEXT.primary,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        transition: "border-color 0.2s",
+        transition: `border-color ${MOTION.hover}`,
       }}
     >
       <Stack
@@ -1108,7 +1040,7 @@ function PlayerBanner({
           sx={{
             width: 28,
             height: 28,
-            borderRadius: 1,
+            borderRadius: `${RADIUS.small}px`,
             bgcolor:
               side === "opponent"
                 ? SURFACE.raisedTertiary
@@ -1135,37 +1067,25 @@ function PlayerBanner({
           {name}
         </Typography>
         {rating !== undefined && (
-          <Chip
-            label={rating}
-            size="small"
-            sx={{
-              fontSize: "0.65rem",
-              height: 18,
-              fontWeight: 700,
-              bgcolor: "rgba(234, 179, 8, 0.15)",
-              color: "#facc15",
-            }}
-          />
+          <Chip label={rating} size="small" sx={NEUTRAL_CHIP_SX} />
         )}
-        {thinking && <CircularProgress size={10} sx={{ color: "#f59e0b" }} />}
+        {thinking && (
+          <CircularProgress size={12} sx={{ color: TEXT.secondary }} />
+        )}
       </Stack>
       <Stack direction="row" spacing={0.5} alignItems="center">
         <Box
           sx={{
             width: 8,
             height: 8,
-            borderRadius: 1,
-            bgcolor: color === "white" ? "#fff" : "#111",
-            border: color === "white" ? "1px solid #999" : "none",
+            borderRadius: "50%",
+            bgcolor: color === "white" ? "#FFFFFF" : "#000000",
+            border: `1px solid ${LINE.strong}`,
           }}
         />
         <Typography
           variant="caption"
-          sx={{
-            color: "rgba(255,255,255,0.55)",
-            fontSize: "0.7rem",
-            fontWeight: 700,
-          }}
+          sx={{ color: TEXT.secondary, fontWeight: 600 }}
         >
           {color === "white" ? "White" : "Black"}
         </Typography>
@@ -1188,22 +1108,22 @@ function MoveCell({
   const isEngineBot = isBot && meta?.source === "engine";
   const confidence = meta?.confidence;
   const bgColor = isBookBot
-    ? "rgba(34, 197, 94, 0.18)"
+    ? STATUS.successTint
     : isEngineBot
-      ? "rgba(239, 68, 68, 0.18)"
+      ? STATUS.errorTint
       : "transparent";
   const fgColor = isBookBot
-    ? "#22c55e"
+    ? STATUS.success
     : isEngineBot
-      ? "#f87171"
-      : "rgba(255,255,255,0.6)";
+      ? STATUS.error
+      : TEXT.secondary;
   return (
     <Tooltip
       title={
         isBookBot
           ? `Book move · played in ${meta?.bookGames}/${meta?.parentGames} games (${confidence?.toFixed(0)}%)`
           : isEngineBot
-            ? `Out of theory · human-like opponent at ${meta?.engineElo} (depth ${meta?.engineDepth}, ${meta?.phase})`
+            ? `Out of theory · engine at ${meta?.engineElo}, depth ${meta?.engineDepth}`
             : ""
       }
       arrow
@@ -1217,12 +1137,19 @@ function MoveCell({
           gap: 0.5,
           px: 0.75,
           py: 0.25,
-          borderRadius: 0.75,
+          borderRadius: `${RADIUS.small}px`,
           bgcolor: "transparent",
           cursor: isBot ? "help" : "default",
         }}
       >
-        <Typography sx={{ fontWeight: 700, fontSize: "0.8rem", color: "#fff" }}>
+        <Typography
+          sx={{
+            fontFamily: FONT_MONO,
+            fontWeight: 600,
+            fontSize: "0.8125rem",
+            color: TEXT.primary,
+          }}
+        >
           {san}
         </Typography>
         {isBookBot && confidence !== undefined && (
@@ -1230,9 +1157,10 @@ function MoveCell({
             label={`${Math.round(confidence)}%`}
             size="small"
             sx={{
-              fontSize: "0.6rem",
-              height: 16,
-              fontWeight: 800,
+              fontSize: "0.75rem",
+              height: 18,
+              fontWeight: 600,
+              fontVariantNumeric: "tabular-nums",
               bgcolor: bgColor,
               color: fgColor,
               "& .MuiChip-label": { px: 0.5 },

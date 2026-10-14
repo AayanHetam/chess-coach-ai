@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Box, Typography, Paper, CircularProgress } from "@mui/material";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
+import { Trophy } from "lucide-react";
 import {
   ACCENT,
   LINE,
@@ -147,7 +147,12 @@ export function RushLeaderboard({
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-        <EmojiEventsIcon sx={{ color: "warning.light", fontSize: 22 }} />
+        <Trophy
+          size={20}
+          strokeWidth={1.75}
+          color={TEXT.secondary}
+          aria-hidden
+        />
         <Typography sx={{ ...TYPE.h5, color: TEXT.primary }}>
           Leaderboard
         </Typography>

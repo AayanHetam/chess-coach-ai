@@ -1,6 +1,7 @@
 "use client";
 
 import { MenuItem, Select } from "@mui/material";
+import { TEXT, TYPE } from "@/theme/tokens";
 
 /**
  * The "last N" dropdown, shared by the puzzle and game sections.
@@ -42,44 +43,13 @@ export function WindowSelect<T extends string | number>({
         const next = options.find((o) => String(o) === raw);
         if (next !== undefined) onChange(next);
       }}
-      MenuProps={{
-        PaperProps: {
-          sx: {
-            mt: 0.5,
-            background: "rgba(18,20,26,0.97)",
-            backdropFilter: "blur(14px) saturate(140%)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: "0.75rem",
-            "& .MuiMenuItem-root": {
-              fontSize: "0.82rem",
-              color: "rgba(255,255,255,0.82)",
-              "&:hover": { background: "rgba(249,115,22,0.1)" },
-              "&.Mui-selected": {
-                background: "rgba(249,115,22,0.16)",
-                color: "#FDBA74",
-                "&:hover": { background: "rgba(249,115,22,0.22)" },
-              },
-            },
-          },
-        },
-      }}
+      // The menu paper, its rows and the outlined input are styled by the theme.
       sx={{
-        fontSize: "0.78rem",
+        fontSize: TYPE.bodySmall.fontSize,
         fontWeight: 600,
-        color: "rgba(255,255,255,0.8)",
-        borderRadius: "0.6rem",
-        background: "rgba(255,255,255,0.04)",
-        "& .MuiOutlinedInput-notchedOutline": {
-          borderColor: "rgba(255,255,255,0.12)",
-        },
-        "&:hover .MuiOutlinedInput-notchedOutline": {
-          borderColor: "rgba(249,115,22,0.4)",
-        },
-        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-          borderColor: "rgba(249,115,22,0.55)",
-        },
+        color: TEXT.primary,
         "& .MuiSelect-select": { py: 0.6, pl: 1.25 },
-        "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.5)" },
+        "& .MuiSvgIcon-root": { color: TEXT.secondary },
       }}
     >
       {options.map((o) => (

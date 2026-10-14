@@ -30,27 +30,18 @@ import {
   GOAL_DIAGRAM_ALT,
   SPOT_DIAGRAMS,
 } from "./tacticDiagrams";
-import { ACCENT, LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
+import {
+  ACCENT,
+  LINE,
+  MOTION,
+  RADIUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
-const EASE = [0.2, 0, 0, 1] as const;
-
-const ratingInputSx = {
-  "& .MuiOutlinedInput-root": {
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: "12px",
-    color: "rgba(255,255,255,0.94)",
-    "& fieldset": { borderColor: "rgba(255,255,255,0.1)" },
-    "&:hover fieldset": { borderColor: "rgba(255,255,255,0.2)" },
-    "&.Mui-focused fieldset": {
-      borderColor: "rgba(249,115,22,0.55)",
-      borderWidth: "1px",
-    },
-  },
-  "& .MuiInputLabel-root": {
-    color: "rgba(255,255,255,0.55)",
-    "&.Mui-focused": { color: "#FB923C" },
-  },
-} as const;
+// A step swap is a short cross-fade.
+const STEP_TRANSITION = { duration: 0.18, ease: "easeOut" } as const;
 
 /** Play-style option key → its illustration. */
 const PLAY_STYLE_ICON: Record<string, QuizIconName> = {
@@ -192,7 +183,6 @@ export default function OnboardingQuiz({
                   ? "Letters, numbers, hyphens and underscores only."
                   : " "
               }
-              sx={ratingInputSx}
             />
           </QuizStep>
         );
@@ -317,7 +307,7 @@ export default function OnboardingQuiz({
       case "frequency":
         return (
           <QuizStep
-            title="How often can you practise?"
+            title="How often can you practice?"
             helper="Little and often beats one long session."
           >
             {FREQUENCY_OPTIONS.map((o) => (
@@ -371,11 +361,18 @@ export default function OnboardingQuiz({
                 alignItems: "flex-start",
                 gap: 1.5,
                 cursor: "pointer",
-                borderRadius: "12px",
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                transition: "background 180ms ease-out",
-                "&:hover": { background: "rgba(255,255,255,0.06)" },
+                borderRadius: `${RADIUS.control}px`,
+                background: SURFACE.raisedSecondary,
+                border: `1px solid ${LINE.hairline}`,
+                transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
+                "&:hover": {
+                  background: SURFACE.raisedTertiary,
+                  borderColor: LINE.strong,
+                },
+                "&:focus-visible": {
+                  outline: `2px solid ${TEXT.primary}`,
+                  outlineOffset: 2,
+                },
               }}
             >
               <Box
@@ -392,7 +389,7 @@ export default function OnboardingQuiz({
                     : "transparent",
                   border: q.answers.dailyReminder
                     ? "none"
-                    : "2px solid rgba(255,255,255,0.3)",
+                    : `2px solid ${TEXT.tertiary}`,
                 }}
               >
                 {q.answers.dailyReminder && (
@@ -402,19 +399,15 @@ export default function OnboardingQuiz({
               <Box>
                 <Typography
                   sx={{
-                    color: "rgba(255,255,255,0.92)",
+                    ...TYPE.bodySmall,
                     fontWeight: 600,
-                    fontSize: "0.92rem",
+                    color: TEXT.primary,
                   }}
                 >
                   Email me a daily nudge
                 </Typography>
                 <Typography
-                  sx={{
-                    color: "rgba(255,255,255,0.5)",
-                    fontSize: "0.8rem",
-                    mt: 0.25,
-                  }}
+                  sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 0.25 }}
                 >
                   One short reminder so you don&apos;t break your streak. Turn
                   it off anytime.
@@ -451,33 +444,27 @@ export default function OnboardingQuiz({
           border: `1px solid ${LINE.hairline}`,
         }}
       >
-        {/* Header: progress + start over */}
+        {/* Header: progress + start over. minHeight is the small button's
+            32px, so the row does not grow when Start over appears. */}
         <Box>
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
-              justifyContent: "space-between",
-              minHeight: 28,
+              justifyContent: "flex-end",
+              minHeight: 32,
               mb: 1.25,
             }}
           >
-            <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
-              Chess Masti
-            </Typography>
             {showStartOver && (
               <Button
                 onClick={q.startOver}
+                size="small"
                 sx={{
-                  textTransform: "none",
-                  color: "rgba(255,255,255,0.45)",
-                  fontSize: "0.78rem",
+                  color: TEXT.secondary,
+                  fontSize: TYPE.caption.fontSize,
                   minWidth: 0,
-                  p: "2px 6px",
-                  "&:hover": {
-                    color: "rgba(255,255,255,0.8)",
-                    background: "transparent",
-                  },
+                  "&:hover": { color: TEXT.primary },
                 }}
               >
                 Start over
@@ -495,7 +482,7 @@ export default function OnboardingQuiz({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.18, ease: EASE }}
+              transition={STEP_TRANSITION}
             >
               {renderContent()}
             </motion.div>

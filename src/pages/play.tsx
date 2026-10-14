@@ -18,7 +18,7 @@ export default function Play() {
 
   return (
     <ThemeProvider theme={chessMastiDarkTheme}>
-      <PageTitle title="Chess Masti AI - Play" />
+      <PageTitle title="Play · Chess Masti AI" />
       <Head>
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content={SURFACE.page} />

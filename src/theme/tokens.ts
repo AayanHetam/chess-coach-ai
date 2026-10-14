@@ -52,6 +52,8 @@ export const ACCENT = {
   active: "#EA580C",
   /** A quiet tint for selected states and tags, never a large fill. */
   tint: "rgba(249,115,22,0.14)",
+  /** The tint when a tinted action is hovered. */
+  tintHover: "rgba(249,115,22,0.22)",
   /** A hairline in the accent, for a selected control. */
   border: "rgba(249,115,22,0.45)",
 } as const;

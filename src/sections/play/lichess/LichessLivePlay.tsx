@@ -23,6 +23,17 @@ import {
 } from "@mui/material";
 import { Icon } from "@iconify/react";
 import {
+  Circle,
+  Crown,
+  Globe,
+  LineChart,
+  Lock,
+  ShieldCheck,
+  Shuffle,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
+import {
   ACCENT,
   LINE,
   RADIUS,
@@ -44,45 +55,14 @@ const TIME_CONTROLS: Array<{
   time: number;
   increment: number;
   speed: string;
-  icon: string;
 }> = [
-  { label: "10+0", time: 10, increment: 0, speed: "rapid", icon: "mdi:rabbit" },
-  { label: "10+5", time: 10, increment: 5, speed: "rapid", icon: "mdi:rabbit" },
-  {
-    label: "15+10",
-    time: 15,
-    increment: 10,
-    speed: "rapid",
-    icon: "mdi:rabbit",
-  },
-  {
-    label: "15+15",
-    time: 15,
-    increment: 15,
-    speed: "rapid",
-    icon: "mdi:rabbit",
-  },
-  {
-    label: "30+0",
-    time: 30,
-    increment: 0,
-    speed: "classical",
-    icon: "mdi:turtle",
-  },
-  {
-    label: "30+20",
-    time: 30,
-    increment: 20,
-    speed: "classical",
-    icon: "mdi:turtle",
-  },
-  {
-    label: "60+0",
-    time: 60,
-    increment: 0,
-    speed: "classical",
-    icon: "mdi:turtle",
-  },
+  { label: "10+0", time: 10, increment: 0, speed: "rapid" },
+  { label: "10+5", time: 10, increment: 5, speed: "rapid" },
+  { label: "15+10", time: 15, increment: 10, speed: "rapid" },
+  { label: "15+15", time: 15, increment: 15, speed: "rapid" },
+  { label: "30+0", time: 30, increment: 0, speed: "classical" },
+  { label: "30+20", time: 30, increment: 20, speed: "classical" },
+  { label: "60+0", time: 60, increment: 0, speed: "classical" },
 ];
 
 const SPEED_LABEL: Record<string, string> = {
@@ -243,20 +223,14 @@ export default function LichessLivePlay() {
               border: `1px solid ${LINE.hairline}`,
             }}
           >
+            <FeaturePill icon={Globe} text="Play real opponents worldwide" />
+            <FeaturePill icon={Zap} text="Rapid and classical time controls" />
             <FeaturePill
-              icon="mdi:earth"
-              text="Play real opponents worldwide"
-            />
-            <FeaturePill
-              icon="mdi:lightning-bolt"
-              text="Rapid and classical time controls"
-            />
-            <FeaturePill
-              icon="mdi:chart-line"
+              icon={LineChart}
               text="Your Lichess rating updates normally"
             />
             <FeaturePill
-              icon="mdi:shield-check-outline"
+              icon={ShieldCheck}
               text="Secure sign-in, no passwords stored"
             />
           </Stack>
@@ -272,13 +246,15 @@ export default function LichessLivePlay() {
           </Button>
 
           <Typography variant="caption" color="text.secondary">
-            <Icon
-              icon="mdi:lock-outline"
-              width={12}
+            <Lock
+              size={16}
+              strokeWidth={1.75}
+              aria-hidden
               style={{ verticalAlign: "middle", marginRight: 4 }}
             />
-            Lichess shares only your games and challenges with us. You can
-            revoke access any time in your Lichess settings.
+            Chess Masti can play your moves, send and accept challenges, and
+            read your board preferences. You can revoke access any time in your
+            Lichess settings.
           </Typography>
         </Stack>
       </Box>
@@ -325,8 +301,13 @@ export default function LichessLivePlay() {
       <Box key="lichess-seeking" sx={{ maxWidth: 520, mx: "auto" }}>
         <Stack spacing={3} alignItems="center" sx={{ py: 4 }}>
           {/* Top status */}
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <CircularProgress size={20} />
+          <Stack
+            direction="row"
+            spacing={1.5}
+            alignItems="center"
+            role="status"
+          >
+            <CircularProgress size={16} aria-hidden />
             <Typography sx={{ fontWeight: 600, fontSize: "1rem" }}>
               Waiting for opponent…
             </Typography>
@@ -349,10 +330,12 @@ export default function LichessLivePlay() {
               overflow: "hidden",
             }}
           >
-            <Icon
-              icon="mdi:crown"
-              width={48}
-              style={{ color: ACCENT.main, marginBottom: 12 }}
+            <Crown
+              size={48}
+              strokeWidth={1.75}
+              color={TEXT.secondary}
+              aria-hidden
+              style={{ marginBottom: 12 }}
             />
             <Typography sx={{ ...TYPE.h4, color: TEXT.primary }}>
               Finding opponent…
@@ -464,7 +447,7 @@ export default function LichessLivePlay() {
                       <StatItem
                         label={SPEED_LABEL[k]}
                         value={String(user.perfs![k])}
-                        icon="mdi:chart-line"
+                        icon={LineChart}
                       />
                     </Box>
                   ))}
@@ -484,7 +467,7 @@ export default function LichessLivePlay() {
                 <StatItem
                   label={SPEED_LABEL[user.ratingPerf ?? ""] ?? "Rating"}
                   value={String(user.rating)}
-                  icon="mdi:chart-line"
+                  icon={LineChart}
                 />
               </Box>
             ) : null}
@@ -528,10 +511,15 @@ export default function LichessLivePlay() {
               alignItems="center"
               justifyContent="space-between"
             >
-              <Typography sx={{ fontWeight: 600, fontSize: "0.95rem" }}>
+              <Typography
+                component="label"
+                htmlFor="lichess-rated-game"
+                sx={{ fontWeight: 600, fontSize: "0.95rem", cursor: "pointer" }}
+              >
                 Rated game
               </Typography>
               <Switch
+                id="lichess-rated-game"
                 checked={rated}
                 onChange={(e) => setRated(e.target.checked)}
               />
@@ -613,19 +601,21 @@ export default function LichessLivePlay() {
               <Stack direction="row" spacing={1}>
                 {(["random", "white", "black"] as const).map((c) => {
                   const sel = color === c;
-                  const colorIcon =
-                    c === "random"
-                      ? "mdi:shuffle-variant"
-                      : c === "white"
-                        ? "mdi:circle-outline"
-                        : "mdi:circle";
+                  const ColorIcon = c === "random" ? Shuffle : Circle;
                   return (
                     <Button
                       key={c}
                       onClick={() => setColor(c)}
                       variant="outlined"
                       size="small"
-                      startIcon={<Icon icon={colorIcon} width={16} />}
+                      startIcon={
+                        <ColorIcon
+                          size={16}
+                          strokeWidth={1.75}
+                          aria-hidden
+                          fill={c === "black" ? "currentColor" : "none"}
+                        />
+                      }
                       aria-pressed={sel}
                       sx={{
                         flex: 1,
@@ -697,11 +687,17 @@ export default function LichessLivePlay() {
 
 /* ── Sub-components ────────────────────────────────────────────────────────── */
 
-function FeaturePill({ icon, text }: { icon: string; text: string }) {
+function FeaturePill({
+  icon: FeatureIcon,
+  text,
+}: {
+  icon: LucideIcon;
+  text: string;
+}) {
   return (
     <Stack direction="row" spacing={1.5} alignItems="center">
-      <Box sx={{ display: "flex", flexShrink: 0, color: ACCENT.main }}>
-        <Icon icon={icon} width={20} />
+      <Box sx={{ display: "flex", flexShrink: 0, color: TEXT.secondary }}>
+        <FeatureIcon size={20} strokeWidth={1.75} aria-hidden />
       </Box>
       <Typography variant="body2" sx={{ fontWeight: 500 }}>
         {text}
@@ -713,15 +709,20 @@ function FeaturePill({ icon, text }: { icon: string; text: string }) {
 function StatItem({
   label,
   value,
-  icon,
+  icon: StatIcon,
 }: {
   label: string;
   value: string;
-  icon: string;
+  icon: LucideIcon;
 }) {
   return (
     <Stack direction="row" spacing={1} alignItems="center">
-      <Icon icon={icon} width={18} style={{ color: ACCENT.main }} />
+      <StatIcon
+        size={18}
+        strokeWidth={1.75}
+        color={TEXT.secondary}
+        aria-hidden
+      />
       <Box>
         <Typography
           sx={{ ...TYPE.caption, color: TEXT.secondary, lineHeight: 1.2 }}

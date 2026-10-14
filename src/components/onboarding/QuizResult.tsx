@@ -6,6 +6,7 @@ import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
 import { Masti } from "@/components/masti";
 import {
   QuizAnswers,
+  SkillBand,
   bandLabel,
   derivedRating,
   derivedFocusThemes,
@@ -19,13 +20,20 @@ import {
 } from "./quizThemes";
 import { GOAL_PERFS } from "@/lib/curriculum/goalPatch";
 import { PERF_LABEL, parseRatingField } from "@/lib/curriculum/perfGoalDrafts";
-import { TEXT, TYPE } from "@/theme/tokens";
+import { ACCENT, LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 
 const BAND_BLURB: Record<string, string> = {
   Beginner: "We'll keep things plain-English and focus on not losing material.",
   Intermediate:
     "We'll sharpen pattern recognition and the plans behind the moves.",
   Advanced: "We'll go deep: imbalances, prophylaxis and clean technique.",
+};
+
+// "a beginner", "an intermediate player": the article follows the band.
+const BAND_HEADING: Record<SkillBand, string> = {
+  Beginner: "You're a beginner.",
+  Intermediate: "You're an intermediate player.",
+  Advanced: "You're an advanced player.",
 };
 
 interface QuizResultProps {
@@ -112,33 +120,18 @@ export default function QuizResult({
           alignItems: "center",
           justifyContent: "space-between",
           gap: 2,
-          mb: 1,
+          mb: 0.5,
         }}
       >
-        <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
-          Your chess profile
+        <Typography component="h2" sx={{ ...TYPE.h3, color: TEXT.primary }}>
+          {band
+            ? BAND_HEADING[band]
+            : `We'll pull your rating from ${platformName}.`}
         </Typography>
         {/* The quiz just worked out who they are; that is an idea. */}
         <Masti mood="idea" size={64} loops={2} decorative />
       </Box>
-
-      <Typography
-        component="h2"
-        sx={{
-          color: "#fff",
-          fontWeight: 700,
-          fontSize: "1.5rem",
-          lineHeight: 1.2,
-          mb: 0.5,
-        }}
-      >
-        {band
-          ? `You're an ${band.toLowerCase()} player.`
-          : `We'll pull your rating from ${platformName}.`}
-      </Typography>
-      <Typography
-        sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.92rem", mb: 2.5 }}
-      >
+      <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary, mb: 2.5 }}>
         {band
           ? BAND_BLURB[band]
           : `As soon as you're in, we read your real ${platformName} rating (bullet, blitz and rapid) and tune the coach to it. No guessing.`}
@@ -146,9 +139,7 @@ export default function QuizResult({
 
       {weaknessLabels.length > 0 && (
         <Box sx={{ mb: 2.5 }}>
-          <Typography
-            sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.8rem", mb: 1 }}
-          >
+          <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mb: 1 }}>
             We&apos;ll start with what&apos;s holding you back:
           </Typography>
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
@@ -157,9 +148,9 @@ export default function QuizResult({
                 key={label}
                 label={label}
                 sx={{
-                  color: "rgba(255,255,255,0.92)",
-                  background: "rgba(249,115,22,0.14)",
-                  border: "1px solid rgba(249,115,22,0.4)",
+                  color: TEXT.primary,
+                  background: ACCENT.tint,
+                  border: `1px solid ${ACCENT.border}`,
                   fontWeight: 600,
                 }}
               />
@@ -170,18 +161,18 @@ export default function QuizResult({
 
       <Box
         sx={{
-          borderRadius: "16px",
-          border: "1px solid rgba(255,255,255,0.08)",
-          background: "rgba(255,255,255,0.03)",
+          borderRadius: `${RADIUS.control}px`,
+          border: `1px solid ${LINE.hairline}`,
+          background: SURFACE.raisedSecondary,
           p: 2,
           mb: 3,
         }}
       >
         <Typography
           sx={{
-            color: "rgba(255,255,255,0.85)",
+            ...TYPE.bodySmall,
             fontWeight: 600,
-            fontSize: "0.9rem",
+            color: TEXT.primary,
             mb: 1,
           }}
         >
@@ -201,11 +192,7 @@ export default function QuizResult({
             <Typography
               component="li"
               key={line}
-              sx={{
-                color: "rgba(255,255,255,0.7)",
-                fontSize: "0.86rem",
-                lineHeight: 1.45,
-              }}
+              sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}
             >
               {line}
             </Typography>
@@ -231,15 +218,13 @@ export default function QuizResult({
           },
         }}
       >
-        {authed
-          ? "Start my training plan"
-          : "Save your plan and start your first puzzles"}
+        {authed ? "Start my training plan" : "Save my plan"}
       </Button>
       <Typography
         {...(authed ? {} : SIGN_IN_PROPS)}
         sx={{
-          color: "rgba(255,255,255,0.4)",
-          fontSize: "0.76rem",
+          ...TYPE.caption,
+          color: TEXT.secondary,
           textAlign: "center",
           mt: 1.25,
         }}
@@ -253,13 +238,9 @@ export default function QuizResult({
         <Button
           onClick={onBack}
           sx={{
-            textTransform: "none",
-            color: "rgba(255,255,255,0.55)",
-            fontSize: "0.82rem",
-            "&:hover": {
-              color: "rgba(255,255,255,0.85)",
-              background: "transparent",
-            },
+            color: TEXT.secondary,
+            fontSize: TYPE.bodySmall.fontSize,
+            "&:hover": { color: TEXT.primary },
           }}
         >
           Edit my answers

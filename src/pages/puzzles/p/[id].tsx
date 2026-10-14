@@ -195,11 +195,11 @@ export default function PuzzlePermalinkPage({
             href="/puzzles"
             sx={{ fontSize: "0.85rem" }}
           >
-            Train endless puzzles with Masti
+            Practice more puzzles with Masti
           </MuiLink>
         </Box>
 
-        <Typography sx={{ mt: 4, fontSize: "0.72rem", color: TEXT.tertiary }}>
+        <Typography sx={{ mt: 4, fontSize: "0.75rem", color: TEXT.secondary }}>
           Puzzle from the{" "}
           <MuiLink
             href="https://database.lichess.org/#puzzles"

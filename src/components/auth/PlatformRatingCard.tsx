@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { useAuth } from "@/contexts/AuthContext";
 import { shouldRefreshPlatformRating } from "@/lib/rating/staleRating";
+import { LINE, SURFACE } from "@/theme/tokens";
 
 /**
  * "We found your account" card for the Profile → Chess tab.
@@ -121,8 +122,8 @@ export default function PlatformRatingCard() {
       sx={{
         p: 2,
         borderRadius: 2,
-        background: "rgba(249,115,22,0.06)",
-        border: "1px solid rgba(249,115,22,0.22)",
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>

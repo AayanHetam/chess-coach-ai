@@ -9,7 +9,16 @@ import type {
 } from "@/lib/placement/placementTest";
 import { bandLabel } from "@/components/onboarding/quizConfig";
 import { FOCUS_THEME_LABELS } from "@/components/onboarding/quizThemes";
-import { TEXT, TYPE } from "@/theme/tokens";
+import {
+  ACCENT,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 const CONFIDENCE_COPY: Record<string, string> = {
   high: "We're confident in this number.",
@@ -27,11 +36,11 @@ function themeLabel(id: string): string {
     .join(" ");
 }
 
-/** Bar colour by accuracy — orange-forward so it stays on-brand. */
+/** Bar colour by accuracy: a status, so the status colours carry it. */
 function scoreColor(score: number): string {
-  if (score >= 0.8) return "#34D399";
-  if (score >= 0.5) return "#FBBF24";
-  return "#FB7185";
+  if (score >= 0.8) return STATUS.success;
+  if (score >= 0.5) return STATUS.warning;
+  return STATUS.error;
 }
 
 interface PlacementResultProps {
@@ -65,7 +74,7 @@ export default function PlacementResult({
 
       <Typography
         sx={{
-          ...TYPE.display,
+          ...TYPE.h1,
           color: TEXT.primary,
           lineHeight: 1,
           fontVariantNumeric: "tabular-nums",
@@ -73,14 +82,10 @@ export default function PlacementResult({
       >
         {result.finalRating}
       </Typography>
-      <Typography
-        sx={{ color: "rgba(255,255,255,0.7)", fontWeight: 600, mt: 0.5 }}
-      >
+      <Typography sx={{ ...TYPE.h5, color: TEXT.primary, mt: 0.5 }}>
         {band} level
       </Typography>
-      <Typography
-        sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.82rem", mt: 1 }}
-      >
+      <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 1 }}>
         {CONFIDENCE_COPY[result.confidence]}
         {result.hitRail
           ? " (You topped out the range; a retake will place you higher.)"
@@ -91,20 +96,24 @@ export default function PlacementResult({
         <Box sx={{ mt: 3.5, textAlign: "left" }}>
           <Typography
             sx={{
-              color: "rgba(255,255,255,0.55)",
-              fontSize: "0.8rem",
+              ...TYPE.caption,
+              color: TEXT.secondary,
               mb: 1.25,
               textAlign: "center",
             }}
           >
             Where you stand. Tap a weak area to drill it now.
           </Typography>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.9 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
             {strengths.map(([id, s]) => {
               const isWeak = weakSet.has(id) || s.score < 1;
               return (
                 <Box
                   key={id}
+                  // A weak area is a real button (it opens the drill); a
+                  // strong one is a plain row.
+                  component={isWeak ? "button" : "div"}
+                  type={isWeak ? "button" : undefined}
                   onClick={
                     isWeak
                       ? () =>
@@ -117,24 +126,32 @@ export default function PlacementResult({
                     display: "flex",
                     alignItems: "center",
                     gap: 1.25,
+                    width: "100%",
                     px: 1.5,
                     py: 1,
-                    borderRadius: "12px",
+                    minHeight: 44,
+                    borderRadius: `${RADIUS.small}px`,
+                    font: "inherit",
+                    textAlign: "left",
+                    color: TEXT.primary,
                     cursor: isWeak ? "pointer" : "default",
-                    background: isWeak
-                      ? "rgba(249,115,22,0.08)"
-                      : "rgba(255,255,255,0.03)",
+                    background: SURFACE.raisedSecondary,
+                    // The weak state is the word "Needs work"; the hairline
+                    // only quietly agrees.
                     border: isWeak
-                      ? "1px solid rgba(249,115,22,0.3)"
-                      : "1px solid rgba(255,255,255,0.06)",
-                    transition:
-                      "background 160ms ease, border-color 160ms ease",
+                      ? `1px solid ${ACCENT.border}`
+                      : `1px solid ${LINE.hairline}`,
+                    transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
                     "&:hover": isWeak
-                      ? {
-                          background: "rgba(249,115,22,0.14)",
-                          borderColor: "rgba(249,115,22,0.5)",
-                        }
+                      ? { background: SURFACE.raisedTertiary }
                       : undefined,
+                    "&:active": isWeak
+                      ? { background: SURFACE.raisedTertiary }
+                      : undefined,
+                    "&:focus-visible": {
+                      outline: `2px solid ${TEXT.primary}`,
+                      outlineOffset: 2,
+                    },
                   }}
                 >
                   <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -147,18 +164,19 @@ export default function PlacementResult({
                     >
                       <Typography
                         sx={{
-                          color: "#fff",
+                          ...TYPE.bodySmall,
                           fontWeight: 600,
-                          fontSize: "0.86rem",
+                          color: TEXT.primary,
                         }}
                       >
                         {themeLabel(id)}
                       </Typography>
                       <Typography
                         sx={{
-                          color: isWeak ? "#FB923C" : "rgba(255,255,255,0.5)",
+                          ...TYPE.caption,
                           fontWeight: 600,
-                          fontSize: "0.78rem",
+                          color: isWeak ? ACCENT.hover : TEXT.secondary,
+                          fontVariantNumeric: "tabular-nums",
                         }}
                       >
                         {isWeak ? "Needs work" : `${s.solved}/${s.seen}`}
@@ -178,7 +196,6 @@ export default function PlacementResult({
                           height: "100%",
                           borderRadius: 3,
                           background: scoreColor(s.score),
-                          transition: "width 600ms cubic-bezier(0.23,1,0.32,1)",
                         }}
                       />
                     </Box>
@@ -186,7 +203,8 @@ export default function PlacementResult({
                   {isWeak && (
                     <ChevronRight
                       size={16}
-                      color="#FB923C"
+                      strokeWidth={1.75}
+                      color={TEXT.secondary}
                       style={{ flexShrink: 0 }}
                     />
                   )}
@@ -209,13 +227,9 @@ export default function PlacementResult({
         onClick={onRetake}
         sx={{
           mt: 1.25,
-          textTransform: "none",
-          color: "rgba(255,255,255,0.55)",
-          fontSize: "0.82rem",
-          "&:hover": {
-            color: "rgba(255,255,255,0.85)",
-            background: "transparent",
-          },
+          color: TEXT.secondary,
+          fontSize: TYPE.bodySmall.fontSize,
+          "&:hover": { color: TEXT.primary },
         }}
       >
         Retake the test

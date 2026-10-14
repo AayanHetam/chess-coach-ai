@@ -18,16 +18,15 @@ import {
 import { HintStageRow } from "./HintStageRow";
 import { PuzzleDrillMenu } from "./PuzzleDrillMenu";
 import { Masti, MastiAvatar, type MastiMood } from "@/components/masti";
-import { SERIF_DISPLAY } from "@/theme/fonts";
 import {
   ACCENT,
-  FONT_MONO,
   LINE,
   MOTION,
   RADIUS,
   STATUS,
   SURFACE,
   TEXT,
+  TYPE,
 } from "@/theme/tokens";
 import type {
   PuzzleContext,
@@ -590,12 +589,17 @@ export function PuzzleCoachPanel({
           >
             Masti
           </Typography>
+          {/* 13px meta on the old 17.28px line box (0.72rem x 1.5), and one
+              line: this header is part of the board's pixel budget on the
+              one-screen layout, so its height must not move. */}
           <Typography
+            noWrap
             sx={{
-              fontSize: "0.72rem",
+              fontSize: TYPE.caption.fontSize,
+              lineHeight: "17.28px",
               color: TEXT.secondary,
+              fontVariantNumeric: "tabular-nums",
               mt: 0.25,
-              fontFamily: FONT_MONO,
             }}
           >
             #{puzzle.id}
@@ -617,7 +621,7 @@ export function PuzzleCoachPanel({
               gap: 0.6,
               px: 1.1,
               py: 0.35,
-              borderRadius: `${RADIUS.pill}px`,
+              borderRadius: `${RADIUS.small}px`,
               background: ACCENT.tint,
               border: `1px solid ${ACCENT.border}`,
               color: ACCENT.hover,
@@ -662,11 +666,9 @@ export function PuzzleCoachPanel({
           overflowY: "auto",
           px: 2.5,
           py: 2,
+          // Narrower than the baseline's 12px: this column sits in the
+          // one-screen layout. The thumb colour comes from the baseline.
           "&::-webkit-scrollbar": { width: 6 },
-          "&::-webkit-scrollbar-thumb": {
-            background: "rgba(255,255,255,0.12)",
-            borderRadius: 3,
-          },
         }}
       >
         {turns.length === 0 && outcome === "unattempted" && (
@@ -687,10 +689,7 @@ export function PuzzleCoachPanel({
             <Typography
               sx={{
                 mt: 2,
-                fontFamily: SERIF_DISPLAY,
-                fontSize: "1.28rem",
-                fontWeight: 500,
-                letterSpacing: "0.01em",
+                ...TYPE.h3,
                 color: TEXT.primary,
               }}
             >
@@ -866,7 +865,7 @@ export function PuzzleCoachPanel({
               }}
             >
               <Box component="span" sx={{ fontWeight: 600 }}>
-                AI coaching is paused.
+                Masti is paused.
               </Box>{" "}
               {AI_DISABLED_ERROR.message}
             </Box>
@@ -882,7 +881,7 @@ export function PuzzleCoachPanel({
             }}
             placeholder={
               AI_DISABLED
-                ? "AI coaching is paused."
+                ? "Masti is paused."
                 : outcome === "unattempted"
                   ? "Ask for a hint…"
                   : "Ask about this puzzle…"
@@ -909,16 +908,17 @@ export function PuzzleCoachPanel({
             onClick={handleSend}
             disabled={AI_DISABLED || streaming || !input.trim()}
             size="small"
+            // Enabled only with text in the box (see `disabled`), so the
+            // enabled state is always the solid send; empty is the tinted
+            // disabled state below.
             sx={{
               flexShrink: 0,
               width: 32,
               height: 32,
-              background: input.trim() ? ACCENT.main : ACCENT.tint,
-              color: input.trim() ? TEXT.onAccent : ACCENT.hover,
+              background: ACCENT.main,
+              color: TEXT.onAccent,
               "&:hover": {
-                background: input.trim()
-                  ? ACCENT.hover
-                  : "rgba(249,115,22,0.22)",
+                background: ACCENT.hover,
               },
               "&:disabled": {
                 background: ACCENT.tint,

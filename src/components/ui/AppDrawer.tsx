@@ -357,7 +357,7 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                   background: ACCENT.tint,
                   color: ACCENT.hover,
                   transition: "background-color 160ms ease-out",
-                  "&:hover": { background: "rgba(249,115,22,0.22)" },
+                  "&:hover": { background: ACCENT.tintHover },
                   "&:active": { transform: "scale(0.98)" },
                 }}
               >
@@ -455,7 +455,8 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                           font: "inherit",
                           cursor: "pointer",
                           textAlign: "left",
-                          transition: "all 180ms ease",
+                          transition:
+                            "background-color 160ms ease-out, color 160ms ease-out",
                           "&:hover": {
                             background: "rgba(255,255,255,0.04)",
                             color: "rgba(255,255,255,0.95)",
@@ -504,7 +505,7 @@ export function AppDrawer({ open, onClose, activeId }: AppDrawerProps) {
                         textAlign: "left",
                         width: "100%",
                         transition: "background-color 160ms ease-out",
-                        "&:hover": { background: "rgba(249,115,22,0.22)" },
+                        "&:hover": { background: ACCENT.tintHover },
                         "&:active": { transform: "scale(0.98)" },
                       }}
                     >

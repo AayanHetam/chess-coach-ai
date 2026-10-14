@@ -17,6 +17,7 @@ import { Box, Stack, Typography } from "@mui/material";
 import { Icon } from "@iconify/react";
 import type { ReactNode } from "react";
 import { ACCENTS, type Accent } from "@/components/ui/accents";
+import type { Platform, TimeClass } from "@/types/scout";
 import {
   ACCENT,
   FONT_MONO,
@@ -55,6 +56,27 @@ export function tellColor(v: number): string {
 }
 
 export const MONO = FONT_MONO;
+
+// ─── Display names ──────────────────────────────────────────────────────────
+
+/**
+ * The platforms and time classes arrive as lowercase data ("chess.com",
+ * "blitz"). Labels show them by their proper names, in sentence case.
+ */
+export const PLATFORM_LABEL: Record<Platform, string> = {
+  "chess.com": "Chess.com",
+  lichess: "Lichess",
+};
+
+export const TIME_CLASS_LABEL: Record<TimeClass, string> = {
+  bullet: "Bullet",
+  blitz: "Blitz",
+  rapid: "Rapid",
+  classical: "Classical",
+  daily: "Daily",
+  correspondence: "Correspondence",
+  unknown: "Other",
+};
 
 // ─── Field label ────────────────────────────────────────────────────────────
 
@@ -268,7 +290,6 @@ export function MeterRow({
       </Box>
       <Typography
         sx={{
-          fontFamily: MONO,
           fontSize: "0.9rem",
           fontWeight: 700,
           color,

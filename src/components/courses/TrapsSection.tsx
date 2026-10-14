@@ -22,8 +22,7 @@ import OpeningDiagram from "@/components/learn/OpeningDiagram";
 import { MastiAvatar } from "@/components/masti";
 import type { CourseTraps } from "@/lib/book/traps";
 import type { Trap } from "@/types/traps";
-
-const MONO = '"SF Mono", ui-monospace, Menlo, monospace';
+import { FONT_MONO, LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
@@ -60,13 +59,16 @@ export default function TrapsSection({ traps, side }: TrapsSectionProps) {
     <Box sx={{ mt: 5 }} data-testid="course-traps">
       <Typography
         component="h2"
-        sx={{ color: "#fff", fontSize: "1.15rem", fontWeight: 700, mb: 0.5 }}
+        sx={{ ...TYPE.h3, color: TEXT.primary, mb: 0.5 }}
       >
         How this goes wrong at your level
       </Typography>
-      <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem", lineHeight: 1.6, maxWidth: "70ch" }}>
-        Counted from {traps.games?.toLocaleString() ?? "the"} games by players in your band. These
-        are moves that get played often and then lose — no engine was asked for an opinion.
+      <Typography
+        sx={{ ...TYPE.bodySmall, color: TEXT.secondary, maxWidth: "65ch" }}
+      >
+        Counted from {traps.games?.toLocaleString() ?? "the"} games by players
+        in your band. These are moves that get played often and then lose. No
+        engine was asked for an opinion.
       </Typography>
 
       {/* Masti reads the two lists the way the reader should: worried by the
@@ -96,10 +98,13 @@ export default function TrapsSection({ traps, side }: TrapsSectionProps) {
       {/* The noise floor, next to the finding. A list of traps with no idea how
           many decisions were searched invites the reader to assume the search
           was exhaustive and the threshold was free. */}
-      <Typography sx={{ mt: 2, fontSize: "0.72rem", color: "rgba(255,255,255,0.32)", lineHeight: 1.7, maxWidth: "76ch" }}>
-        Found by testing {traps.tests.toLocaleString()} decisions in your band&rsquo;s games and
-        keeping only those where the drop in score is more than four standard errors below the
-        alternatives. About {traps.expectedFalsePositives} of these would be expected by chance
+      <Typography
+        sx={{ ...TYPE.caption, mt: 2, color: TEXT.secondary, maxWidth: "65ch" }}
+      >
+        Found by testing {traps.tests.toLocaleString()} decisions in your
+        band&rsquo;s games and keeping only those where the drop in score is
+        more than four standard errors below the alternatives. About{" "}
+        {traps.expectedFalsePositives} of these would be expected by chance
         alone.
       </Typography>
     </Box>
@@ -124,16 +129,17 @@ function Group({
 }) {
   return (
     <Box sx={{ mt: 2.5 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.25, flexWrap: "wrap" }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+          mb: 1.25,
+          flexWrap: "wrap",
+        }}
+      >
         {icon}
-        <Typography
-          sx={{
-            fontSize: "0.68rem",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            color: "rgba(255,255,255,0.45)",
-          }}
-        >
+        <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
           {title}
         </Typography>
         {/* THE CAP IS SAID OUT LOUD. `1.e4` carries 514 of these at the `new`
@@ -143,15 +149,20 @@ function Group({
         {total > traps.length && (
           <Typography
             data-testid="traps-capped"
-            sx={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.33)" }}
+            sx={{ ...TYPE.caption, color: TEXT.secondary }}
           >
-            — the {traps.length} costliest of {total.toLocaleString()}
+            (the {traps.length} costliest of {total.toLocaleString()})
           </Typography>
         )}
       </Box>
       <Box sx={{ display: "grid", gap: 1.5 }}>
         {traps.map((trap) => (
-          <TrapRow key={`${trap.fen}|${trap.san}`} trap={trap} side={side} possessive={possessive} />
+          <TrapRow
+            key={`${trap.fen}|${trap.san}`}
+            trap={trap}
+            side={side}
+            possessive={possessive}
+          />
         ))}
       </Box>
     </Box>
@@ -174,9 +185,9 @@ function TrapRow({
         display: "flex",
         gap: 2,
         alignItems: "flex-start",
-        borderRadius: "1.5rem",
-        border: "1px solid rgba(255,255,255,0.08)",
-        background: "rgba(255,255,255,0.03)",
+        borderRadius: `${RADIUS.card}px`,
+        border: `1px solid ${LINE.hairline}`,
+        background: SURFACE.raised,
         p: { xs: 1.5, md: 2 },
       }}
     >
@@ -184,19 +195,35 @@ function TrapRow({
         <OpeningDiagram moves={trap.line} side={side} px={88} />
       </Box>
       <Box sx={{ minWidth: 0, flex: 1 }}>
-        <Typography sx={{ fontFamily: MONO, fontSize: "0.8rem", color: "rgba(255,255,255,0.6)", mb: 0.5 }}>
+        <Typography
+          sx={{
+            ...TYPE.caption,
+            fontFamily: FONT_MONO,
+            color: TEXT.secondary,
+            mb: 0.5,
+          }}
+        >
           {notate(trap.line)}
         </Typography>
-        <Typography sx={{ color: "#fff", fontSize: "0.98rem", fontWeight: 700, lineHeight: 1.4 }}>
-          {trap.san} — played {pct(trap.share)} of the time here.
+        <Typography sx={{ ...TYPE.h5, color: TEXT.primary }}>
+          {trap.san}: played {pct(trap.share)} of the time here.
         </Typography>
-        <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.83rem", lineHeight: 1.6, mt: 0.5 }}>
-          {verb} {pct(trap.score)} after it, against {pct(trap.baseline)} for everything else played
-          from this position, over {trap.games.toLocaleString()} games.
+        <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary, mt: 0.5 }}>
+          {verb} {pct(trap.score)} after it, against {pct(trap.baseline)} for
+          everything else played from this position, over{" "}
+          {trap.games.toLocaleString()} games.
         </Typography>
         {trap.instead.length > 0 && (
-          <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 0.75, mt: 1 }}>
-            <Typography sx={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.4)" }}>
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "baseline",
+              gap: 0.75,
+              mt: 1,
+            }}
+          >
+            <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
               {possessive === "you" ? "Instead:" : "They should play:"}
             </Typography>
             {trap.instead.map((alt) => (
@@ -208,15 +235,25 @@ function TrapRow({
                   gap: 0.5,
                   px: 1,
                   py: 0.35,
-                  borderRadius: "8px",
-                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: `${RADIUS.small}px`,
+                  background: SURFACE.raisedSecondary,
                 }}
               >
-                <Typography sx={{ fontFamily: MONO, fontSize: "0.78rem", color: "rgba(255,255,255,0.85)" }}>
+                <Typography
+                  sx={{
+                    ...TYPE.caption,
+                    fontFamily: FONT_MONO,
+                    color: TEXT.primary,
+                  }}
+                >
                   {alt.san}
                 </Typography>
                 <Typography
-                  sx={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.45)", fontVariantNumeric: "tabular-nums" }}
+                  sx={{
+                    ...TYPE.caption,
+                    color: TEXT.secondary,
+                    fontVariantNumeric: "tabular-nums",
+                  }}
                 >
                   {pct(alt.score)}
                 </Typography>

@@ -16,22 +16,7 @@ import {
   unsubscribeFromPush,
   currentPushEndpoint,
 } from "@/lib/pushClient";
-
-const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
-
-const inputSx = {
-  "& .MuiOutlinedInput-root": {
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: "10px",
-    color: "rgba(255,255,255,0.94)",
-    "& fieldset": { borderColor: "rgba(255,255,255,0.12)" },
-    "&.Mui-focused fieldset": { borderColor: "rgba(249,115,22,0.55)" },
-  },
-  "& .MuiInputLabel-root": {
-    color: "rgba(255,255,255,0.55)",
-    "&.Mui-focused": { color: "#FB923C" },
-  },
-} as const;
+import { LINE, TEXT, TYPE } from "@/theme/tokens";
 
 /**
  * The daily puzzle goal, and reminders.
@@ -119,18 +104,15 @@ export default function GoalsCard() {
           mb: 1.5,
         }}
       >
-        <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: "1.1rem" }}>
+        <Typography sx={{ ...TYPE.h4, color: TEXT.primary }}>
           Daily goal
         </Typography>
         {!editing && (
           <Button
+            variant="text"
+            size="small"
             onClick={() => setEditing(true)}
-            sx={{
-              textTransform: "none",
-              color: "rgba(255,255,255,0.55)",
-              fontSize: "0.8rem",
-              minWidth: 0,
-            }}
+            sx={{ color: TEXT.secondary, minWidth: 0 }}
           >
             {perDayGoal ? "Edit" : "Set"}
           </Button>
@@ -145,46 +127,31 @@ export default function GoalsCard() {
             label="Puzzles per day"
             value={perDay}
             onChange={(e) => setPerDay(e.target.value)}
-            sx={inputSx}
           />
           <Box sx={{ display: "flex", gap: 1 }}>
-            <Button
-              onClick={save}
-              disabled={saving}
-              sx={{
-                textTransform: "none",
-                fontWeight: 700,
-                color: "#fff",
-                background: ORANGE,
-                px: 3,
-                borderRadius: "10px",
-              }}
-            >
+            <Button variant="contained" onClick={save} disabled={saving}>
               Save
             </Button>
             <Button
+              variant="text"
               onClick={() => setEditing(false)}
-              sx={{ textTransform: "none", color: "rgba(255,255,255,0.6)" }}
+              sx={{ color: TEXT.secondary }}
             >
               Cancel
             </Button>
           </Box>
         </Box>
       ) : perDayGoal ? (
-        <Typography
-          sx={{ color: "rgba(255,255,255,0.7)", fontSize: "0.85rem" }}
-        >
+        <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
           {perDayGoal} puzzles a day.
         </Typography>
       ) : (
-        <Typography
-          sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}
-        >
+        <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
           Set how many puzzles a day you want to aim for.
         </Typography>
       )}
 
-      <Box sx={{ mt: 2, pt: 2, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+      <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${LINE.hairline}` }}>
         <FormControlLabel
           control={
             <Switch
@@ -194,18 +161,10 @@ export default function GoalsCard() {
                   reminderPrefs: { enabled: e.target.checked },
                 }).catch(() => {})
               }
-              sx={{
-                "& .MuiSwitch-switchBase.Mui-checked": { color: "#FB923C" },
-                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                  backgroundColor: "#F97316",
-                },
-              }}
             />
           }
           label={
-            <Typography
-              sx={{ color: "rgba(255,255,255,0.8)", fontSize: "0.88rem" }}
-            >
+            <Typography sx={{ ...TYPE.bodySmall, color: TEXT.primary }}>
               Daily email reminders
             </Typography>
           }
@@ -217,18 +176,10 @@ export default function GoalsCard() {
                 checked={pushOn}
                 disabled={pushBusy}
                 onChange={(e) => void togglePush(e.target.checked)}
-                sx={{
-                  "& .MuiSwitch-switchBase.Mui-checked": { color: "#FB923C" },
-                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                    backgroundColor: "#F97316",
-                  },
-                }}
               />
             }
             label={
-              <Typography
-                sx={{ color: "rgba(255,255,255,0.8)", fontSize: "0.88rem" }}
-              >
+              <Typography sx={{ ...TYPE.bodySmall, color: TEXT.primary }}>
                 Push notifications
               </Typography>
             }

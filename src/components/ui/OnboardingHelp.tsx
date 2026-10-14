@@ -6,10 +6,8 @@ import { HelpCircle, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   ACCENT,
-  FONT_MONO,
   LINE,
   MATERIAL,
-  MATERIAL_FALLBACK_SX,
   MOTION,
   RADIUS,
   SHADOW,
@@ -17,6 +15,10 @@ import {
   TEXT,
   TYPE,
 } from "@/theme/tokens";
+
+// A dialog arrives with a short cross-fade and a small scale from the
+// centre, and leaves the same way.
+const DIALOG_TRANSITION = { duration: 0.18, ease: "easeOut" } as const;
 
 export interface OnboardingTip {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -70,13 +72,10 @@ export function OnboardingHelp({
           width: 48,
           height: 48,
           borderRadius: "50%",
-          // Floating chrome the page scrolls under: the one place a
-          // material is allowed.
-          background: MATERIAL.background,
-          backdropFilter: MATERIAL.backdropFilter,
-          WebkitBackdropFilter: MATERIAL.backdropFilter,
-          border: `1px solid ${MATERIAL.border}`,
-          ...MATERIAL_FALLBACK_SX,
+          // Opaque: it floats bottom-right on /analysis too, and nothing
+          // translucent ever sits over a board in play.
+          background: SURFACE.overlay,
+          border: `1px solid ${LINE.strong}`,
           color: TEXT.primary,
           cursor: "pointer",
           zIndex: 100,
@@ -86,7 +85,7 @@ export function OnboardingHelp({
           boxShadow: SHADOW.floating,
           transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
           p: 0,
-          "&:hover": { borderColor: LINE.strong },
+          "&:hover": { background: SURFACE.raisedSecondary },
           "&:active": { transform: MOTION.pressScale },
           "&:focus-visible": {
             outline: `2px solid ${TEXT.primary}`,
@@ -117,7 +116,7 @@ export function OnboardingHelp({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.22 }}
+              transition={DIALOG_TRANSITION}
               onClick={handleDismiss}
               style={{
                 position: "fixed",
@@ -139,13 +138,10 @@ export function OnboardingHelp({
               }}
             >
               <motion.div
-                initial={{ opacity: 0, scale: 0.98 }}
+                initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                transition={{
-                  duration: 0.18,
-                  ease: [0.2, 0, 0, 1],
-                }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={DIALOG_TRANSITION}
                 style={{
                   width: "100%",
                   maxWidth: 560,
@@ -260,8 +256,7 @@ export function OnboardingHelp({
                                       borderRadius: `${RADIUS.small}px`,
                                       background: "rgba(255,255,255,0.06)",
                                       border: `1px solid ${LINE.hairline}`,
-                                      fontFamily: FONT_MONO,
-                                      fontSize: "0.68rem",
+                                      fontSize: "0.75rem",
                                       fontWeight: 600,
                                       color: TEXT.secondary,
                                     }}

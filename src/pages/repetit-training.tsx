@@ -20,7 +20,7 @@ import { useRouter } from "next/router";
 import { useSetAtom } from "jotai";
 import { PageTitle } from "@/components/pageTitle";
 import { Box, Stack, Typography, Button, IconButton } from "@mui/material";
-import { ThemeProvider } from "@mui/material/styles";
+import { ThemeProvider, alpha } from "@mui/material/styles";
 import Head from "next/head";
 import { Target, Check, Trash2 } from "lucide-react";
 import {
@@ -37,6 +37,21 @@ import {
   currentPuzzleIndexAtom,
   practiceThemeAtom,
 } from "@/sections/practice/states";
+import {
+  ACCENT,
+  LINE,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
+
+const CARD_SX = {
+  borderRadius: `${RADIUS.card}px`,
+  background: SURFACE.raised,
+  border: `1px solid ${LINE.hairline}`,
+} as const;
 
 /**
  * Until the localStorage read in the mount effect lands, every stat is
@@ -106,18 +121,16 @@ export default function RepetitTrainingPage() {
 
   return (
     <ThemeProvider theme={chessMastiDarkTheme}>
-      <PageTitle title="Chess Masti AI - Repetit Training" />
+      <PageTitle title="Repetit training · Chess Masti AI" />
       <Head>
         <meta name="color-scheme" content="dark" />
-        <meta name="theme-color" content="#08090C" />
-        <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:rgba(249,115,22,0.18);border-radius:5px;}`}</style>
+        <meta name="theme-color" content={SURFACE.page} />
       </Head>
-
 
       <Box
         sx={{
           minHeight: "100vh",
-          color: "rgba(255,255,255,0.94)",
+          color: TEXT.primary,
           pt: 2,
           pb: 4,
           px: { xs: 2, md: 3 },
@@ -138,36 +151,32 @@ export default function RepetitTrainingPage() {
             }}
           >
             <Box sx={{ minWidth: 0 }}>
-              <Typography
-                sx={{
-                  fontWeight: 700,
-                  fontSize: "0.72rem",
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.5)",
-                  mb: 1,
-                }}
-              >
-                Spaced Repetition
-              </Typography>
               <Stack
                 direction="row"
                 alignItems="center"
                 spacing={1.5}
                 sx={{ mb: 0.75 }}
               >
-                <Target size={28} color="#FB923C" />
+                <Target
+                  size={24}
+                  strokeWidth={1.75}
+                  color={TEXT.secondary}
+                  aria-hidden
+                />
                 <Typography
-                  variant="h3"
-                  sx={{ fontWeight: 700, color: "rgba(255,255,255,0.94)" }}
+                  component="h1"
+                  sx={{
+                    ...TYPE.h1,
+                    fontSize: { xs: "1.75rem", md: TYPE.h1.fontSize },
+                    color: TEXT.primary,
+                  }}
                 >
-                  Repetit Training
+                  Repetit training
                 </Typography>
               </Stack>
-              <Typography
-                sx={{ color: "rgba(255,255,255,0.62)", fontSize: "1.1rem" }}
-              >
-                Puzzle sets Masti suggests to strengthen your tactical vision
+              <Typography sx={{ ...TYPE.body, color: TEXT.secondary }}>
+                Spaced repetition: puzzle sets Masti suggests to strengthen your
+                tactical vision
               </Typography>
             </Box>
             {/* A still while the list is empty: the empty state below carries
@@ -185,7 +194,7 @@ export default function RepetitTrainingPage() {
             </MastiSays>
           </Box>
 
-          {/* User Stats Card — single ember-tinted hero surface.
+          {/* User Stats Card, one flat surface.
               Rendered unconditionally, and that is the point: getUserStats()
               never returns null (no stored stats gives you a zeroed record),
               so this card appears on every single load. Gating it on
@@ -196,14 +205,7 @@ export default function RepetitTrainingPage() {
               height until the numbers arrive, so nothing below ever moves. */}
           <Box
             sx={{
-              borderRadius: "2rem",
-              background:
-                "linear-gradient(135deg, rgba(249,115,22,0.08), rgba(20,22,28,0.6))",
-              backdropFilter: "blur(14px) saturate(140%)",
-              WebkitBackdropFilter: "blur(14px) saturate(140%)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              boxShadow:
-                "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+              ...CARD_SX,
               overflow: "hidden",
               p: 3,
               mb: 4,
@@ -212,15 +214,15 @@ export default function RepetitTrainingPage() {
               gap: 3,
             }}
           >
-            <StatCard label="Total Solved" value={userStats?.totalSolved} />
+            <StatCard label="Total solved" value={userStats?.totalSolved} />
             <StatCard label="Accuracy" value={pct(userStats?.accuracy)} />
             <StatCard label="XP" value={userStats?.xp} />
             <StatCard
-              label="Current Streak"
+              label="Current streak"
               value={days(userStats?.currentStreak)}
             />
             <StatCard
-              label="Longest Streak"
+              label="Longest streak"
               value={days(userStats?.longestStreak)}
             />
           </Box>
@@ -229,16 +231,10 @@ export default function RepetitTrainingPage() {
           {trainingSets.length === 0 ? (
             <Box
               sx={{
+                ...CARD_SX,
                 textAlign: "center",
                 py: 8,
                 px: 4,
-                borderRadius: "1.5rem",
-                background: "rgba(20,22,28,0.55)",
-                backdropFilter: "blur(14px) saturate(140%)",
-                WebkitBackdropFilter: "blur(14px) saturate(140%)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                boxShadow:
-                  "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
                 overflow: "hidden",
               }}
             >
@@ -250,27 +246,17 @@ export default function RepetitTrainingPage() {
                 decorative
                 style={{ marginBottom: 12 }}
               />
-              <Typography sx={{ fontSize: "1.2rem", color: "rgba(255,255,255,0.62)", mb: 2 }}>
+              <Typography sx={{ ...TYPE.h4, color: TEXT.primary, mb: 2 }}>
                 No training sets yet
               </Typography>
-              <Typography sx={{ color: "rgba(255,255,255,0.5)" }}>
-                Ask Masti to suggest practice puzzles, and they'll appear here!
+              <Typography sx={{ color: TEXT.secondary }}>
+                Ask Masti to suggest practice puzzles and they&apos;ll appear
+                here.
               </Typography>
               <Button
+                variant="contained"
                 onClick={() => router.push("/")}
-                sx={{
-                  mt: 3,
-                  bgcolor: "#F97316",
-                  color: "#0A0A0A",
-                  fontWeight: 700,
-                  borderRadius: "999px",
-                  px: 3,
-                  py: 1.25,
-                  textTransform: "none",
-                  boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
-                  transition: "all 180ms ease",
-                  "&:hover": { bgcolor: "#FB923C" },
-                }}
+                sx={{ mt: 3 }}
               >
                 Talk to Masti
               </Button>
@@ -330,19 +316,22 @@ function StatCard({
 }) {
   return (
     <Box sx={{ textAlign: "center" }}>
+      {/* The size and leading are the placeholder's too, so the card holds
+          its final height before the numbers land. */}
       <Typography
         sx={{
+          ...TYPE.h2,
           fontSize: "2rem",
           fontWeight: 700,
-          color: "#FB923C",
-          fontFamily: "Monaco, monospace",
           lineHeight: 1.1,
+          color: TEXT.primary,
+          fontVariantNumeric: "tabular-nums",
           mb: 0.25,
         }}
       >
         {value ?? PENDING}
       </Typography>
-      <Typography sx={{ fontSize: "0.9rem", color: "rgba(255,255,255,0.62)" }}>
+      <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
         {label}
       </Typography>
     </Box>
@@ -374,23 +363,13 @@ function TrainingSetCard({
   return (
     <Box
       sx={{
+        ...CARD_SX,
         position: "relative",
-        borderRadius: "1.5rem",
         p: 3,
-        background: "rgba(20,22,28,0.55)",
-        backdropFilter: "blur(14px) saturate(140%)",
-        WebkitBackdropFilter: "blur(14px) saturate(140%)",
-        boxShadow: isCompleted
-          ? "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(249,115,22,0.18)"
-          : "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
-        border: isCompleted
-          ? "1px solid rgba(249,115,22,0.35)"
-          : "1px solid rgba(255,255,255,0.08)",
         overflow: "hidden",
-        transition: "all 180ms ease",
       }}
     >
-      {/* Completed Badge — ember active chip */}
+      {/* Completed: a status tag, with the icon and the word. */}
       {isCompleted && (
         <Box
           sx={{
@@ -400,19 +379,17 @@ function TrainingSetCard({
             display: "flex",
             alignItems: "center",
             gap: 0.5,
-            bgcolor: "rgba(249,115,22,0.18)",
-            border: "1px solid rgba(249,115,22,0.4)",
-            color: "#FB923C",
+            bgcolor: STATUS.successTint,
+            color: STATUS.success,
             px: 1,
-            py: 0.4,
-            borderRadius: "999px",
-            fontSize: "0.7rem",
-            fontWeight: 700,
-            letterSpacing: "0.06em",
+            py: 0.25,
+            borderRadius: `${RADIUS.small}px`,
+            fontSize: TYPE.caption.fontSize,
+            fontWeight: 600,
           }}
         >
-          <Check size={12} />
-          COMPLETED
+          <Check size={12} aria-hidden />
+          Completed
         </Box>
       )}
 
@@ -425,29 +402,24 @@ function TrainingSetCard({
       >
         <MastiAvatar mood={cardMood} size={28} />
         <Typography
-          component="h3"
-          sx={{
-            fontSize: "1.25rem",
-            fontWeight: 600,
-            color: "rgba(255,255,255,0.94)",
-            minWidth: 0,
-          }}
+          component="h2"
+          sx={{ ...TYPE.h5, color: TEXT.primary, minWidth: 0 }}
         >
           {set.displayName}
         </Typography>
       </Stack>
 
       {/* Meta info */}
-      <Typography sx={{ color: "rgba(255,255,255,0.62)", fontSize: "0.85rem", mb: 2 }}>
-        {new Date(set.createdAt).toLocaleDateString()} • {totalCount} puzzles
-        {set.difficulty && ` • ${set.difficulty}`}
+      <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mb: 2 }}>
+        {new Date(set.createdAt).toLocaleDateString()} · {totalCount} puzzles
+        {set.difficulty && ` · ${set.difficulty}`}
       </Typography>
 
       {/* Progress Bar */}
       <Box
         sx={{
-          background: "rgba(255,255,255,0.08)",
-          borderRadius: "999px",
+          background: LINE.hairline,
+          borderRadius: 4,
           height: 8,
           mb: 1.5,
           overflow: "hidden",
@@ -457,25 +429,31 @@ function TrainingSetCard({
           sx={{
             height: "100%",
             width: `${progress}%`,
-            borderRadius: "999px",
-            background: "linear-gradient(90deg, #F97316, #FB923C)",
-            transition: "width 0.3s ease",
+            borderRadius: 4,
+            background: ACCENT.main,
           }}
         />
       </Box>
 
       {/* Stats */}
-      <Box sx={{ display: "flex", gap: 2, mb: 2, fontSize: "0.9rem" }}>
+      <Box
+        sx={{
+          display: "flex",
+          gap: 2,
+          mb: 2,
+          fontSize: TYPE.bodySmall.fontSize,
+        }}
+      >
         <Box>
-          <Box component="span" sx={{ color: "rgba(255,255,255,0.62)" }}>
+          <Box component="span" sx={{ color: TEXT.secondary }}>
             Progress:{" "}
           </Box>
           <Box
             component="span"
             sx={{
-              color: "rgba(255,255,255,0.94)",
+              color: TEXT.primary,
               fontWeight: 600,
-              fontFamily: "Monaco, monospace",
+              fontVariantNumeric: "tabular-nums",
             }}
           >
             {completedCount}/{totalCount}
@@ -483,16 +461,16 @@ function TrainingSetCard({
         </Box>
         {set.accuracy > 0 && (
           <Box>
-            <Box component="span" sx={{ color: "rgba(255,255,255,0.62)" }}>
+            <Box component="span" sx={{ color: TEXT.secondary }}>
               Accuracy:{" "}
             </Box>
-            {/* SEMANTIC data color (pass/warning threshold) — intentionally kept green/amber, NOT ember-ified */}
+            {/* A pass/warning threshold, said in the status colours. */}
             <Box
               component="span"
               sx={{
-                color: set.accuracy >= 80 ? "#4CAF50" : "#FFC107",
+                color: set.accuracy >= 80 ? STATUS.success : STATUS.warning,
                 fontWeight: 600,
-                fontFamily: "Monaco, monospace",
+                fontVariantNumeric: "tabular-nums",
               }}
             >
               {set.accuracy}%
@@ -507,17 +485,11 @@ function TrainingSetCard({
           onClick={onContinue}
           fullWidth
           sx={{
+            // The quiet tinted action: one per card, so not the solid ember.
             flex: 1,
-            borderRadius: "12px",
-            py: 1,
-            textTransform: "none",
-            fontWeight: 700,
-            fontSize: "0.95rem",
-            color: "#FB923C",
-            background: "rgba(249,115,22,0.18)",
-            border: "1px solid rgba(249,115,22,0.4)",
-            transition: "all 180ms ease",
-            "&:hover": { background: "rgba(249,115,22,0.28)" },
+            background: ACCENT.tint,
+            color: ACCENT.hover,
+            "&:hover": { background: alpha(ACCENT.main, 0.22) },
           }}
         >
           {isCompleted ? "Review" : "Continue"}
@@ -526,20 +498,13 @@ function TrainingSetCard({
           onClick={onDelete}
           aria-label="Delete training set"
           sx={{
-            borderRadius: "12px",
             px: 1.25,
-            color: "rgba(239,68,68,0.85)",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            transition: "all 180ms ease",
-            "&:hover": {
-              background: "rgba(239,68,68,0.12)",
-              borderColor: "rgba(239,68,68,0.4)",
-              color: "#EF4444",
-            },
+            color: TEXT.secondary,
+            border: `1px solid ${LINE.hairline}`,
+            "&:hover": { color: STATUS.error },
           }}
         >
-          <Trash2 size={16} />
+          <Trash2 size={16} strokeWidth={1.75} aria-hidden />
         </IconButton>
       </Box>
     </Box>

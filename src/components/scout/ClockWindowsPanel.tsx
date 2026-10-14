@@ -5,12 +5,11 @@ import type { ClockWindows, TimeBucket } from "@/types/scout";
 import {
   DossierPanel,
   FieldLabel,
-  MONO,
   ROSE,
   VerdictPill,
   strengthColor,
 } from "./dossier";
-import { LINE, RADIUS, SURFACE, TEXT } from "@/theme/tokens";
+import { LINE, MOTION, RADIUS, SURFACE, TEXT } from "@/theme/tokens";
 
 export interface ClockWindowsPanelProps {
   windows: ClockWindows;
@@ -94,9 +93,9 @@ export default function ClockWindowsPanel({
                     <Box
                       component="span"
                       sx={{
-                        fontFamily: MONO,
                         fontWeight: 700,
                         color: strengthColor(current.scorePct),
+                        fontVariantNumeric: "tabular-nums",
                       }}
                     >
                       {current.scorePct}%
@@ -117,7 +116,9 @@ export default function ClockWindowsPanel({
 
       {/* Hour histogram: bar height = how often they play, fill = how well. */}
       <Box sx={{ mb: 0.75 }}>
-        <FieldLabel>By hour · height = games, colour = their score</FieldLabel>
+        <FieldLabel>
+          By hour: bar height is games played, color is their score
+        </FieldLabel>
       </Box>
       <Stack
         direction="row"
@@ -162,10 +163,9 @@ export default function ClockWindowsPanel({
                     borderRadius: "2px",
                     bgcolor: color,
                     opacity: b.reliable ? 0.9 : 1,
-                    outline: isNow ? `1.5px solid ${ROSE.base}` : "none",
+                    outline: isNow ? `1.5px solid ${TEXT.primary}` : "none",
                     outlineOffset: 1,
-                    transition:
-                      "height 320ms ease, background-color 200ms ease",
+                    transition: `background-color ${MOTION.hover}`,
                   }}
                 />
               </Box>
@@ -175,9 +175,7 @@ export default function ClockWindowsPanel({
       </Stack>
       <Stack direction="row" justifyContent="space-between" sx={{ mb: 2.25 }}>
         {[0, 6, 12, 18, 23].map((h) => (
-          <FieldLabel key={h} color={TEXT.tertiary}>
-            {String(h).padStart(2, "0")}
-          </FieldLabel>
+          <FieldLabel key={h}>{String(h).padStart(2, "0")}</FieldLabel>
         ))}
       </Stack>
 
@@ -275,7 +273,6 @@ function Callout({
         <FieldLabel>{label}</FieldLabel>
         <Typography
           sx={{
-            fontFamily: MONO,
             fontSize: "0.78rem",
             fontWeight: 700,
             color: TEXT.primary,

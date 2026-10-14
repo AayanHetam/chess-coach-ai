@@ -16,7 +16,7 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
-import { ThemeProvider, useTheme } from "@mui/material/styles";
+import { ThemeProvider, alpha, useTheme } from "@mui/material/styles";
 import Head from "next/head";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
@@ -168,6 +168,15 @@ interface ActiveDemo {
  *  a selected control's border. The card changes its border, never a shadow. */
 const SOLVED_BORDER = "rgba(48,209,88,0.45)";
 const WRONG_BORDER = "rgba(255,69,58,0.45)";
+
+/** A snackbar floats over the locked bottom row (Show solution, New puzzle),
+ *  so its Alert is the opaque floating layer, not the 14% status tint the
+ *  theme gives an in-flow Alert. The status colour stays on the icon. */
+const SNACKBAR_ALERT_SX = {
+  bgcolor: SURFACE.overlay,
+  border: `1px solid ${LINE.hairline}`,
+  boxShadow: SHADOW.floating,
+} as const;
 
 /**
  * A compact set of the most-pedagogically-useful Lichess themes for
@@ -1204,7 +1213,7 @@ export default function PreviewPuzzlesPage() {
           gap: 0.5,
           px: 1.5,
           py: 0.55,
-          borderRadius: `${RADIUS.pill}px`,
+          borderRadius: `${RADIUS.control}px`,
           background: SURFACE.raisedSecondary,
           border: `1px solid ${LINE.hairline}`,
           fontFamily: FONT_MONO,
@@ -1515,7 +1524,7 @@ export default function PreviewPuzzlesPage() {
     const themes = puzzle.themes.filter((t) => !NON_GRAPH_THEMES.has(t));
     if (themes.length === 0) {
       setSimilarNote(
-        "This puzzle has no tactical motif tagged, so the graph has nothing to match. Served a same-difficulty puzzle instead."
+        "This puzzle has no motif to match, so here's another one at the same difficulty."
       );
       handleNextPuzzle();
       return;
@@ -1539,7 +1548,7 @@ export default function PreviewPuzzlesPage() {
       });
       if (res.status === 503) {
         setSimilarNote(
-          "Puzzle graph is unavailable right now. Served a same-difficulty puzzle instead."
+          "Similar puzzles aren't available right now, so here's another one at the same difficulty."
         );
         handleNextPuzzle();
         return;
@@ -1549,7 +1558,7 @@ export default function PreviewPuzzlesPage() {
       const hit = data?.puzzles?.[0];
       if (!hit?.puzzleId || !hit?.fen || !hit?.moves) {
         setSimilarNote(
-          "No close match in the graph for this motif. Served a same-difficulty puzzle instead."
+          "No close match for this motif, so here's another one at the same difficulty."
         );
         handleNextPuzzle();
         return;
@@ -1565,7 +1574,7 @@ export default function PreviewPuzzlesPage() {
       setPracticeList(null);
     } catch {
       setSimilarNote(
-        "Couldn't reach the puzzle graph. Served a same-difficulty puzzle instead."
+        "Couldn't find a similar puzzle. Here's another one at the same difficulty."
       );
       handleNextPuzzle();
     } finally {
@@ -1742,12 +1751,6 @@ export default function PreviewPuzzlesPage() {
              background blocks body→canvas propagation. */
           html { color-scheme: dark; }
           body { background-color: ${SURFACE.page}; color-scheme: dark; margin: 0; }
-          ::-webkit-scrollbar { width: 8px; height: 8px; }
-          ::-webkit-scrollbar-track { background: transparent; }
-          ::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.12);
-            border-radius: 4px;
-          }
         `}</style>
       </Head>
 
@@ -1837,22 +1840,6 @@ export default function PreviewPuzzlesPage() {
               },
             }}
           >
-            <Stack direction="row" alignItems="center" spacing={1.5} mb={1.25}>
-              <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
-                Masti&apos;s puzzle coach
-              </Typography>
-              {feed.totalAvailable !== null && (
-                <Typography
-                  sx={{
-                    ...TYPE.caption,
-                    color: TEXT.tertiary,
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {feed.totalAvailable.toLocaleString()} matching
-                </Typography>
-              )}
-            </Stack>
             <Typography
               variant="h1"
               sx={{
@@ -1871,6 +1858,21 @@ export default function PreviewPuzzlesPage() {
               }}
             >
               Solve. Then understand why.
+            </Typography>
+            {/* The count lives on the line under the heading, not as an
+                eyebrow above it. The line box is held while the count is
+                still loading so nothing moves when it arrives. */}
+            <Typography
+              sx={{
+                ...TYPE.caption,
+                color: TEXT.secondary,
+                fontVariantNumeric: "tabular-nums",
+                mt: 0.75,
+              }}
+            >
+              {feed.totalAvailable !== null
+                ? `${feed.totalAvailable.toLocaleString()} matching`
+                : "\u00A0"}
             </Typography>
           </Box>
 
@@ -1928,11 +1930,12 @@ export default function PreviewPuzzlesPage() {
                 px: 2,
                 py: 1,
                 borderRadius: `${RADIUS.control}px`,
-                background: ACCENT.tint,
-                border: `1px solid ${ACCENT.border}`,
+                // A status banner, not a selected control: the info tint.
+                background: STATUS.infoTint,
+                border: `1px solid ${LINE.hairline}`,
               }}
             >
-              <RotateCcw size={15} strokeWidth={1.75} color={ACCENT.hover} />
+              <RotateCcw size={15} strokeWidth={1.75} color={STATUS.info} />
               <Typography
                 sx={{
                   fontSize: "0.85rem",
@@ -2013,13 +2016,10 @@ export default function PreviewPuzzlesPage() {
                 gap: 2,
                 minHeight: heightLocked ? 0 : undefined,
                 overflowY: heightLocked ? "auto" : undefined,
-                // Hairline scrollbar so the board card doesn't get a heavy
-                // gutter on the one screen the whole design is about.
+                // Narrow scrollbar so the board card doesn't get a heavy
+                // gutter on the one screen the whole design is about. The
+                // thumb colour comes from the baseline.
                 "&::-webkit-scrollbar": { width: 6 },
-                "&::-webkit-scrollbar-thumb": {
-                  background: "rgba(255,255,255,0.12)",
-                  borderRadius: 3,
-                },
               }}
             >
               <Box
@@ -2204,14 +2204,17 @@ export default function PreviewPuzzlesPage() {
                           >
                             <Typography
                               sx={{
-                                fontSize: "0.74rem",
+                                fontSize: TYPE.caption.fontSize,
                                 fontWeight: 600,
                                 color: TEXT.primary,
+                                fontVariantNumeric: "tabular-nums",
                               }}
                             >
                               {activeDemo.finished
                                 ? "Demo finished"
-                                : `Coach is showing • ${activeDemo.idx}/${activeDemo.moves.length}`}
+                                : activeDemo.idx === 0
+                                  ? "Masti is showing the line"
+                                  : `Masti is showing move ${activeDemo.idx} of ${activeDemo.moves.length}`}
                             </Typography>
                             <Button
                               onClick={handleDemoEnd}
@@ -2221,12 +2224,12 @@ export default function PreviewPuzzlesPage() {
                                 px: 1.25,
                                 py: 0.2,
                                 minHeight: 0,
-                                fontSize: "0.72rem",
+                                fontSize: TYPE.caption.fontSize,
                                 fontWeight: 700,
                                 color: ACCENT.hover,
                                 background: ACCENT.tint,
                                 "&:hover": {
-                                  background: "rgba(249,115,22,0.22)",
+                                  background: alpha(ACCENT.main, 0.22),
                                 },
                               }}
                             >
@@ -2301,7 +2304,7 @@ export default function PreviewPuzzlesPage() {
                             gap: 0.75,
                             px: 1.5,
                             py: 0.6,
-                            borderRadius: `${RADIUS.pill}px`,
+                            borderRadius: `${RADIUS.control}px`,
                             background:
                               status === "solved"
                                 ? STATUS.successTint
@@ -2664,15 +2667,18 @@ export default function PreviewPuzzlesPage() {
                             m === "choice" ? "board" : "choice"
                           )
                         }
+                        // 13px on a 20.8px line: the old 0.74rem x 1.75 row
+                        // height, so the merged bottom row keeps its pixels.
                         sx={{
                           px: 1,
                           py: { xs: 0.25, lg: 0 },
                           minHeight: 0,
-                          color: TEXT.tertiary,
-                          fontSize: "0.74rem",
+                          color: TEXT.secondary,
+                          fontSize: TYPE.caption.fontSize,
+                          lineHeight: 1.6,
                           fontWeight: 600,
                           "&:hover": {
-                            color: TEXT.secondary,
+                            color: TEXT.primary,
                             background: "transparent",
                           },
                         }}
@@ -2688,11 +2694,12 @@ export default function PreviewPuzzlesPage() {
                             px: 1,
                             py: { xs: 0.25, lg: 0 },
                             minHeight: 0,
-                            color: TEXT.tertiary,
-                            fontSize: "0.74rem",
+                            color: TEXT.secondary,
+                            fontSize: TYPE.caption.fontSize,
+                            lineHeight: 1.6,
                             fontWeight: 600,
                             "&:hover": {
-                              color: TEXT.secondary,
+                              color: TEXT.primary,
                               background: "transparent",
                             },
                           }}
@@ -2946,7 +2953,11 @@ export default function PreviewPuzzlesPage() {
         onClose={() => setDemoNote("")}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
-        <Alert severity="warning" onClose={() => setDemoNote("")}>
+        <Alert
+          severity="warning"
+          onClose={() => setDemoNote("")}
+          sx={SNACKBAR_ALERT_SX}
+        >
           {demoNote}
         </Alert>
       </Snackbar>
@@ -2963,6 +2974,7 @@ export default function PreviewPuzzlesPage() {
           severity="warning"
           icon={<Network size={16} />}
           onClose={() => setSimilarNote("")}
+          sx={SNACKBAR_ALERT_SX}
         >
           {similarNote}
         </Alert>
@@ -2978,6 +2990,7 @@ export default function PreviewPuzzlesPage() {
           severity="info"
           icon={<MastiAvatar mood="wave" size={20} ring={false} />}
           onClose={() => setIdleSavedOpen(false)}
+          sx={SNACKBAR_ALERT_SX}
           action={
             <Button
               size="small"
@@ -2987,7 +3000,7 @@ export default function PreviewPuzzlesPage() {
             </Button>
           }
         >
-          Session auto-saved after 15 min idle.
+          Session saved after 15 minutes idle.
         </Alert>
       </Snackbar>
     </ThemeProvider>

@@ -13,7 +13,7 @@ import {
 } from "@/sections/practice/states";
 import { ChessPuzzle } from "@/lib/chessPuzzlesService";
 import { createTrainingSet } from "@/lib/repetitTraining";
-import { LINE, RADIUS, SURFACE } from "@/theme/tokens";
+import { LINE, RADIUS, SURFACE, TYPE } from "@/theme/tokens";
 
 interface ContextualPuzzleRecommendationsProps {
   fen: string;
@@ -46,9 +46,8 @@ const PuzzleCard = styled(Box)(({ theme }) => ({
 /**
  * Contextual Puzzle Recommendations Component
  *
- * Shows targeted puzzle recommendations based on a specific mistake.
- * This is the killer feature: personalized practice that addresses
- * the exact tactical pattern the player missed.
+ * Shows targeted puzzle recommendations based on a specific mistake:
+ * practice that addresses the exact tactical pattern the player missed.
  */
 export const ContextualPuzzleRecommendations: React.FC<
   ContextualPuzzleRecommendationsProps
@@ -162,10 +161,13 @@ export const ContextualPuzzleRecommendations: React.FC<
   if (loading) {
     return (
       <StyledPaper>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box
+          role="status"
+          sx={{ display: "flex", alignItems: "center", gap: 2 }}
+        >
           <Loader size={28} showLabel={false} />
           <Typography variant="body2" color="text.secondary">
-            Finding puzzles that address this specific pattern...
+            Finding puzzles for this pattern
           </Typography>
         </Box>
       </StyledPaper>
@@ -179,7 +181,7 @@ export const ContextualPuzzleRecommendations: React.FC<
           {error}
         </Alert>
         <Button size="small" onClick={loadTargetedPuzzles}>
-          Try Again
+          Try again
         </Button>
       </StyledPaper>
     );
@@ -224,7 +226,7 @@ export const ContextualPuzzleRecommendations: React.FC<
                       key={theme}
                       label={theme}
                       size="small"
-                      sx={{ height: "20px", fontSize: "0.7rem" }}
+                      sx={{ minHeight: 24, fontSize: TYPE.caption.fontSize }}
                     />
                   ))}
                 </Box>
@@ -248,8 +250,7 @@ export const ContextualPuzzleRecommendations: React.FC<
         color="text.secondary"
         sx={{ mt: 1.5, display: "block", textAlign: "center" }}
       >
-        These puzzles are specifically chosen to help you recognize this pattern
-        in future games
+        Puzzles chosen to drill this pattern.
       </Typography>
     </StyledPaper>
   );

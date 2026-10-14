@@ -22,8 +22,9 @@ import {
   ShareCardData,
   triggerDownload,
 } from "@/lib/shareCard";
-import { ROSE } from "./dossier";
 import { RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
+
+const TITLE_ID = "scout-share-card-title";
 
 export interface ShareCardDialogProps {
   open: boolean;
@@ -65,10 +66,10 @@ export default function ShareCardDialog({
       const blob = await renderSvgToPng(svg);
       triggerDownload(blob, `chess-masti-scout-${data.username}.png`);
       setToast({ kind: "ok", msg: "PNG downloaded." });
-    } catch (e) {
+    } catch {
       setToast({
         kind: "err",
-        msg: `Download failed: ${(e as Error).message}`,
+        msg: "Couldn't make the PNG. Try again.",
       });
     } finally {
       setDownloading(false);
@@ -85,11 +86,14 @@ export default function ShareCardDialog({
           ? { kind: "ok", msg: "Card copied to clipboard." }
           : {
               kind: "err",
-              msg: "Clipboard image copy not supported in this browser.",
+              msg: "This browser can't copy images. Download the PNG instead.",
             }
       );
-    } catch (e) {
-      setToast({ kind: "err", msg: `Copy failed: ${(e as Error).message}` });
+    } catch {
+      setToast({
+        kind: "err",
+        msg: "Couldn't copy. Try again, or download the PNG.",
+      });
     } finally {
       setCopying(false);
     }
@@ -105,14 +109,14 @@ export default function ShareCardDialog({
       if (!navigator.clipboard?.writeText) {
         setToast({
           kind: "err",
-          msg: "Clipboard not supported in this browser.",
+          msg: "This browser can't copy the link. Use a share button instead.",
         });
         return;
       }
       await navigator.clipboard.writeText(deepLink);
       setToast({ kind: "ok", msg: "Link copied." });
-    } catch (e) {
-      setToast({ kind: "err", msg: `Copy failed: ${(e as Error).message}` });
+    } catch {
+      setToast({ kind: "err", msg: "Couldn't copy the link. Try again." });
     }
   };
 
@@ -121,6 +125,7 @@ export default function ShareCardDialog({
       open={open}
       onClose={onClose}
       maxWidth={false}
+      aria-labelledby={TITLE_ID}
       // Backdrop's aria-hidden="true" was swallowing clicks on focused
       // descendants (see issue #35 / PR #30) — Dialog handles focus trap,
       // aria, and event propagation correctly. The theme styles the paper.
@@ -138,9 +143,13 @@ export default function ShareCardDialog({
               <Icon
                 icon="mdi:share-variant"
                 width={20}
-                style={{ color: ROSE.bright }}
+                style={{ color: TEXT.secondary }}
               />
-              <Typography sx={{ ...TYPE.h4, color: TEXT.primary }}>
+              <Typography
+                id={TITLE_ID}
+                component="h2"
+                sx={{ ...TYPE.h4, color: TEXT.primary }}
+              >
                 Share {data.username}&apos;s card
               </Typography>
             </Stack>
@@ -176,7 +185,6 @@ export default function ShareCardDialog({
               aspectRatio: "720 / 1024",
               borderRadius: `${RADIUS.small}px`,
               overflow: "hidden",
-              bgcolor: "#0b1120",
             }}
             dangerouslySetInnerHTML={{ __html: svg }}
           />
@@ -276,13 +284,10 @@ export default function ShareCardDialog({
             lineHeight: 1.4,
           }}
         >
-          Tip: download the PNG first, then attach it to your post for the full
-          effect.
+          Download the PNG first, then attach it to your post.
           <br />
-          <Box component="span" sx={{ opacity: 0.7 }}>
-            LinkedIn doesn&apos;t pre-fill text, so you&apos;ll write your own
-            caption.
-          </Box>
+          LinkedIn doesn&apos;t pre-fill text, so you&apos;ll write your own
+          caption.
         </Typography>
 
         <Snackbar

@@ -21,6 +21,7 @@ import {
   type PuzzleStatus as HookPuzzleStatus,
 } from "@/hooks/usePuzzleBoardState";
 import { FlashOverlay } from "@/components/puzzle/FlashOverlay";
+import { LINE, RADIUS, STATUS, SURFACE, TEXT } from "@/theme/tokens";
 
 const PIECE_CODES: Piece[] = [
   "wP",
@@ -248,7 +249,7 @@ export default function PracticeChessBoard() {
 
   const statusText = useMemo(() => {
     if (board.puzzleError) return `Puzzle data error: ${board.puzzleError}`;
-    if (board.status === "loading") return "Loading puzzle...";
+    if (board.status === "loading") return "Loading puzzle";
     if (board.status === "solved") return "Puzzle solved.";
     if (board.status === "wrong") return "That's not right. Try again.";
     const turn = board.game.turn();
@@ -277,20 +278,22 @@ export default function PracticeChessBoard() {
 
   return (
     <Box>
-      {/* Status bar above board */}
+      {/* Status bar above board: a status tint, never a large fill. */}
       <Box
+        role="status"
         sx={{
           mb: 1,
           px: 1.5,
           py: 0.75,
-          borderRadius: 1,
+          borderRadius: `${RADIUS.control}px`,
+          border: `1px solid ${LINE.hairline}`,
           bgcolor: board.puzzleError
-            ? "warning.dark"
+            ? STATUS.warningTint
             : board.status === "solved"
-              ? "success.dark"
+              ? STATUS.successTint
               : board.status === "wrong"
-                ? "error.dark"
-                : "grey.800",
+                ? STATUS.errorTint
+                : SURFACE.raisedSecondary,
           display: "flex",
           alignItems: "center",
           gap: 1,
@@ -311,15 +314,7 @@ export default function PracticeChessBoard() {
         )}
         <Typography
           variant="body2"
-          sx={{
-            fontWeight: 600,
-            color:
-              board.status === "solved" ||
-              board.status === "wrong" ||
-              board.puzzleError
-                ? "#fff"
-                : "grey.300",
-          }}
+          sx={{ fontWeight: 600, color: TEXT.primary }}
         >
           {statusText}
         </Typography>
@@ -332,7 +327,7 @@ export default function PracticeChessBoard() {
           width: boardSize,
           "& .board-container": {
             borderRadius: "4px",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
+            boxShadow: "none",
           },
         }}
       >
@@ -346,7 +341,7 @@ export default function PracticeChessBoard() {
           boardWidth={boardSize}
           customBoardStyle={{
             borderRadius: "4px",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
+            boxShadow: "none",
           }}
           customSquareStyles={customSquareStyles}
           customPieces={customPieces}

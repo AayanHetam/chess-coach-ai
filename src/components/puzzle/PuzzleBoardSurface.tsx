@@ -20,6 +20,7 @@ import {
   STATUS,
   SURFACE,
   TEXT,
+  TYPE,
 } from "@/theme/tokens";
 import {
   DEFAULT_PUZZLE_THEME,
@@ -370,9 +371,11 @@ export function PuzzleBoardSurface({
         mx: boardWidth ? "auto" : undefined,
         outline: "none",
         borderRadius: theme.radius,
+        // Drawn inside the board edge: the wrappers on /puzzles are the same
+        // size with overflow hidden, so a ring outside would be clipped away.
         "&:focus-visible": {
           outline: `2px solid ${TEXT.primary}`,
-          outlineOffset: 2,
+          outlineOffset: -2,
         },
         // Sighted keyboard users get the affordance the aria-label gives a
         // screen reader — only while the board itself has the focus ring.
@@ -396,7 +399,7 @@ export function PuzzleBoardSurface({
             px: 1.25,
             py: 0.4,
             borderRadius: `${RADIUS.small}px`,
-            fontSize: "0.7rem",
+            fontSize: TYPE.caption.fontSize,
             fontWeight: 600,
             color: TEXT.primary,
             background: SURFACE.raisedTertiary,
@@ -466,7 +469,7 @@ export function PuzzleBoardSurface({
                 px: 1,
                 py: 0.25,
                 borderRadius: `${RADIUS.small}px`,
-                fontSize: "0.68rem",
+                fontSize: TYPE.caption.fontSize,
                 color: STATUS.error,
                 background: SURFACE.raised,
                 border: `1px solid ${LINE.hairline}`,

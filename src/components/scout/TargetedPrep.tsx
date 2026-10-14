@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Box,
   Button,
@@ -9,11 +9,11 @@ import {
   Tabs,
   Tooltip,
   Typography,
-} from '@mui/material';
-import { Icon } from '@iconify/react';
-import { DossierPanel, FieldLabel, ROSE } from './dossier';
-import { OpeningSummary, TargetedPrep } from '@/types/scout';
-import { formatMoveSequence } from '@/lib/scoutService';
+} from "@mui/material";
+import { Icon } from "@iconify/react";
+import { DossierPanel, FieldLabel, ROSE } from "./dossier";
+import { OpeningSummary, TargetedPrep } from "@/types/scout";
+import { formatMoveSequence } from "@/lib/scoutService";
 
 export interface TargetedPrepProps {
   prep: TargetedPrep;
@@ -23,28 +23,32 @@ export interface TargetedPrepProps {
    * "as White" tab is active, 'black' otherwise. The target (opponent) plays
    * the opposite color in that line.
    */
-  onExplore: (moves: string[], asColor: 'white' | 'black') => void;
+  onExplore: (moves: string[], asColor: "white" | "black") => void;
 }
 
-export default function TargetedPrepPanel({ prep, onExplore }: TargetedPrepProps) {
-  const [color, setColor] = useState<'white' | 'black'>('white');
+export default function TargetedPrepPanel({
+  prep,
+  onExplore,
+}: TargetedPrepProps) {
+  const [color, setColor] = useState<"white" | "black">("white");
 
-  const data = color === 'white' ? prep.asWhite : prep.asBlack;
+  const data = color === "white" ? prep.asWhite : prep.asBlack;
   const empty = data.weaknesses.length === 0 && data.strengths.length === 0;
   const currentColor = color;
 
   return (
     <DossierPanel label="Targeted preparation">
       <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        direction={{ xs: "column", sm: "row" }}
+        alignItems={{ xs: "flex-start", sm: "center" }}
         justifyContent="space-between"
         spacing={1.5}
         sx={{ mb: 2 }}
       >
         <Box>
           <Typography variant="caption" color="text.secondary">
-            What to play vs. what to avoid — click any line to explore on the board.
+            What to play vs. what to avoid — click any line to explore on the
+            board.
           </Typography>
         </Box>
 
@@ -53,23 +57,35 @@ export default function TargetedPrepPanel({ prep, onExplore }: TargetedPrepProps
           onChange={(_, v) => setColor(v)}
           sx={{
             minHeight: 36,
-            '& .MuiTab-root': {
+            "& .MuiTab-root": {
               minHeight: 36,
-              textTransform: 'none',
+              textTransform: "none",
               fontWeight: 700,
-              fontSize: '0.82rem',
+              fontSize: "0.82rem",
               px: 2,
-              color: 'rgba(255,255,255,0.62)',
+              color: "rgba(255,255,255,0.62)",
             },
-            '& .Mui-selected': { color: `${ROSE.bright} !important` },
-            '& .MuiTabs-indicator': { background: ROSE.bright, height: 3, borderRadius: 2 },
+            "& .Mui-selected": { color: `${ROSE.bright} !important` },
+            "& .MuiTabs-indicator": {
+              background: ROSE.bright,
+              height: 3,
+              borderRadius: 2,
+            },
           }}
         >
           <Tab
             value="white"
             label={
               <Stack direction="row" spacing={0.75} alignItems="center">
-                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#fff', border: '1px solid #999' }} />
+                <Box
+                  sx={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: "50%",
+                    bgcolor: "#fff",
+                    border: "1px solid #999",
+                  }}
+                />
                 <span>as White</span>
               </Stack>
             }
@@ -78,7 +94,15 @@ export default function TargetedPrepPanel({ prep, onExplore }: TargetedPrepProps
             value="black"
             label={
               <Stack direction="row" spacing={0.75} alignItems="center">
-                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#3a3a3a', border: '1px solid rgba(255,255,255,0.2)' }} />
+                <Box
+                  sx={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: "50%",
+                    bgcolor: "#3a3a3a",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                  }}
+                />
                 <span>as Black</span>
               </Stack>
             }
@@ -87,8 +111,12 @@ export default function TargetedPrepPanel({ prep, onExplore }: TargetedPrepProps
       </Stack>
 
       {empty ? (
-        <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
-          <Icon icon="mdi:database-search-outline" width={36} style={{ opacity: 0.4 }} />
+        <Box sx={{ textAlign: "center", py: 4, color: "text.secondary" }}>
+          <Icon
+            icon="mdi:database-search-outline"
+            width={36}
+            style={{ opacity: 0.4 }}
+          />
           <Typography variant="body2" sx={{ mt: 1 }}>
             Not enough games as {color} to surface prep targets.
           </Typography>
@@ -152,18 +180,34 @@ function ColumnHeader({
   title,
   badge,
 }: {
-  kind: 'weak' | 'strong';
+  kind: "weak" | "strong";
   count: number;
   title: string;
   badge: string;
 }) {
-  const color = kind === 'weak' ? '#22c55e' : '#ef4444';
-  const icon = kind === 'weak' ? 'mdi:arrow-down-bold-circle-outline' : 'mdi:arrow-up-bold-circle-outline';
+  const color = kind === "weak" ? "#22c55e" : "#ef4444";
+  const icon =
+    kind === "weak"
+      ? "mdi:arrow-down-bold-circle-outline"
+      : "mdi:arrow-up-bold-circle-outline";
   return (
-    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+    <Stack
+      direction="row"
+      alignItems="center"
+      justifyContent="space-between"
+      sx={{ mb: 1 }}
+    >
       <Stack direction="row" spacing={0.75} alignItems="center">
         <Icon icon={icon} width={16} style={{ color }} />
-        <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', color: 'rgba(255,255,255,0.94)' }}>{title}</Typography>
+        <Typography
+          sx={{
+            fontWeight: 700,
+            fontSize: "0.9rem",
+            color: "rgba(255,255,255,0.94)",
+          }}
+        >
+          {title}
+        </Typography>
         <Typography variant="caption" color="text.secondary">
           ({count})
         </Typography>
@@ -172,7 +216,7 @@ function ColumnHeader({
         size="small"
         label={badge}
         sx={{
-          fontSize: '0.6rem',
+          fontSize: "0.6rem",
           fontWeight: 800,
           letterSpacing: 1,
           height: 20,
@@ -190,10 +234,10 @@ function EmptyColumn({ message }: { message: string }) {
       sx={{
         p: 2,
         borderRadius: 2,
-        border: '1px dashed',
-        borderColor: 'rgba(255,255,255,0.12)',
-        textAlign: 'center',
-        color: 'text.secondary',
+        border: "1px dashed",
+        borderColor: "rgba(255,255,255,0.12)",
+        textAlign: "center",
+        color: "text.secondary",
       }}
     >
       <Typography variant="caption">{message}</Typography>
@@ -207,31 +251,32 @@ function OpeningCard({
   onExplore,
 }: {
   line: OpeningSummary;
-  kind: 'weak' | 'strong';
+  kind: "weak" | "strong";
   onExplore: () => void;
 }) {
   const score = line.scorePct;
-  const isWeak = kind === 'weak';
-  const accent = isWeak ? '#22c55e' : '#ef4444';
+  const isWeak = kind === "weak";
+  const accent = isWeak ? "#22c55e" : "#ef4444";
   const tailLabel = isWeak
     ? `${(100 - score).toFixed(1)}% Loses`
     : `${score.toFixed(1)}% Wins`;
-  const ctaLabel = isWeak ? 'Play this line' : 'Avoid this line';
-  const ctaIcon = isWeak ? 'mdi:play-circle' : 'mdi:close-circle-outline';
+  const ctaLabel = isWeak ? "Play this line" : "Avoid this line";
+  const ctaIcon = isWeak ? "mdi:play-circle" : "mdi:close-circle-outline";
 
   return (
     <Box
       onClick={onExplore}
       sx={{
         p: 1.5,
-        borderRadius: '12px',
-        border: '1px solid rgba(255,255,255,0.08)',
-        bgcolor: 'rgba(255,255,255,0.03)',
-        cursor: 'pointer',
-        transition: 'all 180ms ease',
-        '&:hover': {
+        borderRadius: "12px",
+        border: "1px solid rgba(255,255,255,0.08)",
+        bgcolor: "rgba(255,255,255,0.03)",
+        cursor: "pointer",
+        transition:
+          "background-color 160ms ease-out, border-color 160ms ease-out",
+        "&:hover": {
           borderColor: accent,
-          transform: 'translateY(-1px)',
+          transform: "translateY(-1px)",
           boxShadow: `0 6px 18px ${accent}22`,
         },
       }}
@@ -241,20 +286,30 @@ function OpeningCard({
           label={line.eco}
           size="small"
           sx={{
-            bgcolor: 'rgba(255,255,255,0.08)',
-            color: 'rgba(255,255,255,0.94)',
-            fontFamily: 'monospace',
+            bgcolor: "rgba(255,255,255,0.08)",
+            color: "rgba(255,255,255,0.94)",
+            fontFamily: "monospace",
             fontWeight: 700,
-            fontSize: '0.72rem',
+            fontSize: "0.72rem",
             height: 22,
             letterSpacing: 0.5,
           }}
         />
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 700, fontSize: '0.88rem', lineHeight: 1.3, color: 'rgba(255,255,255,0.94)' }}>
+          <Typography
+            sx={{
+              fontWeight: 700,
+              fontSize: "0.88rem",
+              lineHeight: 1.3,
+              color: "rgba(255,255,255,0.94)",
+            }}
+          >
             {line.name}
             {line.variation && (
-              <Box component="span" sx={{ color: 'text.secondary', fontWeight: 500, ml: 0.5 }}>
+              <Box
+                component="span"
+                sx={{ color: "text.secondary", fontWeight: 500, ml: 0.5 }}
+              >
                 {line.variation}
               </Box>
             )}
@@ -262,18 +317,23 @@ function OpeningCard({
           <Typography
             variant="caption"
             sx={{
-              fontFamily: 'monospace',
-              color: 'text.secondary',
-              fontSize: '0.7rem',
+              fontFamily: "monospace",
+              color: "text.secondary",
+              fontSize: "0.7rem",
             }}
           >
             {formatMoveSequence(line.moves.slice(0, 8))}
-            {line.moves.length > 8 ? '…' : ''}
+            {line.moves.length > 8 ? "…" : ""}
           </Typography>
         </Box>
       </Stack>
 
-      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1.5}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        spacing={1.5}
+      >
         <Stack direction="row" spacing={1.5} alignItems="center">
           <Stack direction="row" spacing={0.4} alignItems="center">
             <Icon icon="mdi:chess-pawn" width={14} style={{ opacity: 0.55 }} />
@@ -287,10 +347,10 @@ function OpeningCard({
                 label="Low sample"
                 size="small"
                 sx={{
-                  fontSize: '0.6rem',
+                  fontSize: "0.6rem",
                   height: 18,
-                  bgcolor: 'rgba(245,158,11,0.14)',
-                  color: '#f59e0b',
+                  bgcolor: "rgba(245,158,11,0.14)",
+                  color: "#f59e0b",
                   fontWeight: 700,
                 }}
               />
@@ -300,7 +360,7 @@ function OpeningCard({
             label={tailLabel}
             size="small"
             sx={{
-              fontSize: '0.7rem',
+              fontSize: "0.7rem",
               fontWeight: 700,
               height: 22,
               bgcolor: `${accent}1a`,
@@ -313,11 +373,11 @@ function OpeningCard({
           size="small"
           startIcon={<Icon icon={ctaIcon} width={14} />}
           sx={{
-            textTransform: 'none',
+            textTransform: "none",
             fontWeight: 700,
-            fontSize: '0.72rem',
-            color: '#FB923C',
-            '&:hover': { bgcolor: 'rgba(249,115,22,0.08)' },
+            fontSize: "0.72rem",
+            color: "#FB923C",
+            "&:hover": { bgcolor: "rgba(255,255,255,0.06)" },
           }}
         >
           {ctaLabel}

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Box,
-  Button,
+  ButtonBase,
   Chip,
   Grid,
   Stack,
@@ -16,12 +16,14 @@ import { CollisionLine, Collisions } from "@/types/scout";
 import { formatMoveSequence } from "@/lib/scoutService";
 import {
   ACCENT,
+  FONT_MONO,
   LINE,
   MOTION,
   RADIUS,
   STATUS,
   SURFACE,
   TEXT,
+  TYPE,
 } from "@/theme/tokens";
 
 export interface CollisionPanelProps {
@@ -45,7 +47,7 @@ export default function CollisionPanel({
     collisions.whenYouPlayBlack.length === 0;
 
   return (
-    <DossierPanel label={`Collisions · you vs ${targetUsername}`}>
+    <DossierPanel label={`Where you have the edge vs ${targetUsername}`}>
       <Stack
         direction={{ xs: "column", sm: "row" }}
         alignItems={{ xs: "flex-start", sm: "center" }}
@@ -81,7 +83,7 @@ export default function CollisionPanel({
                     border: "1px solid #999",
                   }}
                 />
-                <span>you as White</span>
+                <span>You as White</span>
               </Stack>
             }
           />
@@ -98,7 +100,7 @@ export default function CollisionPanel({
                     border: `1px solid ${LINE.strong}`,
                   }}
                 />
-                <span>you as Black</span>
+                <span>You as Black</span>
               </Stack>
             }
           />
@@ -183,17 +185,25 @@ function CollisionCard({
   onExplore: () => void;
 }) {
   return (
-    <Box
+    <ButtonBase
+      component="div"
       onClick={onExplore}
       sx={{
+        display: "block",
+        width: "100%",
+        textAlign: "left",
         p: 1.5,
         borderRadius: `${RADIUS.control}px`,
         border: `1px solid ${LINE.hairline}`,
         bgcolor: SURFACE.raisedSecondary,
         cursor: "pointer",
-        transition: `border-color ${MOTION.hover}, transform ${MOTION.press}`,
+        transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
         "&:hover": { borderColor: LINE.strong },
-        "&:active": { transform: MOTION.pressScale },
+        // A wide card darkens on press instead of scaling.
+        "&:active": {
+          transform: "none",
+          backgroundColor: SURFACE.raisedTertiary,
+        },
       }}
     >
       <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mb: 1 }}>
@@ -201,12 +211,12 @@ function CollisionCard({
           label={line.eco}
           size="small"
           sx={{
-            bgcolor: "rgba(255,255,255,0.08)",
+            bgcolor: SURFACE.raisedTertiary,
             color: TEXT.primary,
-            fontFamily: "monospace",
+            fontFamily: FONT_MONO,
             fontWeight: 700,
-            fontSize: "0.72rem",
-            height: 22,
+            fontSize: TYPE.caption.fontSize,
+            height: 24,
           }}
         />
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -231,7 +241,7 @@ function CollisionCard({
           <Typography
             variant="caption"
             sx={{
-              fontFamily: "monospace",
+              fontFamily: FONT_MONO,
               color: "text.secondary",
               fontSize: "0.75rem",
             }}
@@ -265,7 +275,7 @@ function CollisionCard({
         justifyContent="space-between"
         sx={{ mt: 1.25 }}
       >
-        <Tooltip title="Higher edge = better your-vs-them differential scaled by sample confidence.">
+        <Tooltip title="How much better you score than them in this line, weighted by how many games back it up.">
           <Chip
             icon={<Icon icon="mdi:trending-up" width={12} />}
             label={`+${Math.round(line.edge)}`}
@@ -280,15 +290,19 @@ function CollisionCard({
             }}
           />
         </Tooltip>
-        <Button
-          size="small"
-          startIcon={<Icon icon="mdi:play-circle-outline" width={14} />}
-          sx={{ fontWeight: 600, fontSize: "0.75rem", color: ACCENT.main }}
+        {/* The whole card is the button; this is its label, not a second
+            control inside it. */}
+        <Stack
+          direction="row"
+          spacing={0.5}
+          alignItems="center"
+          sx={{ ...TYPE.label, color: ACCENT.main, px: 1, minHeight: 32 }}
         >
-          Explore line
-        </Button>
+          <Icon icon="mdi:play-circle-outline" width={14} />
+          <span>Explore line</span>
+        </Stack>
       </Stack>
-    </Box>
+    </ButtonBase>
   );
 }
 
@@ -329,7 +343,7 @@ function EdgeBar({
           </Typography>
           <Typography
             sx={{
-              fontWeight: 800,
+              fontWeight: 700,
               fontSize: "0.82rem",
               color,
               fontVariantNumeric: "tabular-nums",
@@ -353,7 +367,6 @@ function EdgeBar({
             height: "100%",
             borderRadius: 2,
             bgcolor: color,
-            transition: "width 0.4s ease",
           }}
         />
       </Box>

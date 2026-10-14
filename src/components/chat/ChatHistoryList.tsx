@@ -260,7 +260,7 @@ export default function ChatHistoryList({ onNavigate }: Props) {
                       primary={chat.title || "Untitled"}
                       primaryTypographyProps={{
                         noWrap: true,
-                        fontSize: "0.875rem",
+                        fontSize: TYPE.bodySmall.fontSize,
                         fontWeight: isActive ? 600 : 500,
                       }}
                       secondary={

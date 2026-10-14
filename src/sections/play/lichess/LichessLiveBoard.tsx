@@ -21,7 +21,21 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { Icon } from "@iconify/react";
+import {
+  Ban,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Equal,
+  Flag,
+  Handshake,
+  LineChart,
+  OctagonX,
+  RefreshCw,
+  Trophy,
+  type LucideIcon,
+} from "lucide-react";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import type {
@@ -37,6 +51,7 @@ import LiveClock from "@/components/play/LiveClock";
 import {
   ACCENT,
   LINE,
+  MOTION,
   RADIUS,
   SHADOW,
   STATUS,
@@ -588,10 +603,12 @@ export default function LichessLiveBoard({
               p: 3,
             }}
           >
-            <Icon
-              icon={resultLabel.icon}
-              width={48}
-              style={{ color: resultLabel.color, marginBottom: 10 }}
+            <resultLabel.icon
+              size={48}
+              strokeWidth={1.75}
+              color={resultLabel.color}
+              aria-hidden
+              style={{ marginBottom: 10 }}
             />
             <Typography sx={TYPE.h2}>{resultLabel.title}</Typography>
             <Typography variant="body2" sx={{ opacity: 0.85, mt: 0.5 }}>
@@ -604,7 +621,9 @@ export default function LichessLiveBoard({
                 variant="contained"
                 size="small"
                 onClick={onExit}
-                startIcon={<Icon icon="mdi:refresh" />}
+                startIcon={
+                  <RefreshCw size={16} strokeWidth={1.75} aria-hidden />
+                }
               >
                 Play again
               </Button>
@@ -619,9 +638,11 @@ export default function LichessLiveBoard({
                   }
                   window.location.href = "/analysis?lichessReview=1";
                 }}
-                startIcon={<Icon icon="mdi:chart-line" />}
+                startIcon={
+                  <LineChart size={16} strokeWidth={1.75} aria-hidden />
+                }
               >
-                Analyze
+                Analyze game
               </Button>
             </Stack>
           </Box>
@@ -669,7 +690,7 @@ export default function LichessLiveBoard({
               onClick={goToStart}
               sx={{ color: TEXT.secondary, "&:hover": { color: TEXT.primary } }}
             >
-              <Icon icon="mdi:chevron-double-left" width={22} />
+              <ChevronsLeft size={20} strokeWidth={1.75} aria-hidden />
             </IconButton>
           </span>
         </Tooltip>
@@ -684,7 +705,7 @@ export default function LichessLiveBoard({
               onClick={goBack}
               sx={{ color: TEXT.secondary, "&:hover": { color: TEXT.primary } }}
             >
-              <Icon icon="mdi:chevron-left" width={22} />
+              <ChevronLeft size={20} strokeWidth={1.75} aria-hidden />
             </IconButton>
           </span>
         </Tooltip>
@@ -696,7 +717,7 @@ export default function LichessLiveBoard({
               onClick={goForward}
               sx={{ color: TEXT.secondary, "&:hover": { color: TEXT.primary } }}
             >
-              <Icon icon="mdi:chevron-right" width={22} />
+              <ChevronRight size={20} strokeWidth={1.75} aria-hidden />
             </IconButton>
           </span>
         </Tooltip>
@@ -711,7 +732,7 @@ export default function LichessLiveBoard({
                 "&:hover": { color: ACCENT.hover },
               }}
             >
-              <Icon icon="mdi:chevron-double-right" width={22} />
+              <ChevronsRight size={20} strokeWidth={1.75} aria-hidden />
             </IconButton>
           </span>
         </Tooltip>
@@ -740,7 +761,7 @@ export default function LichessLiveBoard({
                     "&:hover": { color: TEXT.primary },
                   }}
                 >
-                  <Icon icon="mdi:handshake-outline" width={20} />
+                  <Handshake size={20} strokeWidth={1.75} aria-hidden />
                 </IconButton>
               </span>
             </Tooltip>
@@ -765,7 +786,7 @@ export default function LichessLiveBoard({
                     },
                   }}
                 >
-                  <Icon icon="mdi:flag-outline" width={20} />
+                  <Flag size={20} strokeWidth={1.75} aria-hidden />
                 </IconButton>
               </span>
             </Tooltip>
@@ -867,6 +888,9 @@ function CapturedPieces({
               fontSize: "0.95rem",
               lineHeight: 1,
               opacity: 0.85,
+              // Chess rendering, not a tracked label: packs the captured
+              // piece glyphs so a long run stays on one line above the board.
+              letterSpacing: "-1px",
             }}
           >
             {Array.from(
@@ -954,19 +978,34 @@ function PlayerRow({
           </Stack>
           <CapturedPieces fen={fen} side={materialSide} />
           {canAbort && onAbort && (
-            <Typography
-              component="span"
+            <Box
+              component="button"
+              type="button"
               onClick={onAbort}
               sx={{
-                fontSize: "0.7rem",
+                display: "block",
+                background: "none",
+                border: "none",
+                p: 0,
+                font: "inherit",
+                fontSize: TYPE.caption.fontSize,
+                lineHeight: TYPE.caption.lineHeight,
                 fontWeight: 600,
-                color: "text.secondary",
+                color: TEXT.secondary,
                 cursor: "pointer",
-                "&:hover": { color: "error.main" },
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
+                transition: `color ${MOTION.hover}, transform ${MOTION.press}`,
+                "&:hover": { color: STATUS.error },
+                "&:active": { transform: MOTION.pressScale },
+                "&:focus-visible": {
+                  outline: "2px solid #FFFFFF",
+                  outlineOffset: 2,
+                },
               }}
             >
-              Abort
-            </Typography>
+              Abort game
+            </Box>
           )}
         </Box>
       </Stack>
@@ -980,7 +1019,7 @@ function describeResult(
   state: LichessGameState,
   yourColor: "white" | "black",
   game: LichessGameFull
-): { title: string; subtitle: string; icon: string; color: string } {
+): { title: string; subtitle: string; icon: LucideIcon; color: string } {
   const youWon = state.winner === yourColor;
   const drawn =
     !state.winner && (state.status === "draw" || state.status === "stalemate");
@@ -990,7 +1029,7 @@ function describeResult(
     return {
       title: "Draw",
       subtitle: state.status === "stalemate" ? "Stalemate." : "Agreed draw.",
-      icon: "mdi:equal",
+      icon: Equal,
       color: TEXT.secondary,
     };
   }
@@ -998,7 +1037,7 @@ function describeResult(
     return {
       title: "Aborted",
       subtitle: "Game aborted. No rating change.",
-      icon: "mdi:cancel",
+      icon: Ban,
       color: TEXT.secondary,
     };
   }
@@ -1009,7 +1048,7 @@ function describeResult(
         state.status === "mate"
           ? "Checkmate."
           : `${opponent ?? "Opponent"} ${state.status}.`,
-      icon: "mdi:trophy",
+      icon: Trophy,
       color: STATUS.success,
     };
   }
@@ -1019,11 +1058,11 @@ function describeResult(
       state.status === "mate"
         ? "Checkmated."
         : state.status === "outoftime"
-          ? "Flagged on time."
+          ? "You ran out of time."
           : state.status === "resign"
             ? "You resigned."
             : "Game ended.",
-    icon: "mdi:close-octagon",
+    icon: OctagonX,
     color: STATUS.error,
   };
 }

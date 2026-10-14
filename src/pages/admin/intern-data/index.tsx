@@ -24,14 +24,26 @@ import {
 import { Loader } from "@/components/ui/Loader";
 import { useViewer } from "@/hooks/useViewer";
 import { INTERN_THEME_COLOR_DARK } from "@/constants";
-import type { RosterEntry, RosterResponse } from "@/app/api/admin/intern-data/roster/route";
+import type {
+  RosterEntry,
+  RosterResponse,
+} from "@/app/api/admin/intern-data/roster/route";
 import type { PacingStatus } from "@/lib/intern/pacing";
+import { FONT_MONO, TEXT, TYPE } from "@/theme/tokens";
 
-const STATUS_STYLES: Record<PacingStatus, { bg: string; fg: string; label: string; sort: number }> = {
+const STATUS_STYLES: Record<
+  PacingStatus,
+  { bg: string; fg: string; label: string; sort: number }
+> = {
   behind: { bg: "#FFF3E0", fg: "#E65100", label: "Behind", sort: 0 },
   "on-track": { bg: "#E8F5E9", fg: "#2E7D32", label: "On track", sort: 1 },
   ahead: { bg: "#E3F2FD", fg: "#1565C0", label: "Ahead", sort: 2 },
-  "pre-program": { bg: "#E8EEF8", fg: INTERN_THEME_COLOR_DARK, label: "Pre-program", sort: 3 },
+  "pre-program": {
+    bg: "#E8EEF8",
+    fg: INTERN_THEME_COLOR_DARK,
+    label: "Pre-program",
+    sort: 3,
+  },
 };
 
 function relativeTime(iso: string | null): string {
@@ -69,8 +81,12 @@ export default function AdminInternData() {
     fetch("/api/admin/intern-data/roster", { credentials: "include" })
       .then(async (res) => {
         if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as { error?: string };
-          throw new Error(body.error ?? `Roster request failed (${res.status})`);
+          const body = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          throw new Error(
+            body.error ?? `Roster request failed (${res.status})`
+          );
         }
         return res.json() as Promise<RosterResponse>;
       })
@@ -105,7 +121,8 @@ export default function AdminInternData() {
   if (!user || !isAdmin) return null;
 
   const exportHref =
-    "/api/admin/intern-data/export" + (includeAttribution ? "?include_attribution=1" : "");
+    "/api/admin/intern-data/export" +
+    (includeAttribution ? "?include_attribution=1" : "");
 
   return (
     <>
@@ -117,38 +134,40 @@ export default function AdminInternData() {
         <Stack spacing={3}>
           <Stack direction="row" spacing={1.5} alignItems="center">
             <Chip
-              label="ADMIN"
+              label="Admin"
               size="small"
               sx={{
                 backgroundColor: INTERN_THEME_COLOR_DARK,
                 color: "#FFFFFF",
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                fontSize: "0.7rem",
+                fontWeight: 600,
               }}
             />
-            <Typography variant="caption" sx={{ letterSpacing: "0.04em", color: "text.secondary" }}>
-              CHESS MASTI · INTERNAL
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+              Chess Masti · Internal
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
-            <Button
-              component={Link}
-              href="/admin/cost"
-              size="small"
-              sx={{ textTransform: "none" }}
-            >
+            <Button component={Link} href="/admin/cost" size="small">
               LLM cost &amp; cache →
             </Button>
           </Stack>
 
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 700, color: INTERN_THEME_COLOR_DARK }}>
+            <Typography
+              variant="h4"
+              sx={{ fontWeight: 700, color: TEXT.primary }}
+            >
               CMIP intern data
             </Typography>
-            <Typography variant="body2" sx={{ mt: 1, color: "text.secondary", maxWidth: 720 }}>
-              Real-time roster of every intern in <code>intern_allowlist</code>, auto-discovered.
-              Add an intern via <code>node scripts/intern/add-to-allowlist.mjs &lt;email&gt;</code> and
-              they appear here on next refresh — no code changes needed.
+            <Typography
+              variant="body2"
+              sx={{ mt: 1, color: "text.secondary", maxWidth: 720 }}
+            >
+              Real-time roster of every intern in <code>intern_allowlist</code>,
+              auto-discovered. Add an intern via{" "}
+              <code>
+                node scripts/intern/add-to-allowlist.mjs &lt;email&gt;
+              </code>{" "}
+              and they appear here on the next refresh. No code changes needed.
             </Typography>
           </Box>
 
@@ -162,14 +181,29 @@ export default function AdminInternData() {
 
           {!data && !error && (
             <Stack spacing={1.5}>
-              <Skeleton variant="rectangular" height={64} sx={{ borderRadius: 1 }} />
-              <Skeleton variant="rectangular" height={64} sx={{ borderRadius: 1 }} />
-              <Skeleton variant="rectangular" height={64} sx={{ borderRadius: 1 }} />
+              <Skeleton
+                variant="rectangular"
+                height={64}
+                sx={{ borderRadius: 1 }}
+              />
+              <Skeleton
+                variant="rectangular"
+                height={64}
+                sx={{ borderRadius: 1 }}
+              />
+              <Skeleton
+                variant="rectangular"
+                height={64}
+                sx={{ borderRadius: 1 }}
+              />
             </Stack>
           )}
 
           {data && (
-            <Paper variant="outlined" sx={{ borderRadius: 2, overflow: "hidden" }}>
+            <Paper
+              variant="outlined"
+              sx={{ borderRadius: 2, overflow: "hidden" }}
+            >
               <TableContainer>
                 <Table size="small">
                   <TableHead>
@@ -186,7 +220,9 @@ export default function AdminInternData() {
                       <TableCell sx={{ fontWeight: 700 }} align="right">
                         All time
                       </TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Last activity</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>
+                        Last activity
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -204,11 +240,19 @@ export default function AdminInternData() {
                             "& td": { color: "inherit" },
                           }}
                         >
-                          <TableCell sx={{ fontFamily: "monospace", fontSize: "0.85rem" }}>
+                          <TableCell
+                            sx={{
+                              fontFamily: FONT_MONO,
+                              fontSize: TYPE.bodySmall.fontSize,
+                            }}
+                          >
                             {entry.email}
                           </TableCell>
                           <TableCell>
-                            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                            <Typography
+                              variant="caption"
+                              sx={{ color: "text.secondary" }}
+                            >
                               {entry.cohort}
                             </Typography>
                           </TableCell>
@@ -224,8 +268,8 @@ export default function AdminInternData() {
                               sx={{
                                 backgroundColor: style.bg,
                                 color: style.fg,
+                                ...TYPE.caption,
                                 fontWeight: 600,
-                                fontSize: "0.7rem",
                                 height: 22,
                               }}
                             />
@@ -235,9 +279,14 @@ export default function AdminInternData() {
                               ? `${entry.pacing.streakWeeks} wk${entry.pacing.streakWeeks === 1 ? "" : "s"}`
                               : "—"}
                           </TableCell>
-                          <TableCell align="right">{entry.allTimeFlags}</TableCell>
+                          <TableCell align="right">
+                            {entry.allTimeFlags}
+                          </TableCell>
                           <TableCell>
-                            <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                            <Typography
+                              variant="body2"
+                              sx={{ color: "text.secondary" }}
+                            >
                               {relativeTime(entry.lastActivityAt)}
                             </Typography>
                           </TableCell>
@@ -249,7 +298,11 @@ export default function AdminInternData() {
                         <TableCell colSpan={7}>
                           <Typography
                             variant="body2"
-                            sx={{ textAlign: "center", color: "text.secondary", py: 3 }}
+                            sx={{
+                              textAlign: "center",
+                              color: "text.secondary",
+                              py: 3,
+                            }}
                           >
                             No interns in the allowlist yet.
                           </Typography>
@@ -260,13 +313,22 @@ export default function AdminInternData() {
                 </Table>
               </TableContainer>
               <Divider />
-              <Box sx={{ p: 1.5, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Box
+                sx={{
+                  p: 1.5,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
                 <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                  {data.entries.length} intern{data.entries.length === 1 ? "" : "s"} · generated{" "}
+                  {data.entries.length} intern
+                  {data.entries.length === 1 ? "" : "s"} · generated{" "}
                   {new Date(data.generatedAt).toLocaleString()}
                 </Typography>
                 <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                  Program starts {new Date(data.programStartMs).toLocaleDateString()}
+                  Program starts{" "}
+                  {new Date(data.programStartMs).toLocaleDateString()}
                 </Typography>
               </Box>
             </Paper>
@@ -275,15 +337,19 @@ export default function AdminInternData() {
           <Divider />
 
           <Box>
-            <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.06em" }}>
+            <Typography sx={{ ...TYPE.label, color: "text.secondary" }}>
               Export submissions
             </Typography>
             <Paper variant="outlined" sx={{ p: 2.5, mt: 1.5, borderRadius: 2 }}>
               <Stack spacing={2}>
-                <Typography variant="body2" sx={{ color: "text.secondary", maxWidth: 720 }}>
-                  Downloads all submitted rows as JSONL (newline-delimited JSON), schema v1.0.0.
-                  Each line is one (bad response, ideal response) pair plus context. Drop into
-                  the Mastermind eval pipeline or a few-shot loader.
+                <Typography
+                  variant="body2"
+                  sx={{ color: "text.secondary", maxWidth: 720 }}
+                >
+                  Downloads all submitted rows as JSONL (newline-delimited
+                  JSON), schema v1.0.0. Each line is one (bad response, ideal
+                  response) pair plus context. Drop into the Mastermind eval
+                  pipeline or a few-shot loader.
                 </Typography>
                 <FormControlLabel
                   control={
@@ -294,8 +360,8 @@ export default function AdminInternData() {
                   }
                   label={
                     <Typography variant="body2">
-                      Include <code>intern_email</code> attribution (default off — eval consumers
-                      should work on the pair without it)
+                      Include <code>intern_email</code> attribution (default
+                      off: eval consumers should work on the pair without it)
                     </Typography>
                   }
                 />
@@ -305,7 +371,6 @@ export default function AdminInternData() {
                     component="a"
                     variant="contained"
                     size="medium"
-                    sx={{ textTransform: "none", fontWeight: 600 }}
                   >
                     Download JSONL →
                   </Button>

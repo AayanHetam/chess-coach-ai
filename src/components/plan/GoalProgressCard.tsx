@@ -168,10 +168,7 @@ export default function GoalProgressCard({
           }}
         >
           <Icon size={16} strokeWidth={1.75} color={tone.color} />
-          <Typography
-            component="span"
-            sx={{ fontSize: "0.8rem", fontWeight: 600, color: "inherit" }}
-          >
+          <Typography component="span" sx={{ ...TYPE.label, color: "inherit" }}>
             {paceLabel(progress.pace, progress.weeksVsPlan)}
           </Typography>
         </Box>
@@ -200,23 +197,38 @@ export default function GoalProgressCard({
       </Box>
 
       <Box sx={{ display: "flex", justifyContent: "space-between", mt: 0.75 }}>
-        <Typography sx={{ color: TEXT.secondary, fontSize: "0.75rem" }}>
+        <Typography
+          sx={{
+            ...TYPE.caption,
+            color: TEXT.secondary,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
           {goalStartRating} at the start
         </Typography>
         <Typography
-          sx={{ color: TEXT.primary, fontSize: "0.75rem", fontWeight: 600 }}
+          sx={{
+            ...TYPE.caption,
+            color: TEXT.primary,
+            fontWeight: 600,
+            fontVariantNumeric: "tabular-nums",
+          }}
         >
           now {currentRating}
         </Typography>
-        <Typography sx={{ color: TEXT.secondary, fontSize: "0.75rem" }}>
+        <Typography
+          sx={{
+            ...TYPE.caption,
+            color: TEXT.secondary,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
           {goalRating}
         </Typography>
       </Box>
 
       {progress.pace !== "reached" && (
-        <Typography
-          sx={{ color: TEXT.secondary, fontSize: "0.75rem", mt: 0.75 }}
-        >
+        <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 0.75 }}>
           The plan expected {progress.expectedRating} by now.
         </Typography>
       )}
@@ -321,8 +333,8 @@ function PerfProgressRow({
       <Typography
         sx={{
           flexShrink: 0,
+          ...TYPE.caption,
           color: reached ? STATUS.success : TEXT.secondary,
-          fontSize: "0.75rem",
           fontWeight: 600,
           fontVariantNumeric: "tabular-nums",
           minWidth: 96,

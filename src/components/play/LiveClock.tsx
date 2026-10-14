@@ -13,8 +13,8 @@ import { Box, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import {
   ACCENT,
-  FONT_MONO,
   LINE,
+  MOTION,
   RADIUS,
   STATUS,
   SURFACE,
@@ -104,15 +104,14 @@ export default function LiveClock({
           ? `1px solid ${ACCENT.border}`
           : `1px solid ${LINE.hairline}`,
         minWidth: size === "sm" ? 80 : 100,
-        transition:
-          "background-color 160ms ease-out, border-color 160ms ease-out",
+        transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
       }}
     >
+      {/* A clock is a number in prose: the body font, digits aligned. */}
       <Typography
         component="span"
         sx={{
-          fontFamily: FONT_MONO,
-          fontWeight: 700,
+          fontWeight: 600,
           fontSize: size === "sm" ? "1.15rem" : "1.5rem",
           color: textColor,
           fontVariantNumeric: "tabular-nums",

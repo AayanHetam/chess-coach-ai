@@ -34,9 +34,7 @@ import { sourceWords } from "@/lib/courses/probes";
 import { cpForSide, evalWords } from "@/lib/courses/lines";
 import type { OpeningTheory } from "@/types/theory";
 import { MastiAvatar } from "@/components/masti";
-
-const EMBER = "#FB923C";
-const MONO = "ui-monospace, SFMono-Regular, monospace";
+import { ACCENT, FONT_MONO, MOTION, RADIUS, TEXT, TYPE } from "@/theme/tokens";
 
 export interface CourseTeachCardProps {
   probe: CourseProbe;
@@ -47,7 +45,13 @@ export interface CourseTeachCardProps {
   onContinue: () => void;
 }
 
-export function CourseTeachCard({ probe, played, side, theory, onContinue }: CourseTeachCardProps) {
+export function CourseTeachCard({
+  probe,
+  played,
+  side,
+  theory,
+  onContinue,
+}: CourseTeachCardProps) {
   const ev = probe.ev;
   const words = evalWords(ev?.cp ?? null, side);
   const replies = probe.next?.them ?? [];
@@ -58,12 +62,7 @@ export function CourseTeachCard({ probe, played, side, theory, onContinue }: Cou
       <Typography
         role="status"
         aria-live="polite"
-        sx={{
-          fontSize: "1rem",
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-          color: "rgba(255,255,255,0.92)",
-        }}
+        sx={{ ...TYPE.h5, color: TEXT.primary }}
       >
         <MastiAvatar
           mood="idea"
@@ -76,7 +75,13 @@ export function CourseTeachCard({ probe, played, side, theory, onContinue }: Cou
 
       <Box sx={{ display: "grid", gap: 0.75 }}>
         <Row label="You played" value={played} mono testid="teach-played" />
-        <Row label="The course plays" value={probe.san} mono accent testid="teach-answer" />
+        <Row
+          label="The course plays"
+          value={probe.san}
+          mono
+          accent
+          testid="teach-answer"
+        />
       </Box>
 
       {ev && (
@@ -96,7 +101,9 @@ export function CourseTeachCard({ probe, played, side, theory, onContinue }: Cou
           />
           <Row label="Depth" value={String(ev.d)} />
           {words && <Row label="In words" value={words} />}
-          {probe.games > 0 && <Row label="Games here" value={probe.games.toLocaleString()} />}
+          {probe.games > 0 && (
+            <Row label="Games here" value={probe.games.toLocaleString()} />
+          )}
           {/* Shown only where our move deviates from the ordinary case: 97.6%
               of decisions are corpus-confirmed and a row printed on all of them
               is wallpaper, which is the rule lineNotes already writes down. */}
@@ -108,38 +115,55 @@ export function CourseTeachCard({ probe, played, side, theory, onContinue }: Cou
         <Box data-testid="teach-replies" sx={{ display: "grid", gap: 0.5 }}>
           <Label>Their replies here</Label>
           {replies.slice(0, 5).map((reply) => (
-            <Row key={reply.san} label={reply.san} value={`${Math.round(reply.share * 100)}%`} mono />
+            <Row
+              key={reply.san}
+              label={reply.san}
+              value={`${Math.round(reply.share * 100)}%`}
+              mono
+            />
           ))}
           {/* Never separately from the table: a reply list without its coverage
               implies a completeness we do not have. At rc 0.29, seven-tenths of
               what gets played here is not in the course. */}
           {probe.next?.rc !== undefined && (
-            <Row label="Of what gets played here" value={`${Math.round(probe.next.rc * 100)}%`} />
+            <Row
+              label="Of what gets played here"
+              value={`${Math.round(probe.next.rc * 100)}%`}
+            />
           )}
         </Box>
       )}
 
       {theory && (
         <Box data-testid="teach-theory" sx={{ display: "grid", gap: 1 }}>
-          <Label>{theory.name ? `The theory — ${theory.name}` : "The theory"}</Label>
+          <Label>
+            {theory.name ? `The theory: ${theory.name}` : "The theory"}
+          </Label>
           {/* Verbatim. Never paraphrased, summarised, or passed through a
               model — the excerpt is CC BY-SA and an adapted work would put the
               whole product under share-alike. */}
           {theory.excerpt.split(/\n{2,}/).map((para, i) => (
-            <Typography
-              key={i}
-              sx={{ color: "rgba(255,255,255,0.72)", fontSize: "0.86rem", lineHeight: 1.7 }}
-            >
+            <Typography key={i} sx={{ ...TYPE.bodySmall, color: TEXT.primary }}>
               {para}
             </Typography>
           ))}
-          <Typography sx={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.3)" }}>
+          <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
             From{" "}
-            <a href={theory.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
+            <a
+              href={theory.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "inherit" }}
+            >
               Wikibooks
             </a>
             , licensed{" "}
-            <a href={theory.licenceUrl} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
+            <a
+              href={theory.licenceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "inherit" }}
+            >
               {theory.licence}
             </a>
             .
@@ -153,19 +177,27 @@ export function CourseTeachCard({ probe, played, side, theory, onContinue }: Cou
         onClick={onContinue}
         data-testid="teach-continue"
         sx={{
+          // The one primary action on the card.
           appearance: "none",
           cursor: "pointer",
           minHeight: 48,
-          px: 2.5,
-          borderRadius: "1.2rem",
-          border: `1px solid ${EMBER}6b`,
-          background: `${EMBER}1a`,
-          color: EMBER,
-          fontSize: "0.92rem",
+          px: 3,
+          borderRadius: `${RADIUS.pill}px`,
+          border: "none",
+          background: ACCENT.main,
+          color: TEXT.onAccent,
+          fontSize: TYPE.bodySmall.fontSize,
+          fontWeight: 600,
           textAlign: "left",
-          transition: "background 200ms ease-out",
-          "&:hover": { background: `${EMBER}2b` },
-          "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+          touchAction: "manipulation",
+          WebkitTapHighlightColor: "transparent",
+          transition: `background-color ${MOTION.hover}, transform ${MOTION.press}`,
+          "&:hover": { background: ACCENT.hover },
+          "&:active": { transform: MOTION.pressScale },
+          "&:focus-visible": {
+            outline: `2px solid ${TEXT.primary}`,
+            outlineOffset: 2,
+          },
         }}
       >
         Ask me again this round →
@@ -201,17 +233,25 @@ function Row({
   testid?: string;
 }) {
   return (
-    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 2 }}>
-      <Typography sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.78rem" }}>{label}</Typography>
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "baseline",
+        gap: 2,
+      }}
+    >
+      <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
+        {label}
+      </Typography>
       <Typography
         data-testid={testid}
         sx={{
-          // Never uppercased: MUI's default textTransform turns "Nf3" into
-          // "NF3", which is not a move anyone writes.
-          textTransform: "none",
-          fontFamily: mono ? MONO : undefined,
-          color: accent ? EMBER : "rgba(255,255,255,0.88)",
-          fontSize: mono ? "0.95rem" : "0.85rem",
+          // Case is never transformed here: "Nf3" is a move, "NF3" is not.
+          ...TYPE.bodySmall,
+          fontFamily: mono ? FONT_MONO : undefined,
+          color: TEXT.primary,
+          fontWeight: accent ? 600 : 400,
           fontVariantNumeric: "tabular-nums",
         }}
       >
@@ -223,14 +263,7 @@ function Row({
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <Typography
-      sx={{
-        color: "rgba(255,255,255,0.4)",
-        fontSize: "0.68rem",
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-      }}
-    >
+    <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
       {children}
     </Typography>
   );

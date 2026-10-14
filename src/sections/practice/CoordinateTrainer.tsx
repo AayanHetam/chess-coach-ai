@@ -8,8 +8,7 @@ import {
   LinearProgress,
 } from "@mui/material";
 import { useAtomValue, useSetAtom } from "jotai";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
-import GridOnIcon from "@mui/icons-material/GridOn";
+import { Grid3x3, Trophy } from "lucide-react";
 import { useScreenSize } from "@/hooks/useScreenSize";
 import { coordinateTrainerBestAtom } from "@/lib/coordinateTrainer";
 import { DEFAULT_PUZZLE_THEME } from "@/components/puzzle/boardTheme";
@@ -166,7 +165,12 @@ export default function CoordinateTrainer({ onBack }: CoordinateTrainerProps) {
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-          <GridOnIcon sx={{ color: ACCENT.main, fontSize: 28 }} />
+          <Grid3x3
+            size={20}
+            strokeWidth={1.75}
+            color={TEXT.secondary}
+            aria-hidden
+          />
           <Typography variant="h5" sx={{ color: TEXT.primary }}>
             Coordinate trainer
           </Typography>
@@ -174,13 +178,12 @@ export default function CoordinateTrainer({ onBack }: CoordinateTrainerProps) {
 
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           You&rsquo;ll be shown a square name. Click it on the blank board as
-          fast as you can. {ROUND_SECONDS} seconds, no labels. Board fluency is
-          the thing every strong player has and never talks about.
+          fast as you can. {ROUND_SECONDS} seconds, no labels.
         </Typography>
 
         {best.best > 0 && (
           <Chip
-            icon={<EmojiEventsIcon sx={{ fontSize: 14 }} />}
+            icon={<Trophy size={16} strokeWidth={1.75} aria-hidden />}
             label={`Best: ${best.best}`}
             size="small"
             sx={{ mb: 3 }}
@@ -195,7 +198,7 @@ export default function CoordinateTrainer({ onBack }: CoordinateTrainerProps) {
             variant="contained"
             size="large"
             onClick={handleStart}
-            startIcon={<GridOnIcon />}
+            startIcon={<Grid3x3 size={18} strokeWidth={1.75} aria-hidden />}
           >
             Start drill
           </Button>
@@ -221,8 +224,12 @@ export default function CoordinateTrainer({ onBack }: CoordinateTrainerProps) {
         }}
       >
         {isNewBest && (
-          <EmojiEventsIcon
-            sx={{ fontSize: 48, color: "warning.main", mb: 1 }}
+          <Trophy
+            size={48}
+            strokeWidth={1.75}
+            color={STATUS.warning}
+            aria-hidden
+            style={{ marginBottom: 8 }}
           />
         )}
         <Typography variant="h4" sx={{ mb: 1, color: TEXT.primary }}>
@@ -248,7 +255,7 @@ export default function CoordinateTrainer({ onBack }: CoordinateTrainerProps) {
           <Button
             variant="contained"
             onClick={handleStart}
-            startIcon={<GridOnIcon />}
+            startIcon={<Grid3x3 size={18} strokeWidth={1.75} aria-hidden />}
           >
             Play again
           </Button>

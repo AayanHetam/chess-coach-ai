@@ -19,7 +19,13 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { TRACKS, TRACK_LABELS, EDUCATION_STATUSES, EDUCATION_LABELS } from "@/lib/cmip/types";
+import {
+  TRACKS,
+  TRACK_LABELS,
+  EDUCATION_STATUSES,
+  EDUCATION_LABELS,
+} from "@/lib/cmip/types";
+import { RADIUS } from "@/theme/tokens";
 import { submitApplication, type SubmitState } from "./actions";
 
 const initialState: SubmitState = { status: "idle" };
@@ -32,25 +38,27 @@ function SubmitButton() {
       variant="contained"
       size="large"
       disabled={pending}
-      sx={{
-        px: 5,
-        py: 1.5,
-        fontSize: "1rem",
-        fontWeight: 700,
-        borderRadius: 2.5,
-        background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
-        boxShadow: "0 8px 24px rgba(255,107,53,0.35)",
-        textTransform: "none",
-        minWidth: 200,
-        "&:hover": {
-          background: "linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)",
-        },
-      }}
+      sx={{ minWidth: 200 }}
     >
-      {pending ? <CircularProgress size={22} sx={{ color: "#fff" }} /> : "Submit application"}
+      {pending ? (
+        <>
+          <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />
+          Submitting
+        </>
+      ) : (
+        "Submit application"
+      )}
     </Button>
   );
 }
+
+/*
+ * The out-of-range count on a light form. The theme's error.main is
+ * STATUS.error (#FF453A), Apple's dark-mode red, which is about 3.1:1 on the
+ * #F5F5F7 section card. This is Apple's accessible light-mode red, about
+ * 4.9:1 on the card and 5.4:1 on white, so 13px helper text passes AA.
+ */
+const LIGHT_ERROR = "#D70015";
 
 const MOTIVATION_MIN = 100;
 const MOTIVATION_MAX = 800;
@@ -69,7 +77,7 @@ export default function ApplyForm() {
     }
   }, [state.status, router]);
 
-  const fieldErrors = state.status === "error" ? state.fieldErrors ?? {} : {};
+  const fieldErrors = state.status === "error" ? (state.fieldErrors ?? {}) : {};
   const trackError = fieldErrors["tracks"];
   const counter = (val: string) => {
     const len = val.trim().length;
@@ -105,9 +113,7 @@ export default function ApplyForm() {
       </Box>
 
       {state.status === "error" && (
-        <Alert severity="error" sx={{ borderRadius: 2 }}>
-          {state.error}
-        </Alert>
+        <Alert severity="error">{state.error}</Alert>
       )}
 
       <Section title="About you">
@@ -181,9 +187,15 @@ export default function ApplyForm() {
       </Section>
 
       <Section title="Track interest">
-        <FormControl required component="fieldset" error={!!trackError} sx={{ width: "100%" }}>
-          <Typography sx={{ fontSize: "0.95rem", color: "#444", mb: 1 }}>
-            Pick at least one. You can pick multiple if you're genuinely interested in more than one.
+        <FormControl
+          required
+          component="fieldset"
+          error={!!trackError}
+          sx={{ width: "100%" }}
+        >
+          <Typography variant="body2" sx={{ color: "text.secondary", mb: 1 }}>
+            Pick at least one. You can pick multiple if you're genuinely
+            interested in more than one.
           </Typography>
           <FormGroup>
             {TRACKS.map((t) => (
@@ -196,10 +208,11 @@ export default function ApplyForm() {
                     checked={tracks.includes(t)}
                     onChange={(e) => {
                       setTracks((prev) =>
-                        e.target.checked ? [...prev, t] : prev.filter((x) => x !== t),
+                        e.target.checked
+                          ? [...prev, t]
+                          : prev.filter((x) => x !== t)
                       );
                     }}
-                    sx={{ "&.Mui-checked": { color: "#FF6B35" } }}
                   />
                 }
                 label={TRACK_LABELS[t]}
@@ -220,7 +233,7 @@ export default function ApplyForm() {
           inputProps={{ maxLength: 80 }}
         />
         <TextField
-          label="Approximate rating + platform"
+          label="Approximate rating and platform"
           name="chessRating"
           fullWidth
           placeholder="e.g. 1850 chess.com rapid"
@@ -248,7 +261,10 @@ export default function ApplyForm() {
           fullWidth
           placeholder="https://..."
           error={!!fieldErrors.resumeUrl}
-          helperText={fieldErrors.resumeUrl || "We don't accept file uploads in v1 — paste a link."}
+          helperText={
+            fieldErrors.resumeUrl ||
+            "Paste a link. We don't accept file uploads yet."
+          }
           inputProps={{ maxLength: 500 }}
         />
       </Section>
@@ -262,7 +278,9 @@ export default function ApplyForm() {
           multiline
           minRows={4}
           value={motivation}
-          onChange={(e) => setMotivation(e.target.value.slice(0, MOTIVATION_MAX))}
+          onChange={(e) =>
+            setMotivation(e.target.value.slice(0, MOTIVATION_MAX))
+          }
           error={!!fieldErrors.motivation}
           helperText={
             fieldErrors.motivation ||
@@ -270,7 +288,11 @@ export default function ApplyForm() {
           }
           FormHelperTextProps={{
             sx: {
-              color: motivationCount.ok ? undefined : motivationCount.len > 0 ? "#d32f2f" : undefined,
+              color: motivationCount.ok
+                ? undefined
+                : motivationCount.len > 0
+                  ? LIGHT_ERROR
+                  : undefined,
             },
           }}
         />
@@ -290,7 +312,11 @@ export default function ApplyForm() {
           }
           FormHelperTextProps={{
             sx: {
-              color: proudCount.ok ? undefined : proudCount.len > 0 ? "#d32f2f" : undefined,
+              color: proudCount.ok
+                ? undefined
+                : proudCount.len > 0
+                  ? LIGHT_ERROR
+                  : undefined,
             },
           }}
         />
@@ -305,7 +331,10 @@ export default function ApplyForm() {
           fullWidth
           inputProps={{ min: 1, max: 60 }}
           error={!!fieldErrors.hoursPerWeek}
-          helperText={fieldErrors.hoursPerWeek || "Most interns commit ~5–10 hrs/week."}
+          helperText={
+            fieldErrors.hoursPerWeek ||
+            "Most interns give about 5–10 hours a week."
+          }
         />
         <TextField
           label="Earliest start date"
@@ -330,9 +359,10 @@ export default function ApplyForm() {
       <Box
         sx={{
           p: 2.5,
-          borderRadius: 2,
-          background: "#FFF8F5",
-          border: "1px solid rgba(255,107,53,0.2)",
+          borderRadius: `${RADIUS.control}px`,
+          bgcolor: "background.paper",
+          border: "1px solid",
+          borderColor: "divider",
         }}
       >
         <FormControlLabel
@@ -342,13 +372,12 @@ export default function ApplyForm() {
               required
               checked={acknowledged}
               onChange={(e) => setAcknowledged(e.target.checked)}
-              sx={{ "&.Mui-checked": { color: "#FF6B35" } }}
             />
           }
           label={
-            <Typography sx={{ fontSize: "0.95rem", color: "#1a1a2e" }}>
-              I understand an <strong>interview is required</strong> as part of the application
-              process.
+            <Typography variant="body2" sx={{ color: "text.primary" }}>
+              I understand an <strong>interview is required</strong> as part of
+              the application process.
             </Typography>
           }
         />
@@ -359,30 +388,40 @@ export default function ApplyForm() {
         )}
       </Box>
 
-      <Box sx={{ display: "flex", justifyContent: { xs: "stretch", sm: "flex-end" }, mt: 2 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: { xs: "stretch", sm: "flex-end" },
+          mt: 2,
+        }}
+      >
         <SubmitButton />
       </Box>
     </Box>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <Box
       sx={{
-        p: { xs: 2.5, md: 3.5 },
-        borderRadius: 3,
-        border: "1px solid rgba(0,0,0,0.06)",
-        background: "#FFFFFF",
+        p: { xs: 2, md: 3 },
+        borderRadius: `${RADIUS.card}px`,
+        border: "1px solid",
+        borderColor: "divider",
+        bgcolor: "background.paper",
         display: "flex",
         flexDirection: "column",
         gap: 2.5,
       }}
     >
-      <Typography
-        variant="overline"
-        sx={{ color: "#FF6B35", fontWeight: 700, letterSpacing: 1.5, fontSize: "0.75rem" }}
-      >
+      <Typography variant="h6" component="h2" sx={{ color: "text.primary" }}>
         {title}
       </Typography>
       {children}

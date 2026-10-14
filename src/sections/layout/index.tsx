@@ -10,7 +10,7 @@ import { GlobalAuthDialog } from "@/contexts/AuthDialogContext";
 import { NavPill } from "@/components/ui/NavPill";
 import { PartnerSlotPages } from "@/components/ads/PartnerSlotPages";
 
-// Routes that mount their own <GradientBackdrop /> + <NavPill /> inside the
+// Routes that mount their own <NavPill /> inside the
 // page component. Layout must NOT add a second set, or they double-stack.
 // Everything NOT listed here gets its chrome from Layout below.
 //
@@ -42,7 +42,7 @@ const SELF_CHROMED_ROUTES = new Set([
   "/repetit-training",
   "/scout",
   // The ChessUSA placement preview (a sales asset, noindex, not linked from
-  // anywhere on the site). /live mounts its own GradientBackdrop + NavPill
+  // anywhere on the site). /live mounts its own NavPill
   // because the whole point is to render the real chrome with the ad slot in
   // its real position under it — a Layout-provided pill would stack a second
   // one above the banner. The shell covers the viewport with its own fixed

@@ -16,8 +16,8 @@ import { LINE, RADIUS, TEXT, TYPE } from "@/theme/tokens";
  * cookie simply expires (10-minute TTL). Devices locked by the retired DOB
  * gate still see the blocked notice.
  *
- * Plain utility styling on purpose — auth utility pages (reset-password
- * et al.) are outside the dark-glass chrome rollout.
+ * Plain utility styling on purpose: the theme's Paper and Alert carry the
+ * look, as on the other auth utility pages (reset-password et al.).
  */
 
 type Phase = "gate" | "submitting" | "blocked" | "expired";
@@ -80,7 +80,7 @@ export default function AgeInterstitialPage() {
           setPhase("expired");
         } else {
           setPhase("gate");
-          setError(data.error ?? "Something went wrong. Please try again.");
+          setError(data.error ?? "We couldn't save that. Try again.");
         }
         return;
       }
@@ -89,7 +89,7 @@ export default function AgeInterstitialPage() {
       window.location.assign(sanitizeReturnTo(router.query.returnTo));
     } catch {
       setPhase("gate");
-      setError("Network error. Please try again.");
+      setError("We couldn't reach the server. Try again.");
     }
   };
 
@@ -119,7 +119,7 @@ export default function AgeInterstitialPage() {
             />
             <Box>
               <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
-                Chess Masti
+                Masti
               </Typography>
               <Typography sx={{ fontWeight: 700, lineHeight: 1.3 }}>
                 {masti.line}

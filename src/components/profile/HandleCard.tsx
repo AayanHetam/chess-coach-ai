@@ -8,6 +8,7 @@ import {
   fetchHandleAvailability,
   postHandleClaim,
 } from "@/lib/auth/handleClient";
+import { LINE, SURFACE } from "@/theme/tokens";
 
 /**
  * Claim a handle from /profile.
@@ -99,8 +100,8 @@ export default function HandleCard({
         p: 2,
         mb: 2.5,
         borderRadius: "16px",
-        background: "rgba(249,115,22,0.06)",
-        border: "1px solid rgba(249,115,22,0.22)",
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.25 }}>

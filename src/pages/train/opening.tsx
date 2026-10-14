@@ -26,7 +26,11 @@ import type { FlashState } from "@/components/puzzle/FlashOverlay";
 import TrainerRail, { TrainerRailStrip } from "@/components/train/TrainerRail";
 import TrainerPanel from "@/components/train/TrainerPanel";
 import { useRepertoireHole } from "@/lib/learn/useRepertoireHole";
-import { formatLine, holeLine, type RepertoireHole } from "@/lib/learn/repertoireHole";
+import {
+  formatLine,
+  holeLine,
+  type RepertoireHole,
+} from "@/lib/learn/repertoireHole";
 import {
   advance,
   createSession,
@@ -45,8 +49,15 @@ import {
   markRepaired,
   saveSession,
 } from "@/lib/learn/trainerProgress";
-import { modeOf, parseTrainerQuery, resolveHole } from "@/lib/learn/trainerRoute";
-import { pullTrainerProgress, pushTrainerProgress } from "@/lib/learn/trainerSync";
+import {
+  modeOf,
+  parseTrainerQuery,
+  resolveHole,
+} from "@/lib/learn/trainerRoute";
+import {
+  pullTrainerProgress,
+  pushTrainerProgress,
+} from "@/lib/learn/trainerSync";
 import {
   describeNext,
   findCard,
@@ -60,6 +71,7 @@ import { fetchOpeningTheory } from "@/lib/theory/fetchOpeningTheory";
 import { fetchMasterViews } from "@/lib/master/useMasterIdeas";
 import type { OpeningTheory } from "@/types/theory";
 import type { MasterView } from "@/lib/master/ideas";
+import { LINE, RADIUS, TEXT } from "@/theme/tokens";
 
 /**
  * What to drill, in order of what we can actually defend.
@@ -69,7 +81,10 @@ import type { MasterView } from "@/lib/master/ideas";
  * count. If neither disagrees with the move they already play, there is nothing
  * to drill and the session says so rather than inventing an exercise.
  */
-export function targetFor(hole: RepertoireHole, master: MasterView | null): TrainerLine["target"] {
+export function targetFor(
+  hole: RepertoireHole,
+  master: MasterView | null
+): TrainerLine["target"] {
   if (hole.diagnosis === "move" && hole.betterMove) {
     return { san: hole.betterMove, source: "engine" };
   }
@@ -86,9 +101,15 @@ export default function OpeningTrainerPage() {
 
   const account = useMemo(() => {
     if (profile?.chesscomUsername)
-      return { platform: "chess.com" as const, username: profile.chesscomUsername };
+      return {
+        platform: "chess.com" as const,
+        username: profile.chesscomUsername,
+      };
     if (profile?.lichessUsername)
-      return { platform: "lichess" as const, username: profile.lichessUsername };
+      return {
+        platform: "lichess" as const,
+        username: profile.lichessUsername,
+      };
     return { platform: "chess.com" as const, username: null };
   }, [profile?.chesscomUsername, profile?.lichessUsername]);
 
@@ -145,7 +166,10 @@ export default function OpeningTrainerPage() {
     void fetchOpeningTheory([hole.fen]).then((m) => {
       if (!cancelled) setTheory(m.get(hole.fen) ?? null);
     });
-    void fetchMasterViews([{ fen: hole.parentFen, yourMove: habit }], hole.color).then((ctx) => {
+    void fetchMasterViews(
+      [{ fen: hole.parentFen, yourMove: habit }],
+      hole.color
+    ).then((ctx) => {
       if (!cancelled) setMaster(ctx.byFen.get(hole.parentFen) ?? null);
     });
     return () => {
@@ -162,7 +186,9 @@ export default function OpeningTrainerPage() {
     return { ...holeLine(hole), target: targetFor(hole, master) };
   }, [mode, card, hole, master]);
 
-  const [state, setState] = useState<ReturnType<typeof createSession> | null>(null);
+  const [state, setState] = useState<ReturnType<typeof createSession> | null>(
+    null
+  );
   const [resumed, setResumed] = useState(false);
 
   // Keyed on the LINE, deliberately not on the target. The master lookup can
@@ -193,7 +219,9 @@ export default function OpeningTrainerPage() {
     if (!state || !line || !account.username) return;
     if (state.act === "done") {
       const now = Date.now();
-      const label = hole ? formatLine(hole.line, hole.color) : (card?.label ?? lineKey);
+      const label = hole
+        ? formatLine(hole.line, hole.color)
+        : (card?.label ?? lineKey);
       // Finishing is the ONLY place a schedule is written. A line that is
       // merely opened, or abandoned mid-run, changes nothing: a review you
       // walked away from is not evidence about how well you know the line.
@@ -296,13 +324,18 @@ export default function OpeningTrainerPage() {
   );
 
   const flash: FlashState =
-    state?.feedback === "correct" ? "green" : state?.feedback === "wrong" ? "red" : "idle";
+    state?.feedback === "correct"
+      ? "green"
+      : state?.feedback === "wrong"
+        ? "red"
+        : "idle";
 
   if (!line || !state) {
     // Three different nothings, and collapsing them would tell most of these
     // players something untrue. Asking for a line we no longer hold is not the
     // same as never having measured, and neither is "still working".
-    const working = repertoire.phase === "fetching" || repertoire.phase === "building";
+    const working =
+      repertoire.phase === "fetching" || repertoire.phase === "building";
     const gone = !working && request.kind !== "today";
     return (
       <Shell>
@@ -314,10 +347,20 @@ export default function OpeningTrainerPage() {
             decorative
             style={{ marginBottom: 12 }}
           />
-          <Typography sx={{ color: "#fff", fontSize: "1.1rem", fontWeight: 700, mb: 1 }}>
-            {gone ? "That line is not in your measurement any more" : "Nothing to train yet"}
+          <Typography
+            sx={{ color: "#fff", fontSize: "1.1rem", fontWeight: 700, mb: 1 }}
+          >
+            {gone
+              ? "That line is not in your measurement any more"
+              : "Nothing to train yet"}
           </Typography>
-          <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.92rem", lineHeight: 1.65 }}>
+          <Typography
+            sx={{
+              color: "rgba(255,255,255,0.6)",
+              fontSize: "0.92rem",
+              lineHeight: 1.65,
+            }}
+          >
             {working
               ? `${repertoire.label}…`
               : gone
@@ -331,10 +374,10 @@ export default function OpeningTrainerPage() {
               mt: 3,
               minHeight: 44,
               px: 2,
-              borderRadius: "12px",
-              border: "1px solid rgba(249,115,22,0.45)",
-              background: "rgba(249,115,22,0.06)",
-              color: "#FB923C",
+              borderRadius: `${RADIUS.pill}px`,
+              border: `1px solid ${LINE.strong}`,
+              background: "transparent",
+              color: TEXT.primary,
               fontSize: "0.8rem",
               fontWeight: 700,
               cursor: "pointer",
@@ -349,7 +392,9 @@ export default function OpeningTrainerPage() {
 
   const label = hole ? formatLine(hole.line, hole.color) : (card?.label ?? "");
   const goal = goalFor(state.mode);
-  const yourTurn = state.act === "confront" || (state.act === "drill" && isUsersPly(line, state.ply));
+  const yourTurn =
+    state.act === "confront" ||
+    (state.act === "drill" && isUsersPly(line, state.ply));
 
   return (
     <Shell title={label}>
@@ -364,7 +409,9 @@ export default function OpeningTrainerPage() {
         resumed={resumed}
       />
 
-      <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+      <Box
+        sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}
+      >
         <TrainerRailStrip
           line={label}
           steps={railSteps(state, line)}
@@ -421,7 +468,9 @@ export default function OpeningTrainerPage() {
             >
               {/* Whose move, in words. A coloured dot alone would carry this
                   for nobody who cannot separate the two colours. */}
-              <Typography sx={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.55)" }}>
+              <Typography
+                sx={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.55)" }}
+              >
                 {state.act === "done"
                   ? "Session complete"
                   : state.act === "learn"
@@ -464,12 +513,20 @@ export default function OpeningTrainerPage() {
   );
 }
 
-function Shell({ children, title }: { children: React.ReactNode; title?: string }) {
+function Shell({
+  children,
+  title,
+}: {
+  children: React.ReactNode;
+  title?: string;
+}) {
   return (
     <>
       <Head>
         <title key="title">
-          {title ? `Train ${title} — Chess Masti AI` : "Opening trainer — Chess Masti AI"}
+          {title
+            ? `Train ${title} — Chess Masti AI`
+            : "Opening trainer — Chess Masti AI"}
         </title>
       </Head>
       <Box sx={{ display: "flex", minHeight: "100dvh" }}>{children}</Box>

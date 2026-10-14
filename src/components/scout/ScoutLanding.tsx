@@ -4,7 +4,6 @@ import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
 import {
   DossierPanel,
   FieldLabel,
-  MONO,
   MeterRow,
   ROSE,
   SegmentedMeter,
@@ -12,7 +11,7 @@ import {
   strengthColor,
   tellColor,
 } from "./dossier";
-import { LINE, RADIUS, STATUS, TEXT } from "@/theme/tokens";
+import { LINE, RADIUS, STATUS, TEXT, TYPE } from "@/theme/tokens";
 
 export interface ScoutLandingProps {
   onFocusSearch: () => void;
@@ -54,10 +53,9 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
           <Typography
             variant="h1"
             sx={{
+              ...TYPE.display,
               fontSize: { xs: "2.4rem", sm: "3.1rem", md: "3.9rem" },
-              fontWeight: 700,
               lineHeight: 1.05,
-              letterSpacing: "-0.025em",
               color: TEXT.primary,
               mb: 2.5,
             }}
@@ -87,7 +85,7 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
             alignItems={{ sm: "center" }}
           >
             <Button
-              variant="contained"
+              variant="outlined"
               size="large"
               startIcon={<Icon icon="mdi:binoculars" />}
               onClick={onFocusSearch}
@@ -163,7 +161,6 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
                 >
                   <Typography
                     sx={{
-                      fontFamily: MONO,
                       fontSize: "1.6rem",
                       fontWeight: 700,
                       color: TEXT.tertiary,
@@ -182,11 +179,9 @@ export default function ScoutLanding({ onFocusSearch }: ScoutLandingProps) {
                 </Stack>
                 <Typography
                   sx={{
-                    fontWeight: 600,
-                    fontSize: "1.02rem",
+                    ...TYPE.h5,
                     mb: 0.85,
                     color: TEXT.primary,
-                    letterSpacing: "-0.01em",
                   }}
                 >
                   {s.title}
@@ -231,10 +226,10 @@ function SampleDossier() {
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             sx={{
-              fontWeight: 700,
+              ...TYPE.h3,
               fontSize: "1.5rem",
+              fontWeight: 700,
               lineHeight: 1.05,
-              letterSpacing: "-0.02em",
               color: TEXT.primary,
               mb: 0.85,
             }}
@@ -271,12 +266,10 @@ function SampleDossier() {
         <Box sx={{ textAlign: "right", flexShrink: 0 }}>
           <Typography
             sx={{
-              fontFamily: MONO,
+              ...TYPE.h1,
               fontSize: "2.3rem",
-              fontWeight: 700,
               lineHeight: 0.85,
               color: strengthColor(66),
-              letterSpacing: "-0.04em",
               fontVariantNumeric: "tabular-nums",
             }}
           >
@@ -312,7 +305,6 @@ function SampleDossier() {
           <Stack direction="row" alignItems="baseline" spacing={0.25}>
             <Typography
               sx={{
-                fontFamily: MONO,
                 fontSize: "1.35rem",
                 fontWeight: 700,
                 color: tellColor(73),
@@ -324,9 +316,9 @@ function SampleDossier() {
             </Typography>
             <Typography
               sx={{
-                fontFamily: MONO,
                 fontSize: "0.75rem",
-                color: TEXT.tertiary,
+                color: TEXT.secondary,
+                fontVariantNumeric: "tabular-nums",
               }}
             >
               /100
@@ -346,7 +338,6 @@ function SampleDossier() {
                 <FieldLabel color={TEXT.primary}>{t.label}</FieldLabel>
                 <Typography
                   sx={{
-                    fontFamily: MONO,
                     fontSize: "0.78rem",
                     fontWeight: 700,
                     color: tellColor(t.value),

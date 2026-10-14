@@ -92,10 +92,11 @@ export function buildChessMastiTheme(opts: ChessMastiThemeOptions = {}): Theme {
         disabled: textTertiary,
       },
       divider: hairline,
-      success: { main: STATUS.success },
-      warning: { main: STATUS.warning },
-      error: { main: STATUS.error },
-      info: { main: STATUS.info },
+      // Apple's accessible light variants where the page is white.
+      success: { main: dark ? STATUS.success : "#248A3D" },
+      warning: { main: dark ? STATUS.warning : "#B25000" },
+      error: { main: dark ? STATUS.error : "#D70015" },
+      info: { main: dark ? STATUS.info : "#0040DD" },
       action: {
         hover,
         selected,
@@ -161,6 +162,14 @@ export function buildChessMastiTheme(opts: ChessMastiThemeOptions = {}): Theme {
             "&:hover": { borderColor: textSecondary, backgroundColor: hover },
           },
           text: { "&:hover": { backgroundColor: hover } },
+          // Ember as text on white is 2.8:1; the light theme uses its darker
+          // shade for outlined and text buttons and for links.
+          ...(dark
+            ? {}
+            : {
+                outlinedPrimary: { color: "#C2410C" },
+                textPrimary: { color: "#C2410C" },
+              }),
           sizeSmall: { minHeight: 32, paddingInline: 12 },
           sizeLarge: {
             minHeight: 48,
@@ -352,7 +361,7 @@ export function buildChessMastiTheme(opts: ChessMastiThemeOptions = {}): Theme {
       MuiDivider: { styleOverrides: { root: { borderColor: hairline } } },
       MuiLink: {
         defaultProps: { underline: "hover" },
-        styleOverrides: { root: { color: primaryLight } },
+        styleOverrides: { root: { color: dark ? primaryLight : "#C2410C" } },
       },
       MuiLinearProgress: {
         styleOverrides: {

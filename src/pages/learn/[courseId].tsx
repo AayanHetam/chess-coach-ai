@@ -20,7 +20,6 @@ import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
 import { Box, Typography } from "@mui/material";
-import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Dumbbell, Search } from "lucide-react";
 import OpeningDiagram from "@/components/learn/OpeningDiagram";
 import ChapterRow, { MiniBar, Pill } from "@/components/courses/ChapterRow";
@@ -44,8 +43,46 @@ import {
   type CourseMastery,
 } from "@/lib/learn/courseMastery";
 
-const EMBER = "#FB923C";
-const MONO = "ui-monospace, SFMono-Regular, Menlo, monospace";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
+
+const CARD_SX = {
+  borderRadius: `${RADIUS.card}px`,
+  border: `1px solid ${LINE.hairline}`,
+  background: SURFACE.raised,
+} as const;
+
+/** An outlined pill, as a button or as the body of a link. */
+const OUTLINED_PILL_SX = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 0.75,
+  minHeight: 40,
+  px: 2,
+  borderRadius: `${RADIUS.pill}px`,
+  fontSize: TYPE.bodySmall.fontSize,
+  fontWeight: 600,
+  border: `1px solid ${LINE.strong}`,
+  background: "transparent",
+  color: TEXT.primary,
+  cursor: "pointer",
+  touchAction: "manipulation",
+  WebkitTapHighlightColor: "transparent",
+  transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
+  "&:hover": {
+    background: "rgba(255,255,255,0.06)",
+    borderColor: TEXT.secondary,
+  },
+  "&:active": { transform: MOTION.pressScale },
+} as const;
 
 interface Props {
   courseId: string;
@@ -65,7 +102,7 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
   // `asked`, not `decisions`: see CourseHub.asked. A bar against a number no
   // session can reach is a bar that never fills.
   const chapters = useMemo(
-    () => hub.chapters.map(c => ({ i: c.i, asked: c.asked })),
+    () => hub.chapters.map((c) => ({ i: c.i, asked: c.asked })),
     [hub.chapters]
   );
 
@@ -78,7 +115,9 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
     setMastery(readCourseMastery(account, courseId, chapters, Date.now()));
   }, [account, courseId, chapters]);
 
-  const next = mastery ? nextChapter(chapters, mastery) : (chapters.find(c => c.asked > 0)?.i ?? null);
+  const next = mastery
+    ? nextChapter(chapters, mastery)
+    : (chapters.find((c) => c.asked > 0)?.i ?? null);
   const done = mastery !== null && next === null && hub.asked > 0;
 
   // Masti fronts the course as its teacher, and his face is the course's own
@@ -104,17 +143,27 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
           ? `Chapter ${(next ?? 0) + 1} is up next. Read it through, then I ask you the moves before I teach a thing.`
           : "I show you every line first. Then I ask, and I only teach the moves you miss.";
 
-  const toggle = useCallback((i: number) => setOpen(prev => (prev === i ? null : i)), []);
+  const toggle = useCallback(
+    (i: number) => setOpen((prev) => (prev === i ? null : i)),
+    []
+  );
 
   return (
     <>
       <Head>
-        <title key="title">{`${hub.meta.name} — Chess Masti`}</title>
+        <title key="title">{`${hub.meta.name} · Chess Masti`}</title>
         {/* The cut depends on the account. Nothing here belongs in a shared cache. */}
         <meta name="robots" content="noindex" />
       </Head>
 
-      <Box sx={{ maxWidth: 1080, mx: "auto", px: { xs: 2, md: 3 }, py: { xs: 3, md: 5 } }}>
+      <Box
+        sx={{
+          maxWidth: 1080,
+          mx: "auto",
+          px: { xs: 2, md: 3 },
+          py: { xs: 3, md: 5 },
+        }}
+      >
         <Box
           component={Link}
           href="/courses"
@@ -124,10 +173,11 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
             gap: 0.75,
             minHeight: 44,
             mb: 1,
-            color: "rgba(255,255,255,0.55)",
-            fontSize: "0.85rem",
+            color: TEXT.secondary,
+            fontSize: TYPE.bodySmall.fontSize,
             textDecoration: "none",
-            "&:hover": { color: "#fff" },
+            transition: `color ${MOTION.hover}`,
+            "&:hover": { color: TEXT.primary },
           }}
           data-testid="hub-back"
         >
@@ -146,31 +196,39 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
           }}
         >
           <Box sx={{ flexShrink: 0 }}>
-            <OpeningDiagram moves={hub.meta.root} side={hub.meta.side} px={104} />
+            <OpeningDiagram
+              moves={hub.meta.root}
+              side={hub.meta.side}
+              px={104}
+            />
           </Box>
           <Box sx={{ minWidth: 0, flex: "1 1 0" }}>
             <Typography
               component="h1"
               sx={{
-                color: "#fff",
-                fontSize: { xs: "1.5rem", md: "2rem" },
-                fontWeight: 800,
-                letterSpacing: "-0.02em",
-                lineHeight: 1.15,
+                ...TYPE.h1,
+                fontSize: { xs: "1.75rem", md: TYPE.h1.fontSize },
+                color: TEXT.primary,
               }}
             >
               {hub.meta.name}
             </Typography>
-            <Typography sx={{ fontFamily: MONO, fontSize: "0.85rem", color: EMBER, mt: 0.5 }}>
+            <Typography
+              sx={{
+                ...TYPE.bodySmall,
+                fontFamily: FONT_MONO,
+                color: TEXT.secondary,
+                mt: 0.5,
+              }}
+            >
               {numbered(hub.meta.root)} · you play {hub.meta.side}
             </Typography>
             <Typography
               data-testid="hub-verdict"
               sx={{
-                color: "rgba(255,255,255,0.58)",
-                fontSize: "0.9rem",
+                ...TYPE.bodySmall,
+                color: TEXT.secondary,
                 mt: 1,
-                lineHeight: 1.6,
                 maxWidth: "56ch",
               }}
             >
@@ -204,12 +262,9 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
         <Box
           data-testid="course-progress"
           sx={{
+            ...CARD_SX,
             mt: 3,
             p: { xs: 2, md: 2.5 },
-            borderRadius: "1.5rem",
-            border: "1px solid rgba(255,255,255,0.10)",
-            background: "rgba(255,255,255,0.03)",
-            backdropFilter: "blur(12px)",
           }}
         >
           <Box
@@ -221,36 +276,34 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
               mb: 1.25,
             }}
           >
-            <Typography
-              sx={{
-                fontSize: "0.7rem",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                color: "rgba(255,255,255,0.5)",
-              }}
-            >
+            <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
               Course progress
             </Typography>
             <Typography
               data-testid="progress-count"
               sx={{
-                fontSize: "0.82rem",
-                color: "rgba(255,255,255,0.7)",
+                ...TYPE.caption,
+                color: TEXT.primary,
                 fontVariantNumeric: "tabular-nums",
               }}
             >
               {mastery?.known ?? 0} of {hub.asked} decisions
             </Typography>
           </Box>
-          <Box sx={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.10)", overflow: "hidden" }}>
+          <Box
+            sx={{
+              height: 6,
+              borderRadius: 3,
+              background: LINE.hairline,
+              overflow: "hidden",
+            }}
+          >
             <Box
-              component={motion.div}
-              initial={{ width: 0 }}
-              animate={{
+              sx={{
+                height: "100%",
                 width: `${hub.asked > 0 ? Math.round(((mastery?.known ?? 0) / hub.asked) * 100) : 0}%`,
+                background: ACCENT.main,
               }}
-              transition={{ duration: 0.42, ease: "easeOut" }}
-              sx={{ height: "100%", background: EMBER, boxShadow: `0 0 14px ${EMBER}66` }}
             />
           </Box>
 
@@ -259,7 +312,7 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
             player with every chapter opened and nothing owned would otherwise
             read as finished.
           */}
-          <Typography sx={{ mt: 1.25, fontSize: "0.76rem", color: "rgba(255,255,255,0.42)" }}>
+          <Typography sx={{ ...TYPE.caption, mt: 1.25, color: TEXT.secondary }}>
             {done
               ? "You know every decision in this course at your level."
               : `${mastery?.learning ?? 0} still learning · ${
@@ -275,9 +328,14 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
           {mastery !== null && mastery.due > 0 && (
             <Typography
               data-testid="course-due"
-              sx={{ mt: 0.5, fontSize: "0.8rem", color: EMBER }}
+              sx={{
+                ...TYPE.caption,
+                mt: 0.5,
+                color: TEXT.primary,
+                fontWeight: 600,
+              }}
             >
-              {mastery.due} due back — decisions you have missed before.
+              {mastery.due} due back: decisions you have missed before.
             </Typography>
           )}
 
@@ -290,21 +348,24 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
               >
                 <Box
                   sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
+                    // The one primary action on the page.
+                    ...OUTLINED_PILL_SX,
                     gap: 1.25,
                     minHeight: 48,
-                    px: 2.5,
-                    borderRadius: "1.25rem",
-                    border: `1px solid ${EMBER}42`,
-                    background: `${EMBER}14`,
-                    color: EMBER,
-                    fontSize: "0.95rem",
-                    transition: "background 200ms ease-out",
-                    "&:hover": { background: `${EMBER}22` },
+                    px: 3,
+                    border: "none",
+                    background: ACCENT.main,
+                    color: TEXT.onAccent,
+                    "&:hover": { background: ACCENT.hover },
+                    "a:focus-visible > &": {
+                      outline: `2px solid ${TEXT.primary}`,
+                      outlineOffset: 2,
+                    },
                   }}
                 >
-                  {mastery && mastery.started > 0 ? "Continue" : "Start learning"}
+                  {mastery && mastery.started > 0
+                    ? "Continue"
+                    : "Start learning"}
                   <ArrowRight size={17} aria-hidden />
                 </Box>
               </Link>
@@ -314,7 +375,11 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
                 Train chapter {next + 1}
               </Pill>
             )}
-            <Pill href={drillHref(courseId)} icon={<Dumbbell size={14} aria-hidden />} testid="hub-drill">
+            <Pill
+              href={drillHref(courseId)}
+              icon={<Dumbbell size={14} aria-hidden />}
+              testid="hub-drill"
+            >
               Drill
             </Pill>
             <Box
@@ -322,21 +387,12 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
               onClick={() => setExploring(true)}
               data-testid="hub-explorer"
               sx={{
+                ...OUTLINED_PILL_SX,
                 appearance: "none",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.75,
-                minHeight: 40,
-                px: 1.75,
-                borderRadius: "0.9rem",
-                fontSize: "0.85rem",
-                border: "1px solid rgba(255,255,255,0.12)",
-                background: "rgba(255,255,255,0.04)",
-                color: "rgba(255,255,255,0.78)",
-                cursor: "pointer",
-                transition: "background 200ms ease-out",
-                "&:hover": { background: "rgba(255,255,255,0.08)", color: "#fff" },
-                "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+                "&:focus-visible": {
+                  outline: `2px solid ${TEXT.primary}`,
+                  outlineOffset: 2,
+                },
               }}
             >
               <Search size={14} aria-hidden />
@@ -346,7 +402,14 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
         </Box>
 
         {/* ── The chapters ───────────────────────────────────────────────── */}
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 280px" }, gap: 2.5, mt: 3 }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "1fr 280px" },
+            gap: 2.5,
+            mt: 3,
+          }}
+        >
           <Box sx={{ display: "grid", gap: 1.25, minWidth: 0 }}>
             {hub.chapters.map((unit, i) => (
               <ChapterRow
@@ -363,9 +426,10 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
             {hub.omitted.chapters > 0 && (
               <Typography
                 data-testid="hub-omitted"
-                sx={{ color: "rgba(255,255,255,0.4)", fontSize: "0.78rem", px: 1, mt: 0.5 }}
+                sx={{ ...TYPE.caption, color: TEXT.secondary, px: 1, mt: 0.5 }}
               >
-                {hub.omitted.chapters} more {hub.omitted.chapters === 1 ? "chapter is" : "chapters are"}{" "}
+                {hub.omitted.chapters} more{" "}
+                {hub.omitted.chapters === 1 ? "chapter is" : "chapters are"}{" "}
                 below the depth for your level, together{" "}
                 {Math.round(hub.omitted.share * 100)}% of what you meet.
               </Typography>
@@ -374,43 +438,38 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
 
           {/* ── The side card ────────────────────────────────────────────── */}
           <Box sx={{ display: "grid", gap: 1.5, alignContent: "start" }}>
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: "1.5rem",
-                border: "1px solid rgba(255,255,255,0.10)",
-                background: "rgba(255,255,255,0.03)",
-                backdropFilter: "blur(12px)",
-              }}
-            >
-              <Typography sx={{ color: "#fff", fontSize: "0.95rem", fontWeight: 600 }}>
+            <Box sx={{ ...CARD_SX, p: 2 }}>
+              <Typography sx={{ ...TYPE.h5, color: TEXT.primary }}>
                 Drill this opening
               </Typography>
-              <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.8rem", mt: 0.75, lineHeight: 1.6 }}>
-                Any chapter or study, asked cold — whether or not you owe it. Nothing here is
-                unlocked by anything else.
+              <Typography
+                sx={{ ...TYPE.bodySmall, color: TEXT.secondary, mt: 0.75 }}
+              >
+                Any chapter or study, asked cold, whether or not you owe it.
+                Nothing here is unlocked by anything else.
               </Typography>
               <Box sx={{ mt: 1.5 }}>
-                <Pill href={drillHref(courseId)} icon={<Dumbbell size={14} aria-hidden />} ember testid="side-drill">
+                <Pill
+                  href={drillHref(courseId)}
+                  icon={<Dumbbell size={14} aria-hidden />}
+                  ember
+                  testid="side-drill"
+                >
                   Choose what to drill
                 </Pill>
               </Box>
             </Box>
 
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: "1.5rem",
-                border: "1px solid rgba(255,255,255,0.08)",
-                background: "rgba(255,255,255,0.02)",
-              }}
-            >
-              <Typography sx={{ fontSize: "0.7rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)" }}>
+            <Box sx={{ ...CARD_SX, p: 2 }}>
+              <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
                 At your level
               </Typography>
               <Box sx={{ display: "grid", gap: 0.75, mt: 1 }}>
                 <Fact label="Level" value={hub.bandName} />
-                <Fact label="Depth" value={`${hub.theoryPlies} plies of this opening`} />
+                <Fact
+                  label="Depth"
+                  value={`${hub.theoryPlies} plies of this opening`}
+                />
                 <Fact label="Chapters" value={String(hub.chapters.length)} />
                 {/* Both numbers when they differ, because they mean different
                     things: the course's size, and what a session can reach. */}
@@ -438,13 +497,23 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
         <TrapsSection traps={traps} band={band} side={hub.meta.side} />
 
         {/* Provenance. Every claim on this page is checkable. */}
-        <Typography sx={{ mt: 4, fontSize: "0.73rem", color: "rgba(255,255,255,0.33)", lineHeight: 1.7, maxWidth: "76ch" }}>
+        <Typography
+          sx={{
+            ...TYPE.caption,
+            mt: 4,
+            color: TEXT.secondary,
+            maxWidth: "65ch",
+          }}
+        >
           Your moves are chosen by the engine and checked against{" "}
-          {hub.meta.corpus.games.toLocaleString()} games ({hub.meta.corpus.source}); their replies
-          are what people actually play. Evaluations from {hub.meta.evals.source} (
+          {hub.meta.corpus.games.toLocaleString()} games (
+          {hub.meta.corpus.source}); their replies are what people actually
+          play. Evaluations from {hub.meta.evals.source} (
           {hub.meta.evals.licence}), covering{" "}
-          {Math.round((hub.meta.evals.covered / Math.max(1, hub.meta.evals.of)) * 100)}% of this
-          course.
+          {Math.round(
+            (hub.meta.evals.covered / Math.max(1, hub.meta.evals.of)) * 100
+          )}
+          % of this course.
         </Typography>
       </Box>
 
@@ -461,17 +530,30 @@ export default function CourseHubPage({ courseId, hub, traps, band }: Props) {
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1.5, alignItems: "baseline" }}>
-      <Typography sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.78rem" }}>{label}</Typography>
-      <Typography sx={{ color: "rgba(255,255,255,0.82)", fontSize: "0.82rem", textAlign: "right" }}>
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: 1.5,
+        alignItems: "baseline",
+      }}
+    >
+      <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
+        {label}
+      </Typography>
+      <Typography
+        sx={{ ...TYPE.bodySmall, color: TEXT.primary, textAlign: "right" }}
+      >
         {value}
       </Typography>
     </Box>
   );
 }
 
-export const getServerSideProps: GetServerSideProps<Props> = async ctx => {
-  const raw = Array.isArray(ctx.params?.courseId) ? ctx.params?.courseId[0] : ctx.params?.courseId;
+export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
+  const raw = Array.isArray(ctx.params?.courseId)
+    ? ctx.params?.courseId[0]
+    : ctx.params?.courseId;
   if (!isCourseId(raw)) return { notFound: true };
 
   // The band comes from the account, never from the request — the same rule the

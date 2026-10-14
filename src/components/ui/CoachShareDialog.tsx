@@ -50,14 +50,17 @@ interface CoachShareDialogProps {
 
 type ShareKind = "single" | "transcript";
 
+// A dialog arrives with a short cross-fade and a small scale from the
+// centre, and leaves the same way.
+const DIALOG_TRANSITION = { duration: 0.18, ease: "easeOut" } as const;
+
 /**
- * Share dialog for a coach reply — preview an SVG snippet of the position +
- * Claude's explanation, then download / copy as PNG or mint a permalink via
+ * Share dialog for a coach reply: preview an SVG snippet of the position and
+ * Masti's note, then download / copy as PNG or mint a permalink via
  * /api/insights (auth-gated, gracefully falls back to a ?fen= deep link
  * when sign-in isn't available).
  *
- * Pattern + helpers ported from `src/components/AnalysisSnippetDialog.tsx`
- * but re-themed for the dark-glass design OS.
+ * Pattern + helpers ported from `src/components/AnalysisSnippetDialog.tsx`.
  */
 export function CoachShareDialog({
   open,
@@ -210,10 +213,10 @@ export function CoachShareDialog({
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.98 }}
+            initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={DIALOG_TRANSITION}
             // Centering handled by the parent Modal's flexbox (added in its sx).
             // Must NOT set position:fixed + translate(-50%,-50%) here —
             // framer-motion animates y/scale and owns `transform`, so it would
@@ -250,7 +253,7 @@ export function CoachShareDialog({
                   component="h2"
                   sx={{ flex: 1, ...TYPE.h4, color: TEXT.primary }}
                 >
-                  Share this insight
+                  Share this note
                 </Typography>
                 <IconButton
                   onClick={onClose}
@@ -263,6 +266,8 @@ export function CoachShareDialog({
 
               {transcriptShareable && (
                 <Box
+                  role="tablist"
+                  aria-label="What to share"
                   sx={{
                     display: "flex",
                     gap: 0.5,
@@ -281,6 +286,10 @@ export function CoachShareDialog({
                     return (
                       <Box
                         key={id}
+                        component="button"
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
                         onClick={() => setShareKind(id)}
                         sx={{
                           position: "relative",
@@ -288,6 +297,9 @@ export function CoachShareDialog({
                           textAlign: "center",
                           px: 1.5,
                           py: 0.85,
+                          border: "none",
+                          background: "transparent",
+                          font: "inherit",
                           borderRadius: `${RADIUS.small}px`,
                           cursor: "pointer",
                           color: isActive ? TEXT.primary : TEXT.secondary,
@@ -295,6 +307,10 @@ export function CoachShareDialog({
                           fontWeight: 600,
                           transition: `color ${MOTION.hover}`,
                           "&:hover": { color: TEXT.primary },
+                          "&:focus-visible": {
+                            outline: `2px solid ${TEXT.primary}`,
+                            outlineOffset: 2,
+                          },
                         }}
                       >
                         {isActive && (
@@ -326,11 +342,6 @@ export function CoachShareDialog({
                   flex: 1,
                   overflowY: "auto",
                   p: 2.5,
-                  "&::-webkit-scrollbar": { width: 6 },
-                  "&::-webkit-scrollbar-thumb": {
-                    background: LINE.strong,
-                    borderRadius: "3px",
-                  },
                 }}
               >
                 {/* Preview card */}
@@ -361,9 +372,8 @@ export function CoachShareDialog({
                   <Typography
                     sx={{ mt: 1.5, ...TYPE.caption, color: TEXT.secondary }}
                   >
-                    Sign in on chessmasti.com for a stable permalink. For now
-                    we&apos;ll fall back to a `?fen=` deep link that loads the
-                    position but not the chat history.
+                    Sign in for a link that keeps the chat history. This link
+                    loads the position only.
                   </Typography>
                 )}
               </Box>
@@ -378,18 +388,15 @@ export function CoachShareDialog({
                   gap: 1,
                 }}
               >
-                <Tooltip title={permalink || "Generating link…"}>
+                <Tooltip title={permalink || "Generating link"}>
                   <Button
                     onClick={handleCopyLink}
                     disabled={!permalink}
                     startIcon={
                       insightLoading ? (
-                        <CircularProgress
-                          size={12}
-                          sx={{ color: TEXT.secondary }}
-                        />
+                        <CircularProgress size={16} color="inherit" />
                       ) : (
-                        <LinkIcon size={13} />
+                        <LinkIcon size={14} strokeWidth={1.75} />
                       )
                     }
                     sx={secondaryBtn}
@@ -400,7 +407,7 @@ export function CoachShareDialog({
                 <Button
                   onClick={handleCopyImage}
                   disabled={!svg}
-                  startIcon={<Copy size={13} />}
+                  startIcon={<Copy size={14} strokeWidth={1.75} />}
                   sx={secondaryBtn}
                 >
                   Copy image
@@ -408,7 +415,7 @@ export function CoachShareDialog({
                 <Button
                   onClick={handleDownloadPng}
                   disabled={!svg}
-                  startIcon={<Download size={13} />}
+                  startIcon={<Download size={14} strokeWidth={1.75} />}
                   sx={primaryBtn}
                 >
                   Download PNG
@@ -431,13 +438,14 @@ export function CoachShareDialog({
                     }}
                   >
                     <Stack
+                      role="status"
                       direction="row"
                       alignItems="center"
                       spacing={0.85}
                       sx={{
                         px: 1.5,
                         py: 0.85,
-                        borderRadius: `${RADIUS.pill}px`,
+                        borderRadius: `${RADIUS.control}px`,
                         background: SURFACE.raisedTertiary,
                         border: `1px solid ${LINE.hairline}`,
                         color: TEXT.primary,
@@ -447,7 +455,7 @@ export function CoachShareDialog({
                         "& svg": { color: STATUS.success },
                       }}
                     >
-                      <Check size={12} />
+                      <Check size={14} strokeWidth={1.75} />
                       <Box component="span">{toast}</Box>
                     </Stack>
                   </motion.div>

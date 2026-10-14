@@ -19,7 +19,14 @@ const ModalChild = React.forwardRef<
     </div>
   );
 });
-import { Box, Modal, Stack, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  CircularProgress,
+  Modal,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ArrowLeft, AlertTriangle, Check } from "lucide-react";
 import { Icon } from "@iconify/react";
@@ -34,10 +41,15 @@ import {
   MOTION,
   RADIUS,
   SHADOW,
+  STATUS,
   SURFACE,
   TEXT,
   TYPE,
 } from "@/theme/tokens";
+
+// A dialog arrives with a short cross-fade and a small scale from the
+// centre, and leaves the same way.
+const DIALOG_TRANSITION = { duration: 0.18, ease: "easeOut" } as const;
 
 interface AuthDialogProps {
   open: boolean;
@@ -170,7 +182,15 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
         );
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : mode === "signin"
+            ? "Sign-in failed. Try again."
+            : mode === "signup"
+              ? "Sign-up failed. Try again."
+              : "We couldn't send the reset link. Try again."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -224,7 +244,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
 
   const headerSubtitle =
     step === "usernames"
-      ? "Link your chess accounts for personalised coaching."
+      ? "Link your chess accounts so Masti can use your games."
       : mode === "signup"
         ? "Keep your games and coaching on every device."
         : mode === "forgot"
@@ -244,6 +264,10 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
     border: "none",
     outline: "none",
     borderRadius: `${RADIUS.pill}px`,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 1,
     fontWeight: 600,
     color: TEXT.onAccent,
     background: ACCENT.main,
@@ -271,13 +295,10 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
         <AnimatePresence>
           {open && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.98 }}
+              initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              transition={{
-                duration: 0.18,
-                ease: [0.2, 0, 0, 1],
-              }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={DIALOG_TRANSITION}
               // Centering is handled by the parent MUI Modal's flexbox
               // (display:flex; align/justify center). We must NOT also set
               // position:fixed + translate(-50%,-50%) here, because framer-motion
@@ -368,6 +389,8 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                   Only shown in the auth step when not in forgot mode. */}
                 {step === "auth" && mode !== "forgot" && (
                   <Box
+                    role="tablist"
+                    aria-label="Sign in or sign up"
                     sx={{
                       display: "flex",
                       gap: 0.5,
@@ -388,6 +411,10 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                       return (
                         <Box
                           key={id}
+                          component="button"
+                          type="button"
+                          role="tab"
+                          aria-selected={isActive}
                           onClick={() => {
                             setMode(id);
                             setError(null);
@@ -397,7 +424,11 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                             position: "relative",
                             flex: 1,
                             textAlign: "center",
+                            px: 0,
                             py: 0.85,
+                            border: "none",
+                            background: "transparent",
+                            font: "inherit",
                             borderRadius: `${RADIUS.small}px`,
                             cursor: "pointer",
                             fontSize: TYPE.bodySmall.fontSize,
@@ -405,6 +436,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                             color: isActive ? TEXT.primary : TEXT.secondary,
                             transition: `color ${MOTION.hover}`,
                             "&:hover": { color: TEXT.primary },
+                            "&:focus-visible": focusRing,
                           }}
                         >
                           {isActive && (
@@ -441,11 +473,6 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                     overflowY: "auto",
                     px: 3,
                     py: 2.5,
-                    "&::-webkit-scrollbar": { width: 6 },
-                    "&::-webkit-scrollbar-thumb": {
-                      background: LINE.strong,
-                      borderRadius: "3px",
-                    },
                   }}
                 >
                   {step === "auth" && mode === "signup" && ageBlocked ? (
@@ -517,7 +544,6 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                             background: ACCENT.main,
                             color: TEXT.onAccent,
                             fontWeight: 600,
-                            textTransform: "none",
                             borderRadius: `${RADIUS.pill}px`,
                             py: 1.1,
                             boxShadow: "none",
@@ -633,10 +659,13 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                                   background: "transparent",
                                   border: "none",
                                   cursor: "pointer",
-                                  fontSize: "0.78rem",
-                                  color: "#FB923C",
+                                  font: "inherit",
+                                  ...TYPE.caption,
+                                  color: ACCENT.hover,
                                   padding: 0,
-                                  "&:hover": { color: "#FDBA74" },
+                                  borderRadius: `${RADIUS.small}px`,
+                                  "&:hover": { textDecoration: "underline" },
+                                  "&:focus-visible": focusRing,
                                 }}
                               >
                                 Forgot password?
@@ -646,27 +675,25 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
 
                           {error && (
                             <Box
+                              role="alert"
                               sx={{
                                 display: "flex",
                                 alignItems: "flex-start",
                                 gap: 1,
                                 p: 1.25,
-                                borderRadius: "10px",
-                                background: "rgba(239,68,68,0.08)",
-                                border: "1px solid rgba(239,68,68,0.25)",
+                                borderRadius: `${RADIUS.control}px`,
+                                background: STATUS.errorTint,
+                                border: `1px solid ${LINE.hairline}`,
                               }}
                             >
                               <AlertTriangle
-                                size={14}
-                                color="#fca5a5"
-                                style={{ marginTop: 2, flexShrink: 0 }}
+                                size={16}
+                                strokeWidth={1.75}
+                                color={STATUS.error}
+                                style={{ marginTop: 1, flexShrink: 0 }}
                               />
                               <Typography
-                                sx={{
-                                  fontSize: "0.82rem",
-                                  color: "#fca5a5",
-                                  lineHeight: 1.4,
-                                }}
+                                sx={{ ...TYPE.caption, color: TEXT.primary }}
                               >
                                 {error}
                               </Typography>
@@ -674,27 +701,25 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                           )}
                           {info && (
                             <Box
+                              role="status"
                               sx={{
                                 display: "flex",
                                 alignItems: "flex-start",
                                 gap: 1,
                                 p: 1.25,
-                                borderRadius: "10px",
-                                background: "rgba(34,197,94,0.08)",
-                                border: "1px solid rgba(34,197,94,0.25)",
+                                borderRadius: `${RADIUS.control}px`,
+                                background: STATUS.successTint,
+                                border: `1px solid ${LINE.hairline}`,
                               }}
                             >
                               <Check
-                                size={14}
-                                color="#86efac"
-                                style={{ marginTop: 2, flexShrink: 0 }}
+                                size={16}
+                                strokeWidth={1.75}
+                                color={STATUS.success}
+                                style={{ marginTop: 1, flexShrink: 0 }}
                               />
                               <Typography
-                                sx={{
-                                  fontSize: "0.82rem",
-                                  color: "#86efac",
-                                  lineHeight: 1.4,
-                                }}
+                                sx={{ ...TYPE.caption, color: TEXT.primary }}
                               >
                                 {info}
                               </Typography>
@@ -719,8 +744,15 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                                 : { background: ACCENT.hover },
                             }}
                           >
+                            {submitting && (
+                              <CircularProgress size={16} color="inherit" />
+                            )}
                             {submitting
-                              ? "Working…"
+                              ? mode === "signin"
+                                ? "Signing in"
+                                : mode === "signup"
+                                  ? "Creating account"
+                                  : "Sending"
                               : mode === "signin"
                                 ? "Sign in"
                                 : mode === "signup"
@@ -830,7 +862,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                           textAlign: "center",
                           mt: 2.5,
                           ...TYPE.caption,
-                          color: TEXT.tertiary,
+                          color: TEXT.secondary,
                         }}
                       >
                         Your data is encrypted and never shared with third
@@ -843,13 +875,11 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                       <Typography
                         sx={{
                           mb: 2.5,
-                          fontSize: "0.86rem",
-                          color: "rgba(255,255,255,0.7)",
-                          lineHeight: 1.5,
+                          ...TYPE.bodySmall,
+                          color: TEXT.secondary,
                         }}
                       >
-                        Link your chess accounts so the coach can use your own
-                        games. You can also add these later in your profile.
+                        You can also add these later in your profile.
                       </Typography>
 
                       <Stack spacing={2}>
@@ -867,19 +897,12 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                               alt="Chess.com"
                             />
                             <Typography
-                              sx={{
-                                fontSize: "0.82rem",
-                                fontWeight: 700,
-                                color: "rgba(255,255,255,0.88)",
-                              }}
+                              sx={{ ...TYPE.label, color: TEXT.primary }}
                             >
                               Chess.com username
                             </Typography>
                             <Typography
-                              sx={{
-                                fontSize: "0.72rem",
-                                color: "rgba(255,255,255,0.4)",
-                              }}
+                              sx={{ ...TYPE.caption, color: TEXT.secondary }}
                             >
                               (optional)
                             </Typography>
@@ -909,19 +932,12 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                               alt="Lichess"
                             />
                             <Typography
-                              sx={{
-                                fontSize: "0.82rem",
-                                fontWeight: 700,
-                                color: "rgba(255,255,255,0.88)",
-                              }}
+                              sx={{ ...TYPE.label, color: TEXT.primary }}
                             >
                               Lichess username
                             </Typography>
                             <Typography
-                              sx={{
-                                fontSize: "0.72rem",
-                                color: "rgba(255,255,255,0.4)",
-                              }}
+                              sx={{ ...TYPE.caption, color: TEXT.secondary }}
                             >
                               (optional)
                             </Typography>
@@ -952,17 +968,20 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                             background: "transparent",
                             border: "none",
                             cursor: "pointer",
-                            fontSize: "0.84rem",
-                            fontWeight: 700,
-                            color: "rgba(255,255,255,0.55)",
+                            font: "inherit",
+                            fontSize: TYPE.bodySmall.fontSize,
+                            fontWeight: 600,
+                            color: TEXT.secondary,
                             px: 2,
                             py: 1,
-                            borderRadius: "10px",
-                            transition: "all 180ms ease",
+                            borderRadius: `${RADIUS.pill}px`,
+                            transition: `color ${MOTION.hover}, background-color ${MOTION.hover}, transform ${MOTION.press}`,
                             "&:hover": {
-                              color: "rgba(255,255,255,0.92)",
-                              background: "rgba(255,255,255,0.04)",
+                              color: TEXT.primary,
+                              background: "rgba(255,255,255,0.06)",
                             },
+                            "&:active": { transform: MOTION.pressScale },
+                            "&:focus-visible": focusRing,
                           }}
                         >
                           Skip for now
@@ -984,7 +1003,10 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                               : { background: ACCENT.hover },
                           }}
                         >
-                          {submitting ? "Saving…" : "Save & continue"}
+                          {submitting && (
+                            <CircularProgress size={16} color="inherit" />
+                          )}
+                          {submitting ? "Saving" : "Save & continue"}
                         </Box>
                       </Box>
                     </>

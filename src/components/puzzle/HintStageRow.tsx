@@ -16,15 +16,16 @@ import type { HintStage } from "@/lib/validation/puzzleHintSchemas";
  *
  * Flow:
  *   - after `why_wrong` lands → ["Get a hint", "Show the answer"]
- *   - after `hint` lands       → ["Show the answer", "Deeper dive"]
- *   - after `answer` lands     → ["Deeper dive"]
+ *   - after `hint` lands       → ["Show the answer", "Explain the idea"]
+ *   - after `answer` lands     → ["Explain the idea"]
  *   - after `deeper_dive`      → row hides itself
  *
  * Buttons disable while a stage is loading. `loading` carries the stage
  * currently in flight so we can show a spinner on the right button.
  *
- * The prominent stage is the one contained button; the rest are outlined.
- * The theme owns the pill, the press feedback and the colours.
+ * Every stage is an outlined button: the row sits inside the coach
+ * transcript and the page already has its one solid action. The hint leads
+ * the row. The theme owns the pill, the press feedback and the colours.
  */
 
 interface HintStageRowProps {
@@ -39,7 +40,6 @@ interface StageButtonSpec {
   stage: HintStage;
   label: string;
   Icon: LucideIcon;
-  prominent?: boolean;
 }
 
 const BUTTON_SPECS: Record<HintStage, StageButtonSpec> = {
@@ -52,10 +52,13 @@ const BUTTON_SPECS: Record<HintStage, StageButtonSpec> = {
     stage: "hint",
     label: "Get a hint",
     Icon: Lightbulb,
-    prominent: true,
   },
   answer: { stage: "answer", label: "Show the answer", Icon: Eye },
-  deeper_dive: { stage: "deeper_dive", label: "Deeper dive", Icon: Microscope },
+  deeper_dive: {
+    stage: "deeper_dive",
+    label: "Explain the idea",
+    Icon: Microscope,
+  },
 };
 
 export function HintStageRow({
@@ -84,7 +87,7 @@ export function HintStageRow({
               key={stage}
               onClick={() => onFire(stage)}
               disabled={disabled}
-              variant={spec.prominent ? "contained" : "outlined"}
+              variant="outlined"
               size="small"
               startIcon={
                 isLoading ? (

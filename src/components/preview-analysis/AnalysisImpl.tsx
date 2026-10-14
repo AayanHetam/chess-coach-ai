@@ -20,11 +20,11 @@ import {
 } from "@mui/material";
 import { ThemeProvider, createTheme, useTheme } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
+import { buildChessMastiTheme } from "@/theme/chessMasti";
 import {
   ACCENT,
-  FONT_SANS,
+  FONT_MONO,
   LINE,
-  MATERIAL,
   MOTION,
   RADIUS,
   SHADOW,
@@ -89,14 +89,15 @@ import {
   Eye,
   Flame,
   GitBranch,
+  Info,
   Lightbulb,
   MousePointerClick,
   RefreshCw,
   RotateCw,
   Send,
   Share2,
-  ShieldCheck,
   Target,
+  X,
 } from "lucide-react";
 import {
   Masti,
@@ -218,122 +219,38 @@ const ChessgroundBoard = dynamic(
 // Theme
 // ───────────────────────────────────────────────────────────────────────────────
 
-// The page keeps its own theme object (the layout below is measured by a
-// CLS budget, so the site theme's button and tab heights are not pulled in),
-// but every value is a token and the surfaces are flat: no ripple, press
-// feedback on pointer-down, solid menus, popovers and tooltips with a
-// neutral floating shadow, and no gradient or elevation on any paper.
-const analysisTheme = createTheme({
-  palette: {
-    mode: "dark",
-    primary: {
-      main: ACCENT.main,
-      light: ACCENT.hover,
-      dark: ACCENT.active,
-      contrastText: TEXT.onAccent,
-    },
-    secondary: { main: TEXT.secondary },
-    background: {
-      default: SURFACE.page,
-      paper: SURFACE.raised,
-    },
-    text: {
-      primary: TEXT.primary,
-      secondary: TEXT.secondary,
-      disabled: TEXT.tertiary,
-    },
-    divider: LINE.hairline,
-    success: { main: STATUS.success },
-    error: { main: STATUS.error },
-    warning: { main: STATUS.warning },
-    info: { main: STATUS.info },
-    action: {
-      hover: "rgba(255,255,255,0.06)",
-      selected: "rgba(255,255,255,0.10)",
-      focus: "rgba(255,255,255,0.10)",
-    },
-  },
-  typography: {
-    fontFamily: FONT_SANS,
-    h1: TYPE.h1,
-    h2: TYPE.h2,
-    h3: TYPE.h3,
-    button: {
-      textTransform: "none",
-      fontWeight: 600,
-      letterSpacing: 0,
-    },
-  },
+// The site theme, with two exceptions the viewport-locked layout below is
+// measured against (a CLS budget): buttons keep their own heights instead of
+// the theme's 40px floor, and keep MUI's default line-height so the strip
+// under the board and the nav bar hold the boxes they were measured with.
+const analysisTheme = createTheme(buildChessMastiTheme(), {
   components: {
-    MuiButtonBase: {
-      defaultProps: { disableRipple: true, disableTouchRipple: true },
-      styleOverrides: {
-        root: {
-          transition: `transform ${MOTION.press}, background-color ${MOTION.hover}, color ${MOTION.hover}, border-color ${MOTION.hover}, opacity ${MOTION.hover}`,
-          "&:active": { transform: MOTION.pressScale },
-          "&.Mui-focusVisible": {
-            outline: `2px solid ${TEXT.primary}`,
-            outlineOffset: 2,
-          },
-        },
-      },
-    },
     MuiButton: {
-      defaultProps: { disableElevation: true },
       styleOverrides: {
-        root: { boxShadow: "none", "&:hover": { boxShadow: "none" } },
-      },
-    },
-    MuiPaper: {
-      defaultProps: { elevation: 0 },
-      styleOverrides: { root: { backgroundImage: "none" } },
-    },
-    MuiMenu: {
-      styleOverrides: {
-        paper: {
-          backgroundColor: SURFACE.overlay,
-          backgroundImage: "none",
-          border: `1px solid ${LINE.hairline}`,
-          borderRadius: RADIUS.control,
-          boxShadow: SHADOW.floating,
-        },
-      },
-    },
-    MuiPopover: {
-      styleOverrides: {
-        paper: {
-          backgroundColor: SURFACE.overlay,
-          backgroundImage: "none",
-          border: `1px solid ${LINE.hairline}`,
-          borderRadius: RADIUS.control,
-          boxShadow: SHADOW.floating,
-        },
-      },
-    },
-    MuiTooltip: {
-      styleOverrides: {
-        tooltip: {
-          backgroundColor: SURFACE.raisedTertiary,
-          color: TEXT.primary,
-          fontSize: TYPE.caption.fontSize,
-          lineHeight: TYPE.caption.lineHeight,
-          borderRadius: RADIUS.small,
-          padding: "6px 10px",
-          boxShadow: SHADOW.floating,
-        },
-        arrow: { color: SURFACE.raisedTertiary },
-      },
-    },
-    MuiBackdrop: {
-      styleOverrides: {
-        root: {
-          backgroundColor: MATERIAL.scrim,
-          "&.MuiBackdrop-invisible": { backgroundColor: "transparent" },
-        },
+        root: { minHeight: 0, lineHeight: 1.75 },
+        sizeSmall: { minHeight: 0 },
       },
     },
   },
 });
+
+/**
+ * Recipe 12, a status banner: the status tint goes on `background` at the
+ * call site, the colour goes on the icon, and the words stay TEXT.primary.
+ */
+const STATUS_BANNER_SX = {
+  mb: 1.5,
+  px: 1.5,
+  py: 1,
+  display: "flex",
+  alignItems: "flex-start",
+  gap: 1,
+  borderRadius: `${RADIUS.control}px`,
+  border: `1px solid ${LINE.hairline}`,
+  fontSize: TYPE.caption.fontSize,
+  lineHeight: 1.5,
+  color: TEXT.primary,
+} as const;
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Cold start
@@ -1259,8 +1176,6 @@ function GameIdentity({
     );
   }
 
-  const evalPositive = currentEval >= 0;
-
   return (
     <Stack
       direction="row"
@@ -1319,9 +1234,9 @@ function GameIdentity({
         <Typography
           sx={{
             fontSize: "0.92rem",
-            fontWeight: 800,
+            fontWeight: 700,
             color: "rgba(255,255,255,0.9)",
-            fontFamily: "Monaco, Menlo, monospace",
+            fontVariantNumeric: "tabular-nums",
             lineHeight: 1,
           }}
         >
@@ -1340,13 +1255,9 @@ function GameIdentity({
           display: { xs: "none", md: "block" },
           px: 1.1,
           py: 0.4,
-          borderRadius: "8px",
-          background: evalPositive
-            ? "rgba(249,115,22,0.12)"
-            : "rgba(255,255,255,0.06)",
-          border: evalPositive
-            ? "1px solid rgba(249,115,22,0.3)"
-            : "1px solid rgba(255,255,255,0.1)",
+          borderRadius: `${RADIUS.small}px`,
+          background: SURFACE.raisedSecondary,
+          border: `1px solid ${LINE.hairline}`,
           minWidth: 52,
           textAlign: "center",
         }}
@@ -1355,12 +1266,9 @@ function GameIdentity({
           sx={{
             fontSize: "0.84rem",
             fontWeight: 700,
-            color: evalPending
-              ? "rgba(255,255,255,0.4)"
-              : evalPositive
-                ? "#FB923C"
-                : "rgba(255,255,255,0.85)",
-            fontFamily: "Monaco, Menlo, monospace",
+            color: evalPending ? TEXT.tertiary : TEXT.secondary,
+            fontFamily: FONT_MONO,
+            fontVariantNumeric: "tabular-nums",
             lineHeight: 1.35,
           }}
         >
@@ -1433,17 +1341,23 @@ function GameActions({
               font: "inherit",
               px: 0.9,
               py: 0.45,
-              borderRadius: "8px",
-              background: "rgba(249,115,22,0.1)",
-              border: "1px solid rgba(249,115,22,0.25)",
-              color: "#FB923C",
-              fontFamily: "Monaco, Menlo, monospace",
+              borderRadius: `${RADIUS.small}px`,
+              background: SURFACE.raisedSecondary,
+              border: `1px solid ${LINE.hairline}`,
+              color: TEXT.secondary,
               fontWeight: 600,
-              fontSize: "0.72rem",
-              transition: "all 180ms ease",
+              fontSize: TYPE.caption.fontSize,
+              lineHeight: 1.3,
+              touchAction: "manipulation",
+              transition: `background-color ${MOTION.hover}, color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
               "&:hover": {
-                background: "rgba(249,115,22,0.18)",
-                borderColor: "rgba(249,115,22,0.4)",
+                background: SURFACE.raisedTertiary,
+                color: TEXT.primary,
+              },
+              "&:active": { transform: MOTION.pressScale },
+              "&:focus-visible": {
+                outline: `2px solid ${TEXT.primary}`,
+                outlineOffset: 2,
               },
             }}
           >
@@ -1459,7 +1373,7 @@ function GameActions({
             sx={{
               ...actionSx,
               display: { xs: "none", sm: "inline-flex" },
-              fontFamily: "Monaco, Menlo, monospace",
+              fontFamily: FONT_MONO,
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.1)",
               color: "rgba(255,255,255,0.78)",
@@ -1485,7 +1399,7 @@ function GameActions({
               border: `1px solid ${ACCENT.border}`,
               color: ACCENT.hover,
               "&:hover": {
-                background: "rgba(249,115,22,0.22)",
+                background: ACCENT.tint,
                 borderColor: ACCENT.main,
               },
             }}
@@ -1511,33 +1425,36 @@ function GameActions({
             <Button
               onClick={onSaveGameClick}
               disabled={saveState === "saving" || saveState === "saved"}
+              startIcon={
+                saveState === "saved" ? (
+                  <Check size={16} strokeWidth={1.75} color={STATUS.success} />
+                ) : undefined
+              }
               sx={{
                 ...actionSx,
                 display: { xs: "none", lg: "inline-flex" },
                 background:
                   saveState === "saved"
-                    ? "rgba(34,197,94,0.18)"
+                    ? STATUS.successTint
                     : "rgba(255,255,255,0.06)",
                 border:
                   saveState === "saved"
-                    ? "1px solid rgba(34,197,94,0.35)"
+                    ? `1px solid ${LINE.hairline}`
                     : "1px solid rgba(255,255,255,0.12)",
-                color:
-                  saveState === "saved" ? "#86efac" : "rgba(255,255,255,0.78)",
+                color: saveState === "saved" ? TEXT.primary : TEXT.secondary,
                 "&:hover": {
                   background:
                     saveState === "saved"
-                      ? "rgba(34,197,94,0.24)"
+                      ? STATUS.successTint
                       : "rgba(255,255,255,0.1)",
                 },
                 "&.Mui-disabled": {
-                  color:
-                    saveState === "saved" ? "#86efac" : "rgba(255,255,255,0.4)",
+                  color: saveState === "saved" ? TEXT.primary : TEXT.tertiary,
                 },
               }}
             >
               {saveState === "saved"
-                ? "✓ Saved"
+                ? "Saved"
                 : saveState === "saving"
                   ? "Saving…"
                   : "Save"}
@@ -1634,11 +1551,9 @@ function EngineSettingsPopover({
                         ? `1px solid ${ACCENT.border}`
                         : `1px solid ${LINE.hairline}`,
                       transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
-                      "&:hover": {
-                        background: isActive
-                          ? "rgba(249,115,22,0.22)"
-                          : SURFACE.raisedTertiary,
-                      },
+                      "&:hover": isActive
+                        ? { borderColor: ACCENT.main }
+                        : { background: SURFACE.raisedTertiary },
                       "&:active": { transform: MOTION.pressScale },
                     }}
                   >
@@ -1646,7 +1561,7 @@ function EngineSettingsPopover({
                       sx={{
                         fontSize: "0.86rem",
                         fontWeight: 700,
-                        color: isActive ? "#FB923C" : "rgba(255,255,255,0.92)",
+                        color: isActive ? ACCENT.hover : TEXT.primary,
                         lineHeight: 1.2,
                       }}
                     >
@@ -1655,9 +1570,8 @@ function EngineSettingsPopover({
                     <Typography
                       sx={{
                         mt: 0.25,
-                        fontSize: "0.7rem",
-                        color: "rgba(255,255,255,0.45)",
-                        fontFamily: "Monaco, Menlo, monospace",
+                        fontSize: TYPE.caption.fontSize,
+                        color: TEXT.secondary,
                       }}
                     >
                       {opt.sub}
@@ -1686,10 +1600,10 @@ function EngineSettingsPopover({
               <Box sx={{ flex: 1 }} />
               <Typography
                 sx={{
-                  fontSize: "0.74rem",
-                  color: "#FB923C",
-                  fontFamily: "Monaco, Menlo, monospace",
-                  fontWeight: 700,
+                  fontSize: TYPE.caption.fontSize,
+                  color: TEXT.secondary,
+                  fontFamily: FONT_MONO,
+                  fontWeight: 600,
                 }}
               >
                 d{depth}
@@ -1717,7 +1631,6 @@ function EngineSettingsPopover({
                       color: isActive ? TEXT.onAccent : TEXT.primary,
                       fontSize: "0.82rem",
                       fontWeight: 700,
-                      fontFamily: "Monaco, Menlo, monospace",
                       fontVariantNumeric: "tabular-nums",
                       transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
                       "&:hover": {
@@ -1736,8 +1649,8 @@ function EngineSettingsPopover({
             <Typography
               sx={{
                 mt: 0.85,
-                fontSize: "0.72rem",
-                color: "rgba(255,255,255,0.45)",
+                fontSize: TYPE.caption.fontSize,
+                color: TEXT.secondary,
                 lineHeight: 1.4,
               }}
             >
@@ -1768,15 +1681,10 @@ function DrillBanner({
   const isWrong = state.status === "wrong";
   const isSolved = state.status === "solved";
 
-  // Status colour on the icon and the label only: green = solved, red =
-  // wrong; the drill itself wears the one accent.
-  const accent = isComplete
-    ? STATUS.success
-    : isSolved
-      ? STATUS.success
-      : isWrong
-        ? STATUS.error
-        : ACCENT.main;
+  // Status colour on the icon and the current dot only: green = solved, red
+  // = wrong. While solving there is no status, so the icon stays neutral.
+  const statusColor =
+    isComplete || isSolved ? STATUS.success : isWrong ? STATUS.error : null;
 
   return (
     <Box style={{ marginBottom: 12 }}>
@@ -1804,9 +1712,17 @@ function DrillBanner({
           }}
         >
           {isComplete ? (
-            <Flame size={18} strokeWidth={1.75} color={accent} />
+            <Flame
+              size={18}
+              strokeWidth={1.75}
+              color={statusColor ?? TEXT.secondary}
+            />
           ) : (
-            <Lightbulb size={18} strokeWidth={1.75} color={accent} />
+            <Lightbulb
+              size={18}
+              strokeWidth={1.75}
+              color={statusColor ?? TEXT.secondary}
+            />
           )}
         </Box>
 
@@ -1815,7 +1731,7 @@ function DrillBanner({
             <Typography
               sx={{
                 ...TYPE.label,
-                color: accent,
+                color: TEXT.primary,
                 lineHeight: 1,
               }}
             >
@@ -1829,14 +1745,14 @@ function DrillBanner({
                   <Box
                     key={i}
                     sx={{
-                      width: 6,
-                      height: 6,
+                      width: 8,
+                      height: 8,
                       borderRadius: "50%",
                       background:
                         i < state.currentIndex
                           ? STATUS.success
                           : i === state.currentIndex
-                            ? accent
+                            ? (statusColor ?? TEXT.primary)
                             : "rgba(255,255,255,0.18)",
                     }}
                   />
@@ -1865,8 +1781,8 @@ function DrillBanner({
             <Typography
               sx={{
                 mt: 0.25,
-                fontSize: "0.74rem",
-                color: "rgba(255,255,255,0.55)",
+                fontSize: TYPE.caption.fontSize,
+                color: TEXT.secondary,
                 lineHeight: 1.35,
               }}
             >
@@ -1879,7 +1795,7 @@ function DrillBanner({
               <Typography
                 sx={{
                   mt: 0.25,
-                  fontSize: "0.72rem",
+                  fontSize: TYPE.caption.fontSize,
                   color: STATUS.error,
                   fontStyle: "italic",
                 }}
@@ -1921,14 +1837,13 @@ function DrillBanner({
               sx={{
                 px: 1.25,
                 py: 0.5,
-                borderRadius: "0.6rem",
-                fontSize: "0.74rem",
+                fontSize: TYPE.caption.fontSize,
                 fontWeight: 600,
-                color: "rgba(255,255,255,0.6)",
+                color: TEXT.secondary,
                 textTransform: "none",
                 "&:hover": {
-                  background: "rgba(255,255,255,0.05)",
-                  color: "rgba(255,255,255,0.85)",
+                  background: "rgba(255,255,255,0.06)",
+                  color: TEXT.primary,
                 },
               }}
             >
@@ -1943,14 +1858,13 @@ function DrillBanner({
               sx={{
                 px: 1.5,
                 py: 0.5,
-                borderRadius: "0.6rem",
                 fontSize: "0.78rem",
                 fontWeight: 700,
                 background: ACCENT.tint,
                 border: `1px solid ${ACCENT.border}`,
                 color: ACCENT.hover,
                 "&:hover": {
-                  background: "rgba(249,115,22,0.22)",
+                  background: ACCENT.tint,
                   borderColor: ACCENT.main,
                 },
               }}
@@ -1965,18 +1879,13 @@ function DrillBanner({
             sx={{
               px: 1.5,
               py: 0.5,
-              borderRadius: "0.6rem",
               fontSize: "0.78rem",
               fontWeight: 700,
-              background: isComplete ? ACCENT.main : "rgba(255,255,255,0.05)",
-              border: isComplete
-                ? `1px solid ${ACCENT.main}`
-                : `1px solid ${LINE.strong}`,
-              color: isComplete ? TEXT.onAccent : TEXT.primary,
+              background: "transparent",
+              border: `1px solid ${LINE.strong}`,
+              color: TEXT.primary,
               "&:hover": {
-                background: isComplete
-                  ? ACCENT.hover
-                  : "rgba(255,255,255,0.08)",
+                background: "rgba(255,255,255,0.06)",
               },
             }}
           >
@@ -2091,7 +2000,6 @@ function GlassEvalBar({
             fontSize: { xs: "0.5rem", md: "0.6rem" },
             fontWeight: 800,
             lineHeight: 1,
-            letterSpacing: "-0.02em",
             fontVariantNumeric: "tabular-nums",
             color: whiteAdv ? "rgba(17,19,24,0.92)" : "rgba(255,255,255,0.92)",
             zIndex: 2,
@@ -2297,7 +2205,7 @@ function BoardArea({
                   Hit{" "}
                   <Box
                     component="span"
-                    sx={{ color: "#FB923C", fontWeight: 700 }}
+                    sx={{ color: TEXT.primary, fontWeight: 600 }}
                   >
                     Load game
                   </Box>{" "}
@@ -2403,55 +2311,55 @@ function EvalSparkline({
     onJumpTo(Math.max(0, Math.min(series.length, targetPly)));
   };
 
+  // The percentage is the progress indicator; no dot beside it. The strip
+  // cannot grow, so these sit at the 12px floor with a pinned line height.
   const statusChip = analyzing ? (
-    <Stack
-      direction="row"
-      alignItems="center"
-      spacing={0.6}
-      sx={{
-        px: 0.9,
-        py: 0.15,
-        borderRadius: `${RADIUS.pill}px`,
-        background: SURFACE.raisedSecondary,
-        border: `1px solid ${ACCENT.border}`,
-      }}
-    >
-      <Box
-        sx={{
-          width: 5,
-          height: 5,
-          borderRadius: "50%",
-          background: ACCENT.main,
-        }}
-      />
-      <Typography
-        sx={{
-          fontSize: "0.64rem",
-          fontWeight: 700,
-          color: ACCENT.hover,
-          fontFamily: "Monaco, Menlo, monospace",
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        Stockfish · {Math.round(progress)}%
-      </Typography>
-    </Stack>
-  ) : errored ? (
     <Typography
       sx={{
         px: 0.9,
         py: 0.15,
-        borderRadius: `${RADIUS.pill}px`,
+        borderRadius: `${RADIUS.small}px`,
         background: SURFACE.raisedSecondary,
         border: `1px solid ${LINE.hairline}`,
-        fontSize: "0.64rem",
-        fontWeight: 700,
-        color: STATUS.error,
-        fontFamily: "Monaco, Menlo, monospace",
+        fontSize: "0.75rem",
+        lineHeight: 1.4,
+        fontWeight: 600,
+        color: TEXT.secondary,
+        fontVariantNumeric: "tabular-nums",
       }}
     >
-      Engine offline
+      Stockfish · {Math.round(progress)}%
     </Typography>
+  ) : errored ? (
+    <Stack
+      direction="row"
+      alignItems="center"
+      spacing={0.5}
+      sx={{
+        px: 0.9,
+        py: 0.15,
+        borderRadius: `${RADIUS.small}px`,
+        background: SURFACE.raisedSecondary,
+        border: `1px solid ${LINE.hairline}`,
+      }}
+    >
+      <AlertTriangle
+        size={12}
+        strokeWidth={1.75}
+        color={STATUS.error}
+        aria-hidden
+      />
+      <Typography
+        sx={{
+          fontSize: "0.75rem",
+          lineHeight: 1.4,
+          fontWeight: 600,
+          color: TEXT.primary,
+        }}
+      >
+        Engine offline
+      </Typography>
+    </Stack>
   ) : null;
 
   if (!hasGame || series.length < 2) {
@@ -2493,12 +2401,6 @@ function EvalSparkline({
         style={{ width: "100%", height: "100%", display: "block" }}
         onClick={handleClick}
       >
-        <defs>
-          <linearGradient id="evalGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#F97316" stopOpacity="0.45" />
-            <stop offset="100%" stopColor="#F97316" stopOpacity="0.05" />
-          </linearGradient>
-        </defs>
         {/* Grid line at eval=0 */}
         <line
           x1={0}
@@ -2512,7 +2414,8 @@ function EvalSparkline({
         {/* Area fill */}
         <path
           d={areaPath}
-          fill="url(#evalGrad)"
+          fill={ACCENT.main}
+          fillOpacity={0.12}
           opacity={analyzing ? 0.55 : 1}
         />
         {/* Line stroke — dashed while engine is still computing */}
@@ -2760,14 +2663,16 @@ function TabStrip({
                     display: { xs: "none", sm: "inline" },
                     px: 0.7,
                     py: 0.1,
-                    borderRadius: `${RADIUS.pill}px`,
+                    borderRadius: `${RADIUS.small}px`,
                     background: isActive
                       ? "rgba(255,255,255,0.14)"
                       : "rgba(255,255,255,0.08)",
-                    fontSize: "0.66rem",
-                    fontFamily: "Monaco, Menlo, monospace",
-                    fontWeight: 700,
-                    letterSpacing: "0.02em",
+                    // 12px with a pinned line height: the badge lands after
+                    // analysis and must not make the tab row taller.
+                    fontSize: "0.75rem",
+                    lineHeight: 1.4,
+                    fontWeight: 600,
+                    fontVariantNumeric: "tabular-nums",
                   }}
                 >
                   {t.badge}
@@ -2854,7 +2759,7 @@ function MovesListPanel({
             px: 0.85,
             py: 0.75,
             fontSize: "0.84rem",
-            fontFamily: "Monaco, Menlo, monospace",
+            fontFamily: FONT_MONO,
           }}
         >
           —
@@ -2894,13 +2799,12 @@ function MovesListPanel({
             color,
             fontSize: "0.86rem",
             fontWeight: 600,
-            fontFamily: "Monaco, Menlo, monospace",
-            transition: "all 150ms ease",
+            fontFamily: FONT_MONO,
+            transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
             position: "relative",
             "&:hover": {
-              background: isCurrent
-                ? "rgba(249,115,22,0.22)"
-                : "rgba(255,255,255,0.06)",
+              background: isCurrent ? ACCENT.tint : "rgba(255,255,255,0.06)",
+              borderColor: isCurrent ? ACCENT.main : "transparent",
               "& .ask-coach-btn": { opacity: 1 },
             },
           }}
@@ -2912,9 +2816,8 @@ function MovesListPanel({
                 component="span"
                 sx={{
                   ml: 0.4,
-                  fontSize: "0.7rem",
+                  fontSize: "0.75rem",
                   fontWeight: 700,
-                  letterSpacing: "0.02em",
                 }}
               >
                 {glyph}
@@ -2934,12 +2837,12 @@ function MovesListPanel({
                 width: 22,
                 height: 22,
                 p: 0,
-                color: "rgba(255,255,255,0.75)",
+                color: TEXT.secondary,
                 background: "rgba(255,255,255,0.06)",
-                transition: "opacity 160ms ease, background 160ms ease",
+                transition: `opacity ${MOTION.hover}, background-color ${MOTION.hover}, color ${MOTION.hover}`,
                 "&:hover": {
-                  color: "#FB923C",
-                  background: "rgba(249,115,22,0.18)",
+                  color: TEXT.primary,
+                  background: SURFACE.raisedTertiary,
                 },
               }}
             >
@@ -3010,9 +2913,9 @@ function MovesListPanel({
           </Typography>
           <Typography
             sx={{
-              fontSize: "0.72rem",
-              color: "rgba(255,255,255,0.5)",
-              fontFamily: "Monaco, Menlo, monospace",
+              fontSize: TYPE.caption.fontSize,
+              color: TEXT.secondary,
+              fontVariantNumeric: "tabular-nums",
               mt: 0.4,
             }}
           >
@@ -3052,13 +2955,13 @@ function MovesListPanel({
                 gap: 0.6,
                 px: 1.1,
                 py: 0.4,
-                borderRadius: "999px",
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: `${RADIUS.small}px`,
+                background: SURFACE.raisedSecondary,
+                border: `1px solid ${LINE.hairline}`,
               }}
             >
               <Typography
-                sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.5)" }}
+                sx={{ fontSize: TYPE.caption.fontSize, color: TEXT.secondary }}
               >
                 {label} accuracy
               </Typography>
@@ -3066,7 +2969,7 @@ function MovesListPanel({
                 sx={{
                   fontSize: "0.82rem",
                   fontWeight: 700,
-                  fontFamily: "Monaco, Menlo, monospace",
+                  fontVariantNumeric: "tabular-nums",
                   color: accuracyColor(value),
                 }}
               >
@@ -3083,11 +2986,6 @@ function MovesListPanel({
           overflowY: "auto",
           px: 1.25,
           py: 1.25,
-          "&::-webkit-scrollbar": { width: 6 },
-          "&::-webkit-scrollbar-thumb": {
-            background: "rgba(249,115,22,0.2)",
-            borderRadius: "3px",
-          },
         }}
       >
         <Stack spacing={0.25}>
@@ -3115,9 +3013,9 @@ function MovesListPanel({
                     flexShrink: 0,
                     textAlign: "right",
                     pr: 0.75,
-                    color: "rgba(255,255,255,0.4)",
+                    color: TEXT.secondary,
                     fontSize: "0.78rem",
-                    fontFamily: "Monaco, Menlo, monospace",
+                    fontVariantNumeric: "tabular-nums",
                   }}
                 >
                   {row.moveNumber}.
@@ -3161,9 +3059,8 @@ function MovesListPanel({
           alignItems="center"
           spacing={1.5}
           sx={{
-            fontSize: "0.7rem",
-            color: "rgba(255,255,255,0.5)",
-            fontFamily: "Monaco, Menlo, monospace",
+            fontSize: TYPE.caption.fontSize,
+            color: TEXT.secondary,
             flexWrap: "wrap",
           }}
         >
@@ -3223,7 +3120,7 @@ function ExplorationBanner({
         px: 1.5,
         py: 0.85,
         borderRadius: `${RADIUS.control}px`,
-        background: STATUS.warningTint,
+        background: SURFACE.raisedSecondary,
         border: `1px solid ${LINE.hairline}`,
         display: "flex",
         alignItems: "center",
@@ -3238,7 +3135,7 @@ function ExplorationBanner({
         alignItems="center"
         sx={{ flexShrink: 0 }}
       >
-        <GitBranch size={16} strokeWidth={1.75} color={STATUS.warning} />
+        <GitBranch size={16} strokeWidth={1.75} color={TEXT.secondary} />
         <Typography
           sx={{
             ...TYPE.label,
@@ -3253,9 +3150,9 @@ function ExplorationBanner({
         sx={{
           flex: 1,
           minWidth: 0,
-          fontFamily: "Monaco, Menlo, monospace",
+          fontFamily: FONT_MONO,
           fontSize: "0.78rem",
-          color: "rgba(255,255,255,0.82)",
+          color: TEXT.primary,
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
@@ -3275,18 +3172,16 @@ function ExplorationBanner({
             px: 1.25,
             py: 0.4,
             minWidth: 0,
-            borderRadius: "8px",
             fontSize: "0.75rem",
             fontWeight: 700,
             textTransform: "none",
             whiteSpace: "nowrap",
-            background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.14)",
-            color: "rgba(255,255,255,0.88)",
+            background: "transparent",
+            border: `1px solid ${LINE.strong}`,
+            color: TEXT.primary,
             "&:hover": {
-              background: "rgba(251,191,36,0.16)",
-              borderColor: "rgba(251,191,36,0.45)",
-              color: "#FBBF24",
+              background: "rgba(255,255,255,0.06)",
+              borderColor: TEXT.secondary,
             },
           }}
         >
@@ -3363,11 +3258,11 @@ function LinesControls({
           font: "inherit",
           px: 1,
           py: 0.35,
-          borderRadius: "7px",
-          fontFamily: "Monaco, Menlo, monospace",
-          fontSize: "0.72rem",
-          fontWeight: 700,
+          borderRadius: `${RADIUS.small}px`,
+          fontSize: TYPE.caption.fontSize,
+          fontWeight: 600,
           lineHeight: 1.4,
+          fontVariantNumeric: "tabular-nums",
           background: active ? ACCENT.tint : "rgba(255,255,255,0.04)",
           border: active
             ? `1px solid ${ACCENT.border}`
@@ -3401,9 +3296,9 @@ function LinesControls({
     <Box
       sx={{
         mb: 1.5,
-        borderRadius: "0.6rem",
-        background: "rgba(0,0,0,0.22)",
-        border: "1px solid rgba(255,255,255,0.06)",
+        borderRadius: `${RADIUS.control}px`,
+        background: SURFACE.raisedSecondary,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       {/* Collapsed summary — the settings that are in force right now. */}
@@ -3423,16 +3318,17 @@ function LinesControls({
           display: "flex",
           alignItems: "center",
           gap: 1,
-          color: "rgba(255,255,255,0.7)",
-          "&:hover": { color: "rgba(255,255,255,0.95)" },
+          color: TEXT.secondary,
+          transition: `color ${MOTION.hover}`,
+          "&:hover": { color: TEXT.primary },
         }}
       >
-        <Activity size={13} color="#FB923C" />
+        <Activity size={16} strokeWidth={1.75} color={TEXT.secondary} />
         <Typography
           sx={{
-            fontSize: "0.74rem",
+            fontSize: TYPE.caption.fontSize,
             fontWeight: 600,
-            fontFamily: "Monaco, Menlo, monospace",
+            fontVariantNumeric: "tabular-nums",
             color: "inherit",
           }}
         >
@@ -3442,18 +3338,19 @@ function LinesControls({
         <Box sx={{ flex: 1 }} />
         <Typography
           sx={{
-            fontSize: "0.68rem",
-            color: "rgba(255,255,255,0.45)",
+            fontSize: TYPE.caption.fontSize,
+            color: TEXT.secondary,
             whiteSpace: "nowrap",
           }}
         >
           {open ? "Hide" : "Accuracy"}
         </Typography>
         <ChevronRight
-          size={13}
+          size={16}
+          strokeWidth={1.75}
           style={{
             transform: open ? "rotate(90deg)" : "none",
-            transition: "transform 160ms ease",
+            transition: `transform ${MOTION.enter}`,
           }}
         />
       </Box>
@@ -3541,13 +3438,13 @@ function LinesControls({
               textAlign: "left",
               px: 1,
               py: 0.75,
-              borderRadius: "7px",
+              borderRadius: `${RADIUS.small}px`,
               background: settings.preferLocalEngine
-                ? "rgba(249,115,22,0.1)"
+                ? ACCENT.tint
                 : "rgba(255,255,255,0.03)",
               border: settings.preferLocalEngine
-                ? "1px solid rgba(249,115,22,0.35)"
-                : "1px solid rgba(255,255,255,0.08)",
+                ? `1px solid ${ACCENT.border}`
+                : `1px solid ${LINE.hairline}`,
               display: "flex",
               alignItems: "flex-start",
               gap: 1,
@@ -3561,30 +3458,27 @@ function LinesControls({
                 flexShrink: 0,
                 borderRadius: "4px",
                 border: settings.preferLocalEngine
-                  ? "1px solid #FB923C"
+                  ? `1px solid ${ACCENT.main}`
                   : "1px solid rgba(255,255,255,0.3)",
                 background: settings.preferLocalEngine
-                  ? "#FB923C"
+                  ? ACCENT.main
                   : "transparent",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#0A0A0A",
-                fontSize: "0.6rem",
-                fontWeight: 900,
-                lineHeight: 1,
+                color: TEXT.onAccent,
               }}
             >
-              {settings.preferLocalEngine ? "✓" : ""}
+              {settings.preferLocalEngine ? (
+                <Check size={11} strokeWidth={3} aria-hidden />
+              ) : null}
             </Box>
             <Box sx={{ minWidth: 0 }}>
               <Typography
                 sx={{
-                  fontSize: "0.74rem",
-                  fontWeight: 700,
-                  color: settings.preferLocalEngine
-                    ? "#FB923C"
-                    : "rgba(255,255,255,0.85)",
+                  fontSize: TYPE.caption.fontSize,
+                  fontWeight: 600,
+                  color: TEXT.primary,
                   lineHeight: 1.3,
                 }}
               >
@@ -3592,8 +3486,8 @@ function LinesControls({
               </Typography>
               <Typography
                 sx={{
-                  fontSize: "0.7rem",
-                  color: "rgba(255,255,255,0.5)",
+                  fontSize: TYPE.caption.fontSize,
+                  color: TEXT.secondary,
                   lineHeight: 1.45,
                   mt: 0.2,
                 }}
@@ -3738,23 +3632,20 @@ function EngineLinesPanel({
       >
         <Box
           sx={{
-            color: "rgba(255,255,255,0.9)",
+            color: TEXT.primary,
             fontSize: "0.92rem",
             fontWeight: 700,
-            letterSpacing: "0.01em",
           }}
         >
           Engine lines
         </Box>
         <Stack direction="row" spacing={1} alignItems="center">
           {analyzing && (
-            <Box
-              sx={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: ACCENT.main,
-              }}
+            <CircularProgress
+              size={16}
+              thickness={4}
+              aria-label="Stockfish is searching"
+              sx={{ color: TEXT.secondary, flexShrink: 0 }}
             />
           )}
           {/* Who actually answered.
@@ -3806,7 +3697,7 @@ function EngineLinesPanel({
             px: 1.25,
             py: 0.85,
             borderRadius: `${RADIUS.control}px`,
-            background: STATUS.warningTint,
+            background: SURFACE.raisedSecondary,
             border: `1px solid ${LINE.hairline}`,
           }}
         >
@@ -3821,9 +3712,9 @@ function EngineLinesPanel({
           </Typography>
           <Typography
             sx={{
-              fontFamily: "Monaco, Menlo, monospace",
+              fontFamily: FONT_MONO,
               fontSize: "0.76rem",
-              color: "rgba(255,255,255,0.8)",
+              color: TEXT.primary,
               wordBreak: "break-word",
             }}
           >
@@ -3841,11 +3732,12 @@ function EngineLinesPanel({
                 background: "none",
                 p: 0,
                 font: "inherit",
-                fontSize: "0.74rem",
+                fontSize: TYPE.caption.fontSize,
                 fontWeight: 600,
-                color: "rgba(255,255,255,0.6)",
+                color: TEXT.secondary,
                 textDecoration: "underline",
-                "&:hover": { color: "#FBBF24" },
+                transition: `color ${MOTION.hover}`,
+                "&:hover": { color: TEXT.primary },
               }}
             >
               Back to move {Math.max(1, Math.ceil(exploring.anchorPly / 2))}{" "}
@@ -3873,9 +3765,9 @@ function EngineLinesPanel({
               key={i}
               sx={{
                 p: 1.25,
-                borderRadius: "0.6rem",
-                background: "rgba(0,0,0,0.25)",
-                border: "1px solid rgba(255,255,255,0.06)",
+                borderRadius: `${RADIUS.control}px`,
+                background: SURFACE.raisedSecondary,
+                border: `1px solid ${LINE.hairline}`,
                 display: "flex",
                 gap: 1.25,
                 alignItems: "baseline",
@@ -3885,14 +3777,13 @@ function EngineLinesPanel({
                 sx={{
                   flexShrink: 0,
                   width: 56,
-                  fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                  fontFamily: FONT_MONO,
                   fontWeight: 700,
+                  fontVariantNumeric: "tabular-nums",
                   color:
-                    typeof line.mate === "number"
-                      ? "#FB923C"
-                      : (line.cp ?? 0) >= 0
-                        ? "#E2E8F0"
-                        : "rgba(255,255,255,0.62)",
+                    typeof line.mate === "number" || (line.cp ?? 0) >= 0
+                      ? TEXT.primary
+                      : TEXT.secondary,
                   fontSize: "0.92rem",
                 }}
               >
@@ -3901,8 +3792,8 @@ function EngineLinesPanel({
               <Box
                 sx={{
                   flex: 1,
-                  fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                  color: "rgba(255,255,255,0.78)",
+                  fontFamily: FONT_MONO,
+                  color: TEXT.primary,
                   fontSize: "0.86rem",
                   lineHeight: 1.5,
                 }}
@@ -3912,8 +3803,9 @@ function EngineLinesPanel({
               <Box
                 sx={{
                   flexShrink: 0,
-                  color: "rgba(255,255,255,0.36)",
-                  fontSize: "0.7rem",
+                  color: TEXT.secondary,
+                  fontFamily: FONT_MONO,
+                  fontSize: TYPE.caption.fontSize,
                 }}
               >
                 d{line.depth}
@@ -3930,8 +3822,8 @@ function EngineLinesPanel({
 // Shown once per game inside the coach stream when the player's side
 // can't be inferred (no username match, no stored answer). Answering
 // threads playerColor into every analysis/chat request and persists the
-// choice per-game. Dark-glass styling; the two side buttons are equal
-// choices, so ember stays a hover accent rather than a fill.
+// choice per-game. The two side buttons are equal choices, so neither
+// wears the accent; hover is a neutral step up the surface ladder.
 function PlayerSideAsk({
   onChoose,
 }: {
@@ -3960,9 +3852,9 @@ function PlayerSideAsk({
         fontFamily: "inherit",
         transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
         "&:hover": {
-          background: ACCENT.tint,
-          borderColor: ACCENT.border,
-          color: ACCENT.hover,
+          background: "rgba(255,255,255,0.08)",
+          borderColor: LINE.strong,
+          color: TEXT.primary,
         },
         "&:active": { transform: MOTION.pressScale },
       }}
@@ -4005,8 +3897,8 @@ function PlayerSideAsk({
       </Stack>
       <Typography
         sx={{
-          fontSize: "0.7rem",
-          color: "rgba(255,255,255,0.45)",
+          fontSize: TYPE.caption.fontSize,
+          color: TEXT.secondary,
           mt: 1,
           lineHeight: 1.4,
         }}
@@ -4048,14 +3940,14 @@ function PlayerSideChip({
           px: 1.25,
           py: 0.4,
           cursor: onChoose ? "pointer" : "default",
-          borderRadius: "999px",
+          borderRadius: `${RADIUS.pill}px`,
           background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.1)",
-          transition: "all 180ms ease",
+          border: `1px solid ${LINE.hairline}`,
+          transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
           "&:hover": onChoose
             ? {
-                background: "rgba(249,115,22,0.1)",
-                borderColor: "rgba(249,115,22,0.4)",
+                background: "rgba(255,255,255,0.06)",
+                borderColor: LINE.strong,
               }
             : {},
         }}
@@ -4069,9 +3961,9 @@ function PlayerSideChip({
         </Box>
         <Typography
           sx={{
-            fontSize: "0.68rem",
+            fontSize: TYPE.caption.fontSize,
             fontWeight: 600,
-            color: "rgba(255,255,255,0.65)",
+            color: TEXT.secondary,
           }}
         >
           Coaching you as {side.color === "white" ? "White" : "Black"}
@@ -4079,9 +3971,9 @@ function PlayerSideChip({
         {onChoose && (
           <Typography
             sx={{
-              fontSize: "0.68rem",
-              fontWeight: 700,
-              color: "#FB923C",
+              fontSize: TYPE.caption.fontSize,
+              fontWeight: 600,
+              color: ACCENT.hover,
             }}
           >
             · switch
@@ -4216,25 +4108,27 @@ function SlashCommandMenu({
               gap: 1.25,
               alignItems: "flex-start",
               cursor: "pointer",
-              background: active ? "rgba(249,115,22,0.14)" : "transparent",
-              borderLeft: active
-                ? "2px solid #F97316"
-                : "2px solid transparent",
-              "&:hover": { background: "rgba(249,115,22,0.1)" },
+              background: active ? "rgba(255,255,255,0.10)" : "transparent",
+              transition: `background-color ${MOTION.hover}`,
+              "&:hover": {
+                background: active
+                  ? "rgba(255,255,255,0.10)"
+                  : "rgba(255,255,255,0.06)",
+              },
             }}
           >
             <Icon
-              size={15}
-              color={active ? "#FB923C" : "rgba(255,255,255,0.5)"}
+              size={16}
+              strokeWidth={1.75}
+              color={active ? TEXT.primary : TEXT.secondary}
               style={{ marginTop: 2, flexShrink: 0 }}
             />
             <Box sx={{ minWidth: 0 }}>
               <Typography
                 sx={{
-                  fontFamily: "Monaco, Menlo, monospace",
                   fontSize: "0.82rem",
-                  fontWeight: 700,
-                  color: active ? "#FB923C" : "rgba(255,255,255,0.92)",
+                  fontWeight: active ? 600 : 500,
+                  color: TEXT.primary,
                   lineHeight: 1.3,
                 }}
               >
@@ -4242,8 +4136,8 @@ function SlashCommandMenu({
               </Typography>
               <Typography
                 sx={{
-                  fontSize: "0.74rem",
-                  color: "rgba(255,255,255,0.55)",
+                  fontSize: TYPE.caption.fontSize,
+                  color: TEXT.secondary,
                   lineHeight: 1.45,
                 }}
               >
@@ -4257,10 +4151,9 @@ function SlashCommandMenu({
         sx={{
           px: 1.5,
           py: 0.6,
-          borderTop: "1px solid rgba(255,255,255,0.06)",
-          fontSize: "0.68rem",
-          color: "rgba(255,255,255,0.38)",
-          fontFamily: "Monaco, Menlo, monospace",
+          borderTop: `1px solid ${LINE.hairline}`,
+          fontSize: TYPE.caption.fontSize,
+          color: TEXT.secondary,
         }}
       >
         ↑↓ select · ⏎ run · esc dismiss
@@ -4481,7 +4374,7 @@ function CoachPanel({
           replayKey={`${mood ?? "wave"}:${moodPulse ?? 0}`}
           data-testid="coach-masti"
         />
-        <Box sx={{ flex: 1 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             sx={{
               fontSize: "0.95rem",
@@ -4493,30 +4386,21 @@ function CoachPanel({
           >
             Masti
           </Typography>
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="center"
-            sx={{ mt: 0.5 }}
+          {/* The one plain disclosure the coach panel carries. One line,
+              truncated rather than wrapped, so the header never grows. */}
+          <Typography
+            sx={{
+              mt: 0.5,
+              fontSize: TYPE.caption.fontSize,
+              lineHeight: 1.35,
+              color: TEXT.secondary,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
           >
-            <Box
-              sx={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: STATUS.success,
-              }}
-            />
-            <Typography
-              sx={{
-                fontSize: "0.72rem",
-                color: TEXT.secondary,
-                fontFamily: "Monaco, Menlo, monospace",
-              }}
-            >
-              Every claim is checked against the engine
-            </Typography>
-          </Stack>
+            Masti&apos;s notes are written by an AI model.
+          </Typography>
         </Box>
         {/* Personality picker chip — clicking opens a glass popover with
             the 6 coach voices. Closes the `personalityId` parity gap
@@ -4534,13 +4418,14 @@ function CoachPanel({
                 gap: 0.5,
                 px: 1,
                 py: 0.4,
-                borderRadius: "999px",
+                flexShrink: 0,
+                borderRadius: `${RADIUS.pill}px`,
                 background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                transition: "all 180ms ease",
+                border: `1px solid ${LINE.hairline}`,
+                transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
                 "&:hover": {
-                  background: "rgba(249,115,22,0.08)",
-                  borderColor: "rgba(249,115,22,0.32)",
+                  background: "rgba(255,255,255,0.06)",
+                  borderColor: LINE.strong,
                 },
               }}
             >
@@ -4553,9 +4438,10 @@ function CoachPanel({
               />
               <Typography
                 sx={{
-                  fontSize: "0.68rem",
-                  fontWeight: 700,
-                  color: "rgba(255,255,255,0.78)",
+                  fontSize: TYPE.caption.fontSize,
+                  lineHeight: 1.3,
+                  fontWeight: 600,
+                  color: TEXT.primary,
                   maxWidth: 110,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -4564,7 +4450,11 @@ function CoachPanel({
               >
                 {personality.title.replace(/^The /, "")}
               </Typography>
-              <ChevronDown size={11} color="rgba(255,255,255,0.55)" />
+              <ChevronDown
+                size={14}
+                strokeWidth={1.75}
+                color={TEXT.secondary}
+              />
             </Box>
           </Tooltip>
         )}
@@ -4612,15 +4502,15 @@ function CoachPanel({
                   display: "flex",
                   alignItems: "flex-start",
                   gap: 1.25,
-                  transition: "background 160ms ease",
+                  borderRadius: `${RADIUS.small}px`,
+                  transition: `background-color ${MOTION.hover}`,
                   background: isActive
-                    ? "rgba(249,115,22,0.08)"
+                    ? "rgba(255,255,255,0.10)"
                     : "transparent",
-                  borderLeft: isActive
-                    ? "2px solid #FB923C"
-                    : "2px solid transparent",
                   "&:hover": {
-                    background: "rgba(249,115,22,0.12)",
+                    background: isActive
+                      ? "rgba(255,255,255,0.10)"
+                      : "rgba(255,255,255,0.06)",
                   },
                 }}
               >
@@ -4637,8 +4527,8 @@ function CoachPanel({
                   <Typography
                     sx={{
                       fontSize: "0.84rem",
-                      fontWeight: 700,
-                      color: isActive ? "#FB923C" : "rgba(255,255,255,0.92)",
+                      fontWeight: isActive ? 600 : 500,
+                      color: TEXT.primary,
                       lineHeight: 1.2,
                     }}
                   >
@@ -4647,9 +4537,9 @@ function CoachPanel({
                       component="span"
                       sx={{
                         ml: 0.6,
-                        fontSize: "0.7rem",
-                        fontWeight: 600,
-                        color: "rgba(255,255,255,0.42)",
+                        fontSize: TYPE.caption.fontSize,
+                        fontWeight: 400,
+                        color: TEXT.secondary,
                       }}
                     >
                       {p.title}
@@ -4657,8 +4547,8 @@ function CoachPanel({
                   </Typography>
                   <Typography
                     sx={{
-                      fontSize: "0.74rem",
-                      color: "rgba(255,255,255,0.58)",
+                      fontSize: TYPE.caption.fontSize,
+                      color: TEXT.secondary,
                       lineHeight: 1.4,
                       mt: 0.25,
                     }}
@@ -4670,27 +4560,6 @@ function CoachPanel({
             );
           })}
         </Menu>
-        <Tooltip title="Every claim validated against the engine">
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.5,
-              px: 1.25,
-              py: 0.5,
-              borderRadius: "999px",
-              background: "rgba(34,197,94,0.1)",
-              border: "1px solid rgba(34,197,94,0.25)",
-            }}
-          >
-            <ShieldCheck size={12} color="#22c55e" />
-            <Typography
-              sx={{ fontSize: "0.68rem", color: "#86efac", fontWeight: 600 }}
-            >
-              Validated
-            </Typography>
-          </Box>
-        </Tooltip>
       </Box>
 
       {/* Messages */}
@@ -4703,11 +4572,6 @@ function CoachPanel({
           py: 2.5,
           position: "relative",
           zIndex: 1,
-          "&::-webkit-scrollbar": { width: 6 },
-          "&::-webkit-scrollbar-thumb": {
-            background: "rgba(249,115,22,0.2)",
-            borderRadius: "3px",
-          },
         }}
       >
         <Stack spacing={2}>
@@ -4814,27 +4678,27 @@ function CoachPanel({
                 cursor: "pointer",
                 px: 1.5,
                 py: 0.6,
-                borderRadius: "999px",
-                // Pinned suggestions (just "Analyze my game" today) get
-                // the ember accent always-on so they read as a primary
-                // CTA among the rule-derived neutral pills.
-                background: s.pinned
-                  ? "rgba(249,115,22,0.14)"
-                  : "rgba(255,255,255,0.04)",
+                borderRadius: `${RADIUS.pill}px`,
+                // Pinned suggestions (just "Analyze my game" today) wear the
+                // quiet ember tint so they read as the suggested action
+                // among the rule-derived neutral pills.
+                background: s.pinned ? ACCENT.tint : "rgba(255,255,255,0.04)",
                 border: s.pinned
-                  ? "1px solid rgba(249,115,22,0.45)"
-                  : "1px solid rgba(255,255,255,0.08)",
+                  ? `1px solid ${ACCENT.border}`
+                  : `1px solid ${LINE.hairline}`,
                 fontSize: "0.78rem",
-                color: s.pinned ? "#FB923C" : "rgba(255,255,255,0.78)",
+                color: s.pinned ? ACCENT.hover : TEXT.secondary,
                 fontWeight: s.pinned ? 600 : 400,
-                transition: "all 180ms ease",
-                "&:hover": {
-                  background: s.pinned
-                    ? "rgba(249,115,22,0.22)"
-                    : "rgba(249,115,22,0.12)",
-                  borderColor: ACCENT.border,
-                  color: ACCENT.hover,
-                },
+                touchAction: "manipulation",
+                transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
+                "&:hover": s.pinned
+                  ? { borderColor: ACCENT.main }
+                  : {
+                      background: "rgba(255,255,255,0.06)",
+                      borderColor: LINE.strong,
+                      color: TEXT.primary,
+                    },
+                "&:active": { transform: MOTION.pressScale },
               }}
             >
               {s.text}
@@ -4865,69 +4729,60 @@ function CoachPanel({
             contributed, and the user is the only one who can decide whether to
             ask anyway. */}
         {AI_DISABLED && (
-          <Box
-            sx={{
-              mb: 1.5,
-              px: 1.5,
-              py: 1,
-              borderRadius: "10px",
-              border: "1px solid rgba(249,115,22,0.28)",
-              background: "rgba(249,115,22,0.08)",
-              fontSize: "0.78rem",
-              lineHeight: 1.5,
-              color: "rgba(255,255,255,0.75)",
-            }}
-          >
-            <Box component="span" sx={{ color: "#FB923C", fontWeight: 600 }}>
-              AI coaching is paused.
-            </Box>{" "}
-            {AI_DISABLED_ERROR.message}
+          <Box sx={{ ...STATUS_BANNER_SX, background: STATUS.infoTint }}>
+            <Info
+              size={16}
+              strokeWidth={1.75}
+              color={STATUS.info}
+              aria-hidden
+              style={{ flexShrink: 0, marginTop: 2 }}
+            />
+            <Box sx={{ minWidth: 0 }}>
+              <Box component="span" sx={{ fontWeight: 600 }}>
+                Masti is paused.
+              </Box>{" "}
+              {AI_DISABLED_ERROR.message}
+            </Box>
           </Box>
         )}
         {!AI_DISABLED && engineDataUnavailable && (
-          <Box
-            sx={{
-              mb: 1.5,
-              px: 1.5,
-              py: 1,
-              borderRadius: "10px",
-              border: "1px solid rgba(249,115,22,0.28)",
-              background: "rgba(249,115,22,0.08)",
-              fontSize: "0.78rem",
-              lineHeight: 1.5,
-              color: "rgba(255,255,255,0.75)",
-            }}
-          >
-            <Box component="span" sx={{ color: "#FB923C", fontWeight: 600 }}>
-              Coaching without engine analysis.
-            </Box>{" "}
-            Stockfish could not run in this browser, so evaluations, move
-            classifications and accuracy are unavailable. Ideas, plans and
-            openings still work.
+          <Box sx={{ ...STATUS_BANNER_SX, background: STATUS.warningTint }}>
+            <AlertTriangle
+              size={16}
+              strokeWidth={1.75}
+              color={STATUS.warning}
+              aria-hidden
+              style={{ flexShrink: 0, marginTop: 2 }}
+            />
+            <Box sx={{ minWidth: 0 }}>
+              <Box component="span" sx={{ fontWeight: 600 }}>
+                Coaching without engine analysis.
+              </Box>{" "}
+              Stockfish could not run in this browser, so evaluations, move
+              classifications and accuracy are unavailable. Ideas, plans and
+              openings still work.
+            </Box>
           </Box>
         )}
         {!AI_DISABLED && signedOut && (
           <Box
             {...SIGN_IN_PROPS}
             sx={{
-              mb: 1.5,
-              px: 1.5,
-              py: 1,
-              borderRadius: "10px",
-              border: "1px solid rgba(249,115,22,0.28)",
-              background: "rgba(249,115,22,0.08)",
-              fontSize: "0.78rem",
-              lineHeight: 1.5,
-              color: "rgba(255,255,255,0.75)",
-              display: "flex",
+              ...STATUS_BANNER_SX,
+              background: STATUS.infoTint,
               alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1.5,
               flexWrap: "wrap",
             }}
           >
-            <Box>
-              <Box component="span" sx={{ color: "#FB923C", fontWeight: 600 }}>
+            <Info
+              size={16}
+              strokeWidth={1.75}
+              color={STATUS.info}
+              aria-hidden
+              style={{ flexShrink: 0 }}
+            />
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Box component="span" sx={{ fontWeight: 600 }}>
                 The coach needs a free account.
               </Box>{" "}
               Engine analysis runs without one; explanations don&apos;t.
@@ -4937,19 +4792,18 @@ function CoachPanel({
               onClick={onSignIn}
               sx={{
                 textTransform: "none",
-                fontWeight: 700,
-                fontSize: "0.78rem",
+                fontWeight: 600,
+                fontSize: TYPE.caption.fontSize,
                 px: 1.5,
                 py: 0.4,
-                borderRadius: `${RADIUS.pill}px`,
-                color: TEXT.onAccent,
-                background: ACCENT.main,
+                color: ACCENT.hover,
+                background: "transparent",
                 "&:hover": {
-                  background: ACCENT.hover,
+                  background: "rgba(255,255,255,0.06)",
                 },
               }}
             >
-              Sign in for free
+              Sign in
             </Button>
           </Box>
         )}
@@ -5012,14 +4866,14 @@ function CoachPanel({
             }}
             placeholder={
               AI_DISABLED
-                ? "Coaching is paused. See the note above."
+                ? "Masti is paused. See the note above."
                 : signedOut
                   ? "Sign in to ask the coach: free account, no card."
                   : analysisActive
                     ? "Analyzing your game. Ask the coach when the engine finishes."
                     : engineDataUnavailable
                       ? "Ask anything. The answer comes without engine analysis."
-                      : "Ask anything about this position..."
+                      : "Ask about this position"
             }
             disabled={AI_DISABLED || analysisActive}
             fullWidth
@@ -5027,18 +4881,10 @@ function CoachPanel({
             maxRows={3}
             sx={{
               "& .MuiOutlinedInput-root": {
-                backgroundColor: "rgba(255,255,255,0.04)",
-                borderRadius: "14px",
                 fontSize: "0.92rem",
-                "& fieldset": { borderColor: "rgba(255,255,255,0.1)" },
-                "&:hover fieldset": { borderColor: "rgba(255,255,255,0.2)" },
-                "&.Mui-focused fieldset": {
-                  borderColor: "rgba(249,115,22,0.5)",
-                  borderWidth: "1px",
-                },
               },
               "& .MuiOutlinedInput-input": {
-                color: "rgba(255,255,255,0.95)",
+                color: TEXT.primary,
                 "&::placeholder": {
                   color: "rgba(255,255,255,0.4)",
                   opacity: 1,
@@ -5217,12 +5063,11 @@ function InlinePuzzleSolver({
         : turn === "white"
           ? "White to move"
           : "Black to move";
-  const statusColor =
-    status === "wrong"
-      ? STATUS.error
-      : status === "solved"
-        ? STATUS.success
-        : TEXT.secondary;
+  // The status colour goes on the icon; the words stay readable on the
+  // raisedSecondary block (STATUS.error as text there is 4.09:1).
+  const StatusIcon =
+    status === "wrong" ? X : status === "solved" ? Check : null;
+  const statusIconColor = status === "wrong" ? STATUS.error : STATUS.success;
 
   // Right or wrong is shown as a ring around the board: a status colour, at
   // the moment it applies, and no shadow.
@@ -5252,7 +5097,7 @@ function InlinePuzzleSolver({
           borderRadius: "10px",
           outline: "3px solid",
           outlineColor: flashColor,
-          transition: "outline-color 400ms ease",
+          transition: `outline-color ${MOTION.hover}`,
           overflow: "hidden",
         }}
       >
@@ -5268,11 +5113,20 @@ function InlinePuzzleSolver({
         />
       </Box>
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1.25 }}>
+        {StatusIcon && (
+          <StatusIcon
+            size={16}
+            strokeWidth={1.75}
+            color={statusIconColor}
+            aria-hidden
+            style={{ flexShrink: 0 }}
+          />
+        )}
         <Typography
           sx={{
-            fontSize: "0.78rem",
+            fontSize: TYPE.caption.fontSize,
             fontWeight: 600,
-            color: statusColor,
+            color: status === "solving" ? TEXT.secondary : TEXT.primary,
             flex: 1,
           }}
         >
@@ -5285,11 +5139,14 @@ function InlinePuzzleSolver({
             sx={{
               px: 1,
               py: 0.4,
-              fontSize: "0.72rem",
+              fontSize: TYPE.caption.fontSize,
               fontWeight: 600,
-              color: "rgba(255,255,255,0.6)",
+              color: TEXT.secondary,
               textTransform: "none",
-              "&:hover": { color: "rgba(255,255,255,0.9)" },
+              "&:hover": {
+                color: TEXT.primary,
+                background: "rgba(255,255,255,0.06)",
+              },
             }}
           >
             Skip
@@ -5302,15 +5159,14 @@ function InlinePuzzleSolver({
             sx={{
               px: 1.25,
               py: 0.45,
-              borderRadius: "0.5rem",
-              fontSize: "0.72rem",
-              fontWeight: 700,
-              background: "rgba(168,85,247,0.15)",
-              border: "1px solid rgba(168,85,247,0.32)",
-              color: "#E9D5FF",
+              fontSize: TYPE.caption.fontSize,
+              fontWeight: 600,
+              background: "transparent",
+              border: `1px solid ${LINE.strong}`,
+              color: TEXT.primary,
               "&:hover": {
-                background: "rgba(168,85,247,0.28)",
-                borderColor: "rgba(168,85,247,0.55)",
+                background: "rgba(255,255,255,0.06)",
+                borderColor: TEXT.secondary,
               },
             }}
           >
@@ -5400,9 +5256,9 @@ function CoachPuzzleCard({
         <Box sx={{ flex: 1 }} />
         <Typography
           sx={{
-            fontSize: "0.7rem",
-            color: "rgba(255,255,255,0.45)",
-            fontFamily: "Monaco, Menlo, monospace",
+            fontSize: TYPE.caption.fontSize,
+            color: TEXT.secondary,
+            fontVariantNumeric: "tabular-nums",
           }}
         >
           {pack.status === "loading"
@@ -5431,15 +5287,25 @@ function CoachPuzzleCard({
           sx={{
             px: 1.5,
             py: 1.5,
-            borderRadius: "0.6rem",
-            background: "rgba(239,68,68,0.08)",
-            border: "1px solid rgba(239,68,68,0.2)",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 1,
+            borderRadius: `${RADIUS.control}px`,
+            background: STATUS.errorTint,
+            border: `1px solid ${LINE.hairline}`,
           }}
         >
+          <AlertTriangle
+            size={16}
+            strokeWidth={1.75}
+            color={STATUS.error}
+            aria-hidden
+            style={{ flexShrink: 0, marginTop: 1 }}
+          />
           <Typography
             sx={{
-              fontSize: "0.8rem",
-              color: "#fca5a5",
+              fontSize: TYPE.caption.fontSize,
+              color: TEXT.primary,
               lineHeight: 1.4,
             }}
           >
@@ -5464,23 +5330,22 @@ function CoachPuzzleCard({
                   gap: 1.25,
                   px: 1.25,
                   py: 1,
-                  borderRadius: isExpanded ? "0.6rem 0.6rem 0 0" : "0.6rem",
+                  borderRadius: isExpanded
+                    ? `${RADIUS.small}px ${RADIUS.small}px 0 0`
+                    : `${RADIUS.small}px`,
                   background: isExpanded
-                    ? "rgba(168,85,247,0.08)"
-                    : "rgba(255,255,255,0.03)",
-                  border: isExpanded
-                    ? "1px solid rgba(168,85,247,0.32)"
-                    : "1px solid rgba(255,255,255,0.05)",
+                    ? "rgba(255,255,255,0.10)"
+                    : SURFACE.raisedSecondary,
+                  border: `1px solid ${LINE.hairline}`,
                   borderBottom: isExpanded
                     ? "none"
-                    : "1px solid rgba(255,255,255,0.05)",
+                    : `1px solid ${LINE.hairline}`,
                   cursor: "pointer",
-                  transition: "all 160ms ease",
+                  transition: `background-color ${MOTION.hover}`,
                   "&:hover": {
                     background: isExpanded
-                      ? "rgba(168,85,247,0.1)"
-                      : "rgba(168,85,247,0.06)",
-                    borderColor: "rgba(168,85,247,0.25)",
+                      ? "rgba(255,255,255,0.10)"
+                      : "rgba(255,255,255,0.06)",
                   },
                 }}
               >
@@ -5491,21 +5356,22 @@ function CoachPuzzleCard({
                     flexShrink: 0,
                     borderRadius: "50%",
                     background: isSolved
-                      ? "rgba(34,197,94,0.18)"
-                      : "rgba(168,85,247,0.15)",
-                    border: isSolved
-                      ? "1px solid rgba(34,197,94,0.4)"
-                      : "1px solid rgba(168,85,247,0.3)",
+                      ? STATUS.successTint
+                      : SURFACE.raisedTertiary,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: "0.72rem",
-                    fontWeight: 700,
-                    color: isSolved ? "#86efac" : "#C084FC",
-                    fontFamily: "Monaco, Menlo, monospace",
+                    fontSize: TYPE.caption.fontSize,
+                    fontWeight: 600,
+                    fontVariantNumeric: "tabular-nums",
+                    color: isSolved ? STATUS.success : TEXT.secondary,
                   }}
                 >
-                  {isSolved ? <Check size={12} /> : i + 1}
+                  {isSolved ? (
+                    <Check size={14} strokeWidth={1.75} aria-label="Solved" />
+                  ) : (
+                    i + 1
+                  )}
                 </Box>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography
@@ -5521,8 +5387,8 @@ function CoachPuzzleCard({
                   <Typography
                     sx={{
                       mt: 0.25,
-                      fontSize: "0.72rem",
-                      color: "rgba(255,255,255,0.5)",
+                      fontSize: TYPE.caption.fontSize,
+                      color: TEXT.secondary,
                       lineHeight: 1.35,
                     }}
                   >
@@ -5541,16 +5407,14 @@ function CoachPuzzleCard({
                       minWidth: 0,
                       px: 1.25,
                       py: 0.5,
-                      borderRadius: "0.55rem",
-                      fontSize: "0.72rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.02em",
-                      background: "rgba(168,85,247,0.15)",
-                      border: "1px solid rgba(168,85,247,0.35)",
-                      color: "#E9D5FF",
+                      fontSize: TYPE.caption.fontSize,
+                      fontWeight: 600,
+                      background: "transparent",
+                      border: `1px solid ${LINE.strong}`,
+                      color: TEXT.primary,
                       "&:hover": {
-                        background: "rgba(168,85,247,0.28)",
-                        borderColor: "rgba(168,85,247,0.6)",
+                        background: "rgba(255,255,255,0.06)",
+                        borderColor: TEXT.secondary,
                       },
                     }}
                   >
@@ -5560,8 +5424,8 @@ function CoachPuzzleCard({
                 <Box
                   sx={{
                     flexShrink: 0,
-                    color: "rgba(255,255,255,0.5)",
-                    transition: "transform 200ms ease",
+                    color: TEXT.secondary,
+                    transition: `transform ${MOTION.enter}`,
                     transform: isExpanded ? "rotate(180deg)" : "none",
                   }}
                 >
@@ -5571,10 +5435,9 @@ function CoachPuzzleCard({
               {isExpanded && (
                 <Box
                   sx={{
-                    border: "1px solid rgba(168,85,247,0.32)",
+                    border: `1px solid ${LINE.hairline}`,
                     borderTop: "none",
-                    borderRadius: "0 0 0.6rem 0.6rem",
-                    background: "rgba(168,85,247,0.04)",
+                    borderRadius: `0 0 ${RADIUS.small}px ${RADIUS.small}px`,
                     p: 0.5,
                   }}
                 >
@@ -5632,14 +5495,12 @@ function ContinuationPill({
         px: 0.85,
         py: 0.25,
         mx: 0.4,
-        borderRadius: `${RADIUS.pill}px`,
-        fontSize: "0.68rem",
-        fontWeight: 600,
-        color: isMaia ? "#C4B5FD" : ACCENT.hover,
-        background: isMaia ? "rgba(196,181,253,0.08)" : "rgba(251,146,60,0.08)",
-        border: isMaia
-          ? "1px solid rgba(196,181,253,0.28)"
-          : "1px solid rgba(251,146,60,0.28)",
+        borderRadius: `${RADIUS.small}px`,
+        fontSize: TYPE.caption.fontSize,
+        fontWeight: 500,
+        color: TEXT.secondary,
+        background: SURFACE.raisedSecondary,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       {isMaia ? "Maia line" : "Engine line"}
@@ -5682,9 +5543,6 @@ function InsightContinuationInline({
   const halfMoveIdx = color === "b" ? moveNum * 2 - 1 : (moveNum - 1) * 2;
 
   const isMaia = kind === "MAIA_CONTINUATION";
-  const accent = isMaia ? "#C4B5FD" : "#FB923C";
-  const bg = isMaia ? "rgba(196,181,253,0.08)" : "rgba(251,146,60,0.08)";
-  const border = isMaia ? "rgba(196,181,253,0.28)" : "rgba(251,146,60,0.28)";
   const label = isMaia ? "Maia line" : "Engine line";
 
   const data = useMemo(() => {
@@ -5762,21 +5620,19 @@ function InsightContinuationInline({
         mt: 1,
         mb: 0.5,
         cursor: onJumpToPly ? "pointer" : "default",
-        background: bg,
-        border: `1px solid ${border}`,
-        borderRadius: "0.6rem",
+        background: "transparent",
+        border: `1px solid ${LINE.hairline}`,
+        borderRadius: `${RADIUS.control}px`,
         px: 1.25,
         py: 0.85,
         display: "flex",
         flexDirection: "column",
         gap: 0.4,
-        transition: "all 180ms ease",
+        transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
         "&:hover": onJumpToPly
           ? {
-              background: isMaia
-                ? "rgba(196,181,253,0.12)"
-                : "rgba(251,146,60,0.12)",
-              borderColor: accent,
+              background: "rgba(255,255,255,0.06)",
+              borderColor: LINE.strong,
             }
           : {},
       }}
@@ -5795,7 +5651,7 @@ function InsightContinuationInline({
             alignItems: "center",
             gap: 0.6,
             ...TYPE.label,
-            color: accent,
+            color: TEXT.secondary,
           }}
         >
           {label}
@@ -5803,10 +5659,10 @@ function InsightContinuationInline({
             <Box
               component="span"
               sx={{
-                color: "rgba(255,255,255,0.55)",
-                fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                letterSpacing: "0.02em",
-                textTransform: "none",
+                color: TEXT.secondary,
+                fontFamily: FONT_MONO,
+                fontWeight: 400,
+                fontVariantNumeric: "tabular-nums",
               }}
             >
               {data.evalStr}
@@ -5816,9 +5672,9 @@ function InsightContinuationInline({
         {typeof data.depth === "number" && (
           <Box
             sx={{
-              fontSize: "0.62rem",
-              color: "rgba(255,255,255,0.35)",
-              fontFamily: "ui-monospace, SFMono-Regular, monospace",
+              fontSize: TYPE.caption.fontSize,
+              color: TEXT.secondary,
+              fontFamily: FONT_MONO,
             }}
           >
             d{data.depth}
@@ -5827,9 +5683,9 @@ function InsightContinuationInline({
       </Box>
       <Box
         sx={{
-          fontFamily: "ui-monospace, SFMono-Regular, monospace",
+          fontFamily: FONT_MONO,
           fontSize: "0.84rem",
-          color: "rgba(255,255,255,0.86)",
+          color: TEXT.primary,
           lineHeight: 1.4,
         }}
       >
@@ -5997,7 +5853,7 @@ function InsightBodyText({
                 pl: 2.5,
                 my: 0.75,
                 "& li": { mb: 0.3, color: "rgba(255,255,255,0.86)" },
-                "& li::marker": { color: "rgba(251,146,60,0.65)" },
+                "& li::marker": { color: TEXT.secondary },
               }}
             >
               {b.items.map((it, j) => (
@@ -6034,13 +5890,13 @@ function InsightBodyText({
           sx={{
             mt: 1.25,
             pt: 1,
-            borderTop: "1px dashed rgba(255,255,255,0.08)",
+            borderTop: `1px solid ${LINE.hairline}`,
             display: "flex",
             gap: 0.5,
             alignItems: "center",
             flexWrap: "wrap",
-            fontSize: "0.72rem",
-            color: "rgba(255,255,255,0.55)",
+            fontSize: TYPE.caption.fontSize,
+            color: TEXT.secondary,
           }}
         >
           {hasContinuation && <ContinuationPill kind="CONTINUATION" />}
@@ -6139,7 +5995,7 @@ function DarkInsightCard({
         px: 1.25,
         py: 0.45,
         borderRadius: `${RADIUS.pill}px`,
-        fontSize: "0.72rem",
+        fontSize: TYPE.caption.fontSize,
         fontWeight: 600,
         color: active ? ACCENT.hover : TEXT.secondary,
         background: active ? ACCENT.tint : "rgba(255,255,255,0.05)",
@@ -6174,9 +6030,8 @@ function DarkInsightCard({
       sx={{
         mt: 1,
         p: 1.25,
-        borderRadius: "0.55rem",
-        background: "rgba(0,0,0,0.3)",
-        border: "1px solid rgba(255,255,255,0.06)",
+        borderRadius: `${RADIUS.control}px`,
+        border: `1px solid ${LINE.hairline}`,
         position: "relative",
       }}
     >
@@ -6200,9 +6055,11 @@ function DarkInsightCard({
           onClick={onClose}
           sx={{
             cursor: "pointer",
-            color: "rgba(255,255,255,0.4)",
-            fontSize: "0.7rem",
-            "&:hover": { color: "#FB923C" },
+            color: TEXT.secondary,
+            fontSize: "1rem",
+            lineHeight: 1,
+            transition: `color ${MOTION.hover}`,
+            "&:hover": { color: TEXT.primary },
           }}
         >
           ×
@@ -6219,15 +6076,7 @@ function DarkInsightCard({
   );
 
   return (
-    <Box
-      sx={{
-        mt: 1.25,
-        p: 1.5,
-        borderRadius: `${RADIUS.control}px`,
-        background: SURFACE.raisedSecondary,
-        border: `1px solid ${LINE.hairline}`,
-      }}
-    >
+    <Box>
       {/* Header: move ref + classification chip + eval delta */}
       <Stack
         direction="row"
@@ -6243,13 +6092,13 @@ function DarkInsightCard({
             cursor: "pointer",
             fontWeight: 700,
             fontSize: "0.95rem",
-            color: "#FB923C",
+            color: ACCENT.hover,
             textDecoration: "underline",
             textDecorationColor: "rgba(251,146,60,0.4)",
             textUnderlineOffset: "3px",
+            transition: `text-decoration-color ${MOTION.hover}`,
             "&:hover": {
-              color: "#FDBA74",
-              textDecorationColor: "#FDBA74",
+              textDecorationColor: ACCENT.hover,
             },
           }}
         >
@@ -6259,13 +6108,11 @@ function DarkInsightCard({
           sx={{
             px: 0.85,
             py: 0.25,
-            borderRadius: "999px",
-            background: `${color}22`,
-            border: `1px solid ${color}55`,
+            borderRadius: `${RADIUS.small}px`,
+            background: `${color}24`,
             color,
-            fontSize: "0.72rem",
-            fontWeight: 700,
-            letterSpacing: "0.02em",
+            fontSize: TYPE.caption.fontSize,
+            fontWeight: 600,
             display: "flex",
             gap: 0.4,
             alignItems: "center",
@@ -6282,9 +6129,10 @@ function DarkInsightCard({
         {evalLine && (
           <Typography
             sx={{
-              fontSize: "0.74rem",
-              color: "rgba(255,255,255,0.5)",
-              fontFamily: "ui-monospace, SFMono-Regular, monospace",
+              fontSize: TYPE.caption.fontSize,
+              color: TEXT.secondary,
+              fontFamily: FONT_MONO,
+              fontVariantNumeric: "tabular-nums",
             }}
           >
             {evalLine}
@@ -6352,8 +6200,8 @@ function DarkInsightCard({
           Concept reveal panel — users who clicked Threats or Roles
           first never saw it. Lifted to a top-level primary CTA below
           the reveal-pill row so any insight with a conceptKey surfaces
-          it inline. Distinct gradient + spark icon flags it as the
-          one action that leaves the card. */}
+          it inline. The quiet ember tint marks it as the one action that
+          leaves the card, without competing with the send button. */}
       {insight.conceptKey && insight.conceptName && onPracticeConcept && (
         <Box
           onClick={() =>
@@ -6368,13 +6216,15 @@ function DarkInsightCard({
             px: 1.6,
             py: 0.7,
             borderRadius: `${RADIUS.pill}px`,
-            background: ACCENT.main,
-            color: TEXT.onAccent,
+            background: ACCENT.tint,
+            border: `1px solid ${ACCENT.border}`,
+            color: ACCENT.hover,
             fontWeight: 600,
-            fontSize: "0.78rem",
-            transition: `background-color ${MOTION.hover}, transform ${MOTION.press}`,
+            fontSize: TYPE.caption.fontSize,
+            touchAction: "manipulation",
+            transition: `border-color ${MOTION.hover}, transform ${MOTION.press}`,
             "&:hover": {
-              background: ACCENT.hover,
+              borderColor: ACCENT.main,
             },
             "&:active": { transform: MOTION.pressScale },
           }}
@@ -6424,7 +6274,7 @@ function DarkInsightCard({
 // our dark glass surface.
 //
 // Animations:
-//   - Card content slides horizontally on direction change (framer-motion)
+//   - Card content cross-fades (opacity only) when the insight changes
 //   - Indexed dots double as click targets so the user can jump to any
 //     insight directly
 //   - Keyboard: ← / → arrow keys advance when the carousel has focus
@@ -6445,7 +6295,7 @@ function DarkInsightCarousel({
   loadedGame?: Chess;
   onJumpToPly?: (ply: number) => void;
 }) {
-  const [[idx, dir], setState] = useState<[number, 1 | -1]>([0, 1]);
+  const [[idx], setState] = useState<[number, 1 | -1]>([0, 1]);
   const total = insights.length;
   const clamp = useCallback(
     (n: number) => ((n % total) + total) % total,
@@ -6478,9 +6328,10 @@ function DarkInsightCarousel({
       tabIndex={0}
       onKeyDown={handleKey}
       sx={{
+        // No fill of its own: the bubble is the one filled level, and the
+        // hairline groups the key moments inside it.
         mt: 1.5,
-        borderRadius: `${RADIUS.card}px`,
-        background: SURFACE.raised,
+        borderRadius: `${RADIUS.control}px`,
         border: `1px solid ${LINE.hairline}`,
         overflow: "hidden",
         outline: "none",
@@ -6498,7 +6349,7 @@ function DarkInsightCarousel({
           justifyContent: "space-between",
           px: 1.5,
           py: 1,
-          borderBottom: "1px solid rgba(255,255,255,0.05)",
+          borderBottom: `1px solid ${LINE.hairline}`,
         }}
       >
         <Box
@@ -6533,17 +6384,17 @@ function DarkInsightCarousel({
               opacity: total > 1 ? 1 : 0.3,
               width: 24,
               height: 24,
-              borderRadius: "999px",
+              borderRadius: `${RADIUS.small}px`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "rgba(255,255,255,0.7)",
-              transition: "all 180ms ease",
+              color: TEXT.secondary,
+              transition: `background-color ${MOTION.hover}, color ${MOTION.hover}`,
               "&:hover":
                 total > 1
                   ? {
-                      background: "rgba(249,115,22,0.12)",
-                      color: "#FB923C",
+                      background: "rgba(255,255,255,0.06)",
+                      color: TEXT.primary,
                     }
                   : {},
             }}
@@ -6552,13 +6403,12 @@ function DarkInsightCarousel({
           </Box>
           <Box
             sx={{
-              fontSize: "0.72rem",
-              fontWeight: 700,
-              color: "rgba(255,255,255,0.85)",
+              fontSize: TYPE.caption.fontSize,
+              fontWeight: 600,
+              color: TEXT.secondary,
               fontVariantNumeric: "tabular-nums",
               minWidth: 32,
               textAlign: "center",
-              letterSpacing: "0.02em",
             }}
           >
             {clamp(idx) + 1} / {total}
@@ -6571,17 +6421,17 @@ function DarkInsightCarousel({
               opacity: total > 1 ? 1 : 0.3,
               width: 24,
               height: 24,
-              borderRadius: "999px",
+              borderRadius: `${RADIUS.small}px`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "rgba(255,255,255,0.7)",
-              transition: "all 180ms ease",
+              color: TEXT.secondary,
+              transition: `background-color ${MOTION.hover}, color ${MOTION.hover}`,
               "&:hover":
                 total > 1
                   ? {
-                      background: "rgba(249,115,22,0.12)",
-                      color: "#FB923C",
+                      background: "rgba(255,255,255,0.06)",
+                      color: TEXT.primary,
                     }
                   : {},
             }}
@@ -6600,35 +6450,27 @@ function DarkInsightCarousel({
             background: "rgba(255,255,255,0.04)",
           }}
         />
-        <motion.div
-          layout
-          animate={{
-            width: `${((clamp(idx) + 1) / total) * 100}%`,
-          }}
-          transition={{ duration: 0.32, ease: [0.22, 0.61, 0.36, 1] }}
-          style={{
+        <Box
+          sx={{
             position: "absolute",
-            top: 0,
-            bottom: 0,
-            left: 0,
+            inset: 0,
             background: ACCENT.main,
+            transformOrigin: "left",
+            transform: `scaleX(${(clamp(idx) + 1) / total})`,
+            transition: `transform ${MOTION.enter}`,
           }}
         />
       </Box>
 
-      {/* Slide-animated card body */}
+      {/* Card body: a 160ms cross-fade per insight, no slide. */}
       <Box sx={{ position: "relative", p: 1.5 }}>
-        <AnimatePresence mode="wait" custom={dir} initial={false}>
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={clamp(idx)}
-            custom={dir}
-            initial={{ opacity: 0, x: dir * 24 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: dir * -24 }}
-            transition={{
-              duration: 0.22,
-              ease: [0.22, 0.61, 0.36, 1],
-            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
           >
             <DarkInsightCard
               insight={current}
@@ -6663,11 +6505,11 @@ function DarkInsightCarousel({
                 aria-label={`Go to insight ${i + 1}`}
                 sx={{
                   cursor: "pointer",
-                  width: active ? 18 : 6,
-                  height: 6,
-                  borderRadius: `${RADIUS.pill}px`,
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
                   background: active ? ACCENT.main : "rgba(255,255,255,0.18)",
-                  transition: `width ${MOTION.hover}, background-color ${MOTION.hover}`,
+                  transition: `background-color ${MOTION.hover}`,
                   "&:hover": active
                     ? {}
                     : { background: "rgba(255,255,255,0.32)" },
@@ -6734,26 +6576,25 @@ function PuzzleSetCard({
             justifyContent: "center",
           }}
         >
-          <Target size={20} strokeWidth={1.75} color={ACCENT.main} />
+          <Target size={20} strokeWidth={1.75} color={TEXT.secondary} />
         </Box>
 
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             sx={{
               fontSize: "0.95rem",
-              fontWeight: 800,
-              color: "rgba(255,255,255,0.96)",
+              fontWeight: 700,
+              color: TEXT.primary,
               lineHeight: 1.25,
-              letterSpacing: "-0.01em",
             }}
           >
             {set.displayName}
           </Typography>
           <Typography
             sx={{
-              fontSize: "0.74rem",
-              color: "rgba(255,255,255,0.5)",
-              fontFamily: "Monaco, Menlo, monospace",
+              fontSize: TYPE.caption.fontSize,
+              color: TEXT.secondary,
+              fontVariantNumeric: "tabular-nums",
               mt: 0.25,
             }}
           >
@@ -6769,14 +6610,15 @@ function PuzzleSetCard({
             flexShrink: 0,
             px: 2,
             py: 0.9,
-            borderRadius: `${RADIUS.pill}px`,
             fontSize: "0.84rem",
             fontWeight: 600,
             textTransform: "none",
-            color: TEXT.onAccent,
-            background: ACCENT.main,
+            color: ACCENT.hover,
+            background: ACCENT.tint,
+            border: `1px solid ${ACCENT.border}`,
             "&:hover": {
-              background: ACCENT.hover,
+              background: ACCENT.tint,
+              borderColor: ACCENT.main,
             },
           }}
         >
@@ -6859,8 +6701,8 @@ function CoachBubble({
             key={`b${boldIdx}`}
             component="span"
             sx={{
-              fontWeight: 700,
-              color: isUser ? "#0A0A0A" : "#FB923C",
+              fontWeight: 600,
+              color: TEXT.primary,
             }}
           >
             {part.slice(2, -2)}
@@ -6901,8 +6743,8 @@ function CoachBubble({
           const hypothetical = resolution.kind === "hypothetical";
           const ply = hypothetical ? resolution.anchorPly : resolution.ply;
           const playSan = hypothetical ? resolution.san : undefined;
-          const recColor = "#86efac"; // light green for an alternative to explore
-          const navColor = isUser ? "#0A0A0A" : "#FB923C";
+          const recColor = STATUS.success; // green: an alternative to explore
+          const navColor = isUser ? TEXT.primary : ACCENT.hover;
           out.push(
             <Box
               key={`${boldIdx}m${ref.start}`}
@@ -6922,20 +6764,16 @@ function CoachBubble({
                 textDecoration: "underline",
                 textDecorationStyle: "dotted",
                 textDecorationColor: hypothetical
-                  ? "rgba(134,239,172,0.5)"
+                  ? "rgba(48,209,88,0.5)"
                   : isUser
-                    ? "rgba(0,0,0,0.5)"
+                    ? "rgba(255,255,255,0.5)"
                     : "rgba(251,146,60,0.5)",
                 px: 0.35,
                 borderRadius: "3px",
-                transition: "all 140ms ease",
+                transition: `background-color ${MOTION.hover}, text-decoration-color ${MOTION.hover}`,
                 "&:hover": {
                   textDecorationStyle: "solid",
-                  background: hypothetical
-                    ? "rgba(34,197,94,0.16)"
-                    : isUser
-                      ? "rgba(0,0,0,0.08)"
-                      : "rgba(249,115,22,0.14)",
+                  background: "rgba(255,255,255,0.06)",
                 },
               }}
             >
@@ -7013,7 +6851,7 @@ function CoachBubble({
           target="_blank"
           rel="noopener noreferrer"
           style={{
-            color: isUser ? "#0A0A0A" : "#FB923C",
+            color: isUser ? TEXT.primary : ACCENT.hover,
             textDecoration: "underline",
             fontWeight: 600,
           }}
@@ -7050,9 +6888,7 @@ function CoachBubble({
           m: 0,
           mb: 0.75,
           pl: 1.25,
-          borderLeft: isUser
-            ? "3px solid rgba(0,0,0,0.25)"
-            : "3px solid rgba(251,146,60,0.5)",
+          borderLeft: `3px solid ${LINE.strong}`,
           color: "inherit",
           opacity: 0.85,
         }}
@@ -7106,15 +6942,12 @@ function CoachBubble({
           <Box
             component="code"
             sx={{
-              fontFamily:
-                "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+              fontFamily: FONT_MONO,
               fontSize: "0.9em",
               px: 0.45,
               py: 0.05,
               borderRadius: "4px",
-              background: isUser
-                ? "rgba(0,0,0,0.12)"
-                : "rgba(255,255,255,0.08)",
+              background: "rgba(255,255,255,0.08)",
             }}
             {...rest}
           >
@@ -7133,8 +6966,7 @@ function CoachBubble({
             background: "rgba(0,0,0,0.3)",
             overflowX: "auto",
             fontSize: "0.85em",
-            fontFamily:
-              "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+            fontFamily: FONT_MONO,
           }}
           {...rest}
         >
@@ -7190,11 +7022,13 @@ function CoachBubble({
             px: 2.25,
             py: 1.5,
             borderRadius: `${RADIUS.card}px`,
-            background: isUser ? ACCENT.main : SURFACE.raisedSecondary,
+            background: isUser
+              ? SURFACE.raisedTertiary
+              : SURFACE.raisedSecondary,
             border: isUser
               ? "1px solid transparent"
               : `1px solid ${LINE.hairline}`,
-            color: isUser ? TEXT.onAccent : TEXT.primary,
+            color: TEXT.primary,
             fontSize: "0.92rem",
             lineHeight: 1.55,
             fontWeight: isUser ? 600 : 400,
@@ -7242,7 +7076,7 @@ function CoachBubble({
             );
           })()}
           {shareable && (
-            <Tooltip title="Share this insight (link + PNG)">
+            <Tooltip title="Share this answer as a link or image">
               <IconButton
                 className="coach-share-btn"
                 onClick={() => onShare?.(msg)}
@@ -7260,9 +7094,8 @@ function CoachBubble({
                   border: `1px solid ${LINE.hairline}`,
                   transition: `opacity ${MOTION.hover}, color ${MOTION.hover}, background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
                   "&:hover": {
-                    color: ACCENT.hover,
-                    background: ACCENT.tint,
-                    borderColor: ACCENT.border,
+                    color: TEXT.primary,
+                    borderColor: LINE.strong,
                   },
                 }}
               >
@@ -7285,18 +7118,24 @@ function CoachBubble({
             mt: 1,
             px: 1.25,
             py: 0.75,
-            borderRadius: "0.6rem",
+            borderRadius: `${RADIUS.control}px`,
             display: "flex",
             alignItems: "center",
             gap: 0.75,
-            background: "rgba(249,115,22,0.08)",
-            border: "1px solid rgba(249,115,22,0.25)",
-            color: "rgba(255,237,213,0.85)",
-            fontSize: "0.78rem",
+            background: STATUS.warningTint,
+            border: `1px solid ${LINE.hairline}`,
+            color: TEXT.primary,
+            fontSize: TYPE.caption.fontSize,
             lineHeight: 1.4,
           }}
         >
-          <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+          <AlertTriangle
+            size={16}
+            strokeWidth={1.75}
+            color={STATUS.warning}
+            aria-hidden
+            style={{ flexShrink: 0 }}
+          />
           <span>
             This answer was cut off before it finished. Treat it as partial, and
             ask again for the full explanation.
@@ -7331,17 +7170,23 @@ function CoachBubble({
               {msg.insight.eval && (
                 <Typography
                   sx={{
-                    fontSize: "0.72rem",
-                    color: "rgba(255,255,255,0.55)",
-                    fontFamily: "Monaco, Menlo, monospace",
+                    fontSize: TYPE.caption.fontSize,
+                    color: TEXT.secondary,
+                    fontVariantNumeric: "tabular-nums",
                   }}
                 >
-                  Eval: {msg.insight.eval}
+                  Eval:{" "}
+                  <Box component="span" sx={{ fontFamily: FONT_MONO }}>
+                    {msg.insight.eval}
+                  </Box>
                 </Typography>
               )}
               {msg.insight.classification && (
                 <Typography
-                  sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.55)" }}
+                  sx={{
+                    fontSize: TYPE.caption.fontSize,
+                    color: TEXT.secondary,
+                  }}
                 >
                   {msg.insight.classification}
                 </Typography>
@@ -7389,12 +7234,13 @@ function CoachBubble({
 function ThinkingBubble() {
   return (
     <Box
+      role="status"
       sx={{
         px: 2.25,
         py: 1.5,
-        borderRadius: "1rem",
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: `${RADIUS.card}px`,
+        background: SURFACE.raisedSecondary,
+        border: `1px solid ${LINE.hairline}`,
         display: "inline-flex",
         alignItems: "center",
         gap: 1,
@@ -7404,15 +7250,15 @@ function ThinkingBubble() {
       <Typography
         sx={{
           fontSize: "0.85rem",
-          color: "rgba(255,255,255,0.62)",
-          fontStyle: "italic",
+          color: TEXT.secondary,
         }}
       >
-        Coach is thinking
+        Masti is thinking
       </Typography>
       <CircularProgress
-        size={14}
-        thickness={5}
+        size={16}
+        thickness={4}
+        aria-hidden
         sx={{ color: TEXT.secondary, flexShrink: 0 }}
       />
     </Box>
@@ -7462,13 +7308,13 @@ function MoveNavigator({
             height: 34,
             borderRadius: "9px",
             background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            color: "rgba(255,255,255,0.85)",
-            transition: "all 180ms ease",
+            border: `1px solid ${LINE.hairline}`,
+            color: TEXT.primary,
+            transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
             "&:hover": {
-              background: "rgba(249,115,22,0.12)",
-              borderColor: "rgba(249,115,22,0.35)",
-              color: "#FB923C",
+              background: "rgba(255,255,255,0.06)",
+              borderColor: LINE.strong,
+              color: TEXT.primary,
             },
             "&.Mui-disabled": {
               color: "rgba(255,255,255,0.2)",
@@ -7513,8 +7359,8 @@ function MoveNavigator({
           px: 1.25,
           py: 0.55,
           borderRadius: "9px",
-          background: "rgba(249,115,22,0.08)",
-          border: "1px solid rgba(249,115,22,0.2)",
+          background: SURFACE.raisedSecondary,
+          border: `1px solid ${LINE.hairline}`,
           minWidth: 62,
           textAlign: "center",
         }}
@@ -7526,8 +7372,7 @@ function MoveNavigator({
               sx={{
                 fontSize: "0.76rem",
                 fontWeight: 700,
-                color: "#FB923C",
-                fontFamily: "Monaco, Menlo, monospace",
+                color: TEXT.primary,
                 lineHeight: 1.4,
               }}
             >
@@ -7545,8 +7390,8 @@ function MoveNavigator({
                 sx={{
                   fontSize: "0.82rem",
                   fontWeight: 700,
-                  color: "#FB923C",
-                  fontFamily: "Monaco, Menlo, monospace",
+                  color: TEXT.primary,
+                  fontVariantNumeric: "tabular-nums",
                   lineHeight: 1.4,
                 }}
               >
@@ -7602,12 +7447,13 @@ function MoveNavigator({
               width: 34,
               height: 34,
               borderRadius: "9px",
-              background: ACCENT.tint,
-              border: `1px solid ${ACCENT.border}`,
-              color: ACCENT.hover,
+              background: "rgba(255,255,255,0.04)",
+              border: `1px solid ${LINE.hairline}`,
+              color: TEXT.primary,
+              transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
               "&:hover": {
-                background: "rgba(249,115,22,0.22)",
-                color: ACCENT.hover,
+                background: "rgba(255,255,255,0.06)",
+                borderColor: LINE.strong,
               },
             }}
           >
@@ -8376,8 +8222,8 @@ export default function AnalysisPage() {
         const greeting =
           opts?.greeting ??
           (newHeaders.White && newHeaders.Black
-            ? `Loaded **${newHeaders.White} vs ${newHeaders.Black}**${yearSuffix}. I'm running the engine over every move now — the Moves tab fills in with each move's verdict as it finishes. Ask me about any move in the meantime.`
-            : "Loaded a new game. I'm running the engine over every move now — the Moves tab fills in with each move's verdict as it finishes. Ask me about the position or any move in the meantime.");
+            ? `Loaded **${newHeaders.White} vs ${newHeaders.Black}**${yearSuffix}. I'm running the engine over every move now. The Moves tab fills in with each move's verdict as it finishes. Ask me about any move in the meantime.`
+            : "Loaded a new game. I'm running the engine over every move now. The Moves tab fills in with each move's verdict as it finishes. Ask me about the position or any move in the meantime.");
         setMessages([
           // D3: UI-authored greeting, not model output.
           {
@@ -9289,7 +9135,7 @@ export default function AnalysisPage() {
             ? "**Sign-in required.** The coach needs a free account. Use **Sign in** above and ask again."
             : err instanceof CoachApiError
               ? `**Coach is offline** (HTTP ${err.status}).`
-              : "**Network error** reaching the coach.";
+              : "**Couldn't reach Masti.** Check your connection and try again.";
         setMessages((prev) => {
           if (prev.length === 0) return prev;
           const last = prev[prev.length - 1];
@@ -9878,7 +9724,7 @@ export default function AnalysisPage() {
             ? "**Sign-in required.** The coach needs a free account. Use **Sign in** above and ask again."
             : err instanceof CoachApiError
               ? `**Coach is offline** (HTTP ${err.status}).`
-              : "**Network error** reaching the coach.";
+              : "**Couldn't reach Masti.** Check your connection and try again.";
         setMessages((prev) => {
           if (prev.length === 0) return prev;
           const last = prev[prev.length - 1];
@@ -10044,7 +9890,7 @@ export default function AnalysisPage() {
             ? "**Sign-in required.** The coach needs a free account. Sign in on chessmasti.com and refresh."
             : err instanceof CoachApiError
               ? `**Coach is offline** (HTTP ${err.status}). Try again in a moment.`
-              : "**Network error** reaching the coach. Try again?";
+              : "**Couldn't reach Masti.** Check your connection and try again.";
         setMessages((prev) => {
           if (prev.length === 0) return prev;
           const last = prev[prev.length - 1];
@@ -10148,8 +9994,8 @@ export default function AnalysisPage() {
       if (!theme) {
         say(
           "I need a pattern to search for. Step to a move I've flagged as a " +
-            "mistake and run `/puzzle-generation` there, or name one yourself " +
-            "— for example `/puzzle-generation fork`."
+            "mistake and run `/puzzle-generation` there, or name one yourself, " +
+            "for example `/puzzle-generation fork`."
         );
         return;
       }
@@ -10186,7 +10032,7 @@ export default function AnalysisPage() {
         if (mapped.length === 0) {
           say(
             `No puzzles came back for **${theme}**. The pattern may be too ` +
-              "specific — try a broader one, or a different move."
+              "specific. Try a broader one, or a different move."
           );
           return;
         }
@@ -10204,15 +10050,15 @@ export default function AnalysisPage() {
             ? `${mapped.length} puzzles on **${set.displayName}**.`
             : `${mapped.length} puzzles on **${set.displayName}**, drawn from ` +
                 "positions that share this pattern.\n\nHit Practice to run " +
-                "them — you'll come back here afterwards, and this set stays " +
+                "them. You'll come back here afterwards, and this set stays " +
                 "in the conversation so you can redo it any time.",
           { puzzleSet: set }
         );
         setCommandUsed(true);
       } catch (err) {
         say(
-          "The puzzle store didn't answer just now. Try again in a moment — " +
-            "your game and this conversation are untouched."
+          "The puzzle store didn't answer just now. Try again in a moment. " +
+            "Your game and this conversation are untouched."
         );
         console.warn("[puzzle-generation]", err);
       } finally {
@@ -10278,7 +10124,7 @@ export default function AnalysisPage() {
           {
             role: "coach",
             content:
-              "Pulled three positions in the same family from the master puzzle index — solve them inline, or move any one onto the big board.",
+              "Here are three puzzles with the same pattern. Solve them here, or move one onto the big board.",
             ply: currentPly,
             synthetic: true,
           },
@@ -10434,16 +10280,12 @@ export default function AnalysisPage() {
         <title>Analyze your game · Chess Masti</title>
         <meta
           name="description"
-          content="The engine evaluates, Masti explains, and every claim is checked. Chess coaching, free for players aged 13 and older."
+          content="Stockfish evaluates your game and Masti explains it. Free chess coaching for players aged 13 and older."
         />
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content={SURFACE.page} />
         <style>{`
           html, body { background-color: ${SURFACE.page}; color-scheme: dark; margin: 0; }
-          ::-webkit-scrollbar { width: 10px; height: 10px; }
-          ::-webkit-scrollbar-track { background: ${SURFACE.page}; }
-          ::-webkit-scrollbar-thumb { background: rgba(249,115,22,0.18); border-radius: 5px; }
-          ::-webkit-scrollbar-thumb:hover { background: rgba(249,115,22,0.32); }
         `}</style>
       </Head>
 
@@ -10489,34 +10331,29 @@ export default function AnalysisPage() {
         tips={[
           {
             icon: Command,
-            iconColor: ACCENT.main,
             title: "Command palette",
             shortcut: "⌘K",
             body: "Jump to any move, flip the board, or ask the coach a question without taking your hands off the keyboard.",
           },
           {
             icon: BookOpen,
-            iconColor: ACCENT.main,
-            title: "Take over the master database",
-            body: "Click the Takeover button under the eval arc. The right panel swaps to a live browser of millions of master-game positions. Filter by player, click any move to preview it on the board.",
+            title: "Browse master games",
+            body: "Open the Masters tab to see master games from this position. Filter by player, and click a move to preview it on the board.",
           },
           {
             icon: MousePointerClick,
-            iconColor: ACCENT.main,
-            title: "Drag pieces freely in Takeover",
-            body: "Once in Takeover, the board becomes interactive. Drag any piece to explore variations. The master games panel updates to the new position automatically.",
+            title: "Try your own moves",
+            body: "In the Masters tab, drag any piece to explore a line. The master games update to the new position.",
           },
           {
             icon: Activity,
-            iconColor: ACCENT.main,
             title: "Toggle the four arrow overlays",
             body: "Above the eval sparkline: Engine best, Most common, Game played and Maia (with a rating slider). Mix and match to see where humans, masters and engines disagree.",
           },
           {
             icon: Eye,
-            iconColor: ACCENT.main,
-            title: "Scrub the evaluation arc",
-            body: "Click anywhere on the sparkline below the board to jump to that ply. The dots are key moments: click one to jump there.",
+            title: "Jump along the evaluation graph",
+            body: "Click anywhere on the graph under the board to jump to that move. The dots are key moments.",
           },
         ]}
       />
@@ -10981,17 +10818,16 @@ export default function AnalysisPage() {
                     gap: 0.5,
                     px: 0.85,
                     py: 0.25,
-                    borderRadius: "5px",
-                    background: "rgba(249,115,22,0.1)",
-                    border: "1px solid rgba(249,115,22,0.25)",
-                    color: "#FB923C",
-                    fontFamily: "Monaco, Menlo, monospace",
+                    borderRadius: `${RADIUS.small}px`,
+                    background: SURFACE.raisedSecondary,
+                    border: `1px solid ${LINE.hairline}`,
+                    color: TEXT.secondary,
                     fontWeight: 600,
-                    fontSize: "0.72rem",
-                    transition: "all 180ms ease",
+                    fontSize: TYPE.caption.fontSize,
+                    transition: `background-color ${MOTION.hover}, color ${MOTION.hover}`,
                     "&:hover": {
-                      background: "rgba(249,115,22,0.18)",
-                      borderColor: "rgba(249,115,22,0.4)",
+                      background: SURFACE.raisedTertiary,
+                      color: TEXT.primary,
                     },
                   }}
                 >

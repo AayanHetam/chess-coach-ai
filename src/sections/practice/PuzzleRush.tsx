@@ -18,9 +18,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { puzzleSolvedStatusAtom } from "./states";
 import { useScreenSize } from "@/hooks/useScreenSize";
 import { pieceSetAtom } from "@/components/board/states";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
-import BoltIcon from "@mui/icons-material/Bolt";
-import FavoriteIcon from "@mui/icons-material/Favorite";
+import { Heart, Trophy, Zap } from "lucide-react";
 import type { DifficultyBand } from "@/types/puzzles";
 import type { ChessPuzzle } from "@/lib/chessPuzzlesService";
 import {
@@ -450,7 +448,12 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-            <BoltIcon sx={{ color: ACCENT.main, fontSize: 28 }} />
+            <Zap
+              size={20}
+              strokeWidth={1.75}
+              color={TEXT.secondary}
+              aria-hidden
+            />
             <Typography variant="h5" sx={{ color: TEXT.primary }}>
               Puzzle rush
             </Typography>
@@ -466,27 +469,47 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
             {RUSH_MODES.map((m) => (
               <Paper
                 key={m.value}
+                component="button"
+                type="button"
+                aria-pressed={mode === m.value}
                 onClick={() => setMode(m.value)}
                 sx={{
                   p: 2,
                   flex: 1,
                   minWidth: 140,
+                  textAlign: "left",
+                  font: "inherit",
+                  color: "inherit",
                   cursor: "pointer",
                   borderRadius: `${RADIUS.control}px`,
                   border: `1px solid ${mode === m.value ? ACCENT.border : LINE.hairline}`,
                   background:
                     mode === m.value ? ACCENT.tint : SURFACE.raisedSecondary,
+                  touchAction: "manipulation",
+                  WebkitTapHighlightColor: "transparent",
                   transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
                   "&:hover": {
                     borderColor: mode === m.value ? ACCENT.border : LINE.strong,
                   },
                   "&:active": { background: SURFACE.raisedTertiary },
+                  "&:focus-visible": {
+                    outline: "2px solid #FFFFFF",
+                    outlineOffset: 2,
+                  },
                 }}
               >
-                <Typography variant="subtitle2" sx={{ color: TEXT.primary }}>
+                <Typography
+                  variant="subtitle2"
+                  component="span"
+                  sx={{ display: "block", color: TEXT.primary }}
+                >
                   {m.label}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: "block" }}
+                >
                   {m.description}
                 </Typography>
                 {rushScores[
@@ -497,7 +520,7 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
                       : "survivalBest"
                 ] > 0 && (
                   <Chip
-                    icon={<EmojiEventsIcon sx={{ fontSize: 14 }} />}
+                    icon={<Trophy size={16} strokeWidth={1.75} aria-hidden />}
                     label={`Best: ${rushScores[m.value === "three" ? "threeMin" : m.value === "five" ? "fiveMin" : "survivalBest"]}`}
                     size="small"
                     sx={{ mt: 1 }}
@@ -534,7 +557,7 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
               size="large"
               onClick={handleStart}
               disabled={starting}
-              startIcon={<BoltIcon />}
+              startIcon={<Zap size={18} strokeWidth={1.75} aria-hidden />}
             >
               {starting ? "Loading\u2026" : "Start rush"}
             </Button>
@@ -576,7 +599,12 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <BoltIcon sx={{ color: ACCENT.main }} />
+          <Zap
+            size={20}
+            strokeWidth={1.75}
+            color={TEXT.secondary}
+            aria-hidden
+          />
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
             {modeConfig.label}
           </Typography>
@@ -622,16 +650,28 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
 
           {/* Lives (survival only) */}
           {mode === "survival" && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Box
+              role="img"
+              aria-label={`${lives} of 3 lives left`}
+              sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+            >
               {[...Array(3)].map((_, i) => (
-                <FavoriteIcon
+                <Box
                   key={i}
+                  component="span"
                   sx={{
-                    fontSize: 22,
+                    display: "inline-flex",
                     color: i < lives ? STATUS.error : LINE.strong,
-                    transition: "color 0.3s",
+                    transition: `color ${MOTION.hover}`,
                   }}
-                />
+                >
+                  <Heart
+                    size={22}
+                    strokeWidth={1.75}
+                    fill="currentColor"
+                    aria-hidden
+                  />
+                </Box>
               ))}
             </Box>
           )}
@@ -717,7 +757,7 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
               sx={{ fontWeight: 600, color: TEXT.primary }}
             >
               {board.puzzleError
-                ? "Bad puzzle data, skipping…"
+                ? "This puzzle didn't load. Skipping to the next one."
                 : board.status === "loading"
                   ? "Loading…"
                   : board.status === "solved"
@@ -756,8 +796,12 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
       <Dialog open={showFinishDialog} maxWidth="xs" fullWidth>
         <DialogContent sx={{ textAlign: "center", py: 4 }}>
           {isNewHighScore && (
-            <EmojiEventsIcon
-              sx={{ fontSize: 48, color: "warning.main", mb: 1 }}
+            <Trophy
+              size={48}
+              strokeWidth={1.75}
+              color={STATUS.warning}
+              aria-hidden
+              style={{ marginBottom: 8 }}
             />
           )}
           <Typography variant="h4" sx={{ mb: 1, color: TEXT.primary }}>
@@ -804,7 +848,7 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
               setShowFinishDialog(false);
               handleStart();
             }}
-            startIcon={<BoltIcon />}
+            startIcon={<Zap size={18} strokeWidth={1.75} aria-hidden />}
           >
             Play again
           </Button>

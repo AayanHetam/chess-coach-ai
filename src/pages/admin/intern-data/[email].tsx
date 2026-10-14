@@ -17,15 +17,26 @@ import { useViewer } from "@/hooks/useViewer";
 import { INTERN_THEME_COLOR, INTERN_THEME_COLOR_DARK } from "@/constants";
 import type { AdminInternDetail } from "@/app/api/admin/intern-data/detail/[email]/route";
 import type { PacingStatus } from "@/lib/intern/pacing";
+import { FONT_MONO, TEXT, TYPE } from "@/theme/tokens";
 
-const STATUS_STYLES: Record<PacingStatus, { bg: string; fg: string; label: string }> = {
+const STATUS_STYLES: Record<
+  PacingStatus,
+  { bg: string; fg: string; label: string }
+> = {
   behind: { bg: "#FFF3E0", fg: "#E65100", label: "Behind" },
   "on-track": { bg: "#E8F5E9", fg: "#2E7D32", label: "On track" },
   ahead: { bg: "#E3F2FD", fg: "#1565C0", label: "Ahead" },
-  "pre-program": { bg: "#E8EEF8", fg: INTERN_THEME_COLOR_DARK, label: "Pre-program" },
+  "pre-program": {
+    bg: "#E8EEF8",
+    fg: INTERN_THEME_COLOR_DARK,
+    label: "Pre-program",
+  },
 };
 
-const CATEGORY_COLOR: Record<"bad" | "inaccurate" | "incomplete", { bg: string; fg: string }> = {
+const CATEGORY_COLOR: Record<
+  "bad" | "inaccurate" | "incomplete",
+  { bg: string; fg: string }
+> = {
   bad: { bg: "#FBE9E7", fg: "#C62828" },
   inaccurate: { bg: "#FFF8E1", fg: "#9A6300" },
   incomplete: { bg: "#E8EAF6", fg: "#3949AB" },
@@ -55,7 +66,9 @@ export default function AdminInternDetailPage() {
       .then(async (res) => {
         if (res.status === 404) throw new Error("Intern not found.");
         if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as { error?: string };
+          const body = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
           throw new Error(body.error ?? `Failed (${res.status})`);
         }
         return res.json() as Promise<AdminInternDetail>;
@@ -117,7 +130,10 @@ export default function AdminInternDetailPage() {
         {detail && (
           <Stack spacing={3}>
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: INTERN_THEME_COLOR_DARK }}>
+              <Typography
+                variant="h5"
+                sx={{ fontWeight: 700, color: TEXT.primary }}
+              >
                 {detail.email}
               </Typography>
               <Typography variant="caption" sx={{ color: "text.secondary" }}>
@@ -127,7 +143,12 @@ export default function AdminInternDetailPage() {
 
             <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
               <Stack spacing={1.5}>
-                <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
+                <Stack
+                  direction="row"
+                  spacing={1.5}
+                  alignItems="center"
+                  flexWrap="wrap"
+                >
                   <Typography variant="h6" sx={{ fontWeight: 700 }}>
                     {detail.pacing.status === "pre-program"
                       ? `${detail.pacing.submittedThisWeek} flagged this week`
@@ -143,7 +164,10 @@ export default function AdminInternDetailPage() {
                     }}
                   />
                   {detail.pacing.streakWeeks > 0 && (
-                    <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "text.secondary" }}
+                    >
                       Streak: {detail.pacing.streakWeeks} week
                       {detail.pacing.streakWeeks === 1 ? "" : "s"}
                     </Typography>
@@ -153,14 +177,21 @@ export default function AdminInternDetailPage() {
             </Paper>
 
             <Box>
-              <Typography variant="overline" sx={{ color: "text.secondary" }}>
+              <Typography sx={{ ...TYPE.label, color: "text.secondary" }}>
                 Last 8 weeks
               </Typography>
               <Paper variant="outlined" sx={{ p: 2.5, mt: 1, borderRadius: 2 }}>
-                <Stack direction="row" spacing={1} alignItems="flex-end" sx={{ height: 120 }}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="flex-end"
+                  sx={{ height: 120 }}
+                >
                   {detail.weekBuckets.map((bucket) => {
                     const heightPct = (bucket.count / maxBucketCount) * 100;
-                    const label = new Date(bucket.weekStartMs).toLocaleDateString(undefined, {
+                    const label = new Date(
+                      bucket.weekStartMs
+                    ).toLocaleDateString(undefined, {
                       month: "short",
                       day: "numeric",
                     });
@@ -194,7 +225,7 @@ export default function AdminInternDetailPage() {
                         />
                         <Typography
                           variant="caption"
-                          sx={{ fontSize: "0.7rem", color: "text.secondary" }}
+                          sx={{ ...TYPE.caption, color: "text.secondary" }}
                         >
                           {label}
                         </Typography>
@@ -202,8 +233,12 @@ export default function AdminInternDetailPage() {
                     );
                   })}
                 </Stack>
-                <Typography variant="caption" sx={{ display: "block", mt: 1.5, color: "text.secondary" }}>
-                  Green bars = hit the 10/week target. Lighter blue = some activity. Gray = none.
+                <Typography
+                  variant="caption"
+                  sx={{ display: "block", mt: 1.5, color: "text.secondary" }}
+                >
+                  Green bars = hit the 10/week target. Lighter blue = some
+                  activity. Gray = none.
                 </Typography>
               </Paper>
             </Box>
@@ -211,7 +246,7 @@ export default function AdminInternDetailPage() {
             <Divider />
 
             <Box>
-              <Typography variant="overline" sx={{ color: "text.secondary" }}>
+              <Typography sx={{ ...TYPE.label, color: "text.secondary" }}>
                 Recent submissions
               </Typography>
               {detail.recentSubmissions.length === 0 && (
@@ -219,7 +254,10 @@ export default function AdminInternDetailPage() {
                   variant="outlined"
                   sx={{ p: 4, mt: 1.5, borderRadius: 2, borderStyle: "dashed" }}
                 >
-                  <Typography variant="body1" sx={{ textAlign: "center", color: "text.secondary" }}>
+                  <Typography
+                    variant="body1"
+                    sx={{ textAlign: "center", color: "text.secondary" }}
+                  >
                     No submissions yet.
                   </Typography>
                 </Paper>
@@ -233,26 +271,34 @@ export default function AdminInternDetailPage() {
                       variant="outlined"
                       sx={{ p: 2, borderRadius: 2 }}
                     >
-                      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
+                      <Stack
+                        direction="row"
+                        spacing={1.5}
+                        alignItems="center"
+                        sx={{ mb: 1 }}
+                      >
                         <Chip
                           label={s.category}
                           size="small"
                           sx={{
                             backgroundColor: cat.bg,
                             color: cat.fg,
+                            ...TYPE.caption,
                             fontWeight: 600,
-                            fontSize: "0.7rem",
                             textTransform: "capitalize",
                           }}
                         />
-                        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: "text.secondary" }}
+                        >
                           {new Date(s.flaggedAt).toLocaleString()}
                         </Typography>
                       </Stack>
                       <Typography
                         variant="body2"
                         sx={{
-                          fontFamily: "monospace",
+                          fontFamily: FONT_MONO,
                           fontSize: "0.82rem",
                           opacity: 0.75,
                           whiteSpace: "pre-wrap",

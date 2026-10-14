@@ -303,7 +303,7 @@ export default function PuzzleRatingLandingPage({
             variant="contained"
             size="large"
           >
-            Train endless puzzles with Masti
+            Practice more puzzles with Masti
           </Button>
         </Box>
 
@@ -342,7 +342,7 @@ export default function PuzzleRatingLandingPage({
           </Box>
         </Box>
 
-        <Typography sx={{ mt: 4, fontSize: "0.72rem", color: TEXT.tertiary }}>
+        <Typography sx={{ mt: 4, fontSize: "0.75rem", color: TEXT.secondary }}>
           Puzzles from the{" "}
           <MuiLink
             href="https://database.lichess.org/#puzzles"

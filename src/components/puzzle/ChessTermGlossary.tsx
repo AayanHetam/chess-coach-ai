@@ -268,7 +268,7 @@ export function ChessTermInfo({
   onShowOnBoard,
 }: ChessTermInfoProps) {
   const entry = CHESS_TERM_GLOSSARY[termKey];
-  const anchorRef = useRef<HTMLSpanElement>(null);
+  const anchorRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
 
   if (!entry) return <span>{children}</span>;
@@ -290,9 +290,13 @@ export function ChessTermInfo({
 
   return (
     <>
+      {/* A real button inside the prose, so the definition is reachable by
+          keyboard. Reset to read as the inline word it replaces. */}
       <Box
         ref={anchorRef}
-        component="span"
+        component="button"
+        type="button"
+        aria-expanded={open}
         onClick={(e) => {
           e.stopPropagation();
           setOpen((v) => !v);
@@ -301,13 +305,28 @@ export function ChessTermInfo({
           display: "inline-flex",
           alignItems: "baseline",
           gap: "0.18em",
+          p: 0,
+          m: 0,
+          font: "inherit",
+          lineHeight: "inherit",
+          textAlign: "inherit",
+          background: "none",
+          border: "none",
+          borderRadius: 0,
           cursor: "pointer",
           color: ACCENT.hover,
           borderBottom: `1px dotted ${ACCENT.border}`,
-          transition: `color ${MOTION.hover}, border-color ${MOTION.hover}`,
+          touchAction: "manipulation",
+          WebkitTapHighlightColor: "transparent",
+          transition: `color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
           "&:hover": {
             color: ACCENT.main,
             borderBottomColor: ACCENT.main,
+          },
+          "&:active": { transform: MOTION.pressScale },
+          "&:focus-visible": {
+            outline: `2px solid ${TEXT.primary}`,
+            outlineOffset: 2,
           },
         }}
       >
@@ -369,7 +388,7 @@ export function ChessTermInfo({
           <Typography
             sx={{
               mt: 1.25,
-              fontSize: "0.74rem",
+              fontSize: TYPE.caption.fontSize,
               lineHeight: 1.45,
               color: TEXT.secondary,
               fontStyle: "italic",

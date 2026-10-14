@@ -5,13 +5,13 @@ import { strengthBand } from "@/lib/scoutAnalytics";
 import {
   DossierPanel,
   FieldLabel,
-  MONO,
   MeterRow,
+  PLATFORM_LABEL,
   ROSE,
   VerdictPill,
   strengthColor,
 } from "./dossier";
-import { LINE, RADIUS, STATUS, TEXT } from "@/theme/tokens";
+import { LINE, RADIUS, STATUS, TEXT, TYPE } from "@/theme/tokens";
 
 export interface ProfileCardProps {
   username: string;
@@ -65,12 +65,13 @@ export default function ProfileCard({
   profile,
   onShare,
 }: ProfileCardProps) {
+  // Coloured from the same strength scale as the meters.
   const form =
     profile.recentAccuracy >= 60
-      ? { label: "Hot", color: "#34d399" }
+      ? { label: "Hot", color: strengthColor(100) }
       : profile.recentAccuracy >= 45
-        ? { label: "Even", color: "#fbbf24" }
-        : { label: "Cold", color: "#f87171" };
+        ? { label: "Even", color: strengthColor(45) }
+        : { label: "Cold", color: strengthColor(0) };
 
   // The lowest dimension is the one you actually play into, so name it rather
   // than leaving the reader to compare four bars.
@@ -92,9 +93,14 @@ export default function ProfileCard({
 
   return (
     <DossierPanel
-      label="Subject"
+      label="Player"
       emphasis
-      action={<VerdictPill label={platform} color="rgba(255,255,255,0.5)" />}
+      action={
+        <VerdictPill
+          label={PLATFORM_LABEL[platform] ?? platform}
+          color="rgba(255,255,255,0.5)"
+        />
+      }
     >
       {/* Identity block */}
       <Stack
@@ -106,10 +112,10 @@ export default function ProfileCard({
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             sx={{
+              ...TYPE.h3,
               fontWeight: 700,
               fontSize: { xs: "1.4rem", sm: "1.6rem" },
               lineHeight: 1.05,
-              letterSpacing: "-0.02em",
               color: TEXT.primary,
               textOverflow: "ellipsis",
               overflow: "hidden",
@@ -155,12 +161,10 @@ export default function ProfileCard({
         <Box sx={{ textAlign: "right", flexShrink: 0 }}>
           <Typography
             sx={{
-              fontFamily: MONO,
+              ...TYPE.h1,
               fontSize: "2.6rem",
-              fontWeight: 700,
               lineHeight: 0.85,
               color: overallColor,
-              letterSpacing: "-0.04em",
               fontVariantNumeric: "tabular-nums",
             }}
           >
@@ -205,7 +209,9 @@ export default function ProfileCard({
         <Box sx={{ color: ROSE.bright, display: "flex" }}>
           <Icon icon="mdi:target" width={12} />
         </Box>
-        <FieldLabel>Weakest link · {weakest.label}, play here</FieldLabel>
+        <FieldLabel>
+          Weakest area: {weakest.label}. Aim your play here.
+        </FieldLabel>
       </Stack>
 
       {/* Ratings strip */}
@@ -224,7 +230,6 @@ export default function ProfileCard({
             <Box key={tc.key} sx={{ textAlign: "center" }}>
               <Typography
                 sx={{
-                  fontFamily: MONO,
                   fontSize: "1rem",
                   fontWeight: 700,
                   color: rating ? TEXT.primary : TEXT.tertiary,
@@ -232,7 +237,7 @@ export default function ProfileCard({
                   fontVariantNumeric: "tabular-nums",
                 }}
               >
-                {rating ?? "—"}
+                {rating ?? "–"}
               </Typography>
               <FieldLabel>{tc.label}</FieldLabel>
             </Box>
@@ -255,7 +260,7 @@ export default function ProfileCard({
           sx={{ flex: 1, alignItems: "center", minWidth: 0 }}
         >
           {profile.recent.length === 0 ? (
-            <FieldLabel color={TEXT.tertiary}>No recent games</FieldLabel>
+            <FieldLabel>No recent games</FieldLabel>
           ) : (
             profile.recent.slice(-24).map((r, i) => (
               <Box
@@ -302,7 +307,6 @@ export default function ProfileCard({
               <FieldLabel>Peak</FieldLabel>
               <Typography
                 sx={{
-                  fontFamily: MONO,
                   fontSize: "0.75rem",
                   fontWeight: 700,
                   color: STATUS.success,
@@ -318,7 +322,6 @@ export default function ProfileCard({
               <FieldLabel>Floor</FieldLabel>
               <Typography
                 sx={{
-                  fontFamily: MONO,
                   fontSize: "0.75rem",
                   fontWeight: 700,
                   color: STATUS.error,
@@ -335,12 +338,12 @@ export default function ProfileCard({
       {onShare && (
         <Button
           fullWidth
-          variant="contained"
+          variant="outlined"
           onClick={onShare}
           startIcon={<Icon icon="mdi:share-variant" width={17} />}
           sx={{ mt: 2.25 }}
         >
-          Share this dossier
+          Share card
         </Button>
       )}
     </DossierPanel>

@@ -1,17 +1,8 @@
 "use client";
 
 import { Box, Slider, Stack, Typography } from "@mui/material";
-import { AnimatePresence, motion } from "framer-motion";
 import { Activity, BookOpen, Brain, Cpu } from "lucide-react";
-import {
-  FONT_MONO,
-  LINE,
-  MOTION,
-  RADIUS,
-  SURFACE,
-  TEXT,
-  TYPE,
-} from "@/theme/tokens";
+import { LINE, MOTION, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 
 export interface ArrowToggleState {
   best: boolean;
@@ -44,6 +35,9 @@ export const ARROW_PALETTE = {
     label: "Game played",
     icon: Activity,
   },
+  // The legend for ChessgroundBoard's "purple" brush, which is chess
+  // rendering (section 7 of DESIGN_RULES.md) and keeps its colour. The two
+  // literals change together.
   maia: { brush: "purple", color: "#A855F7", label: "Maia", icon: Brain },
 } as const;
 
@@ -117,15 +111,21 @@ export function BoardArrowToggles({
           return (
             <Box
               key={key}
+              component="button"
+              type="button"
+              aria-pressed={active}
               onClick={() => toggle(key)}
               title={compact ? opt.label : undefined}
               sx={{
                 cursor: "pointer",
+                font: "inherit",
                 display: "inline-flex",
                 alignItems: "center",
                 gap: compact ? 0.5 : 0.75,
-                px: compact ? 0.9 : 1.25,
-                py: compact ? 0.4 : 0.6,
+                // Compact padding is trimmed so the 13px labels keep the
+                // strip's width and height on the /analysis viewport budget.
+                px: compact ? 0.75 : 1.25,
+                py: compact ? 0.25 : 0.6,
                 borderRadius: `${RADIUS.pill}px`,
                 // The arrow colour is the legend: a quiet tint on the chip
                 // that is on, nothing on the chips that are off.
@@ -135,9 +135,11 @@ export function BoardArrowToggles({
                   : `1px solid ${LINE.hairline}`,
                 color: active ? opt.color : TEXT.secondary,
                 fontWeight: active ? 600 : 500,
-                fontSize: compact ? "0.72rem" : TYPE.caption.fontSize,
+                fontSize: TYPE.caption.fontSize,
                 transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
                 userSelect: "none",
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
                 "&:hover": {
                   background: active
                     ? `${opt.color}30`
@@ -145,10 +147,15 @@ export function BoardArrowToggles({
                   borderColor: active ? `${opt.color}88` : LINE.strong,
                 },
                 "&:active": { transform: MOTION.pressScale },
+                "&:focus-visible": {
+                  outline: "2px solid #FFFFFF",
+                  outlineOffset: 2,
+                },
               }}
             >
               {!compact && (
                 <Box
+                  component="span"
                   sx={{
                     width: 8,
                     height: 8,
@@ -160,7 +167,7 @@ export function BoardArrowToggles({
                 />
               )}
               <Icon size={11} />
-              <Box sx={{ whiteSpace: "nowrap" }}>
+              <Box component="span" sx={{ whiteSpace: "nowrap" }}>
                 {compact ? COMPACT_LABELS[key] : opt.label}
               </Box>
               {key === "maia" && active && !compact && (
@@ -168,9 +175,8 @@ export function BoardArrowToggles({
                   component="span"
                   sx={{
                     ml: 0.5,
-                    fontFamily: FONT_MONO,
                     fontVariantNumeric: "tabular-nums",
-                    fontSize: "0.72rem",
+                    fontSize: TYPE.caption.fontSize,
                     color: opt.color,
                   }}
                 >
@@ -217,10 +223,9 @@ export function BoardArrowToggles({
             />
             <Typography
               sx={{
-                fontSize: "0.72rem",
+                fontSize: TYPE.caption.fontSize,
                 fontWeight: 600,
                 color: TEXT.primary,
-                fontFamily: FONT_MONO,
                 fontVariantNumeric: "tabular-nums",
                 minWidth: 34,
                 textAlign: "right",
@@ -232,84 +237,76 @@ export function BoardArrowToggles({
         )}
       </Stack>
 
-      <AnimatePresence initial={false}>
-        {!compact && state.maia && (
-          <motion.div
-            initial={{ opacity: 0, height: 0, marginTop: 0 }}
-            animate={{ opacity: 1, height: "auto", marginTop: 12 }}
-            exit={{ opacity: 0, height: 0, marginTop: 0 }}
-            transition={{ duration: 0.24, ease: [0.22, 0.61, 0.36, 1] }}
-            style={{ overflow: "hidden" }}
+      {/* Appears in place, without animating its height: only transform and
+          opacity animate (DESIGN_RULES.md section 5). */}
+      {!compact && state.maia && (
+        <Box
+          sx={{
+            mt: 1.5,
+            px: 1.5,
+            py: 1,
+            borderRadius: `${RADIUS.control}px`,
+            background: SURFACE.raisedSecondary,
+            border: `1px solid ${LINE.hairline}`,
+            display: "grid",
+            gridTemplateColumns: "auto 1fr auto",
+            gap: 2,
+            alignItems: "center",
+          }}
+        >
+          <Stack direction="row" spacing={0.75} alignItems="center">
+            <Brain
+              size={16}
+              strokeWidth={1.75}
+              color={ARROW_PALETTE.maia.color}
+            />
+            <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
+              Maia ELO
+            </Typography>
+          </Stack>
+          <Slider
+            value={state.maiaElo}
+            onChange={(_, v) =>
+              onChange({
+                ...state,
+                maiaElo: typeof v === "number" ? v : v[0],
+              })
+            }
+            min={1100}
+            max={2200}
+            step={100}
+            marks={[
+              { value: 1100, label: "" },
+              { value: 1500, label: "" },
+              { value: 1800, label: "" },
+              { value: 2200, label: "" },
+            ]}
+            sx={{
+              py: 1,
+              "& .MuiSlider-rail": { height: 4 },
+              "& .MuiSlider-track": { height: 4, border: "none" },
+              "& .MuiSlider-thumb": { width: 14, height: 14 },
+              "& .MuiSlider-mark": {
+                background: "rgba(255,255,255,0.18)",
+                width: 2,
+                height: 6,
+              },
+            }}
+          />
+          <Typography
+            sx={{
+              fontSize: TYPE.caption.fontSize,
+              fontWeight: 600,
+              color: TEXT.primary,
+              fontVariantNumeric: "tabular-nums",
+              minWidth: 48,
+              textAlign: "right",
+            }}
           >
-            <Box
-              sx={{
-                px: 1.5,
-                py: 1,
-                borderRadius: `${RADIUS.control}px`,
-                background: SURFACE.raisedSecondary,
-                border: `1px solid ${LINE.hairline}`,
-                display: "grid",
-                gridTemplateColumns: "auto 1fr auto",
-                gap: 2,
-                alignItems: "center",
-              }}
-            >
-              <Stack direction="row" spacing={0.75} alignItems="center">
-                <Brain
-                  size={16}
-                  strokeWidth={1.75}
-                  color={ARROW_PALETTE.maia.color}
-                />
-                <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
-                  Maia ELO
-                </Typography>
-              </Stack>
-              <Slider
-                value={state.maiaElo}
-                onChange={(_, v) =>
-                  onChange({
-                    ...state,
-                    maiaElo: typeof v === "number" ? v : v[0],
-                  })
-                }
-                min={1100}
-                max={2200}
-                step={100}
-                marks={[
-                  { value: 1100, label: "" },
-                  { value: 1500, label: "" },
-                  { value: 1800, label: "" },
-                  { value: 2200, label: "" },
-                ]}
-                sx={{
-                  py: 1,
-                  "& .MuiSlider-rail": { height: 4 },
-                  "& .MuiSlider-track": { height: 4, border: "none" },
-                  "& .MuiSlider-thumb": { width: 14, height: 14 },
-                  "& .MuiSlider-mark": {
-                    background: "rgba(255,255,255,0.18)",
-                    width: 2,
-                    height: 6,
-                  },
-                }}
-              />
-              <Typography
-                sx={{
-                  fontSize: "0.82rem",
-                  fontWeight: 600,
-                  color: TEXT.primary,
-                  fontFamily: FONT_MONO,
-                  fontVariantNumeric: "tabular-nums",
-                  minWidth: 48,
-                  textAlign: "right",
-                }}
-              >
-                {state.maiaElo}
-              </Typography>
-            </Box>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            {state.maiaElo}
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 }

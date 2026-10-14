@@ -52,7 +52,7 @@ Detailed walkthrough: **[chessmasti.com/how-it-works](https://chessmasti.com/how
 - **Adaptive puzzle retrieval.** 100,000+ Lichess puzzles in a Neo4j graph, joined with expert commentary from the Jhamtani et al. (ACL 2018) research corpus. Recommendations come from graph traversal plus FEN cosine re-ranking against your actual mistake — not a generic theme bucket.
 - **Live Lichess play.** OAuth 2.0 PKCE plus dual-SSE streams. No tab-switching.
 - **Opponent scouting.** Lichess / Chess.com username → opening trees, repertoire collisions, "Tells" exploitability score, tilt and timeout psychology profiles.
-- **Free.** No paid tier, no upsell, no advertising.
+- **Free.** No paid tier, no upsell, no ad networks. The only advertising is a labelled sponsor banner served from the site itself, with no tracking of its own.
 
 ## Stack
 

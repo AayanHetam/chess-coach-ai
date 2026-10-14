@@ -321,9 +321,10 @@ export default function ArchitecturePage() {
       <Box component="section" sx={{ mb: 10 }}>
         <SectionHeading>Things we don&apos;t do</SectionHeading>
         <ProseBlock>
-          Free coaching. No advertising. No selling game data. No fine-tuned
-          proprietary chess LLM (a fine-tuned LLM still hallucinates; the
-          validator is what we trust).
+          Free coaching. No ad networks: the sponsor banner is a labelled
+          placement we serve ourselves, with no tracking of its own. No selling
+          game data. No fine-tuned proprietary chess LLM (a fine-tuned LLM still
+          hallucinates; the validator is what we trust).
         </ProseBlock>
       </Box>
 

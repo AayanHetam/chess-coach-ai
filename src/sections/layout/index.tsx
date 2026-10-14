@@ -173,9 +173,13 @@ export default function Layout({ children }: PropsWithChildren) {
               ride along with it the way it does everywhere else. /auth/age is
               excluded deliberately and permanently: it is the COPPA age gate,
               and an advertisement on a children's age-verification screen is
-              not something we serve even to an advertiser previewing it.
-              Renders nothing unless one of the three preview links was
-              opened. */}
+              not something we serve even to an advertiser previewing it
+              (the live placement excludes it too, see LIVE_EXCLUDED_RE_SOURCE).
+              Shows the live placement or a previewed creative, the same as
+              under the nav. The two trainers are bare so that no header
+              pushes the board down, and the live banner is exactly such a
+              header: measured 2026-10-14, they grow by its height and scroll,
+              and that was accepted so the placement is genuinely sitewide. */}
           {bare && router.pathname !== "/auth/age" && <PartnerSlotPages />}
 
           {children}

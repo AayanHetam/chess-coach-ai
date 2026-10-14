@@ -93,7 +93,7 @@ const QA: { q: string; a: string }[] = [
   },
   {
     q: "Is my game data private?",
-    a: "Authentication uses signed JWTs in httpOnly cookies. No game data is sold; there is no advertising business model. Stockfish runs in your browser, so positions you analyse never have to leave your machine for the engine to evaluate them.",
+    a: "Authentication uses signed JWTs in httpOnly cookies. No game data is sold. The only advertising is a labelled sponsor banner served from chessmasti.com itself: no ad network, no tracking of its own, and nothing about you shared with the sponsor. Stockfish runs in your browser, so positions you analyse never have to leave your machine for the engine to evaluate them.",
   },
 ];
 

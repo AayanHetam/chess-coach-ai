@@ -1,10 +1,14 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
+import type { SlotTone } from "./PartnerBanner";
 import {
+  PAGE_SHELL_CLASS,
+  PARTNER_SLOT_APP_CLASS,
   PartnerSlot,
+  SLOT_TONE_ATTR,
   installAnchorRewriter,
   partnerPrefixOf,
   prefixPath,
@@ -68,7 +72,28 @@ export function PartnerSlotApp() {
       uninstall();
     };
   }, [router, prefix]);
-  // tone="light": the App Router SEO pages render on a WHITE body, where
-  // the dark-ground disclosure colour measures 1.00:1 and vanishes.
-  return <PartnerSlot pathname={pathname} tone="light" />;
+  /**
+   * The disclosure's colour follows the page's ground: dark under the SEO
+   * pages' PageShell, light above every other App Router page, which keeps
+   * the white body. Read from the DOM after mount, the same signal the
+   * wrapper's CSS keys on (see PARTNER_SLOT_APP_CLASS), which is safe
+   * because the slot renders nothing until mounted anyway. The tone is also
+   * stamped on the wrapper so its ground and the label can never disagree,
+   * :has() support or not.
+   */
+  const [tone, setTone] = useState<SlotTone | null>(null);
+  useEffect(() => {
+    setTone(document.querySelector(`.${PAGE_SHELL_CLASS}`) ? "dark" : "light");
+  }, [pathname]);
+  // No stamp until the tone is known: a guessed value rendered on the server
+  // would outrank the :has() rule on the first frame and paint the band the
+  // wrong colour until hydration.
+  return (
+    <div
+      className={PARTNER_SLOT_APP_CLASS}
+      {...(tone ? { [SLOT_TONE_ATTR]: tone } : {})}
+    >
+      <PartnerSlot pathname={pathname} tone={tone ?? "light"} />
+    </div>
+  );
 }

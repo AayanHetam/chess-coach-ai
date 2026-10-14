@@ -36,9 +36,10 @@ export default function Document() {
          * Emotion SSR on the Pages Router, so sx-generated rules do not exist
          * until hydration, which is far too late to reserve height. The script
          * is inline and head-blocking for the same reason. Together they are
-         * what stop the banner shifting the page when it mounts.
-         * A visitor without the cookie runs four statements and loads nothing:
-         * no webfont, no artwork, no visible element. */}
+         * what stop the banner shifting the page when it mounts. The script
+         * decides between a preview prefix, the live placement and nothing
+         * (see LIVE_PLACEMENT in partners.ts); with nothing live, a normal
+         * URL runs a few statements and loads nothing. */}
         <style dangerouslySetInnerHTML={{ __html: partnerSlotCss }} />
         <script dangerouslySetInnerHTML={{ __html: partnerBootScript }} />
 

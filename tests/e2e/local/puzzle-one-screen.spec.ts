@@ -17,6 +17,14 @@ import { waitForStableFen } from "../helpers";
  * 148–172px board. Below LOCK_MIN_HEIGHT_PX (see pages/puzzles.tsx) the page
  * flows and may scroll, and the contract becomes "the board is a usable size
  * and fully on the first screen" — the short-desktop block below.
+ *
+ * Since 2026-10-14 a partner banner sits inside the locked box on every page
+ * (see bannerHeight below). On the tall viewports the lock holds and the
+ * board gives up exactly the banner's height, so the floors are lowered by
+ * what the slot measures. On the short viewports the flowing board is still
+ * capped to the viewport, so it may overhang the fold by the banner's height;
+ * shrinking it instead would put it under the board-size floor at 720p, and
+ * a board you scroll 132px to finish is the better of the two.
  */
 
 /**
@@ -46,6 +54,27 @@ const SHORT_DESKTOP_VIEWPORTS = [
 
 async function boardBox(page: Page) {
   return page.locator("[data-board-fen]").boundingBox();
+}
+
+/**
+ * The height the partner banner takes under the nav, 0 when none is live.
+ *
+ * Since 2026-10-14 a paid placement (LIVE_PLACEMENT in
+ * src/components/ads/partners.ts) sits inside the locked box on every
+ * page, and its reserve comes out of the board column: the lock holds, the
+ * board gives up the banner's height. Measured rather than imported, so the
+ * floors below read the page as shipped — with the banner, the board floor
+ * is the reclaim floor less the banner; without one, the slot is
+ * display:none, this is 0, and the original floors apply unchanged.
+ */
+async function bannerHeight(page: Page) {
+  const box = await page.locator(".cm-partner-slot").boundingBox();
+  const h = box?.height ?? 0;
+  // Bounded at the slot's reserve (SLOT_RESERVE in PartnerSlot.tsx), so the
+  // floors only ever give up the banner itself: a second mount, a wrapped
+  // label or a taller creative fails here instead of eroding the board.
+  expect(h, "partner slot taller than its reserve").toBeLessThanOrEqual(142);
+  return h;
 }
 
 /**
@@ -113,10 +142,13 @@ test.describe("one-screen layout", () => {
         box!.width,
         `${vp.label}: board too small to play on`
       ).toBeGreaterThan(240);
+      // The banner's height is the one thing allowed to come out of the
+      // board; anything beyond it is chrome creeping back in.
+      const banner = await bannerHeight(page);
       expect(
         box!.width,
-        `${vp.label}: board shrank below the 2026-09-08 reclaim floor`
-      ).toBeGreaterThanOrEqual(vp.minBoard);
+        `${vp.label}: board shrank below the 2026-09-08 reclaim floor (less the ${banner}px banner)`
+      ).toBeGreaterThanOrEqual(vp.minBoard - banner);
     });
   }
 
@@ -199,14 +231,18 @@ test.describe("short desktop viewports", () => {
         box!.width,
         `${vp.label}: board smaller than the screen allows`
       ).toBeGreaterThanOrEqual(Math.min(vp.height - 290, 470));
-      // The page may scroll here, but the board itself is on the first screen.
+      // The page may scroll here, but the board itself is on the first
+      // screen — the first screen once the banner above it has scrolled
+      // away, when one is live: the flowing board is capped to fit the
+      // viewport, and the banner's height is what it then overhangs by.
+      const banner = await bannerHeight(page);
       expect(box!.y, `${vp.label}: board top cut off`).toBeGreaterThanOrEqual(
         -1
       );
       expect(
         box!.y + box!.height,
-        `${vp.label}: board bottom below the fold`
-      ).toBeLessThanOrEqual(vp.height + 1);
+        `${vp.label}: board bottom further below the fold than the ${banner}px banner explains`
+      ).toBeLessThanOrEqual(vp.height + banner + 1);
       const sideways = await page.evaluate(
         () =>
           document.documentElement.scrollWidth -

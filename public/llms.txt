@@ -54,6 +54,6 @@
 ## What we don't do
 
 - Free coaching.
-- No advertising.
+- No ad networks: the only advertising is a labelled sponsor banner served from chessmasti.com itself, with no tracking of its own.
 - No selling game data.
 - No fine-tuned proprietary chess LLM. The validator is the trust layer.

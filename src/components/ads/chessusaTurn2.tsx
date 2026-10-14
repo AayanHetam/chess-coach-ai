@@ -21,12 +21,12 @@ import {
  *
  * TWO IMPLEMENTATION RULES, both load-bearing:
  *
- * 1. The logo is a CSS background-image, not an <img>. All three creatives are
- *    rendered into every page so the active one can be picked by CSS without a
- *    hydration mismatch (see PartnerSlot). A hidden <img> is still FETCHED by
- *    browsers; a background-image on a display:none element is not. That is
- *    the difference between real visitors downloading 0 bytes of ChessUSA
- *    artwork and downloading 230KB of it on every page view.
+ * 1. The logo is a CSS background-image, not an <img>. One option's wide and
+ *    narrow units are both in the DOM and chosen by media query (see rule 2),
+ *    and a hidden <img> is still FETCHED by browsers while a background-image
+ *    on a display:none element is not. So a visitor downloads the artwork of
+ *    the one size they see, never the other, and with no live placement and
+ *    no preview prefix (the slot is display:none) nothing at all.
  *
  * 2. Both sizes are always in the DOM and chosen by media query at 640px, the
  *    same breakpoint PartnerBanner's <picture> uses. Rendering one and

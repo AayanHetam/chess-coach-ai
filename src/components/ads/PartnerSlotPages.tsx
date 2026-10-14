@@ -88,8 +88,9 @@ export function patchPagesRouter(
  * not change it — and it updates on every client-side navigation. That second
  * property is the one that matters: the boot script in _document only runs
  * once per DOCUMENT load, so a next/link click would otherwise leave the
- * banner on screen while the URL moved out of the prefix, putting an
- * unapproved advertisement on a real page.
+ * previewed creative and the hidden sign-in asks on screen while the URL
+ * moved out of the prefix, leaving one advertiser's walkthrough on a real
+ * page (the live banner, by contrast, legitimately stays).
  *
  * Under a prefix it also installs the two things that keep the prefix on the
  * next navigation — the router wrapper above and the anchor rewriter — and

@@ -6,9 +6,10 @@ import type { ReactNode } from "react";
 /**
  * PartnerBanner — the single partner/sponsor slot.
  *
- * Built for the ChessUSA preview at /partners/chessusa, but written as the
- * real slot rather than a mock: whatever ships live is this component with a
- * different `creative` prop.
+ * Built for the ChessUSA preview at /partners/chessusa as the real slot
+ * rather than a mock, and since 2026-10-14 it is the live slot too: what
+ * every visitor sees (LIVE_PLACEMENT in partners.ts) is this component with
+ * that advertiser's `creative`.
  *
  * Two things here are requirements, not styling choices, so don't "tidy" them:
  *
@@ -209,8 +210,12 @@ export function PartnerBanner({
         sx={{
           m: 0,
           mb: 0.75,
-          fontSize: "0.625rem",
-          lineHeight: 1.2,
+          // In px, like the reserve that accounts for it (LABEL_BLOCK_PX in
+          // PartnerSlot.tsx): a rem here would grow with the browser's
+          // default font size while the reserve did not, and the banner
+          // would shift the page by the difference when it mounted.
+          fontSize: "10px",
+          lineHeight: "12px",
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.12em",

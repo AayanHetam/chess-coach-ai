@@ -2,6 +2,7 @@
 
 import type { PartnerCreative, PartnerUtm } from "./PartnerBanner";
 import type { VariantId } from "./previewOptions";
+import { PARTNERS } from "./partners";
 import {
   TURN_TWO_META,
   turnTwoCreative,
@@ -35,7 +36,7 @@ export function chessusaUtm(variant: VariantId): PartnerUtm {
   return {
     source: "chessmasti",
     medium: "display",
-    campaign: "chessusa_2026q3",
+    campaign: PARTNERS.chessusa.campaign,
     // Tag with the creative's own code (2a/2b/2c), the same value the
     // production links send, so shell clicks and link clicks reconcile.
     content: TURN_TWO_META[SHELL_TO_TURN_TWO[variant]].code,

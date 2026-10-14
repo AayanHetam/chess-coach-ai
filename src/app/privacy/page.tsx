@@ -50,7 +50,7 @@ export default function PrivacyPage() {
             <p className="cm-lede">
               Plain English. Covers <strong>chessmasti.com</strong> (the
               website) and <strong>Analyze with Chess Masti</strong> (the Chrome
-              extension). Last updated August 29, 2026.
+              extension). Last updated October 14, 2026.
             </p>
           </header>
 
@@ -125,6 +125,17 @@ export default function PrivacyPage() {
                 after you accept analytics cookies; until then they are not
                 loaded at all. Chess Masti does not add game PGNs or
                 coaching-chat content to those analytics events.
+              </li>
+              <li>
+                <strong>Sponsors</strong> receive nothing about you from us.
+                The sponsor banner near the top of every page is ordinary HTML
+                served from chessmasti.com, not an ad network: no third-party
+                script, no tracking pixel, no cookie, and no profiling. If you
+                click it, you leave for the sponsor&apos;s own website and the
+                link carries campaign tags (&quot;utm&quot;) that tell them the
+                visit came from Chess Masti and which banner was clicked,
+                nothing about you. The banner&apos;s typefaces are served from
+                our own domain.
               </li>
               <li>
                 <strong>Sentry</strong> may receive sanitized operational errors
@@ -237,8 +248,10 @@ export default function PrivacyPage() {
             <h3>What we do not do</h3>
             <ul>
               <li>
-                We do not sell your data. There is no advertising business
-                model.
+                We do not sell your data. The only advertising is a labelled
+                sponsor banner that we serve ourselves, with no ad network, no
+                tracking of its own, and nothing about you shared with the
+                sponsor.
               </li>
               <li>
                 We use and disclose PGNs and chats only as described in this

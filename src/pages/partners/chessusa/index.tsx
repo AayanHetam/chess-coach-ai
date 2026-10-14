@@ -35,6 +35,7 @@ import {
   type PageId,
   type VariantId,
 } from "@/components/ads/previewOptions";
+import { LIVE_PLACEMENT, PARTNERS } from "@/components/ads/partners";
 
 /** Real widths, not approximations: laptop, tablet portrait, iPhone 14/15. */
 const DEVICES = [
@@ -46,6 +47,19 @@ const DEVICES = [
 type DeviceId = (typeof DEVICES)[number]["id"];
 
 const BAR_HEIGHT = 92;
+
+/**
+ * The bar used to say NOT LIVE, which was true until ChessUSA bought unit
+ * 2b. The shell stays a review tool for the other units and advertisers, so
+ * it says which unit is live instead, straight from the registry.
+ */
+const LIVE_NOTE = LIVE_PLACEMENT
+  ? `UNIT ${PARTNERS[LIVE_PLACEMENT.slug].options[
+      LIVE_PLACEMENT.option
+    ].code.toUpperCase()} (${PARTNERS[
+      LIVE_PLACEMENT.slug
+    ].displayName.toUpperCase()}) IS LIVE ON CHESSMASTI.COM`
+  : "NOT LIVE ON CHESSMASTI.COM";
 
 interface ShellProps {
   variant: VariantId;
@@ -164,9 +178,10 @@ export default function PartnerPreviewShell({
       </Head>
 
       {/* ── preview apparatus ────────────────────────────────────────────
-          Fixed, walled off, and captioned. Nothing below this bar is on the
-          live site, and the bar says so in words rather than relying on the
-          viewer to infer it from the styling. */}
+          Fixed, walled off, and captioned. Nothing in this bar is on the
+          live site, and it says in words which unit, if any, is: with the
+          Creative toggle on that unit the frame below is exactly what every
+          visitor sees, otherwise it is a proposal. */}
       <Box
         component="header"
         sx={{
@@ -210,7 +225,7 @@ export default function PartnerPreviewShell({
               whiteSpace: "nowrap",
             }}
           >
-            PLACEMENT PREVIEW · NOT LIVE ON CHESSMASTI.COM
+            PLACEMENT PREVIEW · {LIVE_NOTE}
           </Box>
 
           <Segmented

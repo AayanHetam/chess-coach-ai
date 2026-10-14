@@ -11,18 +11,28 @@ import {
   SLOT_MAX_WIDTH,
   SWAP_PX,
 } from "../PartnerBanner";
+import { AEO_TOKENS } from "../../../app/_seo/aeoUi";
 import {
+  APP_DARK_GROUND,
   LABEL_BLOCK_PX,
+  LIVE_EXCLUDED_RE,
+  PAGE_SHELL_CLASS,
   PARTNER_ATTR,
+  PARTNER_SLOT_APP_CLASS,
+  SLOT_TONE_ATTR,
   PARTNER_CREATIVES,
   PARTNER_SLOT_CLASS,
+  PREVIEW_ATTR,
   PartnerSlot,
   PARTNER_PREVIEW_PATH_JS,
   SLOT_MARGIN_PX,
   SLOT_RESERVE,
+  buildPartnerBootScript,
   isPartnerPreviewPath,
   partnerBootScript,
+  partnerFontFaceCss,
   partnerSlotCss,
+  placementForPath,
   previewForPath,
 } from "../PartnerSlot";
 import {
@@ -32,10 +42,15 @@ import {
   turnTwoCreative,
 } from "../chessusaTurn2";
 import {
+  LIVE_PLACEMENT,
   PARTNERS,
+  PARTNER_FONT_DIR,
+  PARTNER_FONT_FACES,
   PARTNER_OPTION_IDS,
   PARTNER_SLUGS,
   partnerAttrValue,
+  partnerFontUrl,
+  type PartnerFontFace,
 } from "../partners";
 import { BARCODE_BAR_WIDTHS } from "../chesshouseTurn2";
 
@@ -48,11 +63,13 @@ const EVERY_UNIT = PARTNER_SLUGS.flatMap((slug) =>
   PARTNER_OPTION_IDS.map((option) => [slug, option] as const)
 );
 
-describe("the slot is invisible to everyone who did not open a preview link", () => {
+describe("the slot server-renders empty for everyone", () => {
   /**
    * renderToStaticMarkup runs no effects, so this is exactly what the server
-   * sends and what a normal visitor's browser parses. If the banner ever shows
-   * up here, it is shipping to real users.
+   * sends and what every browser parses first. A banner here would be in the
+   * static HTML of every page, preview prefix or not, live placement or not,
+   * and would hydrate-mismatch the moment the URL disagreed. The banner only
+   * ever appears after mount, into a box the head CSS already sized.
    */
   const ssr = renderToStaticMarkup(<PartnerSlot pathname="/puzzles" />);
 
@@ -115,10 +132,11 @@ describe("the reserve matches what it reserves for", () => {
 
 describe("which URLs activate the slot", () => {
   /**
-   * The single most important function here. Everything else is layout; this
-   * is the line between "an advertiser sees a mock-up" and "we put an
-   * unapproved ad on the live site". Every case that must return null is a
-   * case where a real visitor would otherwise see the banner.
+   * previewForPath is the PREVIEW resolver: the URLs that put a visitor into
+   * an advertiser's walkthrough, with the sign-in asks hidden, the router
+   * patched and analytics off. Every case that must return null is a case
+   * where a real visitor would otherwise land in someone's demo. Who sees a
+   * banner at all is placementForPath's call, under "the live placement".
    */
   it.each([
     ["/partners/chessusa/1", "chessusa", "1"],
@@ -307,6 +325,167 @@ describe("the analytics exclusion matches every spelling the routes accept", () 
   });
 });
 
+/** What the boot script appends to <head>: a font preload, or it is a bug. */
+interface FakeLink {
+  rel: string;
+  as: string;
+  type: string;
+  crossOrigin: string;
+  href: string;
+}
+
+/**
+ * Runs a boot script for real against a fake document and reports what it
+ * decided: the banner attribute, whether the preview attribute was set, and
+ * the hrefs it preloaded. Every appended element is checked here to be a
+ * well-formed font preload, so the per-path tests only have to say which
+ * files; `links` carries the raw elements for anything finer.
+ */
+function runBoot(script: string, pathname: string) {
+  let attr: string | null = null;
+  let preview = false;
+  const links: FakeLink[] = [];
+  const doc = {
+    documentElement: {
+      setAttribute: (k: string, v: string) => {
+        if (k === PARTNER_ATTR) attr = v;
+        if (k === PREVIEW_ATTR) preview = true;
+      },
+    },
+    createElement: (): FakeLink => ({
+      rel: "",
+      as: "",
+      type: "",
+      crossOrigin: "",
+      href: "",
+    }),
+    head: { appendChild: (el: FakeLink) => links.push(el) },
+  };
+  new Function("location", "document", script)({ pathname }, doc);
+  for (const l of links) {
+    expect(l.rel).toBe("preload");
+    expect(l.as).toBe("font");
+    expect(l.type).toBe("font/woff2");
+    // Mandatory even same-origin: fonts are fetched in CORS mode, and a
+    // preload in the other mode is a second download, not a cache hit.
+    expect(l.crossOrigin).toBe("anonymous");
+    expect(l.href.startsWith(`${PARTNER_FONT_DIR}/`)).toBe(true);
+  }
+  return { attr, preview, preloaded: links.map((l) => l.href) };
+}
+
+/** The files a partner's banner needs, as the boot script should name them. */
+const fontUrls = (slug: keyof typeof PARTNERS) =>
+  PARTNERS[slug].fonts.map((face) => partnerFontUrl(face));
+
+describe("the live placement", () => {
+  it("is ChessUSA unit 2b, bought 2026-10-14", () => {
+    // Pinned on purpose. Changing what every visitor sees on every page is a
+    // decision, and this is the test that makes an accidental edit loud.
+    expect(LIVE_PLACEMENT).toEqual({ slug: "chessusa", option: "2" });
+  });
+
+  it("shows on every ordinary page and nowhere the surface excludes", () => {
+    const live = { slug: "chessusa", option: "2" } as const;
+    for (const p of [
+      "/",
+      "/puzzles",
+      "/learn/w-london",
+      "/faq",
+      "/analysis?x=1",
+      "/PUZZLES",
+    ]) {
+      expect(placementForPath(p.split("?")[0], live)).toEqual(live);
+    }
+    for (const p of [
+      "/auth/age",
+      "/auth/age/",
+      "/partners/chessusa",
+      "/partners/chessusa/live",
+      "/partners/ChessUSA/",
+      "/partners/chesshouse",
+      "/partners/anything/at/all",
+      // Internal tools: nobody is paying to be seen on a dashboard.
+      "/intern",
+      "/intern/submissions",
+      "/admin/cost",
+      "/ADMIN/intern-data",
+      // A one-shot token flow, kept free of chrome.
+      "/reset-password",
+      "/reset-password/",
+    ]) {
+      expect(placementForPath(p, live)).toBeNull();
+      expect(LIVE_EXCLUDED_RE.test(p)).toBe(true);
+    }
+    // A path that merely starts with the same letters is ordinary.
+    expect(placementForPath("/auth/agent", live)).toEqual(live);
+    expect(placementForPath("/partnerships", live)).toEqual(live);
+    expect(placementForPath("/internship", live)).toEqual(live);
+    expect(placementForPath("/administrator", live)).toEqual(live);
+    expect(placementForPath("/reset-passwords", live)).toEqual(live);
+  });
+
+  it("yields to the preview a prefix names, whoever is live", () => {
+    const live = { slug: "chessusa", option: "2" } as const;
+    expect(placementForPath("/partners/ChessHouse/1/puzzles", live)).toEqual({
+      slug: "chesshouse",
+      option: "1",
+    });
+    expect(placementForPath("/partners/chessusa/3", live)).toEqual({
+      slug: "chessusa",
+      option: "3",
+    });
+  });
+
+  it("is exactly the preview resolver when nothing is live", () => {
+    for (const p of [
+      "/",
+      "/puzzles",
+      "/auth/age",
+      "/partners/chessusa/1",
+      "/partners/chesshouse/2/learn",
+      "/partners/chessusa/live",
+    ]) {
+      expect(placementForPath(p, null)).toEqual(previewForPath(p));
+    }
+  });
+
+  it("sets the banner attribute for everyone and the preview attribute only under a prefix", () => {
+    const script = buildPartnerBootScript({ slug: "chessusa", option: "2" });
+    expect(runBoot(script, "/puzzles")).toEqual({
+      attr: "chessusa:2",
+      preview: false,
+      preloaded: fontUrls("chessusa"),
+    });
+    expect(runBoot(script, "/partners/ChessHouse/1/puzzles")).toEqual({
+      attr: "chesshouse:1",
+      preview: true,
+      preloaded: fontUrls("chesshouse"),
+    });
+    expect(runBoot(script, "/auth/age")).toEqual({
+      attr: null,
+      preview: false,
+      preloaded: [],
+    });
+    expect(runBoot(script, "/partners/chessusa/live")).toEqual({
+      attr: null,
+      preview: false,
+      preloaded: [],
+    });
+  });
+
+  it("cannot hide a real visitor's sign-in asks, because that rule never keys on the banner attribute", () => {
+    const signInRules = partnerSlotCss
+      .split("\n")
+      .filter((l) => l.includes("data-cm-sign-in"));
+    expect(signInRules.length).toBeGreaterThan(0);
+    for (const rule of signInRules) {
+      expect(rule).toContain(`html[${PREVIEW_ATTR}]`);
+      expect(rule).not.toContain(`html[${PARTNER_ATTR}]`);
+    }
+  });
+});
+
 describe("boot script", () => {
   it("keys off the path, not off any stored state", () => {
     // A cookie or localStorage flag could outlive the preview URL and follow a
@@ -317,14 +496,22 @@ describe("boot script", () => {
     expect(partnerBootScript).toContain("([123])");
   });
 
-  it("returns before touching the document on a normal URL", () => {
-    // The early return is what keeps a normal page load free of the webfont.
-    expect(partnerBootScript).toContain("if(!m)return;");
-    const returnAt = partnerBootScript.indexOf("if(!m)return;");
-    expect(returnAt).toBeLessThan(partnerBootScript.indexOf("createElement"));
+  it("without a live placement, returns before touching the document on a normal URL", () => {
+    // The early return is what keeps a normal page load free of any face
+    // whenever nothing is live.
+    const dormant = buildPartnerBootScript(null);
+    expect(dormant).toContain("if(!L||");
+    expect(dormant.indexOf("return")).toBeLessThan(
+      dormant.indexOf("createElement")
+    );
+    expect(runBoot(dormant, "/puzzles")).toEqual({
+      attr: null,
+      preview: false,
+      preloaded: [],
+    });
   });
 
-  it("agrees with previewForPath on every URL, when actually executed", () => {
+  it("agrees with placementForPath and previewForPath on every URL, when actually executed", () => {
     /**
      * The rule exists twice — once as a string of JS for the document head,
      * once as TS for the component. Drift between them is a real failure
@@ -333,26 +520,21 @@ describe("boot script", () => {
      * sized. So run the shipped script for real against a fake document and
      * compare what it decides to what the component decides.
      */
-    const runBoot = (pathname: string) => {
-      let attr: string | null = null;
-      const appended: string[] = [];
-      const doc = {
-        documentElement: {
-          setAttribute: (k: string, v: string) => {
-            if (k === PARTNER_ATTR) attr = v;
-          },
-        },
-        createElement: () => ({ rel: "", href: "" }),
-        head: { appendChild: (el: { href: string }) => appended.push(el.href) },
-      };
-      new Function("location", "document", partnerBootScript)(
-        { pathname },
-        doc
-      );
-      return { attr, appended };
-    };
-
     for (const p of [
+      "/puzzles",
+      "/",
+      "/learn/w-london",
+      "/faq",
+      "/auth/age",
+      "/auth/age/",
+      "/auth/agent",
+      "/intern",
+      "/intern/submissions",
+      "/internship",
+      "/admin/cost",
+      "/administrator",
+      "/reset-password",
+      "/reset-passwords",
       "/partners/chessusa/1/puzzles",
       "/partners/ChessUSA/2",
       "/partners/chessusa/3",
@@ -370,19 +552,29 @@ describe("boot script", () => {
       "/foo/partners/chessusa/1",
       "/foo/partners/chesshouse/1",
     ]) {
-      const { attr, appended } = runBoot(p);
-      const preview = previewForPath(p);
-      expect(attr).toBe(preview ? partnerAttrValue(preview) : null);
-      /**
-       * The webfont must be requested on exactly the pages that show a
-       * banner, and it must be THAT advertiser's. One shared stylesheet would
-       * make every advertiser download every other advertiser's faces, and
-       * the wrong one would silently fall back to a system face in the
-       * creative the buyer is being asked to choose.
-       */
-      expect(appended).toEqual(
-        preview ? [PARTNERS[preview.slug].fontHref] : []
-      );
+      for (const live of [
+        null,
+        LIVE_PLACEMENT,
+        { slug: "chesshouse", option: "3" } as const,
+      ]) {
+        const { attr, preview, preloaded } = runBoot(
+          buildPartnerBootScript(live),
+          p
+        );
+        const placement = placementForPath(p, live);
+        expect(attr).toBe(placement ? partnerAttrValue(placement) : null);
+        // The preview attribute follows the URL alone, never the live placement.
+        expect(preview).toBe(previewForPath(p) !== null);
+        /**
+         * The faces must be preloaded on exactly the pages that show a
+         * banner, and they must be THAT advertiser's. Preloading the whole
+         * registry would make every advertiser download every other
+         * advertiser's faces, and the wrong set would leave the creative the
+         * buyer is being asked to choose in a fallback face until the real
+         * one arrived.
+         */
+        expect(preloaded).toEqual(placement ? fontUrls(placement.slug) : []);
+      }
     }
   });
 
@@ -393,6 +585,219 @@ describe("boot script", () => {
 
   it("is syntactically valid JavaScript", () => {
     expect(() => new Function(partnerBootScript)).not.toThrow();
+  });
+});
+
+describe("the App Router mount takes its page's ground", () => {
+  /**
+   * The App Router pages render on a white body and paint their own ground.
+   * Without these rules the live banner sat in a white band above every dark
+   * SEO page. The wrapper's ground follows the page, and so does the label
+   * tone (PartnerSlotApp reads the same .cm-page-shell signal after mount
+   * and stamps it on the wrapper, so browsers without :has() agree too).
+   */
+  it("is white like the body by default, dark from the first frame under a PageShell", () => {
+    expect(partnerSlotCss).toContain(
+      `html[${PARTNER_ATTR}] .${PARTNER_SLOT_APP_CLASS}{background:#fff;padding:0 16px}`
+    );
+    expect(partnerSlotCss).toContain(
+      `html[${PARTNER_ATTR}] body:has(.${PAGE_SHELL_CLASS}) .${PARTNER_SLOT_APP_CLASS}{background:${APP_DARK_GROUND}}`
+    );
+  });
+
+  it("follows the tone the binding stamps after mount, with or without :has()", () => {
+    const lines = partnerSlotCss.split("\n");
+    const has = lines.findIndex((l) => l.includes(":has("));
+    const light = lines.findIndex((l) =>
+      l.includes(`[${SLOT_TONE_ATTR}="light"]{background:#fff}`)
+    );
+    const dark = lines.findIndex((l) =>
+      l.includes(`[${SLOT_TONE_ATTR}="dark"]{background:${APP_DARK_GROUND}}`)
+    );
+    expect(has).toBeGreaterThan(-1);
+    // Same specificity as the :has rule and later in the sheet, so the
+    // post-mount stamp wins wherever the two disagree.
+    expect(light).toBeGreaterThan(has);
+    expect(dark).toBeGreaterThan(has);
+    for (const i of [light, dark]) {
+      expect(lines[i].startsWith(`html[${PARTNER_ATTR}] body .`)).toBe(true);
+    }
+  });
+
+  it("repeats the PageShell colour and class exactly", () => {
+    expect(APP_DARK_GROUND).toBe(AEO_TOKENS.bg);
+    const here = fileURLToPath(new URL(".", import.meta.url));
+    const shell = readFileSync(
+      join(here, "..", "..", "..", "app", "_seo", "aeoUi.tsx"),
+      "utf8"
+    );
+    expect(shell).toContain(`className="${PAGE_SHELL_CLASS}"`);
+  });
+
+  it("paints nothing for a visitor with no banner", () => {
+    const rules = partnerSlotCss
+      .split("\n")
+      .filter((l) => l.includes(PARTNER_SLOT_APP_CLASS));
+    expect(rules.length).toBeGreaterThan(0);
+    for (const rule of rules)
+      expect(rule.startsWith(`html[${PARTNER_ATTR}]`)).toBe(true);
+  });
+});
+
+describe("the faces come from this domain", () => {
+  /**
+   * The placement is live for every visitor, so the creatives' typefaces are
+   * served from chessmasti.com rather than linked from Google: a page load
+   * must not call a third party on the advertiser's behalf. These tests hold
+   * the whole chain — the file is in the repo, the CSS declares it, the boot
+   * script preloads it, and nothing anywhere still points at Google.
+   */
+  const here = fileURLToPath(new URL(".", import.meta.url));
+  const publicDir = join(here, "..", "..", "..", "..", "public");
+
+  it.each(PARTNER_FONT_FACES.map((f) => [f.file, f] as const))(
+    `%s is a woff2 file shipped under public${PARTNER_FONT_DIR}`,
+    (file, face) => {
+      const bytes = readFileSync(join(publicDir, PARTNER_FONT_DIR, file));
+      expect(bytes.subarray(0, 4).toString("latin1")).toBe("wOF2");
+      expect(face.family.length).toBeGreaterThan(0);
+      expect(face.weight).toMatch(/^[1-9]00( [1-9]00)?$/);
+    }
+  );
+
+  it("declares one @font-face per file, swapped, pointing at that file", () => {
+    const rules = partnerFontFaceCss.split("\n");
+    expect(rules).toHaveLength(PARTNER_FONT_FACES.length);
+    PARTNER_FONT_FACES.forEach((face, i) => {
+      expect(rules[i]).toContain(`font-family:'${face.family}'`);
+      expect(rules[i]).toContain(`font-weight:${face.weight}`);
+      expect(rules[i]).toContain("font-display:swap");
+      expect(rules[i]).toContain(
+        `src:url(${partnerFontUrl(face)}) format('woff2')`
+      );
+    });
+    // And they ship in the head CSS, before any slot rule.
+    expect(partnerSlotCss.startsWith(partnerFontFaceCss)).toBe(true);
+    // Each file once, however many partners share it.
+    const files = PARTNER_FONT_FACES.map((f) => f.file);
+    expect(new Set(files).size).toBe(files.length);
+  });
+
+  /**
+   * Every (family, weight) a creative sets text in, read from the Emotion
+   * rule blocks in the rendered markup. A block with no font-weight inherits
+   * one, so its weight is unknown here and only the family is checked.
+   */
+  const facesIn = (html: string): { family: string; weight: number | null }[] =>
+    Array.from(html.matchAll(/\{([^{}]*font-family:[^{}]*)\}/g), (m) => {
+      const block = m[1];
+      const family = /font-family:([^;}]+)/
+        .exec(block)![1]
+        .split(",")[0]
+        .trim()
+        .replace(/^['"]|['"]$/g, "");
+      const w = /font-weight:(\d+)/.exec(block);
+      return { family, weight: w ? Number(w[1]) : null };
+    });
+
+  const covers = (
+    face: PartnerFontFace,
+    family: string,
+    weight: number | null
+  ) => {
+    if (face.family !== family) return false;
+    if (weight === null) return true;
+    const [lo, hi = lo] = face.weight.split(" ").map(Number);
+    return weight >= lo && weight <= hi;
+  };
+
+  it("every face a creative sets text in is served, at that weight", () => {
+    for (const [slug, option] of EVERY_UNIT) {
+      const html = renderToStaticMarkup(<>{PARTNER_CREATIVES[slug](option)}</>);
+      const faces = facesIn(html);
+      expect(faces.length).toBeGreaterThan(0);
+      for (const { family, weight } of faces) {
+        expect(
+          PARTNER_FONT_FACES.some((f) => covers(f, family, weight)),
+          `${slug} option ${option} sets text in ${family} ${weight ?? "(inherited weight)"}, which no partner font serves`
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("a partner lists every face its creatives use, and only those", () => {
+    for (const slug of PARTNER_SLUGS) {
+      const used: { family: string; weight: number | null }[] = [];
+      for (const option of PARTNER_OPTION_IDS) {
+        const html = renderToStaticMarkup(
+          <>{PARTNER_CREATIVES[slug](option)}</>
+        );
+        used.push(...facesIn(html));
+      }
+      const listed = PARTNERS[slug].fonts;
+      // Everything used is listed (so the boot script preloads it)...
+      for (const { family, weight } of used) {
+        expect(
+          listed.some((f) => covers(f, family, weight)),
+          `${slug} uses ${family} ${weight ?? ""} but does not list it`
+        ).toBe(true);
+      }
+      // ...and everything listed is used (so no partner preloads a face it
+      // never renders).
+      for (const face of listed) {
+        expect(
+          used.some((u) => covers(face, u.family, u.weight)),
+          `${slug} lists ${face.file} but no creative uses it`
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("the live unit alone uses every face its partner lists, so no visitor preloads a face the banner never renders", () => {
+    /**
+     * The boot script preloads a partner's whole list, not the one unit's
+     * faces, which is harmless on a sales preview and a waste on every page
+     * view once that partner is live. ChessUSA's three units all use both
+     * listed faces; this is the test that fails the day a placement does
+     * not, before it ships to every visitor.
+     */
+    if (!LIVE_PLACEMENT) return;
+    const html = renderToStaticMarkup(
+      <>{PARTNER_CREATIVES[LIVE_PLACEMENT.slug](LIVE_PLACEMENT.option)}</>
+    );
+    const used = facesIn(html);
+    for (const face of PARTNERS[LIVE_PLACEMENT.slug].fonts) {
+      expect(
+        used.some((u) => covers(face, u.family, u.weight)),
+        `the live unit never sets text in ${face.file}, yet every visitor preloads it`
+      ).toBe(true);
+    }
+  });
+
+  it("nothing on the surface still points at Google Fonts", () => {
+    expect(partnerSlotCss).not.toMatch(/googleapis|gstatic/);
+    expect(partnerBootScript).not.toMatch(/googleapis|gstatic|stylesheet/);
+    const adsDir = join(here, "..");
+    const sources = readdirSync(adsDir)
+      .filter((f) => /\.tsx?$/.test(f))
+      .map((f) => readFileSync(join(adsDir, f), "utf8"));
+    sources.push(
+      readFileSync(
+        join(
+          here,
+          "..",
+          "..",
+          "..",
+          "pages",
+          "partners",
+          "chessusa",
+          "live.tsx"
+        ),
+        "utf8"
+      )
+    );
+    for (const src of sources)
+      expect(src).not.toMatch(/fonts\.googleapis\.com|fonts\.gstatic\.com/);
   });
 });
 

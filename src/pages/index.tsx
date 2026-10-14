@@ -16,7 +16,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
+import { FOLD_SLACK_PROPS, SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
 import { Masti, MastiAvatar, mastiStillSrcSet } from "@/components/masti";
 import { HeroMastiStage } from "@/components/landing/HeroMasti";
 import { BorderBeam } from "@/components/ui/BorderBeam";
@@ -330,6 +330,10 @@ export function Hero() {
     <Box
       component="section"
       aria-labelledby="hero-heading"
+      // The top padding below is the slack between the nav and the first
+      // screen's call to action; a partner banner spends it. See
+      // FOLD_SLACK_ATTR.
+      {...FOLD_SLACK_PROPS}
       sx={{
         display: "grid",
         gridTemplateColumns: { xs: "1fr", md: "1.08fr 0.92fr" },

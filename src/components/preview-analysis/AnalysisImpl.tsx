@@ -2185,33 +2185,48 @@ function BoardArea({
                   data-testid="masti-board-empty"
                   style={{ marginBottom: 4 }}
                 />
-                <Typography
+                {/* The chessboard paints its pieces above this scrim, so the
+                    caption sits on its own solid callout to stay readable
+                    when the board is small enough for it to reach the
+                    pawns. */}
+                <Box
                   sx={{
-                    fontSize: "1rem",
-                    fontWeight: 700,
-                    color: "rgba(255,255,255,0.9)",
+                    px: 2,
+                    py: 1.25,
+                    borderRadius: `${RADIUS.card}px`,
+                    background: SURFACE.raised,
+                    border: `1px solid ${LINE.hairline}`,
+                    maxWidth: 320,
                   }}
                 >
-                  No game loaded
-                </Typography>
-                <Typography
-                  sx={{
-                    fontSize: "0.84rem",
-                    color: "rgba(255,255,255,0.55)",
-                    maxWidth: 300,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  Hit{" "}
-                  <Box
-                    component="span"
-                    sx={{ color: TEXT.primary, fontWeight: 600 }}
+                  <Typography
+                    sx={{
+                      fontSize: "1rem",
+                      fontWeight: 700,
+                      color: "rgba(255,255,255,0.9)",
+                    }}
                   >
-                    Load game
-                  </Box>{" "}
-                  to paste a PGN or FEN, or pull your recent games from Lichess
-                  or Chess.com.
-                </Typography>
+                    No game loaded
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "0.84rem",
+                      color: "rgba(255,255,255,0.55)",
+                      maxWidth: 300,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    Hit{" "}
+                    <Box
+                      component="span"
+                      sx={{ color: TEXT.primary, fontWeight: 600 }}
+                    >
+                      Load game
+                    </Box>{" "}
+                    to paste a PGN or FEN, or pull your recent games from
+                    Lichess or Chess.com.
+                  </Typography>
+                </Box>
               </Box>
             )}
           </Box>

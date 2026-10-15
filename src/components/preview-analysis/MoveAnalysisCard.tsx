@@ -216,12 +216,11 @@ export function MoveAnalysisCard({
                   fontWeight: 600,
                   color: TEXT.primary,
                   whiteSpace: "nowrap",
-                  // On a narrow phone the SAN gives way before the verdict
-                  // does: the verdict word is the classification's
-                  // non-colour channel.
-                  minWidth: 0,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
+                  // The move and its verdict never shrink: the move is what
+                  // the row is about, and the verdict word is the
+                  // classification's non-colour channel. When the row is
+                  // short of room, the eval swing after them gives way.
+                  flexShrink: 0,
                 }}
               >
                 {label}
@@ -252,6 +251,9 @@ export function MoveAnalysisCard({
                       fontVariantNumeric: "tabular-nums",
                       color: TEXT.secondary,
                       whiteSpace: "nowrap",
+                      minWidth: 0,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
                     }}
                   >
                     {analysis.evalBefore} → {analysis.evalAfter}

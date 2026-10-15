@@ -207,9 +207,9 @@ html[data-cm-partner] [data-cm-viewport-lock]{overflow:visible}
 html[data-cm-partner] [data-cm-fold-slack]{padding-top:0}
 html[data-cm-preview] [data-cm-sign-in]{display:none}
 html[data-cm-partner] .cm-partner-slot-app{background:#fff;padding:0 16px}
-html[data-cm-partner] body:has(.cm-page-shell) .cm-partner-slot-app{background:#08080f}
+html[data-cm-partner] body:has(.cm-page-shell) .cm-partner-slot-app{background:#000000}
 html[data-cm-partner] body .cm-partner-slot-app[data-cm-tone="light"]{background:#fff}
-html[data-cm-partner] body .cm-partner-slot-app[data-cm-tone="dark"]{background:#08080f}
+html[data-cm-partner] body .cm-partner-slot-app[data-cm-tone="dark"]{background:#000000}
 ```
 
 The viewport-lock, fold-slack and wrapper rules key on the banner attribute
@@ -224,7 +224,7 @@ ground of the page that follows it. The first is the default, white like the
 body, and carries the 16px side gutter those pages have no `<main>` padding
 to provide. The four `.cm-content` legal pages (accessibility, extension,
 privacy, terms), the internship pages and the 404 render no PageShell and
-stay on it. The second turns the wrapper `APP_DARK_GROUND` (`#08080f`, which
+stay on it. The second turns the wrapper `APP_DARK_GROUND` (`#000000`, which
 a test keeps equal to `AEO_TOKENS.bg` in `src/app/_seo/aeoUi.tsx`) from the
 first frame when the body holds a `.cm-page-shell` (`PAGE_SHELL_CLASS`, the
 class the dark `PageShell` carries on the 21 SEO pages). The last two key on
@@ -255,12 +255,16 @@ same size but 132px lower. `/analysis` at 1440×900 does not scroll either,
 its board giving up 86px (458 against 544 with no banner).
 
 `FOLD_SLACK_PROPS` is spread on the landing `Hero` section in
-`src/pages/index.tsx` (`section[aria-labelledby="hero-heading"]`). Its top
-padding is the slack between the nav and the first screen's call to action,
-sized so the primary button (`StartPlanCTA`) clears a 720px fold with a few
-pixels to spare, and the banner spends those pixels. With a banner the rule
-drops that padding, which is enough to keep the promise (measured at
-1280×720: the button's bottom edge moved from 727 to 709).
+`src/components/landing/Hero.tsx` (`section[aria-labelledby="hero-heading"]`).
+With a banner the rule drops the hero's top padding, and under the same
+attribute `homeRootSx` in `src/components/landing/launchTheme.ts` sets
+`--home-banner` to the slot's reserve (`HOME_BANNER_VARS`, from
+`SLOT_RESERVE` either side of `SWAP_PX`), which `HeroMasti` takes off
+Masti's height, so the one-screen home still fits. Measured on a production
+build: at 1280×720 the primary button (`StartButton`, "Let's go") ends at
+571 with no scroll and Masti is 270px wide; at 390×664, 583 and 100px. The
+framed copy in `src/pages/partners/chessusa/live.tsx` never carries the
+attribute and applies both itself.
 
 `SIGN_IN_PROPS` is spread on (files under `src/components/` unless written
 in full):
@@ -273,7 +277,7 @@ in full):
 | coach suggestion pills | same | `signedOut` |
 | coach composer (TextField + send) | same | `signedOut` |
 | puzzle rail identity chip | `puzzle/PuzzleSessionRail.tsx` | `!user && !authLoading` |
-| home caption "Free account, no card" and its separator | `src/pages/index.tsx` | no |
+| puzzle sign-in gate, gated grid included | `puzzle/PuzzleSignInGate.tsx` | no (mounted only when auth has answered signed out) |
 | Scout bullet "Free · quick sign-in" | `scout/ScoutLanding.tsx` | no |
 | profile "Sign in to sync" card (wrapped in a plain div) | `src/pages/profile.tsx` | no (only renders signed out) |
 | quiz result CTA and caption | `onboarding/QuizResult.tsx` | `!authed` |

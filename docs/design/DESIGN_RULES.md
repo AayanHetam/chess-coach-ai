@@ -217,7 +217,7 @@ Patterns are `rg` regexes over `src/` excluding `__tests__`, `src/components/ads
 | Custom curves, long durations | `cubic-bezier\(0\.22, ?0\.61\|duration: ?0\.[5-9]\|ease: ?\[` | `MOTION.hover`, `MOTION.enter`, or a `MOTION.spring*`. |
 | Tiny text | `fontSize: ?"?0\.(5[0-9]\|6[0-9]\|7[0-4])rem\|fontSize: ?(10\|11)\b` | `TYPE.caption` (13px) or 12px for legal only. |
 | Mono literals | `fontFamily: ?"(Monaco\|monospace\|ui-monospace\|Inter)` | `FONT_MONO` or remove (sans inherits). |
-| No focus style | `outline: ?"?none` without an `&:focus-visible` sibling | `"&:focus-visible": { outline: "2px solid #FFFFFF", outlineOffset: 2 }` (`-2` inside translucent chrome). |
+| No focus style | `outline: ?"?none` without an `&:focus-visible` sibling (or, on a text field, `&:focus-within` on its wrapper) | `"&:focus-visible": { outline: "2px solid #FFFFFF", outlineOffset: 2 }` (`-2` inside translucent chrome). |
 | Inline paper overrides | `slotProps=\{\{ ?paper\|PaperProps=` adding blur, gradient or a glass fill to Dialog, Menu, Popover, Tooltip, Alert, Snackbar | Remove; the theme styles them. |
 | Page-local theme | `createTheme\(` outside `src/theme/` and `launchTheme.ts` | Delete; Layout already provides `buildChessMastiTheme()`. |
 | Page-local scrollbar rule | `::-webkit-scrollbar-thumb` in a page | Delete; the baseline owns it. |
@@ -251,7 +251,7 @@ Every interactive recipe carries, from the theme or by hand: `"&:focus-visible":
 ## 11. Do not touch
 
 - `src/components/ads/**` in full (the advertisers' creatives, `PartnerBanner`, `PartnerSlot*`, `partners.ts`, `previewOptions.ts`) and the partner-preview hooks: every `{...SIGN_IN_PROPS}`, `{...VIEWPORT_LOCK_PROPS}` and `data-cm-*` spread stays on the element it is on (NavPill, AppDrawer, HeroMasti, ScoutLanding, AnalysisImpl, QuizResult, PuzzleSessionRail, InlinePuzzleCoach, `pages/puzzles.tsx`, `profile.tsx`); `src/pages/_document.tsx` lines 42 to 43; `PartnerSlotPages` placement in NavPill and `layout/index.tsx`; `src/pages/partners/**` except the live page's snapshot panel. Adding `SIGN_IN_PROPS` to a sign-in ask that lacks it (`PuzzleSignInGate`) is allowed.
-- Chess, engine and board logic everywhere: `src/lib/**`, `chess.js` calls, `ChessgroundBoard.tsx` (brushes, outer div), `ChessgroundBoardPlaceholder.tsx`, `boardTheme.ts`, `tacticDiagrams.ts`, `diagramTokens.ts`, the drawable arrow palette, `PuzzleBoardSurface` keyboard and drop handling, `LichessLiveBoard` move logic and square colours, `TwinBotGame`, the opening and course trainers' `onPieceDrop`, `CLASSIFICATION_COLORS` and glyphs, eval-bar maths, `coachMoveRefs.ts`, `playerSide.ts`, `generateSuggestions.ts`, `MasterGamesPanel` candidate derivation, the board CSS block in `AnalysisImpl.tsx` (around lines 2395 to 2425), `DEMO_SPEED_MS`, `FlashOverlay`'s key-remount contract, `usePuzzleBoardState`, `src/sections/analysis/states.ts`.
+- Chess, engine and board logic everywhere: `src/lib/**`, `chess.js` calls, `ChessgroundBoard.tsx` (brushes, outer div), `ChessgroundBoardPlaceholder.tsx`, `boardTheme.ts`, `tacticDiagrams.ts`, `diagramTokens.ts`, the drawable arrow palette, `PuzzleBoardSurface` keyboard and drop handling, `LichessLiveBoard` move logic and square colours, `TwinBotGame`, the opening and course trainers' `onPieceDrop`, `CLASSIFICATION_COLORS` and glyphs, eval-bar maths, `coachMoveRefs.ts`, `playerSide.ts`, `generateSuggestions.ts`, `MasterGamesPanel` candidate derivation, the board CSS block in `AnalysisImpl.tsx` (`ChessgroundDarkSquareOverride`), `DEMO_SPEED_MS`, `FlashOverlay`'s key-remount contract, `usePuzzleBoardState`, `src/sections/analysis/states.ts`.
 - Viewport-locked geometry: `AnalysisImpl.tsx` and `src/pages/puzzles.tsx` keep every height, width, grid template, overflow, padding and position (`LOCK_MIN_HEIGHT_PX`, `UNLOCKED_BOARD_WIDTH`, `BOARD_MIN_PX`, the grip, the merged bottom row); `PuzzleToolbar` and `PuzzleCoachPanel`'s 34px header are part of the same pixel budget; `landingPuzzle.tsx` `BOARD_FRAME_SX`/`BOARD_CAPTION_SX`; `[rating].tsx` single `CARD_SX`; `repetit-training`'s unconditional stats card with its placeholder dashes; `LichessLivePlay` keyed phase roots and `minHeight 420`; `GAMES_TABLE_MIN_HEIGHT`/`MAX_WIDTH`; `learn.tsx` row heights 56 vs 46; `SlotChooser`'s 3px left edge.
 - Masti: every `Masti`, `MastiAvatar`, `MastiSays` mount, its size, mood, `loops`, `decorative`, `priority`, `replayKey`; the reducers in `src/components/masti/mood.ts`; `manifest.ts`, `Masti.tsx`, `useMastiMotion.ts`, `useStickyMood.ts`; `public/masti/*`; his bubble copy's voice; his test ids.
 - Every `data-testid`, `aria-label`, `role`, `aria-current`, `tabIndex`, keyboard handler and focus style. Copy pinned by tests (the lists in each audit: "I agree", "Maybe later", "Quick tour", "Close tour", "Open menu", "Account menu", "Sign in", "Let's go", "Hi!", "Backed by chess masters", the AgeGate labels, the tour headings, "Analyse" on the puzzle tool, "Reference", "Eliminate", "Submit move", "Solved", "Masters", "Engine analysis", "Exploring", the course trainer strings, the plan and performance headings, the terms and privacy sentences, the chess-basics headings and dates).
@@ -263,29 +263,29 @@ Every interactive recipe carries, from the theme or by hand: `"&:focus-visible":
 
 ## 12. Verification
 
-Run from the repo root. Each grep must print nothing, or only the named allowlist.
+Run from the repo root. The greps are a review aid, not a verdict: they find candidates, and every hit on a line a change adds is either fixed, covered by its allowlist, or something this file prescribes (the type grep also matches `fontFamily: FONT_MONO`, which notation uses by rule). Run across the whole tree they also list older code and copy the redesign did not reach or only reformatted (among them the scout panels, `/profile`, `/site-stats`, the admin and intern pages, the older analysis panels under `src/sections/analysis`, the OG images and share cards, the e-mail templates and the prose of the content pages under `src/app`). A change that touches one of those lines brings it up to these rules rather than copying it.
 
 ```
 # decoration and glass (allowlist: NavPill.tsx, AppDrawer.tsx, ConsentBanner.tsx, src/theme/tokens.ts)
 rg -n "backdropFilter|WebkitBackdropFilter|saturate\(1[0-9]{2}%\)" src --glob '!**/__tests__/**' --glob '!src/components/ads/**'
-# gradients, glow, gradient text (allowlist: maskImage fades, boardTheme.ts, the board CSS block in AnalysisImpl.tsx)
-rg -n "linear-gradient|radial-gradient|conic-gradient|WebkitBackgroundClip|backgroundClip|inset 0 1px 0|0 0 [0-9]+px|\.glow\b|filter: ?\"blur" src --glob '!**/__tests__/**' --glob '!src/components/ads/**' --glob '!src/lib/**'
-rg -n "boxShadow[^\n]*rgba\((249|34|239|168|251|255), ?[0-9]+, ?[0-9]+" src --glob '!src/components/ads/**'
-# deleted components and motion (allowlist: none)
-rg -n "GradientBackdrop|BorderBeam|Spotlight|MarqueeStrip|BentoCard|NumberTicker|useInView|whileHover|repeat: ?Infinity|revealDelay|animationDelay|transitionDelay|useMotionValue|transition: ?\"all" src --glob '!**/__tests__/**' --glob '!src/components/masti/**'
+# gradients, glow, gradient text (allowlist: maskImage fades, boardTheme.ts, the board CSS block in AnalysisImpl.tsx, `ChessgroundDarkSquareOverride`)
+rg -n "linear-gradient|radial-gradient|conic-gradient|<linearGradient|<radialGradient|WebkitBackgroundClip|backgroundClip|inset 0 1px 0|0 0 [0-9]+px|\.glow\b|filter: ?\"blur" src --glob '!**/__tests__/**' --glob '!src/components/ads/**' --glob '!src/lib/**'
+rg -n "boxShadow[^\n]*rgba\((249|34|239|168|251|255), ?[0-9]+, ?[0-9]+|boxShadow[^\n]*\\\$\{[^}]+\}[0-9a-fA-F]{2}\b" src --glob '!src/components/ads/**'   # literal and hex-alpha glows
+# deleted components and motion (allowlist: the spinner's `infinite` in ui/Loader.tsx)
+rg -n "GradientBackdrop|BorderBeam|Spotlight|MarqueeStrip|BentoCard|NumberTicker|useInView|whileHover|repeat: ?Infinity|revealDelay|animationDelay|transitionDelay|useMotionValue|transition: ?\"all|translateY\(-[0-9]+px\)" src --glob '!**/__tests__/**' --glob '!src/components/masti/**'
 rg -n "@keyframes (pulse|shimmer|cmGlow|pulse-badge|puzzleCoachCursor|cmEvalBarPulse)|infinite" src --glob '!src/components/masti/**' --glob '!src/theme/**'
 # type: tracking, case, fonts and sizes live in the theme (allowlist: src/theme/**, launchTheme.ts)
 rg -n "letterSpacing:|fontFamily:|textTransform: ?\"uppercase\"|variant=\"overline\"" src --glob '!src/theme/**' --glob '!**/__tests__/**'
-rg -n "fontSize: ?\"?0\.(5[0-9]|6[0-9]|7[0-4])rem|fontSize: ?(10|11)\b" src
-# colour: jewel chrome, purple, legacy palettes, page-local themes and scrollbars (allowlist: accents.ts; themeAccent on a tag chip)
-rg -n "surfaceAccent|SURFACE_ACCENTS|#A855F7|#7B61FF|123, ?97, ?255|#FF6B35|#FF8C42|255, ?107, ?53|#0b1120|#0f172a|#1e293b|#1a2332|#111c38|createTheme\(|::-webkit-scrollbar-thumb" src --glob '!src/theme/**' --glob '!src/components/landing/launchTheme.ts'
+rg -n "fontSize: ?[\"']?0\.([56][0-9]?|7[0-4]?)rem|fontSize: ?(10|11)\b" src --glob '!**/__tests__/**' --glob '!src/components/ads/**'   # below 12px
+# colour: jewel chrome, purple, legacy palettes, page-local themes and scrollbars (allowlist: accents.ts; themeAccent on a tag chip; `analysisTheme` in AnalysisImpl.tsx, which extends buildChessMastiTheme() only to keep the button heights the CLS budget was measured with)
+rg -n "surfaceAccent|SURFACE_ACCENTS|#A855F7|#7B61FF|123, ?97, ?255|#FF6B35|#FF8C42|255, ?107, ?53|#0b1120|#0f172a|#1e293b|#1a2332|#111c38|createTheme\(|::-webkit-scrollbar-thumb" src --glob '!src/theme/**' --glob '!src/components/landing/launchTheme.ts' --glob '!**/__tests__/**'
 rg -n "rgba\(249, ?115, ?22, ?0\.(0[5-9]|1[0-9]|2[0-9])\)" src   # only ACCENT.tint via the token, never a literal
 # icons and focus
 rg -n "Sparkles|AutoAwesome" src
-rg -n "outline: ?\"?none" src   # every hit has an &:focus-visible sibling
+rg -n "outline: ?\"?none" src   # every hit has a visible focus: an &:focus-visible sibling, &:focus-within on a text field's wrapper, or it is a dialog root that only takes programmatic focus
 # copy (allowlist: the three technology pages' body prose under src/app; the two test-pinned em dashes)
 rg -n "AI-powered|Insights?\b|Unlock|journey|\bSmart\b|Master your|Powerful|Level up|Elevate|Seamless|Supercharge|Unleash|cutting-edge|Experience the|Dive in|engine-grounded|hallucination validator|Neo4j" src/pages src/components src/sections src/app --glob '!**/__tests__/**'
-rg -n $'\u2014' src/pages src/components src/sections src/app --glob '!**/__tests__/**' -g '*.tsx'   # em dashes
+rg -n $'\u2014' src/pages src/components src/sections src/app --glob '*.{ts,tsx}' --glob '!**/__tests__/**' --glob '!src/app/api/**' | rg -v '^[^:]+:[0-9]+:\s*(//|\*|/\*|\{/\*)'   # em dashes; lines that open with a comment marker are dropped, the continuation lines of block comments are not, so read each hit (a later --glob wins, so the exclusions come last)
 # the gates
 npx tsc --noEmit
 npx vitest run                       # ~4.5 min; the home, masti, OpeningLineCard, PrepLinesPanel and loadGameDialog tests pin the look

@@ -233,13 +233,15 @@ p.on("request", (r) => { const u = new URL(r.url()); if (u.origin !== new URL(BA
 - CLS small (snippet below). On the layout-stability routes at phone width
   with Maia stubbed it measured under 0.001.
 - The App Router ground: on `/chess-basics` the computed `background-color`
-  of `.cm-partner-slot-app` is `rgb(8, 8, 15)` and the "Advertisement" label
+  of `.cm-partner-slot-app` is `rgb(0, 0, 0)` and the "Advertisement" label
   is the light-on-dark tone. On `/privacy` it is `rgb(255, 255, 255)` and the
   label the dark-on-light tone.
 - The landing hero gives up its slack: on `/` at 1280×720
   `getComputedStyle(document.querySelector("[data-cm-fold-slack]")).paddingTop`
-  is `"0px"` and the hero's primary call to action (`StartPlanCTA`) ends
-  above the fold (bottom 709 measured, 727 without the rule).
+  is `"0px"`, `--home-banner` on the page root is `132px` (`142px` below
+  `SWAP_PX`), the hero's primary call to action (`StartButton`, "Let's go")
+  ends above the fold (bottom 571 measured, 583 at 390×664) and the page
+  does not scroll.
 - The exclusions set no attribute (the per-path reads are under "The
   slot"): `/auth/age`, `/reset-password` (the slot mounted at
   `display: none`) and `/admin` (the App Router 404 with the slot mounted)

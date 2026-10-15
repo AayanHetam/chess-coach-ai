@@ -146,7 +146,7 @@ the four `.cm-content` legal pages (accessibility, extension, privacy,
 terms), the three internship pages and the 404 keep. Under
 `body:has(.cm-page-shell)` (`PAGE_SHELL_CLASS`, the class the dark
 `PageShell` in `src/app/_seo/aeoUi.tsx` carries on the 21 SEO pages) it becomes
-`APP_DARK_GROUND` (`#08080f`, kept equal to `AEO_TOKENS.bg` by a test) from
+`APP_DARK_GROUND` (`#000000`, kept equal to `AEO_TOKENS.bg` by a test) from
 the first frame. After mount `PartnerSlotApp` reads the same
 `.cm-page-shell` signal, picks the disclosure tone (dark with a shell, light
 without) and stamps it on the wrapper as `data-cm-tone` (`SLOT_TONE_ATTR`),
@@ -200,9 +200,11 @@ nothing else) and the board gives up the banner's 132px (476, 480 and
 board unchanged in size but 132px lower. `/analysis` at 1440x900 does not
 scroll either: its board gives up 86px (458 against 544 with no banner, and
 278 against 364 at 1280x720) and the transcript keeps scrolling inside its
-column. The landing CTA stays above the fold at 1280x720 (bottom 693, where
-it was 727 before `FOLD_SLACK_PROPS` on the hero dropped its top padding
-under a banner) and 390x664 (bottom 578).
+column. The one-screen home still fits with the banner, no scroll at
+1280x720 or 390x664: the hero spreads `FOLD_SLACK_PROPS`, so the banner
+spends its top padding, and takes the slot's reserve off Masti's height
+through `--home-banner` (Masti 270px and 100px wide, the "Let's go" button
+ending at 571 and 583).
 `tests/e2e/local/puzzle-one-screen.spec.ts` measures the `.cm-partner-slot`
 height (`bannerHeight`) and subtracts it from the board floors on the tall
 viewports, and on the short ones lets the board bottom overhang the fold by

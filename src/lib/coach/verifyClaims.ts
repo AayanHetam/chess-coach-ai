@@ -73,6 +73,29 @@ export function applyDelta(
   return (start + delta) as MaterialBalance;
 }
 
+/**
+ * White's count minus Black's, per kind of piece (kings left out), or null
+ * when chess.js rejects the FEN. Says WHAT the material difference is made
+ * of, so a footer never calls a three-point lead "a rook".
+ */
+export function pieceDifference(
+  fen: string
+): Record<Exclude<PieceSymbol, "k">, number> | null {
+  let game: Chess;
+  try {
+    game = new Chess(fen);
+  } catch {
+    return null;
+  }
+  const diff = { p: 0, n: 0, b: 0, r: 0, q: 0 };
+  for (const row of game.board()) {
+    for (const sq of row) {
+      if (sq && sq.type !== "k") diff[sq.type] += sq.color === "w" ? 1 : -1;
+    }
+  }
+  return diff;
+}
+
 /** A balance or a delta as one side sees it: positive is good for `side`. */
 export function sideValue(
   value: MaterialBalance | MaterialDelta,

@@ -25,6 +25,7 @@
 import { getCoachChatSystemPromptParts } from "./coachChatPrompt";
 import type { CoachChatPromptInput } from "./coachChatPrompt";
 import { formatVerbalizerExamples } from "./verbalizerGoldExamples";
+import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
 import { renderInsightHeader } from "@/lib/contract/insightGrammar";
 import { serializeForVerbalizer } from "@/lib/contract/serialize";
 import { partitionSentinelCards } from "@/lib/contract/sentinelGuard";
@@ -106,6 +107,23 @@ VOICE (graded, and it outranks structure):
 - NEVER narrate your own plumbing. The reader must never see the words "contract", "card plan", "move table", "fact id", "story", "ledger", "offer note", "the instructions", or any parenthetical explaining WHERE a number came from — those are yours, not theirs. Cite with the token and say nothing else about provenance. "The material ledger reads: White up 9" is plumbing; "and White is a whole queen ahead" is coaching.
 `.trim();
 
+/** The two charter sentences that taught the model to read a line's material CHANGE as where material ends. */
+export const LEGACY_MATERIAL_RULE = `- The "material:" line is the only source for "wins a pawn", "wins the exchange", "gets the rook back". Say its sense in coach words ("White comes out a rook ahead"), never its label, and never compute your own count.`;
+const LEGACY_PLUMBING_EXAMPLE = `"The material ledger reads: White up 9" is plumbing; "and White is a whole queen ahead" is coaching.`;
+
+/** COACH_CLAIM_VERIFIER: the "material:" line now carries the verified end balance and the change, separately. */
+export const VERIFIED_MATERIAL_RULE = `- The "material:" line gives two different numbers: where material STANDS at the end of the shown plies, and how much those plies CHANGED it. "Wins a pawn", "wins the exchange", "gets the rook back" come only from the change; "ahead", "behind", "comes out up/down" only from where it stands at the end — a line can win a rook and still end four points behind. When it says to state no material result (the plies stop mid-exchange, or the line ends in mate), state none. Never compute your own count.`;
+const VERIFIED_PLUMBING_EXAMPLE = `"The material line says White is 9 points up at the end" is plumbing; "and White ends a whole queen ahead" is coaching.`;
+
+/** The charter as served: with the verified material rules when COACH_CLAIM_VERIFIER is on. */
+export function getVerbalizerCharter(): string {
+  if (!isClaimVerifierEnabled()) return VERBALIZER_CHARTER;
+  return VERBALIZER_CHARTER.replace(LEGACY_MATERIAL_RULE, VERIFIED_MATERIAL_RULE).replace(
+    LEGACY_PLUMBING_EXAMPLE,
+    VERIFIED_PLUMBING_EXAMPLE,
+  );
+}
+
 export interface VerbalizerSystemParts {
   stable: string;
   perUser: string;
@@ -128,7 +146,7 @@ export function getVerbalizerSystemPromptParts(
   // the charter, where they cost a cache read instead. Anything per-game must
   // stay OUT of this string or it would poison the shared prefix.
   return {
-    stable: `${parts.stable}\n\n${VERBALIZER_CHARTER}\n\n${formatVerbalizerExamples().trim()}`,
+    stable: `${parts.stable}\n\n${getVerbalizerCharter()}\n\n${formatVerbalizerExamples().trim()}`,
     perUser: parts.perUser,
   };
 }

@@ -16,6 +16,8 @@ import {
   type LineStory,
   type PlyStory,
 } from "@/lib/contract/lineStory";
+import { isClaimVerifierEnabled } from "./claimVerifierFlag";
+import { pieceDifference } from "./verifyClaims";
 
 export interface LineCaption {
   san: string;
@@ -30,7 +32,13 @@ export interface LineCaption {
 
 export interface LineCaptions {
   plies: LineCaption[];
-  /** "you come out a queen up", "White ends 3 up", "material stays level". */
+  /**
+   * Where material stands when the line ends: "you're 1 point down at the
+   * end", "White is a knight up at the end", "you deliver mate". Empty when
+   * that cannot be stated (the line stops mid-exchange or did not replay).
+   * With COACH_CLAIM_VERIFIER off, the legacy ledger ("you come out a queen
+   * up"), which printed the change over the line as if it were the result.
+   */
   ledger: string;
   endsInMate: boolean;
   /** The first move offers material the shown moves never win back. */
@@ -73,6 +81,49 @@ function ledgerText(story: LineStory, playerColor: "w" | "b" | null): string {
   return `${ownerName} ${verb} ${amount} down`;
 }
 
+const PIECE_NAME: Record<string, string> = {
+  p: "pawn",
+  n: "knight",
+  b: "bishop",
+  r: "rook",
+  q: "queen",
+};
+
+/** "a knight" when one piece of one kind is the whole difference, else the points. */
+function amountWords(fen: string, points: number): string {
+  const diff = pieceDifference(fen);
+  const differing = diff ? Object.entries(diff).filter(([, n]) => n !== 0) : [];
+  if (differing.length === 1 && Math.abs(differing[0][1]) === 1) {
+    return `a ${PIECE_NAME[differing[0][0]]}`;
+  }
+  return `${points} point${points === 1 ? "" : "s"}`;
+}
+
+/**
+ * The ledger from the verified end balance (lineStory's `material`, decided
+ * by verifyClaims): who is ahead when the shown moves end, and by how much.
+ */
+function verifiedLedger(
+  story: LineStory,
+  playerColor: "w" | "b" | null
+): string {
+  if (story.plies.length === 0) return "";
+  if (story.endsInMate || story.endsInStalemate) {
+    return ledgerText(story, playerColor);
+  }
+  const m = story.material;
+  if (!m?.verified || m.endBalance === null || !m.endFen) return "";
+  if (m.midCaptureSequence) return "";
+  const balance: number = m.endBalance;
+  if (balance === 0) return "material is level at the end";
+  const leader = balance > 0 ? "w" : "b";
+  const amount = amountWords(m.endFen, Math.abs(balance));
+  if (playerColor !== null) {
+    return `you're ${amount} ${leader === playerColor ? "up" : "down"} at the end`;
+  }
+  return `${leader === "w" ? "White" : "Black"} is ${amount} up at the end`;
+}
+
 /** The part of a ply's sayable after its "8.Nc7+ — " prefix, clipped to two facts. */
 function plyCaption(p: PlyStory): { short: string; full: string } {
   const dash = p.sayable.indexOf(" — ");
@@ -103,7 +154,9 @@ export function captionLine(
   });
   return {
     plies,
-    ledger: ledgerText(story, playerColor),
+    ledger: isClaimVerifierEnabled()
+      ? verifiedLedger(story, playerColor)
+      : ledgerText(story, playerColor),
     endsInMate: story.endsInMate,
     sacrifice: story.unresolvedSacrifice !== null,
   };

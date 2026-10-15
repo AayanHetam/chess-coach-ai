@@ -2,17 +2,24 @@
  * PR-CI-4 verbalizer 4.0 prompt module: version split (legacy 3.6
  * untouched), charter content, server-dictated card plan, token budgeting.
  */
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { PROMPT_VERSION } from "@/lib/prompts/coachChatPrompt";
 import {
   buildVerbalizerUserTurn,
+  getVerbalizerCharter,
   getVerbalizerSystemPromptParts,
+  LEGACY_MATERIAL_RULE,
   maxTokensForInsights,
   selectCardInsights,
   VERBALIZER_CHARTER,
   VERBALIZER_PROMPT_VERSION,
+  VERIFIED_MATERIAL_RULE,
 } from "@/lib/prompts/verbalizerPrompt";
-import { VERBALIZER_GOLD_EXAMPLES } from "@/lib/prompts/verbalizerGoldExamples";
+import {
+  formatVerbalizerExamples,
+  VERBALIZER_GOLD_EXAMPLES,
+  VERIFIED_MATERIAL_REWRITES,
+} from "@/lib/prompts/verbalizerGoldExamples";
 import { renderInsightHeader } from "@/lib/contract/insightGrammar";
 import { makeContract, makeInsight } from "@/lib/contract/__tests__/insightFactory";
 
@@ -30,7 +37,7 @@ describe("system prompt composition", () => {
       userRating: 1500,
     });
     expect(parts.stable).toContain("VERBALIZER CHARTER");
-    expect(parts.stable).toContain(VERBALIZER_CHARTER);
+    expect(parts.stable).toContain(getVerbalizerCharter());
     // Persona manifesto still present, unmodified ordering.
     expect(parts.stable).toContain("expert grandmaster-level chess coach");
     expect(parts.stable.indexOf("VERBALIZER CHARTER")).toBeGreaterThan(
@@ -54,6 +61,41 @@ describe("system prompt composition", () => {
     expect(VERBALIZER_CHARTER).toContain("engine data unavailable");
     expect(VERBALIZER_CHARTER).toContain("Never bluff a theme");
     expect(VERBALIZER_CHARTER).toContain("Rhetoric is YOURS");
+  });
+});
+
+describe("COACH_CLAIM_VERIFIER: the material rules read the verified balance", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("on: the charter keeps a line's change apart from where material ends, and the examples agree", () => {
+    const charter = getVerbalizerCharter();
+    expect(charter).toContain(VERIFIED_MATERIAL_RULE);
+    expect(charter).not.toContain(LEGACY_MATERIAL_RULE);
+    expect(charter).not.toContain("White up 9");
+    const examples = formatVerbalizerExamples(true);
+    for (const r of VERIFIED_MATERIAL_REWRITES) {
+      expect(examples).toContain(r.to);
+      expect(examples).not.toContain(r.from);
+    }
+    expect(examples).not.toMatch(/White up 5|White is up a rook/);
+  });
+
+  it("every rewrite anchors on exactly one string of its example", () => {
+    for (const r of VERIFIED_MATERIAL_REWRITES) {
+      const ex = VERBALIZER_GOLD_EXAMPLES.find((e) => e.id === r.id)!;
+      expect(`${ex.contractSlice}\n${ex.idealProse}`.split(r.from)).toHaveLength(2);
+    }
+  });
+
+  it("off: the system prompt is the legacy one, byte for byte", () => {
+    vi.stubEnv("COACH_CLAIM_VERIFIER", "0");
+    expect(getVerbalizerCharter()).toBe(VERBALIZER_CHARTER);
+    const parts = getVerbalizerSystemPromptParts({ personalityId: "friendly", userRating: 1500 });
+    expect(parts.stable).toContain(VERBALIZER_CHARTER);
+    expect(parts.stable).toContain(formatVerbalizerExamples(false).trim());
+    expect(formatVerbalizerExamples(false)).toContain("material: White up 5 after 5 shown plies");
   });
 });
 

@@ -1,0 +1,17 @@
+[Event "Live Chess"]
+[Site "Chess.com"]
+[Date "2026.10.15"]
+[White "Lazer_Wizard"]
+[Black "nguoiquangnam"]
+[Result "1-0"]
+[ECO "C00"]
+[WhiteElo "1828"]
+[BlackElo "1825"]
+[TimeControl "600"]
+[Termination "Lazer_Wizard won by checkmate"]
+[Link "https://www.chess.com/game/live/185345453122"]
+
+1. e4 e6 2. Nf3 d5 3. Nc3 Nf6 4. e5 Nfd7 5. d4 c5 6. dxc5 Bxc5 7. Bd3 Nc6
+8. Bf4 Qb6 9. O-O Qxb2 10. Nb5 O-O 11. Bxh7+ Kh8 12. Ng5 Ndxe5 13. Qh5 g6
+14. Bxg6+ Kg7 15. Qh7+ Kf6 16. Rfb1 Qxa1 17. Rxa1 Nxg6 18. Nc7 Nxf4
+19. Nxa8 Kxg5 20. Qg7+ Kf5 21. Re1 Bd6 22. g4# 1-0

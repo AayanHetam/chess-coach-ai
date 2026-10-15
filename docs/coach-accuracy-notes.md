@@ -335,8 +335,10 @@ logs `position N/44 exceeded 30000ms` for a long while. A reload clears it.
 - **Depth 20 is stronger evidence, not truth.** The browser's re-check uses
   its own engine, Stockfish 17 Lite, and at depth 20 Lite still prefers
   12.Bd3 where native 17.1 and the full-net WASM build prefer 12.Rb1. The
-  tests use native depth-20 truth, so they show 12.Rb1; a user on Lite will
-  see 12.Bd3, labelled d20. Recommendation, not switched: run pass 2 on the
+  tests use native depth-20 truth, so they show 12.Rb1; a user on Lite can
+  see 12.Bd3, labelled d20. Lite is not stable here (in the browser run its
+  depth-16 pass named 12.Rb1): the two moves are within half a pawn at every
+  depth measured. Recommendation, not switched: run pass 2 on the
   full-net `stockfish_17` build already in the repo (agrees with native on
   12.Rb1; ~2.5× the time per position and a 66 MB download against 6.8 MB).
 - **The budget caps what is re-checked.** 15 s covers the most important

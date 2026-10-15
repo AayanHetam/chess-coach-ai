@@ -31,6 +31,7 @@ import { refereeOverview } from "./overviewReferee";
 import type { OverviewRefereeResult } from "./overviewReferee";
 import { selectCardInsightsDetailed } from "@/lib/prompts/verbalizerPrompt";
 import type { CoachContract, InsightContract } from "./types";
+import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
 
 const log = logger.child({ module: "contract-enforce" });
 
@@ -39,6 +40,14 @@ export const TRUNCATION_FOOTNOTE =
 
 const UNVERIFIED_CARD_FOOTNOTE =
   "\n\n*Engine check unavailable for this card — it could not be matched to the verified analysis and was served unverified.*";
+
+/**
+ * COACH_CLAIM_VERIFIER: an off-plan card matches no verified analysis, so its
+ * claims cannot be checked against a board — it is left out, not served with
+ * a footnote.
+ */
+export const UNCHECKABLE_CARD_NOTE =
+  "\n\n*I left one more moment out: I couldn't check it against the board, so I won't guess at it.*\n\n";
 
 /**
  * Replaces a card the model wrote about a ply whose engine analysis timed
@@ -96,6 +105,14 @@ export interface EnforcedStreamSummary {
   overviewOutcome: OverviewRefereeResult["outcome"] | null;
   /** Contract-global violations found in a zero-card overview. */
   overviewViolations: number;
+  /**
+   * COACH_CLAIM_VERIFIER only: per card, the source of every shipped
+   * sentence and the board claims the gate blocked.
+   */
+  claimVerifier?: {
+    cards: Array<{ factIdPrefix: string } & NonNullable<LadderCardResult["claimVerifier"]>>;
+    blockedTotal: number;
+  };
 }
 
 export interface EnforcedContractStream {
@@ -259,6 +276,10 @@ export function createEnforcedContractStream(
           }
           if (anchor.kind === "unanchored") {
             unanchoredBlocks += 1;
+            if (isClaimVerifierEnabled()) {
+              emitTracked(UNCHECKABLE_CARD_NOTE);
+              return;
+            }
             emitTracked(stripCitations(block.text) + UNVERIFIED_CARD_FOOTNOTE);
             return;
           }
@@ -374,6 +395,15 @@ export function createEnforcedContractStream(
         overviewOutcome,
         overviewViolations,
       };
+      if (isClaimVerifierEnabled()) {
+        const claimCards = cards
+          .filter((c) => c.claimVerifier)
+          .map((c) => ({ factIdPrefix: c.factIdPrefix, ...c.claimVerifier! }));
+        summary.claimVerifier = {
+          cards: claimCards,
+          blockedTotal: claimCards.reduce((a, c) => a + c.blocked.length, 0),
+        };
+      }
       log.info("contract_enforce_summary", {
         contractId: contract.contractId,
         correlationId: opts.correlationId,

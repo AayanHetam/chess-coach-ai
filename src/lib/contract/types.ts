@@ -222,6 +222,14 @@ export interface InsightContract {
    * cached contracts stay valid.
    */
   motifLicense?: AnyMotif[];
+  /**
+   * REFEREE ONLY (COACH_CLAIM_VERIFIER), never serialized to the verbalizer:
+   * the engine's reply line after the played move, SAN, up to 6 plies — what
+   * actually punishes the move. The claim gate requires a "this leaves the
+   * knight hanging" reason to be a piece this line takes. Absent with the
+   * flag off and on contracts built before it existed.
+   */
+  refutation?: string[];
   allowedTacticalKeywords: string[];
   voterConfidence: VoterConfidence;
   positionConfidence: PositionConfidence;

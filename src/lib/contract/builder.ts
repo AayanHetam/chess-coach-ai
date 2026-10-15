@@ -16,6 +16,7 @@ import { Chess } from "chess.js";
 import { annotatePosition, annotationToPromptContext } from "@/lib/positionAnnotator";
 import { detectMotifs } from "@/lib/tactics";
 import { buildLineStory, type LineStory } from "./lineStory";
+import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
 import { logger } from "@/lib/logging";
 
 const log = logger.child({ module: "contract-builder" });
@@ -630,6 +631,12 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
       fenAfter,
       evalBefore: evalFactFromLine(lines[0]),
       evalAfter: evalAfterLine ? evalFactFromLine(evalAfterLine) : evalFactFromLine(undefined),
+      // COACH_CLAIM_VERIFIER: what actually punishes the move, for the claim
+      // gate (a "this leaves the knight hanging" reason must be the piece
+      // this line takes). Referee-only; never serialized to the verbalizer.
+      ...(isClaimVerifierEnabled() && evalAfterLine?.depth && evalAfterLine.pv?.length
+        ? { refutation: convertPvToSan(fenAfter, evalAfterLine.pv).slice(0, 6) }
+        : {}),
       lines: lineFacts,
       gameStory,
       branchPoint,

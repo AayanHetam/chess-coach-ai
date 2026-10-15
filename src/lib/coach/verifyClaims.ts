@@ -302,6 +302,26 @@ export type Claim =
       square: Square;
       piece?: PieceSymbol;
       within?: number;
+    }
+  /**
+   * "…takes the bishop (on b5)" with no move named: some ply of the line
+   * (by `by`, when given) captures that piece (on that square).
+   */
+  | {
+      kind: "line_captures";
+      piece: PieceSymbol;
+      square?: Square;
+      by?: Color;
+    }
+  /**
+   * "the knight on g5" in prose that does not say before or after which
+   * move: the piece stands there at some point of the line, start included.
+   */
+  | {
+      kind: "piece_on_in_line";
+      square: Square;
+      piece: PieceSymbol;
+      color?: Color;
     };
 
 export type ClaimStatus = "verified" | "false" | "unverified";
@@ -691,6 +711,61 @@ function evaluate(
           .join(
             " "
           )}) does not take the ${PIECE_NAME[target.type]} on ${claim.square}`
+      );
+    }
+    case "line_captures": {
+      const captures = replay.plies.filter(
+        (p) => p.captured && (!claim.by || p.mover === claim.by)
+      );
+      const actual = captures.map((p) => ({
+        move: `${p.label}${p.san}`,
+        piece: p.captured!.piece,
+        square: p.captured!.square,
+      }));
+      const hit = captures.find(
+        (p) =>
+          p.captured!.piece === claim.piece &&
+          (!claim.square || p.captured!.square === claim.square)
+      );
+      if (hit) {
+        return verdict(
+          claim,
+          "verified",
+          `${hit.label}${hit.san} takes the ${PIECE_NAME[claim.piece]} on ${hit.captured!.square}`,
+          actual
+        );
+      }
+      const there = claim.square
+        ? captures.find((p) => p.captured!.square === claim.square)
+        : undefined;
+      return verdict(
+        claim,
+        "false",
+        there
+          ? `${there.label}${there.san} takes a ${PIECE_NAME[there.captured!.piece]} on ${claim.square}, not a ${PIECE_NAME[claim.piece]}`
+          : `no move of the line takes a ${PIECE_NAME[claim.piece]}${claim.square ? ` on ${claim.square}` : ""}`,
+        actual
+      );
+    }
+    case "piece_on_in_line": {
+      for (let k = 0; k <= n; k++) {
+        const there = new Chess(fenAt(replay, k)).get(claim.square);
+        if (
+          there &&
+          there.type === claim.piece &&
+          (!claim.color || there.color === claim.color)
+        ) {
+          return verdict(
+            claim,
+            "verified",
+            `a ${SIDE_NAME[there.color]} ${PIECE_NAME[there.type]} stands on ${claim.square}${k === 0 ? " at the start" : ` after ${k} move${k === 1 ? "" : "s"}`}`
+          );
+        }
+      }
+      return verdict(
+        claim,
+        "false",
+        `no ${claim.color ? `${SIDE_NAME[claim.color]} ` : ""}${PIECE_NAME[claim.piece]} stands on ${claim.square} at any point of the line`
       );
     }
     default:

@@ -509,10 +509,11 @@ export function serializeForVerbalizer(contract: CoachContract): string {
   const { builtAtMs: _builtAtMs, buildMs: _buildMs, intent: _intent, ...rest } = contract;
   // PRECISION PACK fix 4: motifLicense is a REFEREE license pool, not a
   // sayable fact — stripping it keeps the verbalizer prompt (and its cache
-  // prefix) byte-identical to pre-precision-pack contracts.
+  // prefix) byte-identical to pre-precision-pack contracts. `refutation`
+  // (COACH_CLAIM_VERIFIER) is referee-only for the same reason.
   // The game's own continuation rides under its own key, same string form as
   // a line's story: gameStory: { story: [...] }.
-  const insights = rest.insights.map(({ motifLicense: _motifLicense, gameStory, ...ins }) => {
+  const insights = rest.insights.map(({ motifLicense: _motifLicense, refutation: _refutation, gameStory, ...ins }) => {
     if (!gameStory || gameStory.plies.length === 0) return ins;
     return { ...ins, gameStory: { story: projectLineStory(gameStory) } };
   });

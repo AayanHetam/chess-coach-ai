@@ -149,6 +149,10 @@ export const DEFAULT_ARMING_TABLE: ArmingTable = {
   relational_claim: "warn",
   // Citation validity (PR-CI-4 check 7).
   citation_invalid: "warn",
+  // COACH_CLAIM_VERIFIER: board claims replayed on chess.js (claimGate.ts).
+  // Only fires with the flag on. False claims and unverified non-opinion
+  // claims are dropped or rewritten from the verified fact, never hedged.
+  claim_verifier: "error",
 };
 
 /**

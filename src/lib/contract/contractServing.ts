@@ -117,6 +117,11 @@ export interface ContractDoneMetadata {
   /** Generation was cut by CONTRACT_GENERATION_BUDGET_MS (review is short). */
   generationTruncated: boolean;
   cached: boolean;
+  /**
+   * COACH_CLAIM_VERIFIER only: each shipped sentence labelled verified-fact /
+   * engine / judgment, and the board claims the gate blocked, per card.
+   */
+  claimVerifier?: EnforcedStreamSummary["claimVerifier"];
 }
 
 export interface ContractServingArgs {
@@ -321,6 +326,7 @@ export async function serveContractAnalysis(
       overviewViolations: summary.overviewViolations,
       generationTruncated,
       cached: false,
+      ...(summary.claimVerifier ? { claimVerifier: summary.claimVerifier } : {}),
     },
     summary,
     llmResult,

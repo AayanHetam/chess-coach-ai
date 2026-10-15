@@ -376,6 +376,78 @@ describe("claims", () => {
     });
   });
 
+  describe("captures and pieces named without a move", () => {
+    const line = ["Nxb5", "cxb5", "Bxb5+"];
+
+    it("a capture somewhere in the line, by the side that made it", () => {
+      expect(
+        status(OPERA_BEFORE_10, line, {
+          kind: "line_captures",
+          piece: "n",
+          square: "b5",
+        }).status
+      ).toBe("verified");
+      expect(
+        status(OPERA_BEFORE_10, line, {
+          kind: "line_captures",
+          piece: "n",
+          by: "b",
+        }).status
+      ).toBe("verified");
+      expect(
+        status(OPERA_BEFORE_10, line, {
+          kind: "line_captures",
+          piece: "n",
+          by: "w",
+        }).status
+      ).toBe("false");
+      const bishop = status(OPERA_BEFORE_10, line, {
+        kind: "line_captures",
+        piece: "b",
+        square: "b5",
+      });
+      expect(bishop.status).toBe("false");
+      expect(bishop.actual).toEqual([
+        { move: "10.Nxb5", piece: "p", square: "b5" },
+        { move: "10...cxb5", piece: "n", square: "b5" },
+        { move: "11.Bxb5+", piece: "p", square: "b5" },
+      ]);
+    });
+
+    it("a piece on a square at any point of the line", () => {
+      expect(
+        status(B_BEFORE_12, ["Ng5"], {
+          kind: "piece_on_in_line",
+          square: "g5",
+          piece: "n",
+          color: "w",
+        }).status
+      ).toBe("verified");
+      expect(
+        status(B_BEFORE_12, ["Ng5"], {
+          kind: "piece_on_in_line",
+          square: "f3",
+          piece: "n",
+        }).status
+      ).toBe("verified");
+      expect(
+        status(B_BEFORE_12, ["Ng5"], {
+          kind: "piece_on_in_line",
+          square: "g5",
+          piece: "b",
+        }).status
+      ).toBe("false");
+      expect(
+        status(B_BEFORE_12, ["Ng5"], {
+          kind: "piece_on_in_line",
+          square: "g5",
+          piece: "n",
+          color: "b",
+        }).status
+      ).toBe("false");
+    });
+  });
+
   describe("fail closed", () => {
     const claims: Claim[] = [
       { kind: "captures", moveIndex: 0, piece: "p" },

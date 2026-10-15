@@ -525,8 +525,8 @@ function Shell({
       <Head>
         <title key="title">
           {title
-            ? `Train ${title} — Chess Masti AI`
-            : "Opening trainer — Chess Masti AI"}
+            ? `Train ${title} · Chess Masti AI`
+            : "Opening trainer · Chess Masti AI"}
         </title>
       </Head>
       <Box sx={{ display: "flex", minHeight: "100dvh" }}>{children}</Box>

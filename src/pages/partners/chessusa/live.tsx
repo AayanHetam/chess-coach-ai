@@ -47,6 +47,7 @@ import {
 // true is worse than no asset.
 import { Hero } from "@/components/landing/Hero";
 import {
+  HOME_BANNER_VARS,
   homeColumnSx,
   homeRootSx,
   launchTheme,
@@ -77,13 +78,15 @@ interface LiveProps {
    same one-screen frame (homeRootSx / homeColumnSx; the home page has had
    no backdrop and no scroll since the 2026-09-23 simplification), same
    NavPill active="launch". The banner goes where it would go live, directly
-   under the nav; it costs the height it costs, so this copy may scroll a
-   little where the real page does not.
+   under the nav, and the hero budgets for it the way the live page does.
    ───────────────────────────────────────────────────────────────────────── */
 function HomeSurface({ banner }: { banner: React.ReactNode }) {
   return (
     <ThemeProvider theme={launchTheme}>
-      <Box sx={homeRootSx}>
+      {/* The live home takes the slot's height off Masti's whenever <html>
+          carries the partner attribute. This route never carries it, so it
+          sets the same values itself to stay a faithful render. */}
+      <Box sx={{ ...homeRootSx, ...HOME_BANNER_VARS }}>
         <NavPill active="launch" />
         {banner}
         <Box

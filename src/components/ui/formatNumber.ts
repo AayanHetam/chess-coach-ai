@@ -3,7 +3,7 @@
  * server and the browser must agree on the SSR text or React reports a
  * hydration mismatch and re-renders the strip on load.
  *
- * This is what remains of NumberTicker. The count-up it used to drive was
+ * This is what remains of the old count-up component. The count-up was
  * decoration, and it read as "0" to a crawler, a hidden tab and anyone with
  * reduced motion; callers render the formatted number directly.
  */

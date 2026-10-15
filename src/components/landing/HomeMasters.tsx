@@ -71,7 +71,7 @@ function Face({
           </Typography>
           {t.photo?.credit && (
             <Typography
-              sx={{ mt: 0.25, fontSize: "0.7rem", color: HOME_MUTED }}
+              sx={{ mt: 0.25, fontSize: "0.75rem", color: HOME_MUTED }}
             >
               Photo: {t.photo.credit.sourceName}
             </Typography>
@@ -111,12 +111,12 @@ function Face({
           flexShrink: 0,
           position: "relative",
           zIndex: EXPERT_TESTIMONIALS.length - index,
-          fontSize: "0.7rem",
-          fontWeight: 800,
-          transition: "transform 160ms ease",
+          fontSize: "0.75rem",
+          fontWeight: 600,
+          // The face under the pointer or focus comes in front of the one
+          // it overlaps, so its ring is whole; the tooltip is the feedback.
           "&:hover, &:focus-visible": {
             zIndex: EXPERT_TESTIMONIALS.length + 1,
-            transform: "translateY(-2px)",
           },
           "&:focus-visible": { outline: "2px solid #FFFFFF", outlineOffset: 2 },
         }}

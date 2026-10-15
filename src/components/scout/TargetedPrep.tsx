@@ -274,11 +274,7 @@ function OpeningCard({
         cursor: "pointer",
         transition:
           "background-color 160ms ease-out, border-color 160ms ease-out",
-        "&:hover": {
-          borderColor: accent,
-          transform: "translateY(-1px)",
-          boxShadow: `0 6px 18px ${accent}22`,
-        },
+        "&:hover": { borderColor: accent },
       }}
     >
       <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mb: 1 }}>

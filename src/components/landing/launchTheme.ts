@@ -31,16 +31,18 @@ export const launchTheme = buildChessMastiTheme();
  * both of which set the attribute on <html> before first paint). The hero
  * takes it off Masti's height budget so the page still fits one screen.
  */
-export const homeRootSx: SxProps<Theme> = {
+export const HOME_BANNER_VARS = {
+  "--home-banner": `${SLOT_RESERVE.narrow}px`,
+  [`@media (min-width:${SWAP_PX}px)`]: {
+    "--home-banner": `${SLOT_RESERVE.wide}px`,
+  },
+};
+
+export const homeRootSx = {
   "--home-vh": "100vh",
   "--home-banner": "0px",
   "@supports (height: 100dvh)": { "--home-vh": "100dvh" },
-  [`html[${PARTNER_ATTR}] &`]: {
-    "--home-banner": `${SLOT_RESERVE.narrow}px`,
-    [`@media (min-width:${SWAP_PX}px)`]: {
-      "--home-banner": `${SLOT_RESERVE.wide}px`,
-    },
-  },
+  [`html[${PARTNER_ATTR}] &`]: HOME_BANNER_VARS,
   minHeight: "var(--home-vh)",
   display: "flex",
   flexDirection: "column",
@@ -48,7 +50,7 @@ export const homeRootSx: SxProps<Theme> = {
   color: HOME_TEXT,
   pt: 3,
   px: { xs: 2, md: 4 },
-};
+} satisfies SxProps<Theme>;
 
 /** The content column under the nav: takes the rest of the screen. */
 export const homeColumnSx = {

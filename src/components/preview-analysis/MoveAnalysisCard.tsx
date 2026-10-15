@@ -182,6 +182,8 @@ export function MoveAnalysisCard({
           gap: { xs: 0.75, sm: 1 },
           minHeight: 34,
           minWidth: 0,
+          // The ask button's words come off in a narrow row (below).
+          containerType: "inline-size",
         }}
       >
         {/* On a phone the row cannot hold the step buttons AND an exploring
@@ -206,61 +208,103 @@ export function MoveAnalysisCard({
           }}
         >
           {state ?? (
-            <>
+            // One line tall and wrapping, so what does not fit drops whole
+            // onto a second line the box clips: the eval swing gives way
+            // before anything else, and never shows half a number.
+            <Box
+              sx={{
+                flex: 1,
+                minWidth: 0,
+                height: 34,
+                lineHeight: "34px",
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                columnGap: 0.9,
+                overflow: "hidden",
+              }}
+            >
+              {/* The move and its verdict stay together. The move never
+                  shrinks, it is what the row is about. On a row too short
+                  for both, the verdict word drops whole the same way and
+                  its glyph stays, so the classification keeps a channel
+                  that is not colour; a verdict with no glyph ends in an
+                  ellipsis instead. */}
               <Box
                 component="span"
-                data-testid="move-analysis-label"
                 sx={{
-                  fontFamily: FONT_MONO,
-                  fontSize: TYPE.bodySmall.fontSize,
-                  fontWeight: 600,
-                  color: TEXT.primary,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.9,
+                  minWidth: 0,
                   whiteSpace: "nowrap",
-                  // The move and its verdict never shrink: the move is what
-                  // the row is about, and the verdict word is the
-                  // classification's non-colour channel. When the row is
-                  // short of room, the eval swing after them gives way.
-                  flexShrink: 0,
                 }}
               >
-                {label}
-              </Box>
-              {style && (
                 <Box
                   component="span"
-                  data-testid="move-analysis-verdict"
+                  data-testid="move-analysis-label"
                   sx={{
-                    flexShrink: 0,
-                    color: style.color,
-                    fontSize: TYPE.caption.fontSize,
+                    fontFamily: FONT_MONO,
+                    fontSize: TYPE.bodySmall.fontSize,
                     fontWeight: 600,
-                    whiteSpace: "nowrap",
+                    color: TEXT.primary,
+                    flexShrink: 0,
                   }}
                 >
-                  {style.glyph ? `${style.glyph} ` : ""}
-                  {style.label}
+                  {label}
                 </Box>
-              )}
+                {style && (
+                  <Box
+                    component="span"
+                    data-testid="move-analysis-verdict"
+                    sx={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      columnGap: "0.3em",
+                      minWidth: 0,
+                      height: 34,
+                      overflow: "hidden",
+                      color: style.color,
+                      fontSize: TYPE.caption.fontSize,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {style.glyph && (
+                      <Box component="span" sx={{ flexShrink: 0 }}>
+                        {`${style.glyph} `}
+                      </Box>
+                    )}
+                    <Box
+                      component="span"
+                      sx={{
+                        minWidth: 0,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {style.label}
+                    </Box>
+                  </Box>
+                )}
+              </Box>
               {analysis?.evalBefore && analysis?.evalAfter && (
                 <Tooltip title="Engine evaluation before and after the move, from White's side">
                   <Box
                     component="span"
                     sx={{
                       display: { xs: "none", sm: "inline" },
+                      flexShrink: 0,
                       fontSize: TYPE.caption.fontSize,
                       fontVariantNumeric: "tabular-nums",
                       color: TEXT.secondary,
                       whiteSpace: "nowrap",
-                      minWidth: 0,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
                     }}
                   >
                     {analysis.evalBefore} → {analysis.evalAfter}
                   </Box>
                 </Tooltip>
               )}
-            </>
+            </Box>
           )}
         </Box>
         {onAsk && analysis && !state && (
@@ -305,7 +349,14 @@ export function MoveAnalysisCard({
               <MessageCircle size={16} strokeWidth={1.75} aria-hidden />
               <Box
                 component="span"
-                sx={{ display: { xs: "none", sm: "inline" } }}
+                sx={{
+                  display: { xs: "none", sm: "inline" },
+                  // In a row under 540px (beside a 420px board, say) the
+                  // words would push the move's verdict out; measured, the
+                  // longest moves and verdicts fit beside them from 520px.
+                  // The icon, its tooltip and its label carry the action.
+                  "@container (max-width: 539px)": { display: "none" },
+                }}
               >
                 Ask Masti
               </Box>

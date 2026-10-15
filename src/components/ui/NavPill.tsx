@@ -372,7 +372,7 @@ export function NavPill({
                       <Typography
                         sx={{
                           color: "rgba(255,255,255,0.55)",
-                          fontSize: "0.74rem",
+                          fontSize: "0.75rem",
                           mt: 0.25,
                           overflow: "hidden",
                           textOverflow: "ellipsis",

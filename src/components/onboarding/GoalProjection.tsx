@@ -142,15 +142,9 @@ export default function GoalProjection({
             data={data}
             margin={{ top: 6, right: 8, bottom: 0, left: 0 }}
           >
-            <defs>
-              <linearGradient id="goalProjGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={EMBER} stopOpacity={0.4} />
-                <stop offset="100%" stopColor={EMBER} stopOpacity={0} />
-              </linearGradient>
-            </defs>
             <XAxis
               dataKey="w"
-              tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }}
+              tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 12 }}
               tickLine={false}
               axisLine={{ stroke: TRACK }}
               tickFormatter={(w: number) =>
@@ -161,7 +155,7 @@ export default function GoalProjection({
             />
             <YAxis
               domain={[lo - pad, hi + pad]}
-              tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }}
+              tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 12 }}
               tickLine={false}
               axisLine={false}
               width={34}
@@ -176,7 +170,8 @@ export default function GoalProjection({
               dataKey="rating"
               stroke={EMBER}
               strokeWidth={2.5}
-              fill="url(#goalProjGrad)"
+              fill={EMBER}
+              fillOpacity={0.12}
               dot={false}
               isAnimationActive={false}
             />
@@ -185,7 +180,7 @@ export default function GoalProjection({
       </Box>
 
       <Typography
-        sx={{ color: "rgba(255,255,255,0.38)", fontSize: "0.72rem", mt: 0.5 }}
+        sx={{ color: "rgba(255,255,255,0.38)", fontSize: "0.75rem", mt: 0.5 }}
       >
         An estimate from typical improvement rates with guided practice, not a
         promise — how fast you actually move depends on you.

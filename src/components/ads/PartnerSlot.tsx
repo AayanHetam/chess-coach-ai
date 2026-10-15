@@ -137,7 +137,7 @@ export const SLOT_TONE_ATTR = "data-cm-tone";
  * and must not import a module that pulls MUI and the mascot in; a test
  * keeps the two equal.
  */
-export const APP_DARK_GROUND = "#08080f";
+export const APP_DARK_GROUND = "#000000";
 
 /**
  * Attribute the boot script puts on <html> whenever a banner will show,

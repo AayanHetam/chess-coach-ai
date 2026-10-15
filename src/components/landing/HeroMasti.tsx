@@ -28,15 +28,16 @@ const HERO_MASTI_INTRINSIC_PX = 440;
  * cap for the breakpoint, or the height left after the rest of the screen
  * (nav, headline, button, footer) turned into a width through the 4:5 art,
  * whichever is smaller, with a floor so a phone held sideways still shows
- * him. `--home-vh` comes from homeRootSx.
+ * him. `--home-vh` and `--home-banner` (the partner slot's reserved
+ * height when a banner shows) come from homeRootSx.
  */
 function stageWidth(capPx: number, reservePx: number, floorPx: number): string {
-  return `max(${floorPx}px, min(${capPx}px, calc((var(--home-vh, 100vh) - ${reservePx}px) * 0.8)))`;
+  return `max(${floorPx}px, min(${capPx}px, calc((var(--home-vh, 100vh) - var(--home-banner, 0px) - ${reservePx}px) * 0.8)))`;
 }
 
 export const HERO_MASTI_WIDTH = {
   // Stacked under the nav, over the headline and the button.
-  xs: stageWidth(200, 430, 120),
+  xs: stageWidth(200, 430, 100),
   sm: stageWidth(300, 470, 140),
   // Beside the headline: only the nav and the footer are above and below.
   // The lg cap is his column's width at the 1120px content width.

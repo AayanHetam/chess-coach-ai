@@ -1,4 +1,6 @@
 import type { SxProps, Theme } from "@mui/material/styles";
+import { SWAP_PX } from "@/components/ads/PartnerBanner";
+import { PARTNER_ATTR, SLOT_RESERVE } from "@/components/ads/PartnerSlot";
 import { buildChessMastiTheme } from "@/theme/chessMasti";
 import { ACCENT, LINE, SURFACE, TEXT } from "@/theme/tokens";
 
@@ -23,10 +25,22 @@ export const launchTheme = buildChessMastiTheme();
  * against: the dynamic viewport where the browser has it (a phone's
  * toolbars come off it), the plain one elsewhere. Below the sizes the hero
  * is tuned for the column grows and the page scrolls, never clips.
+ *
+ * `--home-banner` is the height the partner slot reserves under the nav
+ * whenever a banner is on the page (the live placement or a preview link,
+ * both of which set the attribute on <html> before first paint). The hero
+ * takes it off Masti's height budget so the page still fits one screen.
  */
 export const homeRootSx: SxProps<Theme> = {
   "--home-vh": "100vh",
+  "--home-banner": "0px",
   "@supports (height: 100dvh)": { "--home-vh": "100dvh" },
+  [`html[${PARTNER_ATTR}] &`]: {
+    "--home-banner": `${SLOT_RESERVE.narrow}px`,
+    [`@media (min-width:${SWAP_PX}px)`]: {
+      "--home-banner": `${SLOT_RESERVE.wide}px`,
+    },
+  },
   minHeight: "var(--home-vh)",
   display: "flex",
   flexDirection: "column",

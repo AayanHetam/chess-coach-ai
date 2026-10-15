@@ -3,6 +3,7 @@
 import { Box, Button, Typography } from "@mui/material";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { FOLD_SLACK_PROPS } from "@/components/ads/PartnerSlot";
 import { useAuth } from "@/contexts/AuthContext";
 import { startPlanHref } from "@/lib/onboarding/quizGate";
 import { HeroMastiStage } from "./HeroMasti";
@@ -74,6 +75,9 @@ export function Hero() {
     <Box
       component="section"
       aria-labelledby="hero-heading"
+      // The top padding is slack between the nav and the button; a partner
+      // banner spends it (FOLD_SLACK_ATTR).
+      {...FOLD_SLACK_PROPS}
       sx={{
         flex: 1,
         display: "grid",
@@ -115,7 +119,7 @@ export function Hero() {
         <Typography
           sx={{
             mt: { xs: 1.25, md: 2.5 },
-            fontSize: { xs: "1.1rem", md: "1.45rem" },
+            fontSize: { xs: "1rem", sm: "1.1rem", md: "1.45rem" },
             lineHeight: 1.45,
             color: HOME_MUTED,
             maxWidth: 460,

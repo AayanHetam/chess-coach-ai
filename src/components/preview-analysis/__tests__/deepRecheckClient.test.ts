@@ -1,6 +1,6 @@
 /**
  * The browser adapter for pass 2: a capped search on the review engine,
- * stopped at the cap, never asking the cloud.
+ * stopped at the cap, never asking the cloud, and quiet once called off.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { UciEngine } from "@/lib/engine/uciEngine";
@@ -81,5 +81,49 @@ describe("uciRecheckEngine", () => {
     const result = await pending;
     expect(spy.stopAllCurrentJobs).toHaveBeenCalledTimes(1);
     expect(result?.lines[0].depth).toBe(6);
+  });
+
+  it("called off mid-search: stops it once, starts nothing after, and no later cap stops the engine", async () => {
+    vi.useFakeTimers();
+    const { engine, calls, spy } = fakeEngine(20);
+    const recheck = uciRecheckEngine(engine, "stockfish_17_lite");
+    const pending = recheck.evaluate("fen", 20, 6_500);
+    await vi.advanceTimersByTimeAsync(3_000);
+    recheck.cancel();
+    expect(spy.stopAllCurrentJobs).toHaveBeenCalledTimes(1);
+    expect((await pending)?.lines[0].depth).toBe(3);
+    expect(await recheck.evaluate("next", 20, 6_500)).toBeNull();
+    expect(calls).toHaveLength(1);
+  });
+
+  it("a stop that is lost or rejected is not repeated by the cap, which would land in the next review", async () => {
+    vi.useFakeTimers();
+    const { engine } = fakeEngine(20);
+    // A plain function, not vi.fn: a mock would observe the rejection itself
+    // and hide one the adapter failed to handle.
+    let stops = 0;
+    (engine as { stopAllCurrentJobs: () => Promise<void> }).stopAllCurrentJobs =
+      () => {
+        stops += 1;
+        return Promise.reject(new Error("superseded"));
+      };
+    const recheck = uciRecheckEngine(engine, "stockfish_17_lite");
+    const pending = recheck.evaluate("fen", 20, 6_500);
+    await vi.advanceTimersByTimeAsync(3_000);
+    recheck.cancel();
+    await vi.advanceTimersByTimeAsync(20_000);
+    await pending;
+    expect(stops).toBe(1);
+  });
+
+  it("called off after the search finished: the engine is left alone", async () => {
+    vi.useFakeTimers();
+    const { engine, spy } = fakeEngine(5);
+    const recheck = uciRecheckEngine(engine, "stockfish_17_lite");
+    const pending = recheck.evaluate("fen", 5, 6_500);
+    await vi.advanceTimersByTimeAsync(5_000);
+    await pending;
+    recheck.cancel();
+    expect(spy.stopAllCurrentJobs).not.toHaveBeenCalled();
   });
 });

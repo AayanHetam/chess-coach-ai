@@ -7730,11 +7730,12 @@ export default function AnalysisPage() {
     if (moments.length === 0) return;
     let cancelled = false;
     const startedFor = gameEvalFull;
+    const recheckEngine = uciRecheckEngine(engine, engineSettings.engineName);
     setRecheckRunning(true);
     runDeepRecheck({
       fens,
       moments,
-      engine: uciRecheckEngine(engine, engineSettings.engineName),
+      engine: recheckEngine,
       depth: RECHECK_DEPTH,
       budgetMs: RECHECK_BUDGET_MS,
       perPositionMs: RECHECK_PER_POSITION_MS,
@@ -7751,6 +7752,8 @@ export default function AnalysisPage() {
       });
     return () => {
       cancelled = true;
+      // Before the next game's review can start on this engine.
+      recheckEngine.cancel();
       setRecheckRunning(false);
     };
   }, [engine, gameEvalFull, loadedGame, engineSettings.engineName]);

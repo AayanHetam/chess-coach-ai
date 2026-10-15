@@ -186,7 +186,9 @@ describe("verbalizer JSON projection", () => {
       // Rule 6 (COACH_CLAIM_VERIFIER): the verified game report is shown by
       // the app and reaches the model as its own REPORT FACTS block in the
       // user turn (verbalizerPrompt.ts), never inside the contract JSON.
-      Array.from(keyNames(collectByKey(before, "report"))).forEach((k) => explained.add(k));
+      Array.from(keyNames(collectByKey(before, "report"))).forEach((k) =>
+        explained.add(k)
+      );
       explained.add("report");
 
       const afterKeys = keyNames(after);
@@ -283,7 +285,11 @@ describe("verbalizer JSON projection", () => {
         // was searched — never the raw cp/mate numbers.
         expect(e).not.toHaveProperty("cp");
         expect(e).not.toHaveProperty("mate");
-        expect(Object.keys(e).sort()).toEqual(e.sentinel ? ["display", "sentinel"] : ["depth", "display", "sentinel"]);
+        expect(Object.keys(e).sort()).toEqual(
+          e.sentinel
+            ? ["display", "sentinel"]
+            : ["depth", "display", "sentinel"]
+        );
       }
       // The sentinel case is the reason this matters: its raw form is
       // {cp: 0, depth: 0}, which the charter then has to forbid the model
@@ -299,8 +305,11 @@ describe("verbalizer JSON projection", () => {
         const wire = JSON.parse(serializeForVerbalizer(contracts.get(name)!));
         const evals = collectByKey(wire, "evalAfter")
           .concat(collectByKey(wire, "evalBefore"))
-          .filter((e): e is Record<string, unknown> => !!e && typeof e === "object");
-        for (const e of evals) expect(Object.keys(e).sort()).toEqual(["display", "sentinel"]);
+          .filter(
+            (e): e is Record<string, unknown> => !!e && typeof e === "object"
+          );
+        for (const e of evals)
+          expect(Object.keys(e).sort()).toEqual(["display", "sentinel"]);
       }
     } finally {
       vi.unstubAllEnvs();

@@ -283,7 +283,11 @@ export const VERBALIZER_GOLD_EXAMPLES: VerbalizerGoldExample[] = [
  * the prose keeps the change and the end balance apart. Each `from` must
  * match the example exactly once (pinned in verbalizerPrompt.test.ts).
  */
-export const VERIFIED_MATERIAL_REWRITES: ReadonlyArray<{ id: string; from: string; to: string }> = [
+export const VERIFIED_MATERIAL_REWRITES: ReadonlyArray<{
+  id: string;
+  from: string;
+  to: string;
+}> = [
   {
     id: "v41-line-story-chain",
     from: "material: material level for White after 3 shown plies",
@@ -307,7 +311,9 @@ export const VERIFIED_MATERIAL_REWRITES: ReadonlyArray<{ id: string; from: strin
 ];
 
 /** The examples as the prompt carries them: with the verified material wording when COACH_CLAIM_VERIFIER is on. */
-export function verbalizerGoldExamples(verifiedMaterial: boolean): VerbalizerGoldExample[] {
+export function verbalizerGoldExamples(
+  verifiedMaterial: boolean
+): VerbalizerGoldExample[] {
   if (!verifiedMaterial) return VERBALIZER_GOLD_EXAMPLES;
   return VERBALIZER_GOLD_EXAMPLES.map((ex) =>
     VERIFIED_MATERIAL_REWRITES.filter((r) => r.id === ex.id).reduce(
@@ -316,13 +322,15 @@ export function verbalizerGoldExamples(verifiedMaterial: boolean): VerbalizerGol
         contractSlice: acc.contractSlice.replace(r.from, r.to),
         idealProse: acc.idealProse.replace(r.from, r.to),
       }),
-      ex,
-    ),
+      ex
+    )
   );
 }
 
 /** Prompt-injectable rendering (mirrors formatExamplesForPrompt's framing). */
-export function formatVerbalizerExamples(verifiedMaterial = isClaimVerifierEnabled()): string {
+export function formatVerbalizerExamples(
+  verifiedMaterial = isClaimVerifierEnabled()
+): string {
   let out =
     "\n\n=== CONTRACT→PROSE EXAMPLES (match this citation discipline and voice) ===\n" +
     "Each example shows an abridged fact contract and the ideal verbalization. " +

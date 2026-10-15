@@ -85,17 +85,24 @@ describe("COACH_CLAIM_VERIFIER: the material rules read the verified balance", (
   it("every rewrite anchors on exactly one string of its example", () => {
     for (const r of VERIFIED_MATERIAL_REWRITES) {
       const ex = VERBALIZER_GOLD_EXAMPLES.find((e) => e.id === r.id)!;
-      expect(`${ex.contractSlice}\n${ex.idealProse}`.split(r.from)).toHaveLength(2);
+      expect(
+        `${ex.contractSlice}\n${ex.idealProse}`.split(r.from)
+      ).toHaveLength(2);
     }
   });
 
   it("off: the system prompt is the legacy one, byte for byte", () => {
     vi.stubEnv("COACH_CLAIM_VERIFIER", "0");
     expect(getVerbalizerCharter()).toBe(VERBALIZER_CHARTER);
-    const parts = getVerbalizerSystemPromptParts({ personalityId: "friendly", userRating: 1500 });
+    const parts = getVerbalizerSystemPromptParts({
+      personalityId: "friendly",
+      userRating: 1500,
+    });
     expect(parts.stable).toContain(VERBALIZER_CHARTER);
     expect(parts.stable).toContain(formatVerbalizerExamples(false).trim());
-    expect(formatVerbalizerExamples(false)).toContain("material: White up 5 after 5 shown plies");
+    expect(formatVerbalizerExamples(false)).toContain(
+      "material: White up 5 after 5 shown plies"
+    );
   });
 });
 

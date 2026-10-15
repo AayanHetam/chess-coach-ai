@@ -35,9 +35,19 @@ import { Chess, type Color, type PieceSymbol, type Square } from "chess.js";
 import { detectMotifs, type AnyMotif } from "@/lib/tactics";
 import { detectTrappedPieces } from "@/lib/tactics/motifs/trapped_piece";
 import { attackersOf, rawAttacks, see } from "@/lib/tactics/utils";
-import { capturable, enPassantWins, exposesDearerPiece, withTurn } from "@/lib/tactics/capturable";
+import {
+  capturable,
+  enPassantWins,
+  exposesDearerPiece,
+  withTurn,
+} from "@/lib/tactics/capturable";
 import { PIECE_UNITS } from "@/lib/tactics/netMaterial";
-import { replayLine, sideValue, type MaterialBalance, type MaterialDelta } from "@/lib/coach/verifyClaims";
+import {
+  replayLine,
+  sideValue,
+  type MaterialBalance,
+  type MaterialDelta,
+} from "@/lib/coach/verifyClaims";
 import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
 import {
   CENTRE_SQUARES,
@@ -481,7 +491,8 @@ function formatNet(netCp: number, owner: Color): string {
 
 const SIDE: Record<Color, string> = { w: "White", b: "Black" };
 const points = (n: number) => `${n} point${n === 1 ? "" : "s"}`;
-const standing = (v: number) => (v === 0 ? "level" : `${points(Math.abs(v))} ${v > 0 ? "up" : "down"}`);
+const standing = (v: number) =>
+  v === 0 ? "level" : `${points(Math.abs(v))} ${v > 0 ? "up" : "down"}`;
 
 /**
  * The `material:` line from the verified balances (COACH_CLAIM_VERIFIER):
@@ -496,9 +507,16 @@ function verifiedMaterialLine(story: LineStory): string {
     const winner = story.plies[n - 1]?.mover ?? story.owner;
     return `material: the line ends in mate (${SIDE[winner]} mates), so no count applies`;
   }
-  if (story.endsInStalemate) return "material: the line ends in stalemate, a draw";
+  if (story.endsInStalemate)
+    return "material: the line ends in stalemate, a draw";
   const m = story.material;
-  if (!m || !m.verified || m.startBalance === null || m.endBalance === null || m.delta === null) {
+  if (
+    !m ||
+    !m.verified ||
+    m.startBalance === null ||
+    m.endBalance === null ||
+    m.delta === null
+  ) {
     return "material: not stated — these plies could not be checked move by move, so state no material result";
   }
   if (m.midCaptureSequence) {
@@ -508,9 +526,18 @@ function verifiedMaterialLine(story: LineStory): string {
   const end = sideValue(m.endBalance, owner);
   const start = sideValue(m.startBalance, owner);
   const change = sideValue(m.delta, owner);
-  const endPart = end === 0 ? "level at the end" : `at the end ${SIDE[owner]} is ${standing(end)}`;
-  const startPart = start === 0 ? "it was level before the line" : `before the line ${SIDE[owner]} was ${standing(start)}`;
-  const changePart = change === 0 ? "change nothing" : `${change > 0 ? "gain" : "cost"} ${SIDE[owner]} ${points(Math.abs(change))}`;
+  const endPart =
+    end === 0
+      ? "level at the end"
+      : `at the end ${SIDE[owner]} is ${standing(end)}`;
+  const startPart =
+    start === 0
+      ? "it was level before the line"
+      : `before the line ${SIDE[owner]} was ${standing(start)}`;
+  const changePart =
+    change === 0
+      ? "change nothing"
+      : `${change > 0 ? "gain" : "cost"} ${SIDE[owner]} ${points(Math.abs(change))}`;
   const more = story.truncated ? " — the line continues beyond these" : "";
   return `material: ${endPart}; ${startPart}, so these ${plies} ${changePart}${more}`;
 }
@@ -823,7 +850,10 @@ export function buildLineStory(fenStart: string, san: readonly string[], opts: L
 
   // Where material stands, decided by the claim verifier replaying exactly
   // the narrated plies — never derived from the running change above.
-  const replay = replayLine(fenStart, plies.map((p) => p.san));
+  const replay = replayLine(
+    fenStart,
+    plies.map((p) => p.san)
+  );
   const material: LineStoryMaterial = {
     verified: replay.ok,
     startBalance: replay.startBalance,
@@ -833,7 +863,16 @@ export function buildLineStory(fenStart: string, san: readonly string[], opts: L
     endFen: replay.ok ? (replay.plies.at(-1)?.fenAfter ?? fenStart) : null,
   };
 
-  return { plies, owner, netMaterialCp: netCp, endsInMate, endsInStalemate, truncated, unresolvedSacrifice, material };
+  return {
+    plies,
+    owner,
+    netMaterialCp: netCp,
+    endsInMate,
+    endsInStalemate,
+    truncated,
+    unresolvedSacrifice,
+    material,
+  };
 }
 
 /**
@@ -847,8 +886,16 @@ export function projectLineStory(story: LineStory): string[] {
   if (isClaimVerifierEnabled()) {
     out.push(verifiedMaterialLine(story));
   } else {
-    const ending = story.endsInMate ? ", ending in mate" : story.endsInStalemate ? ", ending in stalemate (a draw)" : story.truncated ? " — the line continues beyond these" : "";
-    out.push(`material: ${formatNet(story.netMaterialCp, story.owner)} after ${n} shown ${n === 1 ? "ply" : "plies"}${ending}`);
+    const ending = story.endsInMate
+      ? ", ending in mate"
+      : story.endsInStalemate
+        ? ", ending in stalemate (a draw)"
+        : story.truncated
+          ? " — the line continues beyond these"
+          : "";
+    out.push(
+      `material: ${formatNet(story.netMaterialCp, story.owner)} after ${n} shown ${n === 1 ? "ply" : "plies"}${ending}`
+    );
   }
   if (story.unresolvedSacrifice) {
     const u = story.unresolvedSacrifice;

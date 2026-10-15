@@ -110,7 +110,9 @@ export interface EnforcedStreamSummary {
    * sentence and the board claims the gate blocked.
    */
   claimVerifier?: {
-    cards: Array<{ factIdPrefix: string } & NonNullable<LadderCardResult["claimVerifier"]>>;
+    cards: Array<
+      { factIdPrefix: string } & NonNullable<LadderCardResult["claimVerifier"]>
+    >;
     blockedTotal: number;
   };
 }

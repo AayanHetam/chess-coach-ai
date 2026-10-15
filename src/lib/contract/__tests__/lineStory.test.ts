@@ -36,9 +36,15 @@ describe("the game continuation of fixture 07 from 8.Nc7+", () => {
     expect(story.netMaterialCp).toBe(500);
   });
   it("tells the model where material ends, not just what the line won: White nets a rook and is still 4 down", () => {
-    expect(story.material).toMatchObject({ verified: true, startBalance: -9, endBalance: -4, delta: 5, midCaptureSequence: null });
+    expect(story.material).toMatchObject({
+      verified: true,
+      startBalance: -9,
+      endBalance: -4,
+      delta: 5,
+      midCaptureSequence: null,
+    });
     expect(projectLineStory(story).at(-1)).toBe(
-      "material: at the end White is 4 points down; before the line White was 9 points down, so these 6 plies gain White 5 points",
+      "material: at the end White is 4 points down; before the line White was 9 points down, so these 6 plies gain White 5 points"
     );
   });
   it("with COACH_CLAIM_VERIFIER off, the legacy ledger line is unchanged", () => {
@@ -57,7 +63,9 @@ describe("mates", () => {
     expect(story.endsInMate).toBe(true);
     expect(story.plies).toHaveLength(3);
     expect(kinds(story, 2)).toEqual(["checkmate"]);
-    expect(projectLineStory(story).at(-1)).toBe("material: the line ends in mate (White mates), so no count applies");
+    expect(projectLineStory(story).at(-1)).toBe(
+      "material: the line ends in mate (White mates), so no count applies"
+    );
   });
   it("a checking move narrates the check and whether the checker hangs, not the whole board", () => {
     // Greek gift: while Black is in check every SEE read is distorted, so Bxh7+ must not
@@ -114,7 +122,9 @@ describe("what the adversarial review taught it (2026-09-05)", () => {
     const story = buildLineStory("k7/8/1K6/8/8/8/8/2Q5 w - - 0 1", ["Qc7"]);
     expect(story.plies[0].facts).toEqual([{ kind: "stalemate" }]);
     expect(story.endsInStalemate).toBe(true);
-    expect(projectLineStory(story).at(-1)).toBe("material: the line ends in stalemate, a draw");
+    expect(projectLineStory(story).at(-1)).toBe(
+      "material: the line ends in stalemate, a draw"
+    );
   });
   it("names a double check, and a knight check that uncovers an attack on the queen is not a 'discovered check'", () => {
     const dbl = buildLineStory("r2bk3/3p1p2/4N3/8/8/8/8/4R1K1 w - - 0 1", ["Nc7+", "Kf8"]);

@@ -109,12 +109,16 @@ VOICE (graded, and it outranks structure):
 `.trim();
 
 /** The two charter sentences that taught the model to read a line's material CHANGE as where material ends. */
-export const LEGACY_MATERIAL_RULE = `- The "material:" line is the only source for "wins a pawn", "wins the exchange", "gets the rook back". Say its sense in coach words ("White comes out a rook ahead"), never its label, and never compute your own count.`;
-const LEGACY_PLUMBING_EXAMPLE = `"The material ledger reads: White up 9" is plumbing; "and White is a whole queen ahead" is coaching.`;
+export const LEGACY_MATERIAL_RULE =
+  '- The "material:" line is the only source for "wins a pawn", "wins the exchange", "gets the rook back". Say its sense in coach words ("White comes out a rook ahead"), never its label, and never compute your own count.';
+const LEGACY_PLUMBING_EXAMPLE =
+  '"The material ledger reads: White up 9" is plumbing; "and White is a whole queen ahead" is coaching.';
 
 /** COACH_CLAIM_VERIFIER: the "material:" line now carries the verified end balance and the change, separately. */
-export const VERIFIED_MATERIAL_RULE = `- The "material:" line gives two different numbers: where material STANDS at the end of the shown plies, and how much those plies CHANGED it. "Wins a pawn", "wins the exchange", "gets the rook back" come only from the change; "ahead", "behind", "comes out up/down" only from where it stands at the end — a line can win a rook and still end four points behind. When it says to state no material result (the plies stop mid-exchange, or the line ends in mate), state none. Never compute your own count.`;
-const VERIFIED_PLUMBING_EXAMPLE = `"The material line says White is 9 points up at the end" is plumbing; "and White ends a whole queen ahead" is coaching.`;
+export const VERIFIED_MATERIAL_RULE =
+  '- The "material:" line gives two different numbers: where material STANDS at the end of the shown plies, and how much those plies CHANGED it. "Wins a pawn", "wins the exchange", "gets the rook back" come only from the change; "ahead", "behind", "comes out up/down" only from where it stands at the end — a line can win a rook and still end four points behind. When it says to state no material result (the plies stop mid-exchange, or the line ends in mate), state none. Never compute your own count.';
+const VERIFIED_PLUMBING_EXAMPLE =
+  '"The material line says White is 9 points up at the end" is plumbing; "and White ends a whole queen ahead" is coaching.';
 
 /** COACH_CLAIM_VERIFIER: evaluations carry their depth and engine; re-checked moments and missed mates. */
 export const VERIFIED_DEPTH_RULES = `
@@ -125,10 +129,10 @@ DEPTH AND MATES (verified analysis):
 /** The charter as served: with the verified material and depth rules when COACH_CLAIM_VERIFIER is on. */
 export function getVerbalizerCharter(): string {
   if (!isClaimVerifierEnabled()) return VERBALIZER_CHARTER;
-  const material = VERBALIZER_CHARTER.replace(LEGACY_MATERIAL_RULE, VERIFIED_MATERIAL_RULE).replace(
-    LEGACY_PLUMBING_EXAMPLE,
-    VERIFIED_PLUMBING_EXAMPLE,
-  );
+  const material = VERBALIZER_CHARTER.replace(
+    LEGACY_MATERIAL_RULE,
+    VERIFIED_MATERIAL_RULE
+  ).replace(LEGACY_PLUMBING_EXAMPLE, VERIFIED_PLUMBING_EXAMPLE);
   return `${material}\n\n${VERIFIED_DEPTH_RULES}`;
 }
 

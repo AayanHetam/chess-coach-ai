@@ -93,12 +93,12 @@ export function renderTemplateCardBody(insight: InsightContract): string {
   const missed = isClaimVerifierEnabled() ? insight.missedMate : undefined;
   if (missed) {
     lines.push(
-      `- You had mate in ${missed.mateIn} here${missed.bestSan ? ` with ${missed.bestSan}` : ""}; after ${insight.playedSan} the evaluation is ${evalPhrase(insight.evalAfter)}.`,
+      `- You had mate in ${missed.mateIn} here${missed.bestSan ? ` with ${missed.bestSan}` : ""}; after ${insight.playedSan} the evaluation is ${evalPhrase(insight.evalAfter)}.`
     );
   } else {
     const dropPawns = Math.abs(insight.severityDropPawns).toFixed(1);
     lines.push(
-      `- The evaluation moved from ${evalPhrase(insight.evalBefore)} to ${evalPhrase(insight.evalAfter)} after ${insight.playedSan} — about ${dropPawns} pawns of ground.`,
+      `- The evaluation moved from ${evalPhrase(insight.evalBefore)} to ${evalPhrase(insight.evalAfter)} after ${insight.playedSan} — about ${dropPawns} pawns of ground.`
     );
   }
 

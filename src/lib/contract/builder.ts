@@ -17,7 +17,11 @@ import { annotatePosition, annotationToPromptContext } from "@/lib/positionAnnot
 import { detectMotifs } from "@/lib/tactics";
 import { buildLineStory, type LineStory } from "./lineStory";
 import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
-import { missedMate, recheckedPair, type GameEvalRecheck } from "@/lib/coach/deepRecheck";
+import {
+  missedMate,
+  recheckedPair,
+  type GameEvalRecheck,
+} from "@/lib/coach/deepRecheck";
 import { buildGameReport } from "@/lib/coach/gameReport";
 import { logger } from "@/lib/logging";
 
@@ -96,7 +100,10 @@ export interface BuildCoachContractArgs {
 type RawLine = PositionEvalInput["lines"][number];
 
 // ── EvalFact construction ───────────────────────────────────────────────────
-function evalFactFromLine(line: RawLine | undefined, engine?: string): EvalFact {
+function evalFactFromLine(
+  line: RawLine | undefined,
+  engine?: string
+): EvalFact {
   const cp = line?.cp === undefined ? null : line.cp;
   const mate = line?.mate === undefined ? null : line.mate;
   const depth = line?.depth ?? 0;
@@ -111,7 +118,12 @@ function evalFactFromLine(line: RawLine | undefined, engine?: string): EvalFact 
     depth,
     sentinel,
     display,
-    provenance: { source: "stockfish_client", confidence: "client_reported", depth, ...(engine ? { engine } : {}) },
+    provenance: {
+      source: "stockfish_client",
+      confidence: "client_reported",
+      depth,
+      ...(engine ? { engine } : {}),
+    },
   };
 }
 
@@ -221,7 +233,7 @@ function buildLineFacts(
   playedSan: string,
   lines: RawLine[],
   movedFrom: ReadonlySet<string>,
-  engine?: string,
+  engine?: string
 ): LineFact[] {
   return lines.map((l, idx) => {
     const pvUci = l.pv ?? [];
@@ -297,26 +309,59 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
   // is one depth, never mixed; every other move keeps pass 1. Every eval
   // records the engine it came from.
   const claimVerifier = isClaimVerifierEnabled();
-  const recheck = claimVerifier ? ((gameEval as { recheck?: GameEvalRecheck } | undefined)?.recheck ?? null) : null;
+  const recheck = claimVerifier
+    ? ((gameEval as { recheck?: GameEvalRecheck } | undefined)?.recheck ?? null)
+    : null;
   const passOneEngine = claimVerifier
-    ? ((gameEval as { settings?: { engine?: string } } | undefined)?.settings?.engine ?? undefined)
+    ? ((gameEval as { settings?: { engine?: string } } | undefined)?.settings
+        ?.engine ?? undefined)
     : undefined;
   type PositionIn = NonNullable<typeof positions>[number];
-  const deepPairAt = (i: number): { before: PositionIn; after: PositionIn } | null => {
+  const deepPairAt = (
+    i: number
+  ): { before: PositionIn; after: PositionIn } | null => {
     const deep = recheckedPair(recheck, i);
     if (!deep) return null;
-    const asPosition = (p: { lines: GameEvalRecheck["positions"][string]["lines"]; bestMove?: string }, base: PositionIn | undefined) =>
-      ({ ...(base ?? {}), lines: p.lines, bestMove: p.bestMove ?? p.lines[0]?.pv?.[0] }) as PositionIn;
-    return { before: asPosition(deep.before, positions?.[i]), after: asPosition(deep.after, positions?.[i + 1]) };
+    const asPosition = (
+      p: {
+        lines: GameEvalRecheck["positions"][string]["lines"];
+        bestMove?: string;
+      },
+      base: PositionIn | undefined
+    ) =>
+      ({
+        ...(base ?? {}),
+        lines: p.lines,
+        bestMove: p.bestMove ?? p.lines[0]?.pv?.[0],
+      }) as PositionIn;
+    return {
+      before: asPosition(deep.before, positions?.[i]),
+      after: asPosition(deep.after, positions?.[i + 1]),
+    };
   };
   /** Move i's before/after evaluations and the engine behind them. */
   const pairFor = (i: number) => {
     const deep = deepPairAt(i);
     return deep
-      ? { before: deep.before, after: deep.after, engine: recheck!.engine, deep: true }
-      : { before: positions?.[i], after: positions?.[i + 1], engine: passOneEngine, deep: false };
+      ? {
+          before: deep.before,
+          after: deep.after,
+          engine: recheck!.engine,
+          deep: true,
+        }
+      : {
+          before: positions?.[i],
+          after: positions?.[i + 1],
+          engine: passOneEngine,
+          deep: false,
+        };
   };
-  const selection = selectInsights(moveHistory, gameEval, playerColor, recheck ? { pairAt: deepPairAt } : {});
+  const selection = selectInsights(
+    moveHistory,
+    gameEval,
+    playerColor,
+    recheck ? { pairAt: deepPairAt } : {}
+  );
 
   // --- pgnHeaders: only truthy fields, keyed by GameHeadersInput names ---
   const pgnHeaders: Record<string, string> = {};
@@ -402,10 +447,13 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
       // A re-checked move's browser label was computed from the shallower
       // pair; it no longer describes the evals beside it, so it goes.
       classification:
-        !pair.deep && isComparableDepthPair(evalBefore, evalAfter, declaredDepth)
+        !pair.deep &&
+        isComparableDepthPair(evalBefore, evalAfter, declaredDepth)
           ? (evalAfter?.moveClassification ?? null)
           : null,
-      evalAfter: evalAfter?.lines?.[0] ? evalFactFromLine(evalAfter.lines[0], pair.engine) : null,
+      evalAfter: evalAfter?.lines?.[0]
+        ? evalFactFromLine(evalAfter.lines[0], pair.engine)
+        : null,
       bestWas,
     });
   }
@@ -547,7 +595,14 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
     });
 
     const movedFrom = new Set(fromSquares.slice(0, ply));
-    const lineFacts = buildLineFacts(topRank ? `M${topRank}` : `I${intelRank}`, fenBefore, playedSan, lines, movedFrom, plyPair.engine);
+    const lineFacts = buildLineFacts(
+      topRank ? `M${topRank}` : `I${intelRank}`,
+      fenBefore,
+      playedSan,
+      lines,
+      movedFrom,
+      plyPair.engine
+    );
     // What the game actually did from here: the played move and the next few
     // real plies, told the same way as the engine lines ("after your Ng4,
     // White played d6 and your knight was left en prise"). Same detectors,
@@ -670,17 +725,33 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
       fenBefore,
       fenAfter,
       evalBefore: evalFactFromLine(lines[0], plyPair.engine),
-      evalAfter: evalAfterLine ? evalFactFromLine(evalAfterLine, plyPair.engine) : evalFactFromLine(undefined),
+      evalAfter: evalAfterLine
+        ? evalFactFromLine(evalAfterLine, plyPair.engine)
+        : evalFactFromLine(undefined),
       // COACH_CLAIM_VERIFIER: "you had mate in N" — a forced mate the move let go.
       ...(() => {
         if (!claimVerifier) return {};
-        const missed = missedMate(lines[0] as never, evalAfterLine as never, ply % 2 === 0 ? "w" : "b");
-        return missed ? { missedMate: { mateIn: missed.mateIn, bestSan: bestPvSan[0] ?? null, line: bestPvSan.slice(0, 8) } } : {};
+        const missed = missedMate(
+          lines[0] as never,
+          evalAfterLine as never,
+          ply % 2 === 0 ? "w" : "b"
+        );
+        return missed
+          ? {
+              missedMate: {
+                mateIn: missed.mateIn,
+                bestSan: bestPvSan[0] ?? null,
+                line: bestPvSan.slice(0, 8),
+              },
+            }
+          : {};
       })(),
       // COACH_CLAIM_VERIFIER: what actually punishes the move, for the claim
       // gate (a "this leaves the knight hanging" reason must be the piece
       // this line takes). Referee-only; never serialized to the verbalizer.
-      ...(isClaimVerifierEnabled() && evalAfterLine?.depth && evalAfterLine.pv?.length
+      ...(isClaimVerifierEnabled() &&
+      evalAfterLine?.depth &&
+      evalAfterLine.pv?.length
         ? { refutation: convertPvToSan(fenAfter, evalAfterLine.pv).slice(0, 6) }
         : {}),
       lines: lineFacts,
@@ -794,7 +865,8 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
         sans: moveHistory.slice(0, replayedPlies),
         positions: positions as unknown as GameEval["positions"],
         recheck,
-        playerColor: playerColor === "w" || playerColor === "b" ? playerColor : null,
+        playerColor:
+          playerColor === "w" || playerColor === "b" ? playerColor : null,
         result: pgnHeaders.result ?? null,
         engine: passOneEngine ?? "the engine",
       });

@@ -520,19 +520,33 @@ export function serializeForVerbalizer(contract: CoachContract): string {
   // un-stripped field would silently enter the verbalizer prompt, change its
   // cache prefix, and break every byte-equality snapshot — so the omission is
   // asserted directly in serialize's tests rather than left to review.
-  const { builtAtMs: _builtAtMs, buildMs: _buildMs, intent: _intent, report: _report, ...rest } = contract;
+  const {
+    builtAtMs: _builtAtMs,
+    buildMs: _buildMs,
+    intent: _intent,
+    report: _report,
+    ...rest
+  } = contract;
   // PRECISION PACK fix 4: motifLicense is a REFEREE license pool, not a
   // sayable fact — stripping it keeps the verbalizer prompt (and its cache
   // prefix) byte-identical to pre-precision-pack contracts. `refutation`
   // (COACH_CLAIM_VERIFIER) is referee-only for the same reason.
   // The game's own continuation rides under its own key, same string form as
   // a line's story: gameStory: { story: [...] }.
-  const insights = rest.insights.map(({ motifLicense: _motifLicense, refutation: _refutation, gameStory, ...ins }) => {
+  const insights = rest.insights.map(
+    ({
+      motifLicense: _motifLicense,
+      refutation: _refutation,
+      gameStory,
+      ...ins
+    }) => {
     if (!gameStory || gameStory.plies.length === 0) return ins;
     return { ...ins, gameStory: { story: projectLineStory(gameStory) } };
   });
   const moveTable = projectMoveTable(rest.moveTable);
   return JSON.stringify(
-    sortKeysDeep(projectNode({ ...rest, insights, moveTable }, isClaimVerifierEnabled())),
+    sortKeysDeep(
+      projectNode({ ...rest, insights, moveTable }, isClaimVerifierEnabled())
+    )
   );
 }

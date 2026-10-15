@@ -257,7 +257,10 @@ export function refereeInsight(
   for (const i of material.issues) findings.push(issueToFinding("stage9_material_win", i, false));
 
   // Check 7 (COACH_CLAIM_VERIFIER): board claims replayed on chess.js.
-  if (isClaimVerifierEnabled()) findings.push(...claimVerifierFindings(prose, insight, opts.playerPerspective));
+  if (isClaimVerifierEnabled())
+    findings.push(
+      ...claimVerifierFindings(prose, insight, opts.playerPerspective)
+    );
 
   return {
     factIdPrefix: insight.factIdPrefix,
@@ -279,18 +282,23 @@ export function refereeInsight(
 function claimVerifierFindings(
   prose: string,
   insight: InsightContract,
-  perspective: "white" | "black" | undefined,
+  perspective: "white" | "black" | undefined
 ): RefereeFinding[] {
   try {
-    const playerColor = perspective === "black" ? "b" : perspective === "white" ? "w" : undefined;
+    const playerColor =
+      perspective === "black" ? "b" : perspective === "white" ? "w" : undefined;
     return checkCardClaims(prose, insight, { playerColor })
       .sentences.filter((s) => s.action !== "keep")
       .map((s) => {
-        const first = s.claims.find((c) => c.verdict.status !== "verified") ?? s.claims[0];
+        const first =
+          s.claims.find((c) => c.verdict.status !== "verified") ?? s.claims[0];
         return {
           check: "claim_verifier" as const,
           severity: "error" as const,
-          category: first.verdict.status === "false" ? first.claim.kind : `${first.claim.kind}_unverified`,
+          category:
+            first.verdict.status === "false"
+              ? first.claim.kind
+              : `${first.claim.kind}_unverified`,
           span: s.text,
           detail: first.verdict.reason,
         };

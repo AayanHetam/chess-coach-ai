@@ -36,7 +36,11 @@ import type { RefereeInsightOpts, RefereeRelationalOpts } from "./referee";
 import { renderTemplateCardBody } from "./templateCard";
 import type { CoachContract, InsightContract } from "./types";
 import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
-import { applyClaimGate, checkCardClaims, type SentenceSource } from "@/lib/coach/claimGate";
+import {
+  applyClaimGate,
+  checkCardClaims,
+  type SentenceSource,
+} from "@/lib/coach/claimGate";
 
 // ── Budgets (per review, shared across cards — plan §4 hard caps) ───────────
 export interface LadderBudgets {
@@ -125,7 +129,11 @@ export interface LadderCardResult {
    */
   claimVerifier?: {
     sentences: Array<{ text: string; source: SentenceSource }>;
-    blocked: Array<{ kind: string; status: "false" | "unverified"; reason: string }>;
+    blocked: Array<{
+      kind: string;
+      status: "false" | "unverified";
+      reason: string;
+    }>;
   };
 }
 
@@ -432,7 +440,8 @@ export async function runInsightLadder(
   const { insight } = opts;
   const claimGate = isClaimVerifierEnabled();
   const perspective = opts.refereeOpts.playerPerspective;
-  const playerColor = perspective === "black" ? "b" : perspective === "white" ? "w" : undefined;
+  const playerColor =
+    perspective === "black" ? "b" : perspective === "white" ? "w" : undefined;
 
   let costUsd = 0;
   let editsUsed = 0;
@@ -445,9 +454,11 @@ export async function runInsightLadder(
     finalText: string,
     initial: BodyEvaluation | null,
     /** The shipped body before wrapping (citations intact), for the claim labels. */
-    body?: string,
+    body?: string
   ): LadderCardResult => ({
-    ...(claimGate && body !== undefined ? { claimVerifier: claimVerifierReport(body, initial) } : {}),
+    ...(claimGate && body !== undefined
+      ? { claimVerifier: claimVerifierReport(body, initial) }
+      : {}),
     factIdPrefix: insight.factIdPrefix,
     stage,
     finalText,
@@ -469,11 +480,14 @@ export async function runInsightLadder(
   /** Where each shipped sentence's facts come from, and what the gate blocked. */
   const claimVerifierReport = (
     body: string,
-    initial: BodyEvaluation | null,
+    initial: BodyEvaluation | null
   ): NonNullable<LadderCardResult["claimVerifier"]> => {
     let sentences: Array<{ text: string; source: SentenceSource }> = [];
     try {
-      sentences = checkCardClaims(stripGrammarTokenLines(body), insight, { playerColor, log: false }).sentences.map((s) => ({
+      sentences = checkCardClaims(stripGrammarTokenLines(body), insight, {
+        playerColor,
+        log: false,
+      }).sentences.map((s) => ({
         text: stripCitations(s.text).trim(),
         source: s.source,
       }));
@@ -484,7 +498,9 @@ export async function runInsightLadder(
       .filter((f) => f.check === "claim_verifier")
       .map((f) => ({
         kind: f.category.replace(/_unverified$/, ""),
-        status: f.category.endsWith("_unverified") ? ("unverified" as const) : ("false" as const),
+        status: f.category.endsWith("_unverified")
+          ? ("unverified" as const)
+          : ("false" as const),
         reason: f.detail,
       }));
     return { sentences, blocked };
@@ -509,7 +525,12 @@ export async function runInsightLadder(
   }
 
   if (initial.errors.length === 0) {
-    return finish("pass", wrapBlock(insight, modelBody.trim()), initial, modelBody.trim());
+    return finish(
+      "pass",
+      wrapBlock(insight, modelBody.trim()),
+      initial,
+      modelBody.trim()
+    );
   }
   // Relational error findings re-asserted (span presence) on recheck passes
   // instead of paying a fresh Haiku parse per ladder stage.
@@ -524,13 +545,28 @@ export async function runInsightLadder(
     try {
       const gated = applyClaimGate(
         modelBody.trim(),
-        checkCardClaims(stripGrammarTokenLines(modelBody.trim()), insight, { playerColor, log: false }),
+        checkCardClaims(stripGrammarTokenLines(modelBody.trim()), insight, {
+          playerColor,
+          log: false,
+        })
       );
       if (gated !== null) {
-        const check = await evaluateBody(gated, opts, armingTable, now, "recheck", priorRelational);
+        const check = await evaluateBody(
+          gated,
+          opts,
+          armingTable,
+          now,
+          "recheck",
+          priorRelational
+        );
         costUsd += check.costUsd;
         if (check.errors.length === 0) {
-          return finish("sentence_drop", wrapBlock(insight, gated), initial, gated);
+          return finish(
+            "sentence_drop",
+            wrapBlock(insight, gated),
+            initial,
+            gated
+          );
         }
       }
     } catch {
@@ -566,7 +602,12 @@ export async function runInsightLadder(
       relationalParsesUsed += check.relationalParsesUsed;
       costUsd += check.costUsd;
       if (check.errors.length === 0) {
-        return finish("sentence_drop", wrapBlock(insight, dropped.text), initial, dropped.text);
+        return finish(
+          "sentence_drop",
+          wrapBlock(insight, dropped.text),
+          initial,
+          dropped.text
+        );
       }
     } catch {
       /* fall through the ladder */
@@ -597,7 +638,12 @@ export async function runInsightLadder(
         relationalParsesUsed += check.relationalParsesUsed;
         costUsd += check.costUsd;
         if (check.errors.length === 0) {
-          return finish("edited", wrapBlock(insight, correction.correctedText), initial, correction.correctedText);
+          return finish(
+            "edited",
+            wrapBlock(insight, correction.correctedText),
+            initial,
+            correction.correctedText
+          );
         }
       }
     } catch {
@@ -615,7 +661,12 @@ export async function runInsightLadder(
       relationalParsesUsed += check.relationalParsesUsed;
       costUsd += check.costUsd;
       if (check.errors.length === 0) {
-        return finish("sentence_drop", wrapBlock(insight, dropped.text), initial, dropped.text);
+        return finish(
+          "sentence_drop",
+          wrapBlock(insight, dropped.text),
+          initial,
+          dropped.text
+        );
       }
     } catch {
       /* fall through the ladder */
@@ -641,7 +692,12 @@ export async function runInsightLadder(
         relationalParsesUsed += check.relationalParsesUsed;
         costUsd += check.costUsd;
         if (check.errors.length === 0) {
-          return finish("regenerated", wrapBlock(insight, regenBody), initial, regenBody);
+          return finish(
+            "regenerated",
+            wrapBlock(insight, regenBody),
+            initial,
+            regenBody
+          );
         }
       }
     } catch {

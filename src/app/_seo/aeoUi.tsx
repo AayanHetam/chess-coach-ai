@@ -119,6 +119,10 @@ export function Breadcrumb({ here }: { here: string }) {
 export function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <Box
+      // The partner slot above this shell keys its ground on this class
+      // (PAGE_SHELL_CLASS in components/ads/PartnerSlot.tsx), so the banner
+      // sits on the same dark field rather than in a white band.
+      className="cm-page-shell"
       sx={{
         background: AEO_TOKENS.bg,
         minHeight: "100vh",

@@ -8,10 +8,12 @@ import {
 import {
   Box,
   Button,
-  CircularProgress,
   IconButton,
+  Divider,
   Menu,
+  MenuItem,
   Modal,
+  Slider,
   Stack,
   TextField,
   Tooltip,
@@ -19,20 +21,7 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import { ThemeProvider, createTheme, useTheme } from "@mui/material/styles";
-import { motion, AnimatePresence } from "framer-motion";
-import { buildChessMastiTheme } from "@/theme/chessMasti";
-import {
-  ACCENT,
-  FONT_MONO,
-  LINE,
-  MOTION,
-  RADIUS,
-  SHADOW,
-  STATUS,
-  SURFACE,
-  TEXT,
-  TYPE,
-} from "@/theme/tokens";
+import { motion } from "framer-motion";
 import {
   MasterGamesPanel,
   buildCandidatesFromApi,
@@ -47,8 +36,18 @@ import {
   resolveMoveRef,
   plyBeforeMove,
   buildRecommendedPreview,
+  buildLinePreview,
   playSanOnFen,
 } from "@/components/preview-analysis/coachMoveRefs";
+import { ProofLine } from "@/components/preview-analysis/ProofLine";
+import { splitInsightWhy } from "@/components/preview-analysis/insightWhy";
+import { MoveAnalysisCard } from "@/components/preview-analysis/MoveAnalysisCard";
+import {
+  engineLineAt,
+  playedLineAt,
+  splitProseByLineTokens,
+  type CoachLine,
+} from "@/components/preview-analysis/coachLines";
 import {
   gameSideKey,
   inferPlayerSideFromHeaders,
@@ -61,7 +60,6 @@ import BookExitCard from "@/components/analysis/BookExitCard";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 import { ChessgroundBoardPlaceholder } from "@/components/ui/ChessgroundBoardPlaceholder";
 import {
-  BoardArrowToggles,
   DEFAULT_ARROW_TOGGLES,
   ARROW_PALETTE,
   type ArrowToggleState,
@@ -79,31 +77,30 @@ import {
   Check,
   ChevronDown,
   List as ListIcon,
-  MessageCircle,
   MessageSquare,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
   Command,
+  Ellipsis,
   Eye,
   Flame,
   GitBranch,
-  Info,
   Lightbulb,
   MousePointerClick,
   RefreshCw,
   RotateCw,
   Send,
   Share2,
+  Sparkles,
   Target,
-  X,
+  Zap,
 } from "lucide-react";
 import {
   Masti,
   MastiAvatar,
   analysisMood,
-  classificationMood,
   coachErrorMood,
   useStickyMood,
   type CoachErrorKind,
@@ -112,9 +109,7 @@ import {
   type TerminalLabel,
 } from "@/components/masti";
 import {
-  cloneElement,
   Fragment,
-  isValidElement,
   useCallback,
   useEffect,
   useMemo,
@@ -168,7 +163,6 @@ import type {
   SavedEvals,
 } from "@/types/eval";
 import { getMovesClassification } from "@/lib/engine/helpers/moveClassification";
-import { ContextualPuzzleRecommendations } from "@/components/ContextualPuzzleRecommendations";
 import { useGameDatabase } from "@/hooks/useGameDatabase";
 import { useViewer } from "@/hooks/useViewer";
 import { resolveUserRating } from "@/lib/coach/userRating";
@@ -219,38 +213,37 @@ const ChessgroundBoard = dynamic(
 // Theme
 // ───────────────────────────────────────────────────────────────────────────────
 
-// The site theme, with two exceptions the viewport-locked layout below is
-// measured against (a CLS budget): buttons keep their own heights instead of
-// the theme's 40px floor, and keep MUI's default line-height so the strip
-// under the board and the nav bar hold the boxes they were measured with.
-const analysisTheme = createTheme(buildChessMastiTheme(), {
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: { minHeight: 0, lineHeight: 1.75 },
-        sizeSmall: { minHeight: 0 },
-      },
+const analysisTheme = createTheme({
+  palette: {
+    mode: "dark",
+    primary: { main: "#F97316" },
+    secondary: { main: "#FB923C" },
+    background: {
+      default: "#08090C",
+      paper: "rgba(20,22,28,0.6)",
+    },
+    text: {
+      primary: "rgba(255,255,255,0.94)",
+      secondary: "rgba(255,255,255,0.62)",
+    },
+    divider: "rgba(255,255,255,0.08)",
+    success: { main: "#22c55e" },
+    error: { main: "#ef4444" },
+    warning: { main: "#EA580C" },
+  },
+  typography: {
+    fontFamily:
+      "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    h1: { fontWeight: 800, letterSpacing: "-0.03em" },
+    h2: { fontWeight: 700, letterSpacing: "-0.02em" },
+    h3: { fontWeight: 700, letterSpacing: "-0.015em" },
+    button: {
+      textTransform: "none",
+      fontWeight: 600,
+      letterSpacing: "0.005em",
     },
   },
 });
-
-/**
- * Recipe 12, a status banner: the status tint goes on `background` at the
- * call site, the colour goes on the icon, and the words stay TEXT.primary.
- */
-const STATUS_BANNER_SX = {
-  mb: 1.5,
-  px: 1.5,
-  py: 1,
-  display: "flex",
-  alignItems: "flex-start",
-  gap: 1,
-  borderRadius: `${RADIUS.control}px`,
-  border: `1px solid ${LINE.hairline}`,
-  fontSize: TYPE.caption.fontSize,
-  lineHeight: 1.5,
-  color: TEXT.primary,
-} as const;
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Cold start
@@ -428,7 +421,7 @@ async function fetchPuzzlesForTheme(
     const code = res.status;
     throw new Error(
       code === 503
-        ? "puzzle store offline"
+        ? "puzzle store offline (Neo4j unconfigured)"
         : `puzzle store returned HTTP ${code}`
     );
   }
@@ -596,6 +589,16 @@ async function streamCoachReply(params: {
    * of conversationHistory.
    */
   onTruncated?: () => void;
+  /**
+   * The move the server resolved the question to (questionAnchor.ts), so
+   * the board can show the position the answer is about.
+   */
+  onAnchor?: (anchor: {
+    ply: number;
+    moveNumber: number;
+    color: "w" | "b";
+    san: string;
+  }) => void;
   signal?: AbortSignal;
 }): Promise<string> {
   const {
@@ -620,6 +623,7 @@ async function streamCoachReply(params: {
     onDelta,
     onCorrected,
     onTruncated,
+    onAnchor,
     signal,
   } = params;
 
@@ -662,6 +666,14 @@ async function streamCoachReply(params: {
       const data = await chatRes.json();
       const text: string =
         data.message ?? data.response ?? data.gameAnalysis?.analysis ?? "";
+      const anchor = data.gameAnalysis?.anchor;
+      if (
+        anchor &&
+        typeof anchor.ply === "number" &&
+        typeof anchor.san === "string"
+      ) {
+        onAnchor?.(anchor);
+      }
       // Emit as a single chunk so the UI animates the same way
       onDelta(text);
       return text;
@@ -1122,6 +1134,117 @@ const formatEval = (cp: number): string => {
 // Components
 // ───────────────────────────────────────────────────────────────────────────────
 
+function NavPill() {
+  return (
+    <Box
+      component="header"
+      sx={{
+        position: "sticky",
+        top: 16,
+        zIndex: 50,
+        mx: "auto",
+        maxWidth: 1680,
+        px: { xs: 2, md: 3 },
+        py: 1.25,
+        mb: 3,
+        borderRadius: "999px",
+        background: "rgba(12,14,20,0.6)",
+        backdropFilter: "blur(16px) saturate(160%)",
+        WebkitBackdropFilter: "blur(16px) saturate(160%)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        display: "flex",
+        alignItems: "center",
+        gap: 2,
+      }}
+    >
+      <Box
+        component={Link}
+        href="/"
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          fontWeight: 800,
+          color: "rgba(255,255,255,0.94)",
+          letterSpacing: "-0.02em",
+          textDecoration: "none",
+        }}
+      >
+        <Box
+          sx={{
+            width: 26,
+            height: 26,
+            borderRadius: "8px",
+            background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 0 16px rgba(249,115,22,0.4)",
+          }}
+        >
+          <Sparkles size={14} color="#0A0A0A" />
+        </Box>
+        Chess Masti
+      </Box>
+
+      <Box sx={{ flex: 1 }} />
+
+      <Stack
+        direction="row"
+        spacing={3}
+        sx={{ display: { xs: "none", md: "flex" } }}
+      >
+        {[
+          { label: "Play", href: "/play" },
+          { label: "Practice", href: "/practice" },
+          { label: "Scout", href: "/scout" },
+        ].map((item) => (
+          <Typography
+            key={item.label}
+            component={Link}
+            href={item.href}
+            sx={{
+              fontSize: "0.88rem",
+              fontWeight: 500,
+              color: "rgba(255,255,255,0.7)",
+              textDecoration: "none",
+              "&:hover": { color: "rgba(255,255,255,1)" },
+            }}
+          >
+            {item.label}
+          </Typography>
+        ))}
+      </Stack>
+
+      <Box
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 0.75,
+          px: 1.5,
+          py: 0.5,
+          borderRadius: "999px",
+          background: "rgba(249,115,22,0.12)",
+          border: "1px solid rgba(249,115,22,0.3)",
+        }}
+      >
+        <Zap size={12} color="#F97316" />
+        <Typography
+          sx={{
+            fontSize: "0.7rem",
+            fontWeight: 700,
+            letterSpacing: "0.14em",
+            color: "#FB923C",
+            textTransform: "uppercase",
+          }}
+        >
+          Analysis
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
 /**
  * The loaded game's identity, rendered INSIDE the nav pill.
  *
@@ -1175,6 +1298,8 @@ function GameIdentity({
       </Typography>
     );
   }
+
+  const evalPositive = currentEval >= 0;
 
   return (
     <Stack
@@ -1234,9 +1359,9 @@ function GameIdentity({
         <Typography
           sx={{
             fontSize: "0.92rem",
-            fontWeight: 700,
+            fontWeight: 800,
             color: "rgba(255,255,255,0.9)",
-            fontVariantNumeric: "tabular-nums",
+            fontFamily: "Monaco, Menlo, monospace",
             lineHeight: 1,
           }}
         >
@@ -1255,9 +1380,13 @@ function GameIdentity({
           display: { xs: "none", md: "block" },
           px: 1.1,
           py: 0.4,
-          borderRadius: `${RADIUS.small}px`,
-          background: SURFACE.raisedSecondary,
-          border: `1px solid ${LINE.hairline}`,
+          borderRadius: "8px",
+          background: evalPositive
+            ? "rgba(249,115,22,0.12)"
+            : "rgba(255,255,255,0.06)",
+          border: evalPositive
+            ? "1px solid rgba(249,115,22,0.3)"
+            : "1px solid rgba(255,255,255,0.1)",
           minWidth: 52,
           textAlign: "center",
         }}
@@ -1266,9 +1395,12 @@ function GameIdentity({
           sx={{
             fontSize: "0.84rem",
             fontWeight: 700,
-            color: evalPending ? TEXT.tertiary : TEXT.secondary,
-            fontFamily: FONT_MONO,
-            fontVariantNumeric: "tabular-nums",
+            color: evalPending
+              ? "rgba(255,255,255,0.4)"
+              : evalPositive
+                ? "#FB923C"
+                : "rgba(255,255,255,0.85)",
+            fontFamily: "Monaco, Menlo, monospace",
             lineHeight: 1.35,
           }}
         >
@@ -1313,7 +1445,7 @@ function GameActions({
     px: 1.25,
     py: 0.6,
     minWidth: 0,
-    borderRadius: `${RADIUS.control}px`,
+    borderRadius: "10px",
     fontSize: "0.76rem",
     fontWeight: 700,
     textTransform: "none" as const,
@@ -1328,7 +1460,7 @@ function GameActions({
       sx={{ flexShrink: 0 }}
     >
       {onOpenPalette && (
-        <Tooltip title="Command palette: jump to a move, flip, ask Masti">
+        <Tooltip title="Command palette — jump to a move, flip, ask Masti">
           <Box
             component="button"
             type="button"
@@ -1341,23 +1473,17 @@ function GameActions({
               font: "inherit",
               px: 0.9,
               py: 0.45,
-              borderRadius: `${RADIUS.small}px`,
-              background: SURFACE.raisedSecondary,
-              border: `1px solid ${LINE.hairline}`,
-              color: TEXT.secondary,
+              borderRadius: "8px",
+              background: "rgba(249,115,22,0.1)",
+              border: "1px solid rgba(249,115,22,0.25)",
+              color: "#FB923C",
+              fontFamily: "Monaco, Menlo, monospace",
               fontWeight: 600,
-              fontSize: TYPE.caption.fontSize,
-              lineHeight: 1.3,
-              touchAction: "manipulation",
-              transition: `background-color ${MOTION.hover}, color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
+              fontSize: "0.72rem",
+              transition: "all 180ms ease",
               "&:hover": {
-                background: SURFACE.raisedTertiary,
-                color: TEXT.primary,
-              },
-              "&:active": { transform: MOTION.pressScale },
-              "&:focus-visible": {
-                outline: `2px solid ${TEXT.primary}`,
-                outlineOffset: 2,
+                background: "rgba(249,115,22,0.18)",
+                borderColor: "rgba(249,115,22,0.4)",
               },
             }}
           >
@@ -1367,13 +1493,13 @@ function GameActions({
       )}
 
       {engineDepth !== undefined && (
-        <Tooltip title="Engine settings: depth and variant">
+        <Tooltip title="Stockfish engine settings — depth and variant">
           <Button
             onClick={(e) => setEnginePopoverAnchor(e.currentTarget)}
             sx={{
               ...actionSx,
               display: { xs: "none", sm: "inline-flex" },
-              fontFamily: FONT_MONO,
+              fontFamily: "Monaco, Menlo, monospace",
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.1)",
               color: "rgba(255,255,255,0.78)",
@@ -1395,12 +1521,14 @@ function GameActions({
             startIcon={<RefreshCw size={13} />}
             sx={{
               ...actionSx,
-              background: ACCENT.tint,
-              border: `1px solid ${ACCENT.border}`,
-              color: ACCENT.hover,
+              background:
+                "linear-gradient(135deg, rgba(249,115,22,0.18), rgba(251,146,60,0.12))",
+              border: "1px solid rgba(249,115,22,0.35)",
+              color: "#FB923C",
               "&:hover": {
-                background: ACCENT.tint,
-                borderColor: ACCENT.main,
+                background:
+                  "linear-gradient(135deg, rgba(249,115,22,0.28), rgba(251,146,60,0.18))",
+                borderColor: "rgba(249,115,22,0.55)",
               },
             }}
           >
@@ -1417,7 +1545,7 @@ function GameActions({
               : saveState === "saving"
                 ? "Saving…"
                 : saveState === "error"
-                  ? "Save failed. Check sign-in."
+                  ? "Save failed — check sign-in"
                   : "Save this game to your library"
           }
         >
@@ -1425,36 +1553,33 @@ function GameActions({
             <Button
               onClick={onSaveGameClick}
               disabled={saveState === "saving" || saveState === "saved"}
-              startIcon={
-                saveState === "saved" ? (
-                  <Check size={16} strokeWidth={1.75} color={STATUS.success} />
-                ) : undefined
-              }
               sx={{
                 ...actionSx,
                 display: { xs: "none", lg: "inline-flex" },
                 background:
                   saveState === "saved"
-                    ? STATUS.successTint
+                    ? "rgba(34,197,94,0.18)"
                     : "rgba(255,255,255,0.06)",
                 border:
                   saveState === "saved"
-                    ? `1px solid ${LINE.hairline}`
+                    ? "1px solid rgba(34,197,94,0.35)"
                     : "1px solid rgba(255,255,255,0.12)",
-                color: saveState === "saved" ? TEXT.primary : TEXT.secondary,
+                color:
+                  saveState === "saved" ? "#86efac" : "rgba(255,255,255,0.78)",
                 "&:hover": {
                   background:
                     saveState === "saved"
-                      ? STATUS.successTint
+                      ? "rgba(34,197,94,0.24)"
                       : "rgba(255,255,255,0.1)",
                 },
                 "&.Mui-disabled": {
-                  color: saveState === "saved" ? TEXT.primary : TEXT.tertiary,
+                  color:
+                    saveState === "saved" ? "#86efac" : "rgba(255,255,255,0.4)",
                 },
               }}
             >
               {saveState === "saved"
-                ? "Saved"
+                ? "✓ Saved"
                 : saveState === "saving"
                   ? "Saving…"
                   : "Save"}
@@ -1492,7 +1617,18 @@ function EngineSettingsPopover({
 }) {
   if (!anchorEl) return null;
   return (
-    <Modal open={Boolean(anchorEl)} onClose={onClose}>
+    <Modal
+      open={Boolean(anchorEl)}
+      onClose={onClose}
+      slotProps={{
+        backdrop: {
+          sx: {
+            backgroundColor: "rgba(8,9,12,0.55)",
+            backdropFilter: "blur(4px)",
+          },
+        },
+      }}
+    >
       <Box
         sx={{
           position: "fixed",
@@ -1502,10 +1638,13 @@ function EngineSettingsPopover({
           width: 360,
           maxWidth: "92vw",
           p: 2.5,
-          borderRadius: `${RADIUS.sheet}px`,
-          background: SURFACE.overlay,
-          border: `1px solid ${LINE.hairline}`,
-          boxShadow: SHADOW.modal,
+          borderRadius: "1.25rem",
+          background:
+            "linear-gradient(180deg, rgba(20,22,28,0.94), rgba(12,14,20,0.94))",
+          backdropFilter: "blur(20px) saturate(150%)",
+          WebkitBackdropFilter: "blur(20px) saturate(150%)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
           outline: "none",
         }}
       >
@@ -1513,8 +1652,11 @@ function EngineSettingsPopover({
           <Box>
             <Typography
               sx={{
-                ...TYPE.label,
-                color: TEXT.secondary,
+                fontSize: "0.7rem",
+                fontWeight: 700,
+                letterSpacing: "0.14em",
+                color: "rgba(255,255,255,0.55)",
+                textTransform: "uppercase",
                 mb: 0.75,
               }}
             >
@@ -1542,26 +1684,27 @@ function EngineSettingsPopover({
                       flex: 1,
                       px: 1.5,
                       py: 1,
-                      borderRadius: `${RADIUS.control}px`,
+                      borderRadius: "10px",
                       cursor: onEngineNameChange ? "pointer" : "default",
                       background: isActive
-                        ? ACCENT.tint
-                        : SURFACE.raisedSecondary,
+                        ? "linear-gradient(135deg, rgba(249,115,22,0.18), rgba(251,146,60,0.12))"
+                        : "rgba(255,255,255,0.03)",
                       border: isActive
-                        ? `1px solid ${ACCENT.border}`
-                        : `1px solid ${LINE.hairline}`,
-                      transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
-                      "&:hover": isActive
-                        ? { borderColor: ACCENT.main }
-                        : { background: SURFACE.raisedTertiary },
-                      "&:active": { transform: MOTION.pressScale },
+                        ? "1px solid rgba(249,115,22,0.4)"
+                        : "1px solid rgba(255,255,255,0.08)",
+                      transition: "all 160ms ease",
+                      "&:hover": {
+                        background: isActive
+                          ? "linear-gradient(135deg, rgba(249,115,22,0.24), rgba(251,146,60,0.16))"
+                          : "rgba(255,255,255,0.06)",
+                      },
                     }}
                   >
                     <Typography
                       sx={{
                         fontSize: "0.86rem",
                         fontWeight: 700,
-                        color: isActive ? ACCENT.hover : TEXT.primary,
+                        color: isActive ? "#FB923C" : "rgba(255,255,255,0.92)",
                         lineHeight: 1.2,
                       }}
                     >
@@ -1570,8 +1713,9 @@ function EngineSettingsPopover({
                     <Typography
                       sx={{
                         mt: 0.25,
-                        fontSize: TYPE.caption.fontSize,
-                        color: TEXT.secondary,
+                        fontSize: "0.7rem",
+                        color: "rgba(255,255,255,0.45)",
+                        fontFamily: "Monaco, Menlo, monospace",
                       }}
                     >
                       {opt.sub}
@@ -1591,8 +1735,11 @@ function EngineSettingsPopover({
             >
               <Typography
                 sx={{
-                  ...TYPE.label,
-                  color: TEXT.secondary,
+                  fontSize: "0.7rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.14em",
+                  color: "rgba(255,255,255,0.55)",
+                  textTransform: "uppercase",
                 }}
               >
                 Depth
@@ -1600,10 +1747,10 @@ function EngineSettingsPopover({
               <Box sx={{ flex: 1 }} />
               <Typography
                 sx={{
-                  fontSize: TYPE.caption.fontSize,
-                  color: TEXT.secondary,
-                  fontFamily: FONT_MONO,
-                  fontWeight: 600,
+                  fontSize: "0.74rem",
+                  color: "#FB923C",
+                  fontFamily: "Monaco, Menlo, monospace",
+                  fontWeight: 700,
                 }}
               >
                 d{depth}
@@ -1620,25 +1767,24 @@ function EngineSettingsPopover({
                       flex: 1,
                       py: 0.85,
                       textAlign: "center",
-                      borderRadius: `${RADIUS.small}px`,
+                      borderRadius: "8px",
                       cursor: onDepthChange ? "pointer" : "default",
                       background: isActive
-                        ? ACCENT.main
-                        : SURFACE.raisedSecondary,
+                        ? "linear-gradient(135deg, #F97316, #FB923C)"
+                        : "rgba(255,255,255,0.03)",
                       border: isActive
-                        ? `1px solid ${ACCENT.main}`
-                        : `1px solid ${LINE.hairline}`,
-                      color: isActive ? TEXT.onAccent : TEXT.primary,
+                        ? "1px solid rgba(249,115,22,0.5)"
+                        : "1px solid rgba(255,255,255,0.08)",
+                      color: isActive ? "#0A0A0A" : "rgba(255,255,255,0.78)",
                       fontSize: "0.82rem",
                       fontWeight: 700,
-                      fontVariantNumeric: "tabular-nums",
-                      transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
+                      fontFamily: "Monaco, Menlo, monospace",
+                      transition: "all 160ms ease",
                       "&:hover": {
                         background: isActive
-                          ? ACCENT.hover
-                          : SURFACE.raisedTertiary,
+                          ? "linear-gradient(135deg, #FB923C, #FCD34D)"
+                          : "rgba(255,255,255,0.06)",
                       },
-                      "&:active": { transform: MOTION.pressScale },
                     }}
                   >
                     {d}
@@ -1649,8 +1795,8 @@ function EngineSettingsPopover({
             <Typography
               sx={{
                 mt: 0.85,
-                fontSize: TYPE.caption.fontSize,
-                color: TEXT.secondary,
+                fontSize: "0.72rem",
+                color: "rgba(255,255,255,0.45)",
                 lineHeight: 1.4,
               }}
             >
@@ -1681,20 +1827,46 @@ function DrillBanner({
   const isWrong = state.status === "wrong";
   const isSolved = state.status === "solved";
 
-  // Status colour on the icon and the current dot only: green = solved, red
-  // = wrong. While solving there is no status, so the icon stays neutral.
-  const statusColor =
-    isComplete || isSolved ? STATUS.success : isWrong ? STATUS.error : null;
+  // Accent color shifts with status — purple = drill, green = solved, red = wrong
+  const accent = isComplete
+    ? "#22c55e"
+    : isSolved
+      ? "#22c55e"
+      : isWrong
+        ? "#ef4444"
+        : "#A855F7";
+  const accentSoft = isComplete
+    ? "rgba(34,197,94,0.12)"
+    : isSolved
+      ? "rgba(34,197,94,0.12)"
+      : isWrong
+        ? "rgba(239,68,68,0.12)"
+        : "rgba(168,85,247,0.12)";
+  const accentBorder = isComplete
+    ? "rgba(34,197,94,0.35)"
+    : isSolved
+      ? "rgba(34,197,94,0.35)"
+      : isWrong
+        ? "rgba(239,68,68,0.4)"
+        : "rgba(168,85,247,0.35)";
 
   return (
-    <Box style={{ marginBottom: 12 }}>
+    <motion.div
+      key="drill-banner"
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.28, ease: [0.22, 0.61, 0.36, 1] }}
+      style={{ marginBottom: 12 }}
+    >
       <Box
         sx={{
           px: 2,
           py: 1.5,
-          borderRadius: `${RADIUS.card}px`,
-          background: SURFACE.raised,
-          border: `1px solid ${LINE.hairline}`,
+          borderRadius: "1rem",
+          background: `linear-gradient(135deg, ${accentSoft}, rgba(20,22,28,0.6))`,
+          backdropFilter: "blur(12px) saturate(150%)",
+          WebkitBackdropFilter: "blur(12px) saturate(150%)",
+          border: `1px solid ${accentBorder}`,
           display: "flex",
           alignItems: "center",
           gap: 1.5,
@@ -1706,23 +1878,18 @@ function DrillBanner({
             width: 32,
             height: 32,
             flexShrink: 0,
+            borderRadius: "10px",
+            background: accentSoft,
+            border: `1px solid ${accentBorder}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
           {isComplete ? (
-            <Flame
-              size={18}
-              strokeWidth={1.75}
-              color={statusColor ?? TEXT.secondary}
-            />
+            <Flame size={16} color={accent} />
           ) : (
-            <Lightbulb
-              size={18}
-              strokeWidth={1.75}
-              color={statusColor ?? TEXT.secondary}
-            />
+            <Lightbulb size={16} color={accent} />
           )}
         </Box>
 
@@ -1730,8 +1897,11 @@ function DrillBanner({
           <Stack direction="row" spacing={1.5} alignItems="center">
             <Typography
               sx={{
-                ...TYPE.label,
-                color: TEXT.primary,
+                fontSize: "0.7rem",
+                fontWeight: 700,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: accent,
                 lineHeight: 1,
               }}
             >
@@ -1745,14 +1915,14 @@ function DrillBanner({
                   <Box
                     key={i}
                     sx={{
-                      width: 8,
-                      height: 8,
+                      width: 6,
+                      height: 6,
                       borderRadius: "50%",
                       background:
                         i < state.currentIndex
-                          ? STATUS.success
+                          ? "#22c55e"
                           : i === state.currentIndex
-                            ? (statusColor ?? TEXT.primary)
+                            ? accent
                             : "rgba(255,255,255,0.18)",
                     }}
                   />
@@ -1770,19 +1940,19 @@ function DrillBanner({
             }}
           >
             {isComplete
-              ? "Three for three. Nice work."
+              ? "Three for three — nice work."
               : isSolved
-                ? `${puzzle?.title ?? "Puzzle"}: solved`
+                ? `${puzzle?.title ?? "Puzzle"} — solved`
                 : isWrong
-                  ? "Not the move. Try again."
+                  ? "Not the move — try again."
                   : (puzzle?.title ?? "Puzzle")}
           </Typography>
           {!isComplete && puzzle && state.status === "solving" && (
             <Typography
               sx={{
                 mt: 0.25,
-                fontSize: TYPE.caption.fontSize,
-                color: TEXT.secondary,
+                fontSize: "0.74rem",
+                color: "rgba(255,255,255,0.55)",
                 lineHeight: 1.35,
               }}
             >
@@ -1795,8 +1965,8 @@ function DrillBanner({
               <Typography
                 sx={{
                   mt: 0.25,
-                  fontSize: TYPE.caption.fontSize,
-                  color: STATUS.error,
+                  fontSize: "0.72rem",
+                  color: "rgba(239,68,68,0.85)",
                   fontStyle: "italic",
                 }}
               >
@@ -1837,13 +2007,14 @@ function DrillBanner({
               sx={{
                 px: 1.25,
                 py: 0.5,
-                fontSize: TYPE.caption.fontSize,
+                borderRadius: "0.6rem",
+                fontSize: "0.74rem",
                 fontWeight: 600,
-                color: TEXT.secondary,
+                color: "rgba(255,255,255,0.6)",
                 textTransform: "none",
                 "&:hover": {
-                  background: "rgba(255,255,255,0.06)",
-                  color: TEXT.primary,
+                  background: "rgba(255,255,255,0.05)",
+                  color: "rgba(255,255,255,0.85)",
                 },
               }}
             >
@@ -1858,14 +2029,15 @@ function DrillBanner({
               sx={{
                 px: 1.5,
                 py: 0.5,
+                borderRadius: "0.6rem",
                 fontSize: "0.78rem",
                 fontWeight: 700,
-                background: ACCENT.tint,
-                border: `1px solid ${ACCENT.border}`,
-                color: ACCENT.hover,
+                background: "rgba(168,85,247,0.18)",
+                border: "1px solid rgba(168,85,247,0.4)",
+                color: "#E9D5FF",
                 "&:hover": {
-                  background: ACCENT.tint,
-                  borderColor: ACCENT.main,
+                  background: "rgba(168,85,247,0.3)",
+                  borderColor: "rgba(168,85,247,0.6)",
                 },
               }}
             >
@@ -1879,13 +2051,20 @@ function DrillBanner({
             sx={{
               px: 1.5,
               py: 0.5,
+              borderRadius: "0.6rem",
               fontSize: "0.78rem",
               fontWeight: 700,
-              background: "transparent",
-              border: `1px solid ${LINE.strong}`,
-              color: TEXT.primary,
+              background: isComplete
+                ? "linear-gradient(135deg, #F97316, #FB923C)"
+                : "rgba(255,255,255,0.05)",
+              border: isComplete
+                ? "1px solid rgba(249,115,22,0.4)"
+                : "1px solid rgba(255,255,255,0.12)",
+              color: isComplete ? "#0A0A0A" : "rgba(255,255,255,0.92)",
               "&:hover": {
-                background: "rgba(255,255,255,0.06)",
+                background: isComplete
+                  ? "linear-gradient(135deg, #FB923C, #FCD34D)"
+                  : "rgba(255,255,255,0.08)",
               },
             }}
           >
@@ -1893,7 +2072,7 @@ function DrillBanner({
           </Button>
         </Stack>
       </Box>
-    </Box>
+    </motion.div>
   );
 }
 
@@ -1950,9 +2129,12 @@ function GlassEvalBar({
           : { alignSelf: "stretch" }),
         borderRadius: "10px",
         overflow: "hidden",
-        border: `1px solid ${LINE.hairline}`,
+        border: "1px solid rgba(255,255,255,0.08)",
         // Black's side of the bar — the white segment paints over it.
-        background: "#1E2028",
+        background:
+          "linear-gradient(180deg, rgba(30,32,40,0.96), rgba(12,13,17,0.96))",
+        boxShadow:
+          "inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.35)",
       }}
     >
       <Box
@@ -1962,7 +2144,7 @@ function GlassEvalBar({
           right: 0,
           [whiteOnTop ? "top" : "bottom"]: 0,
           height: `${whiteShare}%`,
-          background: "#FBFAF7",
+          background: "linear-gradient(180deg, #FBFAF7, #E9E6DE)",
           transition: "height 220ms cubic-bezier(0.33, 1, 0.68, 1)",
         }}
       />
@@ -1984,7 +2166,13 @@ function GlassEvalBar({
           sx={{
             position: "absolute",
             inset: 0,
-            background: "rgba(255,255,255,0.06)",
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.10))",
+            animation: "cmEvalBarPulse 1.8s ease-in-out infinite",
+            "@keyframes cmEvalBarPulse": {
+              "0%, 100%": { opacity: 0.35 },
+              "50%": { opacity: 1 },
+            },
             zIndex: 1,
           }}
         />
@@ -2000,6 +2188,7 @@ function GlassEvalBar({
             fontSize: { xs: "0.5rem", md: "0.6rem" },
             fontWeight: 800,
             lineHeight: 1,
+            letterSpacing: "-0.02em",
             fontVariantNumeric: "tabular-nums",
             color: whiteAdv ? "rgba(17,19,24,0.92)" : "rgba(255,255,255,0.92)",
             zIndex: 2,
@@ -2088,10 +2277,15 @@ function BoardArea({
     <Box
       sx={{
         position: "relative",
-        borderRadius: `${RADIUS.card}px`,
-        background: SURFACE.raised,
-        border: `1px solid ${LINE.hairline}`,
-        p: { xs: 1.5, md: 1.75 },
+        borderRadius: "1.5rem",
+        background:
+          "linear-gradient(135deg, rgba(249,115,22,0.04), rgba(20,22,28,0.4))",
+        backdropFilter: "blur(12px) saturate(140%)",
+        WebkitBackdropFilter: "blur(12px) saturate(140%)",
+        border: "1px solid rgba(255,255,255,0.07)",
+        boxShadow:
+          "0 24px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)",
+        p: { xs: 1, md: 1.25 },
         // At lg the board is the column's flexible element: it takes whatever
         // height is left after the strip below it, and the square sizes off
         // THAT rather than off the column width. That inversion is what keeps
@@ -2141,6 +2335,8 @@ function BoardArea({
               flexShrink: 0,
               borderRadius: "14px",
               overflow: "hidden",
+              boxShadow:
+                "0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
             }}
           >
             <ChessgroundBoard
@@ -2169,6 +2365,7 @@ function BoardArea({
                   textAlign: "center",
                   px: 3,
                   background: "rgba(8,9,12,0.72)",
+                  backdropFilter: "blur(2px)",
                   pointerEvents: onLoadGameClick ? "auto" : "none",
                   cursor: onLoadGameClick ? "pointer" : undefined,
                   "&:hover": onLoadGameClick
@@ -2185,48 +2382,33 @@ function BoardArea({
                   data-testid="masti-board-empty"
                   style={{ marginBottom: 4 }}
                 />
-                {/* The chessboard paints its pieces above this scrim, so the
-                    caption sits on its own solid callout to stay readable
-                    when the board is small enough for it to reach the
-                    pawns. */}
-                <Box
+                <Typography
                   sx={{
-                    px: 2,
-                    py: 1.25,
-                    borderRadius: `${RADIUS.card}px`,
-                    background: SURFACE.raised,
-                    border: `1px solid ${LINE.hairline}`,
-                    maxWidth: 320,
+                    fontSize: "1rem",
+                    fontWeight: 700,
+                    color: "rgba(255,255,255,0.9)",
                   }}
                 >
-                  <Typography
-                    sx={{
-                      fontSize: "1rem",
-                      fontWeight: 700,
-                      color: "rgba(255,255,255,0.9)",
-                    }}
+                  No game loaded
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: "0.84rem",
+                    color: "rgba(255,255,255,0.55)",
+                    maxWidth: 300,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Hit{" "}
+                  <Box
+                    component="span"
+                    sx={{ color: "#FB923C", fontWeight: 700 }}
                   >
-                    No game loaded
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: "0.84rem",
-                      color: "rgba(255,255,255,0.55)",
-                      maxWidth: 300,
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    Hit{" "}
-                    <Box
-                      component="span"
-                      sx={{ color: TEXT.primary, fontWeight: 600 }}
-                    >
-                      Load game
-                    </Box>{" "}
-                    to paste a PGN or FEN, or pull your recent games from
-                    Lichess or Chess.com.
-                  </Typography>
-                </Box>
+                    Load game
+                  </Box>{" "}
+                  to paste a PGN or FEN, or pull your recent games from Lichess
+                  or Chess.com.
+                </Typography>
               </Box>
             )}
           </Box>
@@ -2299,8 +2481,8 @@ function EvalSparkline({
   hasGame?: boolean;
 }) {
   const width = 800;
-  const height = 48;
-  const padY = 6;
+  const height = 30;
+  const padY = 4;
   const maxVal = Math.max(5, ...series.map(Math.abs));
 
   const xFor = (i: number) => (i / Math.max(1, series.length - 1)) * width;
@@ -2326,79 +2508,65 @@ function EvalSparkline({
     onJumpTo(Math.max(0, Math.min(series.length, targetPly)));
   };
 
-  // The percentage is the progress indicator; no dot beside it. The strip
-  // cannot grow, so these sit at the 12px floor with a pinned line height.
   const statusChip = analyzing ? (
+    <Stack
+      direction="row"
+      alignItems="center"
+      spacing={0.6}
+      sx={{
+        px: 0.9,
+        py: 0.15,
+        borderRadius: "999px",
+        background: "rgba(12,14,20,0.85)",
+        border: "1px solid rgba(249,115,22,0.3)",
+      }}
+    >
+      <Box
+        sx={{
+          width: 5,
+          height: 5,
+          borderRadius: "50%",
+          background: "#F97316",
+          animation: "pulse 1.4s ease-in-out infinite",
+          "@keyframes pulse": {
+            "0%, 100%": { opacity: 0.4, transform: "scale(0.85)" },
+            "50%": { opacity: 1, transform: "scale(1)" },
+          },
+        }}
+      />
+      <Typography
+        sx={{
+          fontSize: "0.64rem",
+          fontWeight: 700,
+          color: "#FB923C",
+          fontFamily: "Monaco, Menlo, monospace",
+        }}
+      >
+        Stockfish · {Math.round(progress)}%
+      </Typography>
+    </Stack>
+  ) : errored ? (
     <Typography
       sx={{
         px: 0.9,
         py: 0.15,
-        borderRadius: `${RADIUS.small}px`,
-        background: SURFACE.raisedSecondary,
-        border: `1px solid ${LINE.hairline}`,
-        fontSize: "0.75rem",
-        lineHeight: 1.4,
-        fontWeight: 600,
-        color: TEXT.secondary,
-        fontVariantNumeric: "tabular-nums",
+        borderRadius: "999px",
+        background: "rgba(12,14,20,0.85)",
+        border: "1px solid rgba(239,68,68,0.25)",
+        fontSize: "0.64rem",
+        fontWeight: 700,
+        color: "#fca5a5",
+        fontFamily: "Monaco, Menlo, monospace",
       }}
     >
-      Stockfish · {Math.round(progress)}%
+      Engine offline
     </Typography>
-  ) : errored ? (
-    <Stack
-      direction="row"
-      alignItems="center"
-      spacing={0.5}
-      sx={{
-        px: 0.9,
-        py: 0.15,
-        borderRadius: `${RADIUS.small}px`,
-        background: SURFACE.raisedSecondary,
-        border: `1px solid ${LINE.hairline}`,
-      }}
-    >
-      <AlertTriangle
-        size={12}
-        strokeWidth={1.75}
-        color={STATUS.error}
-        aria-hidden
-      />
-      <Typography
-        sx={{
-          fontSize: "0.75rem",
-          lineHeight: 1.4,
-          fontWeight: 600,
-          color: TEXT.primary,
-        }}
-      >
-        Engine offline
-      </Typography>
-    </Stack>
   ) : null;
 
+  // Nothing to plot: keep the height so the strip below does not move
+  // when the first evaluation arrives.
   if (!hasGame || series.length < 2) {
-    return (
-      <Box
-        sx={{
-          height,
-          borderRadius: "10px",
-          border: "1px dashed rgba(255,255,255,0.08)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Typography
-          sx={{
-            ...TYPE.label,
-            color: TEXT.tertiary,
-          }}
-        >
-          Evaluation arc
-        </Typography>
-      </Box>
-    );
+    return <Box sx={{ height }} />;
   }
 
   return (
@@ -2416,6 +2584,12 @@ function EvalSparkline({
         style={{ width: "100%", height: "100%", display: "block" }}
         onClick={handleClick}
       >
+        <defs>
+          <linearGradient id="evalGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#F97316" stopOpacity="0.45" />
+            <stop offset="100%" stopColor="#F97316" stopOpacity="0.05" />
+          </linearGradient>
+        </defs>
         {/* Grid line at eval=0 */}
         <line
           x1={0}
@@ -2429,8 +2603,7 @@ function EvalSparkline({
         {/* Area fill */}
         <path
           d={areaPath}
-          fill={ACCENT.main}
-          fillOpacity={0.12}
+          fill="url(#evalGrad)"
           opacity={analyzing ? 0.55 : 1}
         />
         {/* Line stroke — dashed while engine is still computing */}
@@ -2461,7 +2634,7 @@ function EvalSparkline({
                     ? "#F97316"
                     : "rgba(255,255,255,0.4)"
             }
-            stroke={SURFACE.raised}
+            stroke="#08090C"
             strokeWidth={1.5}
             style={{ cursor: "pointer" }}
             onClick={(e) => {
@@ -2486,7 +2659,7 @@ function EvalSparkline({
           cy={yFor(series[currentPly] ?? 0)}
           r={5}
           fill="#F97316"
-          stroke={SURFACE.raised}
+          stroke="#08090C"
           strokeWidth={2}
         />
       </svg>
@@ -2579,121 +2752,63 @@ const LINES_DEPTHS = [14, 18, 22, 26] as const;
 /** Candidate-line counts. Engine accepts 2–10; more is slower per search. */
 const LINES_COUNTS = [2, 3, 5] as const;
 
-function TabStrip({
+/**
+ * The right column's views, as four words in its header. The boxed tab
+ * strip with icons, badges and a sliding indicator was a second toolbar on
+ * a page that is mostly a conversation; the words do the same job.
+ */
+function ViewSwitch({
   active,
   onChange,
-  movesBadge,
-  mastersBadge,
 }: {
   active: RightTab;
   onChange: (t: RightTab) => void;
-  movesBadge?: string;
-  mastersBadge?: string;
 }) {
-  const tabs: {
-    id: RightTab;
-    label: string;
-    icon: typeof MessageCircle;
-    badge?: string;
-  }[] = [
-    { id: "coach", label: "Coach", icon: MessageCircle },
-    { id: "masters", label: "Masters", icon: BookOpen, badge: mastersBadge },
-    { id: "moves", label: "Moves", icon: ListIcon, badge: movesBadge },
-    { id: "lines", label: "Lines", icon: GitBranch },
+  const views: { id: RightTab; label: string }[] = [
+    { id: "coach", label: "Coach" },
+    { id: "moves", label: "Moves" },
+    { id: "masters", label: "Masters" },
+    { id: "lines", label: "Lines" },
   ];
   return (
     <Box
+      role="tablist"
+      aria-label="Panel"
       sx={{
         display: "flex",
         alignItems: "center",
-        gap: 0.5,
-        p: 0.5,
-        borderRadius: `${RADIUS.card}px`,
-        background: SURFACE.raised,
-        border: `1px solid ${LINE.hairline}`,
-        mb: 1.25,
+        gap: { xs: 0, sm: 0.25 },
+        flexShrink: 0,
       }}
     >
-      {tabs.map((t) => {
-        const isActive = active === t.id;
-        const Icon = t.icon;
+      {views.map((v) => {
+        const isActive = active === v.id;
         return (
           <Box
-            key={t.id}
-            onClick={() => onChange(t.id)}
+            key={v.id}
+            component="button"
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => onChange(v.id)}
             sx={{
-              position: "relative",
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: { xs: 0.5, sm: 0.85 },
-              // Four tabs share one row; at full padding the last one is
-              // clipped on a phone.
-              px: { xs: 0.5, sm: 1.5 },
-              py: 1,
-              borderRadius: `${RADIUS.control}px`,
+              font: "inherit",
+              fontSize: { xs: "0.74rem", sm: "0.78rem" },
+              fontWeight: 700,
+              px: { xs: 0.7, sm: 0.9 },
+              py: 0.4,
+              borderRadius: "999px",
+              border: 0,
               cursor: "pointer",
-              color: isActive ? TEXT.primary : TEXT.secondary,
-              fontSize: { xs: "0.76rem", sm: "0.84rem" },
-              fontWeight: 600,
-              transition: `color ${MOTION.hover}, background-color ${MOTION.hover}, transform ${MOTION.press}`,
+              color: isActive ? "#FB923C" : "rgba(255,255,255,0.55)",
+              background: isActive ? "rgba(249,115,22,0.12)" : "transparent",
+              transition: "color 140ms ease, background 140ms ease",
               "&:hover": {
-                color: TEXT.primary,
+                color: isActive ? "#FB923C" : "rgba(255,255,255,0.9)",
               },
-              "&:active": { transform: MOTION.pressScale },
             }}
           >
-            {isActive && (
-              <motion.div
-                layoutId="rightTabIndicator"
-                transition={{
-                  type: "spring",
-                  stiffness: 420,
-                  damping: 34,
-                }}
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  borderRadius: RADIUS.control,
-                  background: "rgba(255,255,255,0.10)",
-                }}
-              />
-            )}
-            <Box
-              sx={{
-                position: "relative",
-                display: "flex",
-                alignItems: "center",
-                gap: 0.85,
-                zIndex: 1,
-              }}
-            >
-              <Icon size={14} />
-              <Box component="span">{t.label}</Box>
-              {t.badge && (
-                <Box
-                  component="span"
-                  sx={{
-                    display: { xs: "none", sm: "inline" },
-                    px: 0.7,
-                    py: 0.1,
-                    borderRadius: `${RADIUS.small}px`,
-                    background: isActive
-                      ? "rgba(255,255,255,0.14)"
-                      : "rgba(255,255,255,0.08)",
-                    // 12px with a pinned line height: the badge lands after
-                    // analysis and must not make the tab row taller.
-                    fontSize: "0.75rem",
-                    lineHeight: 1.4,
-                    fontWeight: 600,
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {t.badge}
-                </Box>
-              )}
-            </Box>
+            {v.label}
           </Box>
         );
       })}
@@ -2774,7 +2889,7 @@ function MovesListPanel({
             px: 0.85,
             py: 0.75,
             fontSize: "0.84rem",
-            fontFamily: FONT_MONO,
+            fontFamily: "Monaco, Menlo, monospace",
           }}
         >
           —
@@ -2807,19 +2922,22 @@ function MovesListPanel({
             py: 0.75,
             borderRadius: "0.45rem",
             cursor: "pointer",
-            background: isCurrent ? ACCENT.tint : "transparent",
+            background: isCurrent
+              ? "linear-gradient(135deg, rgba(249,115,22,0.22), rgba(251,146,60,0.12))"
+              : "transparent",
             border: isCurrent
-              ? `1px solid ${ACCENT.border}`
+              ? "1px solid rgba(249,115,22,0.45)"
               : "1px solid transparent",
             color,
             fontSize: "0.86rem",
             fontWeight: 600,
-            fontFamily: FONT_MONO,
-            transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
+            fontFamily: "Monaco, Menlo, monospace",
+            transition: "all 150ms ease",
             position: "relative",
             "&:hover": {
-              background: isCurrent ? ACCENT.tint : "rgba(255,255,255,0.06)",
-              borderColor: isCurrent ? ACCENT.main : "transparent",
+              background: isCurrent
+                ? "linear-gradient(135deg, rgba(249,115,22,0.3), rgba(251,146,60,0.18))"
+                : "rgba(255,255,255,0.04)",
               "& .ask-coach-btn": { opacity: 1 },
             },
           }}
@@ -2831,8 +2949,9 @@ function MovesListPanel({
                 component="span"
                 sx={{
                   ml: 0.4,
-                  fontSize: "0.75rem",
+                  fontSize: "0.7rem",
                   fontWeight: 700,
+                  letterSpacing: "0.02em",
                 }}
               >
                 {glyph}
@@ -2852,12 +2971,12 @@ function MovesListPanel({
                 width: 22,
                 height: 22,
                 p: 0,
-                color: TEXT.secondary,
+                color: "rgba(255,255,255,0.75)",
                 background: "rgba(255,255,255,0.06)",
-                transition: `opacity ${MOTION.hover}, background-color ${MOTION.hover}, color ${MOTION.hover}`,
+                transition: "opacity 160ms ease, background 160ms ease",
                 "&:hover": {
-                  color: TEXT.primary,
-                  background: SURFACE.raisedTertiary,
+                  color: "#FB923C",
+                  background: "rgba(249,115,22,0.18)",
                 },
               }}
             >
@@ -2886,9 +3005,13 @@ function MovesListPanel({
       sx={{
         height: "100%",
         width: "100%",
-        borderRadius: `${RADIUS.card}px`,
-        background: SURFACE.raised,
-        border: `1px solid ${LINE.hairline}`,
+        borderRadius: "1.5rem",
+        background: "rgba(20,22,28,0.6)",
+        backdropFilter: "blur(16px) saturate(150%)",
+        WebkitBackdropFilter: "blur(16px) saturate(150%)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        boxShadow:
+          "0 16px 48px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -2901,19 +3024,23 @@ function MovesListPanel({
         sx={{
           px: 3,
           py: 2,
-          borderBottom: `1px solid ${LINE.hairline}`,
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
         }}
       >
         <Box
           sx={{
             width: 32,
             height: 32,
+            borderRadius: "10px",
+            background:
+              "linear-gradient(135deg, rgba(249,115,22,0.18), rgba(251,146,60,0.18))",
+            border: "1px solid rgba(249,115,22,0.32)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <ListIcon size={18} strokeWidth={1.75} color={TEXT.secondary} />
+          <ListIcon size={14} color="#FB923C" />
         </Box>
         <Box sx={{ flex: 1 }}>
           <Typography
@@ -2928,9 +3055,9 @@ function MovesListPanel({
           </Typography>
           <Typography
             sx={{
-              fontSize: TYPE.caption.fontSize,
-              color: TEXT.secondary,
-              fontVariantNumeric: "tabular-nums",
+              fontSize: "0.72rem",
+              color: "rgba(255,255,255,0.5)",
+              fontFamily: "Monaco, Menlo, monospace",
               mt: 0.4,
             }}
           >
@@ -2970,13 +3097,13 @@ function MovesListPanel({
                 gap: 0.6,
                 px: 1.1,
                 py: 0.4,
-                borderRadius: `${RADIUS.small}px`,
-                background: SURFACE.raisedSecondary,
-                border: `1px solid ${LINE.hairline}`,
+                borderRadius: "999px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
               }}
             >
               <Typography
-                sx={{ fontSize: TYPE.caption.fontSize, color: TEXT.secondary }}
+                sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.5)" }}
               >
                 {label} accuracy
               </Typography>
@@ -2984,7 +3111,7 @@ function MovesListPanel({
                 sx={{
                   fontSize: "0.82rem",
                   fontWeight: 700,
-                  fontVariantNumeric: "tabular-nums",
+                  fontFamily: "Monaco, Menlo, monospace",
                   color: accuracyColor(value),
                 }}
               >
@@ -3001,6 +3128,11 @@ function MovesListPanel({
           overflowY: "auto",
           px: 1.25,
           py: 1.25,
+          "&::-webkit-scrollbar": { width: 6 },
+          "&::-webkit-scrollbar-thumb": {
+            background: "rgba(249,115,22,0.2)",
+            borderRadius: "3px",
+          },
         }}
       >
         <Stack spacing={0.25}>
@@ -3028,9 +3160,9 @@ function MovesListPanel({
                     flexShrink: 0,
                     textAlign: "right",
                     pr: 0.75,
-                    color: TEXT.secondary,
+                    color: "rgba(255,255,255,0.4)",
                     fontSize: "0.78rem",
-                    fontVariantNumeric: "tabular-nums",
+                    fontFamily: "Monaco, Menlo, monospace",
                   }}
                 >
                   {row.moveNumber}.
@@ -3074,8 +3206,9 @@ function MovesListPanel({
           alignItems="center"
           spacing={1.5}
           sx={{
-            fontSize: TYPE.caption.fontSize,
-            color: TEXT.secondary,
+            fontSize: "0.7rem",
+            color: "rgba(255,255,255,0.5)",
+            fontFamily: "Monaco, Menlo, monospace",
             flexWrap: "wrap",
           }}
         >
@@ -3120,7 +3253,14 @@ function MovesListPanel({
  * ply you had branched from and re-navigate by hand. This names the branch
  * and restores the anchor in one click (or Escape).
  */
-function ExplorationBanner({
+/**
+ * The board is off the mainline: a master move, a coach alternative, a
+ * proof line or a dragged piece took it there. This sits in the first row
+ * of the strip under the board, in place of the move label, and offers the
+ * way back. It used to be a banner above the board, which resized the
+ * board every time a line was opened or closed.
+ */
+function ExploringState({
   preview,
   onReturn,
 }: {
@@ -3129,84 +3269,151 @@ function ExplorationBanner({
 }) {
   const anchor = plyToMoveDisplay(preview.anchorPly);
   return (
-    <Box
-      sx={{
-        mb: 1.25,
-        px: 1.5,
-        py: 0.85,
-        borderRadius: `${RADIUS.control}px`,
-        background: SURFACE.raisedSecondary,
-        border: `1px solid ${LINE.hairline}`,
-        display: "flex",
-        alignItems: "center",
-        gap: 1.25,
-        flexWrap: "wrap",
-        rowGap: 0.75,
-      }}
-    >
-      <Stack
-        direction="row"
-        spacing={0.75}
-        alignItems="center"
-        sx={{ flexShrink: 0 }}
+    <>
+      <Box
+        component="span"
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 0.5,
+          flexShrink: 0,
+          color: "#FBBF24",
+          fontSize: "0.64rem",
+          fontWeight: 800,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+        }}
       >
-        <GitBranch size={16} strokeWidth={1.75} color={TEXT.secondary} />
-        <Typography
-          sx={{
-            ...TYPE.label,
-            color: TEXT.primary,
-          }}
-        >
-          Exploring
-        </Typography>
-      </Stack>
-
+        <GitBranch size={12} />
+        <span>Exploring</span>
+      </Box>
       <Typography
+        data-testid="exploration-path"
+        title={preview.path.join(" ")}
         sx={{
           flex: 1,
-          minWidth: 0,
-          fontFamily: FONT_MONO,
-          fontSize: "0.78rem",
-          color: TEXT.primary,
+          // Never squeezed to nothing: the first move of the line is the
+          // least this row must show, the rest can trail off.
+          minWidth: 44,
+          fontFamily:
+            "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+          fontSize: "0.82rem",
+          color: "rgba(255,255,255,0.88)",
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
         }}
-        title={preview.path.join(" ")}
-        data-testid="exploration-path"
       >
         {preview.path.join(" ")}
       </Typography>
+      <BackButton
+        onClick={onReturn}
+        tooltip="Leave this line and put the board back where you branched off (Esc)"
+      >
+        {anchor.color === null
+          ? "Back to start"
+          : `Back to move ${anchor.moveNum}`}
+      </BackButton>
+    </>
+  );
+}
 
-      <Tooltip title="Leave this line and put the board back where you branched off (Esc)">
-        <Button
-          onClick={onReturn}
-          startIcon={<ArrowLeft size={13} />}
+/**
+ * The coach moved the board. A follow-up that names a move ("why was
+ * 8. Nc7+ a mistake?") is answered about that move, and the board goes
+ * there so the answer and the position are read together; this says so and
+ * offers the way back to where the reader was.
+ */
+function CoachJumpState({
+  jump,
+  onBack,
+}: {
+  jump: { fromPly: number; toPly: number; label: string };
+  onBack: () => void;
+}) {
+  const from = plyToMoveDisplay(jump.fromPly);
+  return (
+    <Box
+      data-testid="coach-jump-banner"
+      sx={{
+        flex: 1,
+        minWidth: 0,
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+      }}
+    >
+      <MastiAvatar mood="pointing" size={20} ring={false} decorative />
+      <Typography
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          fontSize: "0.8rem",
+          color: "rgba(255,255,255,0.82)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        Showing{" "}
+        <Box
+          component="span"
           sx={{
-            flexShrink: 0,
-            px: 1.25,
-            py: 0.4,
-            minWidth: 0,
-            fontSize: "0.75rem",
+            fontFamily:
+              "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
             fontWeight: 700,
-            textTransform: "none",
-            whiteSpace: "nowrap",
-            background: "transparent",
-            border: `1px solid ${LINE.strong}`,
-            color: TEXT.primary,
-            "&:hover": {
-              background: "rgba(255,255,255,0.06)",
-              borderColor: TEXT.secondary,
-            },
+            color: "#FB923C",
           }}
         >
-          {anchor.color === null
-            ? "Back to start"
-            : `Back to move ${anchor.moveNum}`}
-        </Button>
-      </Tooltip>
+          {jump.label}
+        </Box>
+        , the move you asked about.
+      </Typography>
+      <BackButton onClick={onBack}>
+        {from.color === null ? "Back to start" : `Back to move ${from.moveNum}`}
+      </BackButton>
     </Box>
   );
+}
+
+function BackButton({
+  onClick,
+  tooltip,
+  children,
+}: {
+  onClick: () => void;
+  tooltip?: string;
+  children: ReactNode;
+}) {
+  const button = (
+    <Button
+      onClick={onClick}
+      startIcon={<ArrowLeft size={12} />}
+      sx={{
+        flexShrink: 0,
+        px: 1,
+        py: 0.2,
+        minWidth: 0,
+        borderRadius: "999px",
+        fontSize: "0.72rem",
+        fontWeight: 700,
+        textTransform: "none",
+        whiteSpace: "nowrap",
+        background: "rgba(255,255,255,0.06)",
+        border: "1px solid rgba(255,255,255,0.14)",
+        color: "rgba(255,255,255,0.88)",
+        "& .MuiButton-startIcon": { mr: 0.5 },
+        "&:hover": {
+          background: "rgba(249,115,22,0.16)",
+          borderColor: "rgba(249,115,22,0.45)",
+          color: "#FB923C",
+        },
+      }}
+    >
+      {children}
+    </Button>
+  );
+  return tooltip ? <Tooltip title={tooltip}>{button}</Tooltip> : button;
 }
 
 /**
@@ -3273,20 +3480,24 @@ function LinesControls({
           font: "inherit",
           px: 1,
           py: 0.35,
-          borderRadius: `${RADIUS.small}px`,
-          fontSize: TYPE.caption.fontSize,
-          fontWeight: 600,
+          borderRadius: "7px",
+          fontFamily: "Monaco, Menlo, monospace",
+          fontSize: "0.72rem",
+          fontWeight: 700,
           lineHeight: 1.4,
-          fontVariantNumeric: "tabular-nums",
-          background: active ? ACCENT.tint : "rgba(255,255,255,0.04)",
+          background: active
+            ? "linear-gradient(135deg, rgba(249,115,22,0.22), rgba(251,146,60,0.14))"
+            : "rgba(255,255,255,0.04)",
           border: active
-            ? `1px solid ${ACCENT.border}`
-            : `1px solid ${LINE.hairline}`,
-          color: active ? ACCENT.hover : TEXT.secondary,
-          transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, color ${MOTION.hover}`,
+            ? "1px solid rgba(249,115,22,0.45)"
+            : "1px solid rgba(255,255,255,0.1)",
+          color: active ? "#FB923C" : "rgba(255,255,255,0.7)",
+          transition: "all 150ms ease",
           "&:hover": {
-            borderColor: active ? ACCENT.main : LINE.strong,
-            color: active ? ACCENT.hover : TEXT.primary,
+            borderColor: active
+              ? "rgba(249,115,22,0.65)"
+              : "rgba(255,255,255,0.24)",
+            color: active ? "#FB923C" : "rgba(255,255,255,0.95)",
           },
         }}
       >
@@ -3298,8 +3509,11 @@ function LinesControls({
   const label = (text: string) => (
     <Typography
       sx={{
-        ...TYPE.label,
-        color: TEXT.secondary,
+        fontSize: "0.64rem",
+        fontWeight: 700,
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        color: "rgba(255,255,255,0.4)",
         minWidth: 44,
       }}
     >
@@ -3311,9 +3525,9 @@ function LinesControls({
     <Box
       sx={{
         mb: 1.5,
-        borderRadius: `${RADIUS.control}px`,
-        background: SURFACE.raisedSecondary,
-        border: `1px solid ${LINE.hairline}`,
+        borderRadius: "0.6rem",
+        background: "rgba(0,0,0,0.22)",
+        border: "1px solid rgba(255,255,255,0.06)",
       }}
     >
       {/* Collapsed summary — the settings that are in force right now. */}
@@ -3333,17 +3547,16 @@ function LinesControls({
           display: "flex",
           alignItems: "center",
           gap: 1,
-          color: TEXT.secondary,
-          transition: `color ${MOTION.hover}`,
-          "&:hover": { color: TEXT.primary },
+          color: "rgba(255,255,255,0.7)",
+          "&:hover": { color: "rgba(255,255,255,0.95)" },
         }}
       >
-        <Activity size={16} strokeWidth={1.75} color={TEXT.secondary} />
+        <Activity size={13} color="#FB923C" />
         <Typography
           sx={{
-            fontSize: TYPE.caption.fontSize,
+            fontSize: "0.74rem",
             fontWeight: 600,
-            fontVariantNumeric: "tabular-nums",
+            fontFamily: "Monaco, Menlo, monospace",
             color: "inherit",
           }}
         >
@@ -3353,19 +3566,18 @@ function LinesControls({
         <Box sx={{ flex: 1 }} />
         <Typography
           sx={{
-            fontSize: TYPE.caption.fontSize,
-            color: TEXT.secondary,
+            fontSize: "0.68rem",
+            color: "rgba(255,255,255,0.45)",
             whiteSpace: "nowrap",
           }}
         >
           {open ? "Hide" : "Accuracy"}
         </Typography>
         <ChevronRight
-          size={16}
-          strokeWidth={1.75}
+          size={13}
           style={{
             transform: open ? "rotate(90deg)" : "none",
-            transition: `transform ${MOTION.enter}`,
+            transition: "transform 160ms ease",
           }}
         />
       </Box>
@@ -3394,7 +3606,7 @@ function LinesControls({
                 settings.depth === d,
                 () => onChange({ ...settings, depth: d }),
                 d >= 22
-                  ? "Deeper and slower: seconds per position in a browser"
+                  ? "Deeper and slower — seconds per position in a browser"
                   : undefined
               )
             )}
@@ -3425,13 +3637,13 @@ function LinesControls({
               "17 Lite",
               engineName === EngineName.Stockfish17Lite,
               () => onEngineNameChange?.(EngineName.Stockfish17Lite),
-              "Single-threaded: fastest to start, works on restricted networks"
+              "Single-threaded — fastest to start, works on restricted networks"
             )}
             {chip(
               "17 Full",
               engineName === EngineName.Stockfish17,
               () => onEngineNameChange?.(EngineName.Stockfish17),
-              "NNUE: stronger per depth, heavier to load"
+              "NNUE — stronger per depth, heavier to load"
             )}
           </Stack>
 
@@ -3453,13 +3665,13 @@ function LinesControls({
               textAlign: "left",
               px: 1,
               py: 0.75,
-              borderRadius: `${RADIUS.small}px`,
+              borderRadius: "7px",
               background: settings.preferLocalEngine
-                ? ACCENT.tint
+                ? "rgba(249,115,22,0.1)"
                 : "rgba(255,255,255,0.03)",
               border: settings.preferLocalEngine
-                ? `1px solid ${ACCENT.border}`
-                : `1px solid ${LINE.hairline}`,
+                ? "1px solid rgba(249,115,22,0.35)"
+                : "1px solid rgba(255,255,255,0.08)",
               display: "flex",
               alignItems: "flex-start",
               gap: 1,
@@ -3473,27 +3685,30 @@ function LinesControls({
                 flexShrink: 0,
                 borderRadius: "4px",
                 border: settings.preferLocalEngine
-                  ? `1px solid ${ACCENT.main}`
+                  ? "1px solid #FB923C"
                   : "1px solid rgba(255,255,255,0.3)",
                 background: settings.preferLocalEngine
-                  ? ACCENT.main
+                  ? "#FB923C"
                   : "transparent",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: TEXT.onAccent,
+                color: "#0A0A0A",
+                fontSize: "0.6rem",
+                fontWeight: 900,
+                lineHeight: 1,
               }}
             >
-              {settings.preferLocalEngine ? (
-                <Check size={11} strokeWidth={3} aria-hidden />
-              ) : null}
+              {settings.preferLocalEngine ? "✓" : ""}
             </Box>
             <Box sx={{ minWidth: 0 }}>
               <Typography
                 sx={{
-                  fontSize: TYPE.caption.fontSize,
-                  fontWeight: 600,
-                  color: TEXT.primary,
+                  fontSize: "0.74rem",
+                  fontWeight: 700,
+                  color: settings.preferLocalEngine
+                    ? "#FB923C"
+                    : "rgba(255,255,255,0.85)",
                   lineHeight: 1.3,
                 }}
               >
@@ -3501,8 +3716,8 @@ function LinesControls({
               </Typography>
               <Typography
                 sx={{
-                  fontSize: TYPE.caption.fontSize,
-                  color: TEXT.secondary,
+                  fontSize: "0.7rem",
+                  color: "rgba(255,255,255,0.5)",
                   lineHeight: 1.45,
                   mt: 0.2,
                 }}
@@ -3613,7 +3828,7 @@ function EngineLinesPanel({
 
   const emptyMessage =
     status === "terminal"
-      ? "Game over in this position. Nothing to search."
+      ? "Game over in this position — nothing to search."
       : status === "unsupported"
         ? "This browser can't run Stockfish (WebAssembly is unavailable here)."
         : status === "failed"
@@ -3630,9 +3845,11 @@ function EngineLinesPanel({
       sx={{
         height: "100%",
         overflowY: "auto",
-        background: SURFACE.raised,
-        border: `1px solid ${LINE.hairline}`,
-        borderRadius: `${RADIUS.card}px`,
+        background: "rgba(20,22,28,0.55)",
+        backdropFilter: "blur(16px) saturate(150%)",
+        WebkitBackdropFilter: "blur(16px) saturate(150%)",
+        border: "1px solid rgba(255,255,255,0.07)",
+        borderRadius: "1rem",
         p: 2,
       }}
     >
@@ -3647,20 +3864,28 @@ function EngineLinesPanel({
       >
         <Box
           sx={{
-            color: TEXT.primary,
+            color: "rgba(255,255,255,0.9)",
             fontSize: "0.92rem",
             fontWeight: 700,
+            letterSpacing: "0.01em",
           }}
         >
           Engine lines
         </Box>
         <Stack direction="row" spacing={1} alignItems="center">
           {analyzing && (
-            <CircularProgress
-              size={16}
-              thickness={4}
-              aria-label="Stockfish is searching"
-              sx={{ color: TEXT.secondary, flexShrink: 0 }}
+            <Box
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "#F97316",
+                animation: "pulse 1.4s ease-in-out infinite",
+                "@keyframes pulse": {
+                  "0%, 100%": { opacity: 0.4, transform: "scale(0.85)" },
+                  "50%": { opacity: 1, transform: "scale(1)" },
+                },
+              }}
             />
           )}
           {/* Who actually answered.
@@ -3674,14 +3899,16 @@ function EngineLinesPanel({
             describeChild
             title={
               fromCloud
-                ? `Lichess cloud analysis, depth ${reachedDepth}: deeper than this browser would reach. Turn on "Use my engine" below to force ${engineName}.`
+                ? `Lichess cloud analysis, depth ${reachedDepth} — deeper than this browser would reach. Turn on "Use my engine" below to force ${engineName}.`
                 : `Computed in your browser by ${engineName}`
             }
           >
             <Box
               sx={{
-                ...TYPE.caption,
-                color: fromCloud ? STATUS.info : TEXT.secondary,
+                color: fromCloud ? "#93C5FD" : "rgba(255,255,255,0.42)",
+                fontSize: "0.72rem",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
                 whiteSpace: "nowrap",
                 cursor: "help",
               }}
@@ -3711,15 +3938,18 @@ function EngineLinesPanel({
             mb: 1.5,
             px: 1.25,
             py: 0.85,
-            borderRadius: `${RADIUS.control}px`,
-            background: SURFACE.raisedSecondary,
-            border: `1px solid ${LINE.hairline}`,
+            borderRadius: "0.6rem",
+            background: "rgba(251,191,36,0.08)",
+            border: "1px solid rgba(251,191,36,0.28)",
           }}
         >
           <Typography
             sx={{
-              ...TYPE.label,
-              color: TEXT.primary,
+              fontSize: "0.68rem",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "#FBBF24",
               mb: 0.4,
             }}
           >
@@ -3727,9 +3957,9 @@ function EngineLinesPanel({
           </Typography>
           <Typography
             sx={{
-              fontFamily: FONT_MONO,
+              fontFamily: "Monaco, Menlo, monospace",
               fontSize: "0.76rem",
-              color: TEXT.primary,
+              color: "rgba(255,255,255,0.8)",
               wordBreak: "break-word",
             }}
           >
@@ -3747,12 +3977,11 @@ function EngineLinesPanel({
                 background: "none",
                 p: 0,
                 font: "inherit",
-                fontSize: TYPE.caption.fontSize,
+                fontSize: "0.74rem",
                 fontWeight: 600,
-                color: TEXT.secondary,
+                color: "rgba(255,255,255,0.6)",
                 textDecoration: "underline",
-                transition: `color ${MOTION.hover}`,
-                "&:hover": { color: TEXT.primary },
+                "&:hover": { color: "#FBBF24" },
               }}
             >
               Back to move {Math.max(1, Math.ceil(exploring.anchorPly / 2))}{" "}
@@ -3780,9 +4009,9 @@ function EngineLinesPanel({
               key={i}
               sx={{
                 p: 1.25,
-                borderRadius: `${RADIUS.control}px`,
-                background: SURFACE.raisedSecondary,
-                border: `1px solid ${LINE.hairline}`,
+                borderRadius: "0.6rem",
+                background: "rgba(0,0,0,0.25)",
+                border: "1px solid rgba(255,255,255,0.06)",
                 display: "flex",
                 gap: 1.25,
                 alignItems: "baseline",
@@ -3792,13 +4021,14 @@ function EngineLinesPanel({
                 sx={{
                   flexShrink: 0,
                   width: 56,
-                  fontFamily: FONT_MONO,
+                  fontFamily: "ui-monospace, SFMono-Regular, monospace",
                   fontWeight: 700,
-                  fontVariantNumeric: "tabular-nums",
                   color:
-                    typeof line.mate === "number" || (line.cp ?? 0) >= 0
-                      ? TEXT.primary
-                      : TEXT.secondary,
+                    typeof line.mate === "number"
+                      ? "#FB923C"
+                      : (line.cp ?? 0) >= 0
+                        ? "#E2E8F0"
+                        : "rgba(255,255,255,0.62)",
                   fontSize: "0.92rem",
                 }}
               >
@@ -3807,8 +4037,8 @@ function EngineLinesPanel({
               <Box
                 sx={{
                   flex: 1,
-                  fontFamily: FONT_MONO,
-                  color: TEXT.primary,
+                  fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                  color: "rgba(255,255,255,0.78)",
                   fontSize: "0.86rem",
                   lineHeight: 1.5,
                 }}
@@ -3818,9 +4048,8 @@ function EngineLinesPanel({
               <Box
                 sx={{
                   flexShrink: 0,
-                  color: TEXT.secondary,
-                  fontFamily: FONT_MONO,
-                  fontSize: TYPE.caption.fontSize,
+                  color: "rgba(255,255,255,0.36)",
+                  fontSize: "0.7rem",
                 }}
               >
                 d{line.depth}
@@ -3837,8 +4066,12 @@ function EngineLinesPanel({
 // Shown once per game inside the coach stream when the player's side
 // can't be inferred (no username match, no stored answer). Answering
 // threads playerColor into every analysis/chat request and persists the
-// choice per-game. The two side buttons are equal choices, so neither
-// wears the accent; hover is a neutral step up the surface ladder.
+// choice per-game. Dark-glass styling; the two side buttons are equal
+// choices, so ember stays a hover accent rather than a fill.
+/**
+ * The side question, asked inside the greeting rather than as a card of its
+ * own: "Which side were you playing? [White] [Black]".
+ */
 function PlayerSideAsk({
   onChoose,
 }: {
@@ -3847,36 +4080,34 @@ function PlayerSideAsk({
   const sideButton = (color: PlayerSideColor) => (
     <Box
       component="button"
+      type="button"
       onClick={() => onChoose(color)}
       aria-label={`I was playing ${color}`}
       sx={{
-        flex: 1,
-        display: "flex",
+        display: "inline-flex",
         alignItems: "center",
-        justifyContent: "center",
-        gap: 0.75,
-        px: 1.75,
-        py: 1,
-        cursor: "pointer",
-        borderRadius: "12px",
+        gap: 0.5,
+        px: 1.1,
+        py: 0.35,
+        borderRadius: "999px",
+        border: "1px solid rgba(255,255,255,0.14)",
         background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.12)",
         color: "rgba(255,255,255,0.92)",
-        fontSize: "0.82rem",
+        font: "inherit",
+        fontSize: "0.8rem",
         fontWeight: 700,
-        fontFamily: "inherit",
-        transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
+        cursor: "pointer",
+        transition: "all 140ms ease",
         "&:hover": {
-          background: "rgba(255,255,255,0.08)",
-          borderColor: LINE.strong,
-          color: TEXT.primary,
+          borderColor: "rgba(249,115,22,0.5)",
+          background: "rgba(249,115,22,0.12)",
+          color: "#FB923C",
         },
-        "&:active": { transform: MOTION.pressScale },
       }}
     >
       <Box
         component="span"
-        sx={{ fontSize: "1.1rem", lineHeight: 1 }}
+        sx={{ fontSize: "1rem", lineHeight: 1 }}
         aria-hidden
       >
         {color === "white" ? "♔" : "♚"}
@@ -3888,46 +4119,25 @@ function PlayerSideAsk({
     <Box
       data-testid="player-side-ask"
       sx={{
-        alignSelf: "stretch",
-        borderRadius: `${RADIUS.card}px`,
-        background: SURFACE.raised,
-        border: `1px solid ${LINE.hairline}`,
-        px: 2,
-        py: 1.75,
+        mt: 1,
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        flexWrap: "wrap",
       }}
     >
-      <Typography
-        sx={{
-          fontSize: "0.85rem",
-          fontWeight: 600,
-          color: "rgba(255,255,255,0.9)",
-          mb: 1.25,
-        }}
-      >
-        Quick check: which side were you playing?
+      <Typography sx={{ fontSize: "0.9rem", color: "rgba(255,255,255,0.85)" }}>
+        Which side were you playing?
       </Typography>
-      <Stack direction="row" spacing={1.25}>
-        {sideButton("white")}
-        {sideButton("black")}
-      </Stack>
-      <Typography
-        sx={{
-          fontSize: TYPE.caption.fontSize,
-          color: TEXT.secondary,
-          mt: 1,
-          lineHeight: 1.4,
-        }}
-      >
-        The coach tailors its analysis to your side: mistakes, plans, and praise
-        all depend on it.
-      </Typography>
+      {sideButton("white")}
+      {sideButton("black")}
     </Box>
   );
 }
 
-// Compact chip showing which side the coach is coaching, with a one-click
-// switch — surfaced when the side was inferred (username match) or
-// remembered, so a wrong guess is one tap away from correct.
+// One quiet line under the greeting saying which side is being coached and
+// how that was decided, with the switch a word away, so a wrong guess is one
+// tap from right.
 function PlayerSideChip({
   side,
   onChoose,
@@ -3943,59 +4153,35 @@ function PlayerSideChip({
         ? "remembered from last time"
         : "your choice";
   return (
-    <Tooltip title={`Side ${sourceLabel}. Click to switch to ${other}`}>
-      <Box
-        data-testid="player-side-chip"
-        onClick={() => onChoose?.(other)}
-        sx={{
-          alignSelf: "center",
-          display: "flex",
-          alignItems: "center",
-          gap: 0.6,
-          px: 1.25,
-          py: 0.4,
-          cursor: onChoose ? "pointer" : "default",
-          borderRadius: `${RADIUS.pill}px`,
-          background: "rgba(255,255,255,0.04)",
-          border: `1px solid ${LINE.hairline}`,
-          transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
-          "&:hover": onChoose
-            ? {
-                background: "rgba(255,255,255,0.06)",
-                borderColor: LINE.strong,
-              }
-            : {},
-        }}
-      >
-        <Box
-          component="span"
-          sx={{ fontSize: "0.85rem", lineHeight: 1 }}
-          aria-hidden
-        >
-          {side.color === "white" ? "♔" : "♚"}
-        </Box>
-        <Typography
-          sx={{
-            fontSize: TYPE.caption.fontSize,
-            fontWeight: 600,
-            color: TEXT.secondary,
-          }}
-        >
-          Coaching you as {side.color === "white" ? "White" : "Black"}
-        </Typography>
-        {onChoose && (
-          <Typography
+    <Typography
+      data-testid="player-side-chip"
+      sx={{ mt: 0.75, fontSize: "0.8rem", color: "rgba(255,255,255,0.5)" }}
+    >
+      Coaching you as {side.color === "white" ? "White" : "Black"} (
+      {sourceLabel}).
+      {onChoose && (
+        <>
+          {" "}
+          <Box
+            component="button"
+            type="button"
+            onClick={() => onChoose(other)}
             sx={{
-              fontSize: TYPE.caption.fontSize,
-              fontWeight: 600,
-              color: ACCENT.hover,
+              font: "inherit",
+              fontWeight: 700,
+              color: "#FB923C",
+              background: "none",
+              border: 0,
+              p: 0,
+              cursor: "pointer",
+              "&:hover": { textDecoration: "underline" },
             }}
           >
-            · switch
-          </Typography>
-        )}
-      </Box>
-    </Tooltip>
+            Switch to {other === "white" ? "White" : "Black"}
+          </Box>
+        </>
+      )}
+    </Typography>
   );
 }
 
@@ -4032,7 +4218,7 @@ interface CoachCommand {
   description: string;
   /** Longer text shown the first time it is used. */
   help: string;
-  icon: typeof Target;
+  icon: typeof Sparkles;
 }
 
 const COACH_COMMANDS: CoachCommand[] = [
@@ -4043,7 +4229,7 @@ const COACH_COMMANDS: CoachCommand[] = [
     help:
       "Finds puzzles that share the tactical pattern of the position you're " +
       "looking at, then opens them as a practice run. Works best when you're " +
-      "sitting on a mistake: navigate to one first, or name a pattern " +
+      "sitting on a mistake — navigate to one first, or name a pattern " +
       "yourself with /puzzle-generation fork.",
     icon: Target,
   },
@@ -4096,11 +4282,13 @@ function SlashCommandMenu({
         left: 0,
         right: 0,
         zIndex: 20,
-        borderRadius: `${RADIUS.control}px`,
+        borderRadius: "0.85rem",
         overflow: "hidden",
-        background: SURFACE.overlay,
-        border: `1px solid ${LINE.hairline}`,
-        boxShadow: SHADOW.floating,
+        background: "rgba(16,18,24,0.97)",
+        backdropFilter: "blur(18px) saturate(150%)",
+        WebkitBackdropFilter: "blur(18px) saturate(150%)",
+        border: "1px solid rgba(249,115,22,0.28)",
+        boxShadow: "0 18px 48px rgba(0,0,0,0.6)",
       }}
     >
       {commands.map((c, i) => {
@@ -4123,27 +4311,25 @@ function SlashCommandMenu({
               gap: 1.25,
               alignItems: "flex-start",
               cursor: "pointer",
-              background: active ? "rgba(255,255,255,0.10)" : "transparent",
-              transition: `background-color ${MOTION.hover}`,
-              "&:hover": {
-                background: active
-                  ? "rgba(255,255,255,0.10)"
-                  : "rgba(255,255,255,0.06)",
-              },
+              background: active ? "rgba(249,115,22,0.14)" : "transparent",
+              borderLeft: active
+                ? "2px solid #F97316"
+                : "2px solid transparent",
+              "&:hover": { background: "rgba(249,115,22,0.1)" },
             }}
           >
             <Icon
-              size={16}
-              strokeWidth={1.75}
-              color={active ? TEXT.primary : TEXT.secondary}
+              size={15}
+              color={active ? "#FB923C" : "rgba(255,255,255,0.5)"}
               style={{ marginTop: 2, flexShrink: 0 }}
             />
             <Box sx={{ minWidth: 0 }}>
               <Typography
                 sx={{
+                  fontFamily: "Monaco, Menlo, monospace",
                   fontSize: "0.82rem",
-                  fontWeight: active ? 600 : 500,
-                  color: TEXT.primary,
+                  fontWeight: 700,
+                  color: active ? "#FB923C" : "rgba(255,255,255,0.92)",
                   lineHeight: 1.3,
                 }}
               >
@@ -4151,8 +4337,8 @@ function SlashCommandMenu({
               </Typography>
               <Typography
                 sx={{
-                  fontSize: TYPE.caption.fontSize,
-                  color: TEXT.secondary,
+                  fontSize: "0.74rem",
+                  color: "rgba(255,255,255,0.55)",
                   lineHeight: 1.45,
                 }}
               >
@@ -4166,9 +4352,10 @@ function SlashCommandMenu({
         sx={{
           px: 1.5,
           py: 0.6,
-          borderTop: `1px solid ${LINE.hairline}`,
-          fontSize: TYPE.caption.fontSize,
-          color: TEXT.secondary,
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          fontSize: "0.68rem",
+          color: "rgba(255,255,255,0.38)",
+          fontFamily: "Monaco, Menlo, monospace",
         }}
       >
         ↑↓ select · ⏎ run · esc dismiss
@@ -4189,8 +4376,6 @@ function CoachPanel({
   rootFen,
   onMoveRefClick,
   onShareMessage,
-  mistakeContext,
-  userRating,
   coachContextIdProp,
   onPuzzleSolved,
   onPracticeConcept,
@@ -4198,8 +4383,6 @@ function CoachPanel({
   engineDataUnavailable,
   enginePositions,
   loadedGame,
-  personalityId,
-  onChangePersonality,
   suggestions,
   playerSide,
   sideUiEligible,
@@ -4208,17 +4391,10 @@ function CoachPanel({
   onLaunchPuzzleSet,
   signedOut,
   onSignIn,
-  mood,
-  moodPulse,
+  onShowLinePly,
 }: {
-  /**
-   * Masti's face in the header, decided by the page from what it already
-   * knows (coach working, engine running, the current move's verdict, the
-   * result on the board). Defaults to a wave.
-   */
-  mood?: MastiMood;
-  /** Changes when the face should animate again. */
-  moodPulse?: number;
+  /** Put a ply of a proof line on the main board. */
+  onShowLinePly?: (line: CoachLine, k: number) => void;
   /**
    * True once auth has resolved to "nobody is signed in". The coach routes
    * are session-gated, so every send from an anonymous visitor came back 401:
@@ -4249,14 +4425,9 @@ function CoachPanel({
     displayName: string,
     messageIndex: number
   ) => void;
-  /** Engine data for inline continuation widgets inside insight cards. */
+  /** Engine data for the proof lines inside insight cards and follow-ups. */
   enginePositions?: PositionEval[] | null;
   loadedGame?: Chess;
-  /** Current coach persona id + setter — drives the picker chip in the
-   *  CoachPanel header and is threaded into the enhanced-analysis
-   *  request body via the parent's coachExtras memo. */
-  personalityId?: string;
-  onChangePersonality?: (id: string) => void;
   /** True while Stockfish is still computing positions. Mirrors production's
    * `isAnalyzingGame` gate (AICoachChat:1705) — when set, the input is
    * disabled so the user can't fire deep-coach requests with no gameEval. */
@@ -4269,21 +4440,6 @@ function CoachPanel({
    * with no engine data reads exactly like one written with it.
    */
   engineDataUnavailable?: boolean;
-  /**
-   * Production-parity mistake context — when set, mounts inline
-   * ContextualPuzzleRecommendations above the message stream. Recomputed
-   * by the parent on ply change. Null when the current ply isn't a
-   * Mistake/Blunder/Miss.
-   */
-  mistakeContext?: {
-    fen: string;
-    movePlayed: string;
-    correctMove: string;
-    evalBefore: number;
-    evalAfter: number;
-    tacticalMotifs: string[];
-  } | null;
-  userRating?: number;
   /** G12: current analysis contextId so FlagButton can attach it to the
    *  flagged-message POST. Null when no deep analysis has run yet. */
   coachContextIdProp?: string | null;
@@ -4296,7 +4452,7 @@ function CoachPanel({
   playerSide?: PlayerSide | null;
   /** True when a real game (not demo/puzzle/bare FEN) is loaded — gates
    *  both the inline "Which side were you playing?" ask (playerSide null)
-   *  and the assumed-side switch chip (playerSide set). */
+   *  and the assumed-side switch line (playerSide set). */
   sideUiEligible?: boolean;
   onChoosePlayerSide?: (color: PlayerSideColor) => void;
   /** Run a slash command. Handled by the page, not sent to the model. */
@@ -4329,20 +4485,17 @@ function CoachPanel({
     [onChangeInput]
   );
 
-  // Personality picker UI state — kept local to the panel; the actual
-  // selection bubbles up via onChangePersonality.
-  const personality = useMemo(
-    () => getPersonalityById(personalityId ?? defaultPersonalityId),
-    [personalityId]
-  );
-  const [personalityMenuOpen, setPersonalityMenuOpen] = useState(false);
   // Stable identity for BookExitCard: a fresh array per render made its
   // effect refetch on every engine tick (see the note in BookExitCard).
   const bookExitSans = useMemo(
     () => (allMoves ?? []).map((mv) => mv.san),
     [allMoves]
   );
-  const personalityChipRef = useRef<HTMLDivElement>(null);
+  const playerColor: "w" | "b" | null = playerSide
+    ? playerSide.color === "white"
+      ? "w"
+      : "b"
+    : null;
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -4350,386 +4503,175 @@ function CoachPanel({
     }
   }, [messages.length, isThinking]);
 
+  // The side question, the side line and the book note are things the
+  // coach says on meeting the game, so they read as part of the greeting
+  // (the first message when a game has just loaded) rather than as cards
+  // pinned above the conversation.
+  const greetingFirst =
+    messages.length > 0 &&
+    messages[0].role === "coach" &&
+    messages[0].synthetic === true;
+  const sideBlock = sideUiEligible ? (
+    <Box sx={{ pl: "38px" }}>
+      {playerSide ? (
+        <PlayerSideChip side={playerSide} onChoose={onChoosePlayerSide} />
+      ) : onChoosePlayerSide ? (
+        <PlayerSideAsk onChoose={onChoosePlayerSide} />
+      ) : null}
+      {/* Where this game left what players at the reader's own level play.
+          Gated on playerSide because the answer is per COLOUR: without it
+          we would have to guess whose moves to judge, and guessing wrong
+          reports the opponent's departure as the reader's. The note fetches
+          its own answer and renders nothing at all when it has none. */}
+      {playerSide && bookExitSans.length > 0 && (
+        <BookExitCard
+          sans={bookExitSans}
+          side={playerSide.color}
+          variant="plain"
+        />
+      )}
+    </Box>
+  ) : null;
+
   return (
     <Box
       sx={{
         position: "relative",
-        // Height now controlled by the parent wrapper so swaps inherit it.
         height: "100%",
         width: "100%",
-        borderRadius: `${RADIUS.card}px`,
-        background: SURFACE.raised,
-        border: `1px solid ${LINE.hairline}`,
+        minHeight: 0,
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden",
       }}
     >
-      {/* Header */}
-      <Box
-        sx={{
-          px: 3,
-          py: 2,
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-          display: "flex",
-          alignItems: "center",
-          gap: 1.5,
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-        {/* Masti is the coach's face; the personality chip to the right
-            stays the coach's voice. Same 36px as the old orb so the header,
-            and the board sized under it at lg, do not move. */}
-        <MastiAvatar
-          mood={mood ?? "wave"}
-          size={36}
-          animated
-          loops={2}
-          replayKey={`${mood ?? "wave"}:${moodPulse ?? 0}`}
-          data-testid="coach-masti"
-        />
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography
-            sx={{
-              fontSize: "0.95rem",
-              fontWeight: 700,
-              color: "rgba(255,255,255,0.94)",
-              lineHeight: 1.1,
-            }}
-            data-testid="coach-title"
-          >
-            Masti
-          </Typography>
-          {/* The one plain disclosure the coach panel carries. One line,
-              truncated rather than wrapped, so the header never grows. */}
-          <Typography
-            sx={{
-              mt: 0.5,
-              fontSize: TYPE.caption.fontSize,
-              lineHeight: 1.35,
-              color: TEXT.secondary,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            Masti&apos;s notes are written by an AI model.
-          </Typography>
-        </Box>
-        {/* Personality picker chip — clicking opens a glass popover with
-            the 6 coach voices. Closes the `personalityId` parity gap
-            with /api/enhanced-analysis (final field). */}
-        {onChangePersonality && (
-          <Tooltip title={`Masti's attitude: ${personality.title}`}>
-            <Box
-              ref={personalityChipRef}
-              data-testid="coach-attitude-chip"
-              onClick={() => setPersonalityMenuOpen((v) => !v)}
-              sx={{
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 0.5,
-                px: 1,
-                py: 0.4,
-                flexShrink: 0,
-                borderRadius: `${RADIUS.pill}px`,
-                background: "rgba(255,255,255,0.04)",
-                border: `1px solid ${LINE.hairline}`,
-                transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
-                "&:hover": {
-                  background: "rgba(255,255,255,0.06)",
-                  borderColor: LINE.strong,
-                },
-              }}
-            >
-              {/* The attitude's own face, so the chip changes with the pick. */}
-              <MastiAvatar
-                mood={personality.mood}
-                size={18}
-                ring={false}
-                decorative
-              />
-              <Typography
-                sx={{
-                  fontSize: TYPE.caption.fontSize,
-                  lineHeight: 1.3,
-                  fontWeight: 600,
-                  color: TEXT.primary,
-                  maxWidth: 110,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {personality.title.replace(/^The /, "")}
-              </Typography>
-              <ChevronDown
-                size={14}
-                strokeWidth={1.75}
-                color={TEXT.secondary}
-              />
-            </Box>
-          </Tooltip>
-        )}
-        <Menu
-          anchorEl={personalityChipRef.current}
-          open={personalityMenuOpen}
-          onClose={() => setPersonalityMenuOpen(false)}
-          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-          transformOrigin={{ vertical: "top", horizontal: "right" }}
-          slotProps={{
-            paper: {
-              sx: {
-                mt: 1,
-                minWidth: 280,
-                maxWidth: 320,
-              },
-            },
-          }}
-          MenuListProps={{ sx: { py: 0.5 } }}
-        >
-          <Box
-            sx={{
-              px: 1.75,
-              pt: 1,
-              pb: 0.5,
-              ...TYPE.label,
-              color: TEXT.secondary,
-            }}
-          >
-            Masti&apos;s attitude
-          </Box>
-          {coachPersonalities.map((p) => {
-            const isActive = p.id === personality.id;
-            return (
-              <Box
-                key={p.id}
-                onClick={() => {
-                  onChangePersonality?.(p.id);
-                  setPersonalityMenuOpen(false);
-                }}
-                sx={{
-                  cursor: "pointer",
-                  px: 1.75,
-                  py: 1,
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 1.25,
-                  borderRadius: `${RADIUS.small}px`,
-                  transition: `background-color ${MOTION.hover}`,
-                  background: isActive
-                    ? "rgba(255,255,255,0.10)"
-                    : "transparent",
-                  "&:hover": {
-                    background: isActive
-                      ? "rgba(255,255,255,0.10)"
-                      : "rgba(255,255,255,0.06)",
-                  },
-                }}
-              >
-                {/* Same monkey, a different face per attitude. Stills: seven
-                    animated faces in one menu would be a zoo. */}
-                <MastiAvatar
-                  mood={p.mood}
-                  size={32}
-                  ring={isActive}
-                  decorative
-                  style={{ marginTop: 2 }}
-                />
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography
-                    sx={{
-                      fontSize: "0.84rem",
-                      fontWeight: isActive ? 600 : 500,
-                      color: TEXT.primary,
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {p.name}
-                    <Box
-                      component="span"
-                      sx={{
-                        ml: 0.6,
-                        fontSize: TYPE.caption.fontSize,
-                        fontWeight: 400,
-                        color: TEXT.secondary,
-                      }}
-                    >
-                      {p.title}
-                    </Box>
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: TYPE.caption.fontSize,
-                      color: TEXT.secondary,
-                      lineHeight: 1.4,
-                      mt: 0.25,
-                    }}
-                  >
-                    {p.description}
-                  </Typography>
-                </Box>
-              </Box>
-            );
-          })}
-        </Menu>
-      </Box>
-
-      {/* Messages */}
+      {/* The transcript: the one scrolling surface on the page. */}
       <Box
         ref={scrollRef}
         sx={{
           flex: 1,
+          minHeight: 0,
           overflowY: "auto",
-          px: 3,
-          py: 2.5,
-          position: "relative",
-          zIndex: 1,
+          px: { xs: 0.5, sm: 1 },
+          py: { xs: 1, sm: 1.5 },
+          "&::-webkit-scrollbar": { width: 6 },
+          "&::-webkit-scrollbar-thumb": {
+            background: "rgba(255,255,255,0.12)",
+            borderRadius: "3px",
+          },
         }}
       >
-        <Stack spacing={2}>
-          {sideUiEligible && playerSide && (
-            <PlayerSideChip side={playerSide} onChoose={onChoosePlayerSide} />
-          )}
-          {/* Where this game left what players at the reader's own level play.
-              Gated on playerSide because the answer is per COLOUR: without it
-              we would have to guess whose moves to judge, and guessing wrong
-              reports the opponent's departure as the reader's. The card fetches
-              its own answer and renders nothing at all when it has none. */}
-          {playerSide && (allMoves?.length ?? 0) > 0 && (
-            <BookExitCard sans={bookExitSans} side={playerSide.color} />
-          )}
-          {mistakeContext && (
-            <Box sx={{ alignSelf: "stretch" }}>
-              <ContextualPuzzleRecommendations
-                key={`${mistakeContext.fen}|${mistakeContext.movePlayed}`}
-                fen={mistakeContext.fen}
-                movePlayed={mistakeContext.movePlayed}
-                correctMove={mistakeContext.correctMove}
-                evalBefore={mistakeContext.evalBefore}
-                evalAfter={mistakeContext.evalAfter}
-                tacticalMotifs={mistakeContext.tacticalMotifs}
-                userRating={userRating}
+        <Box
+          sx={{
+            maxWidth: 760,
+            display: "flex",
+            flexDirection: "column",
+            gap: 2.5,
+          }}
+        >
+          {!greetingFirst && sideBlock}
+          {messages.map((msg, i) => (
+            <Box
+              key={i}
+              sx={{
+                minWidth: 0,
+                alignSelf: msg.role === "user" ? "flex-end" : "stretch",
+                maxWidth: msg.role === "user" ? "88%" : "100%",
+              }}
+            >
+              <CoachBubble
+                msg={msg}
+                onPromoteToBoard={onPromoteToBoard}
+                allMoves={allMoves}
+                rootFen={rootFen}
+                onMoveRefClick={onMoveRefClick}
+                onShare={onShareMessage}
+                allMessages={messages}
+                messageIndex={i}
+                contextId={coachContextIdProp}
+                onPuzzleSolved={onPuzzleSolved}
+                onPracticeConcept={onPracticeConcept}
+                onLaunchPuzzleSet={onLaunchPuzzleSet}
+                enginePositions={enginePositions}
+                loadedGame={loadedGame}
+                onShowLinePly={onShowLinePly}
+                playerColor={playerColor}
               />
+              {i === 0 && greetingFirst && sideBlock}
             </Box>
-          )}
-          <AnimatePresence initial={false}>
-            {messages.map((msg, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
-                style={{
-                  alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
-                  maxWidth: "90%",
-                  marginLeft: msg.role === "user" ? "auto" : 0,
-                }}
-              >
-                <CoachBubble
-                  msg={msg}
-                  onPromoteToBoard={onPromoteToBoard}
-                  allMoves={allMoves}
-                  rootFen={rootFen}
-                  onMoveRefClick={onMoveRefClick}
-                  onShare={onShareMessage}
-                  allMessages={messages}
-                  messageIndex={i}
-                  contextId={coachContextIdProp}
-                  onPuzzleSolved={onPuzzleSolved}
-                  onPracticeConcept={onPracticeConcept}
-                  onLaunchPuzzleSet={onLaunchPuzzleSet}
-                  enginePositions={enginePositions}
-                  loadedGame={loadedGame}
-                />
-              </motion.div>
-            ))}
-          </AnimatePresence>
-          {sideUiEligible && !playerSide && onChoosePlayerSide && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.18, ease: "easeOut" }}
-              style={{ alignSelf: "stretch" }}
-            >
-              <PlayerSideAsk onChoose={onChoosePlayerSide} />
-            </motion.div>
-          )}
-          {isThinking && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.18, ease: "easeOut" }}
-              style={{ alignSelf: "flex-start", maxWidth: "60%" }}
-            >
-              <ThinkingBubble />
-            </motion.div>
-          )}
-        </Stack>
+          ))}
+          {isThinking && <ThinkingBubble />}
+        </Box>
       </Box>
 
-      {/* Suggestion pills. Signed out, every pill is a sign-in ask (see
-          onClick below), so the row is hidden under the ChessUSA preview
-          prefix along with the gate and the composer. See SIGN_IN_ATTR. */}
-      <Box
-        {...(signedOut ? SIGN_IN_PROPS : {})}
-        sx={{
-          px: 3,
-          pt: 1.5,
-          pb: 1,
-          borderTop: "1px solid rgba(255,255,255,0.05)",
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
+      {/* Suggestions: one row that scrolls sideways, never a stack. Signed
+          out, every pill is a sign-in ask (see onClick below), so the row
+          is hidden under the ChessUSA preview prefix along with the gate
+          and the composer. See SIGN_IN_ATTR. */}
+      {suggestions.length > 0 && (
+        <Box
+          {...(signedOut ? SIGN_IN_PROPS : {})}
+          sx={{
+            flexShrink: 0,
+            px: { xs: 0.5, sm: 1 },
+            pt: 0.75,
+            pb: 0.25,
+            display: "flex",
+            gap: 0.75,
+            overflowX: "auto",
+            scrollbarWidth: "none",
+            "&::-webkit-scrollbar": { display: "none" },
+          }}
+        >
           {suggestions.map((s) => (
             <Box
               key={s.text}
+              component="button"
+              type="button"
               onClick={() => (signedOut ? onSignIn?.() : onSuggestion(s.text))}
               sx={{
+                flexShrink: 0,
+                font: "inherit",
                 cursor: "pointer",
-                px: 1.5,
-                py: 0.6,
-                borderRadius: `${RADIUS.pill}px`,
-                // Pinned suggestions (just "Analyze my game" today) wear the
-                // quiet ember tint so they read as the suggested action
-                // among the rule-derived neutral pills.
-                background: s.pinned ? ACCENT.tint : "rgba(255,255,255,0.04)",
+                px: 1.25,
+                py: 0.5,
+                borderRadius: "999px",
+                // The pinned suggestion (just "Analyze my game" today) keeps
+                // the ember accent so it reads as the primary action among
+                // the rule-derived neutral pills.
+                background: s.pinned
+                  ? "rgba(249,115,22,0.14)"
+                  : "rgba(255,255,255,0.04)",
                 border: s.pinned
-                  ? `1px solid ${ACCENT.border}`
-                  : `1px solid ${LINE.hairline}`,
+                  ? "1px solid rgba(249,115,22,0.45)"
+                  : "1px solid rgba(255,255,255,0.1)",
                 fontSize: "0.78rem",
-                color: s.pinned ? ACCENT.hover : TEXT.secondary,
-                fontWeight: s.pinned ? 600 : 400,
-                touchAction: "manipulation",
-                transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
-                "&:hover": s.pinned
-                  ? { borderColor: ACCENT.main }
-                  : {
-                      background: "rgba(255,255,255,0.06)",
-                      borderColor: LINE.strong,
-                      color: TEXT.primary,
-                    },
-                "&:active": { transform: MOTION.pressScale },
+                color: s.pinned ? "#FB923C" : "rgba(255,255,255,0.75)",
+                fontWeight: s.pinned ? 700 : 500,
+                whiteSpace: "nowrap",
+                transition: "all 140ms ease",
+                "&:hover": {
+                  background: s.pinned
+                    ? "rgba(249,115,22,0.22)"
+                    : "rgba(249,115,22,0.12)",
+                  borderColor: "rgba(249,115,22,0.45)",
+                  color: "#FB923C",
+                },
               }}
             >
               {s.text}
             </Box>
           ))}
-        </Stack>
-      </Box>
+        </Box>
+      )}
 
-      {/* Input */}
+      {/* Composer */}
       <Box
         sx={{
-          px: 3,
-          py: 2,
-          borderTop: "1px solid rgba(255,255,255,0.06)",
+          flexShrink: 0,
+          px: { xs: 0.5, sm: 1 },
+          pt: 0.75,
+          pb: { xs: 0.75, lg: 0.25 },
           position: "relative",
-          zIndex: 1,
         }}
       >
         <SlashCommandMenu
@@ -4744,60 +4686,69 @@ function CoachPanel({
             contributed, and the user is the only one who can decide whether to
             ask anyway. */}
         {AI_DISABLED && (
-          <Box sx={{ ...STATUS_BANNER_SX, background: STATUS.infoTint }}>
-            <Info
-              size={16}
-              strokeWidth={1.75}
-              color={STATUS.info}
-              aria-hidden
-              style={{ flexShrink: 0, marginTop: 2 }}
-            />
-            <Box sx={{ minWidth: 0 }}>
-              <Box component="span" sx={{ fontWeight: 600 }}>
-                Masti is paused.
-              </Box>{" "}
-              {AI_DISABLED_ERROR.message}
-            </Box>
+          <Box
+            sx={{
+              mb: 1,
+              px: 1.5,
+              py: 1,
+              borderRadius: "10px",
+              border: "1px solid rgba(249,115,22,0.28)",
+              background: "rgba(249,115,22,0.08)",
+              fontSize: "0.78rem",
+              lineHeight: 1.5,
+              color: "rgba(255,255,255,0.75)",
+            }}
+          >
+            <Box component="span" sx={{ color: "#FB923C", fontWeight: 600 }}>
+              AI coaching is paused.
+            </Box>{" "}
+            {AI_DISABLED_ERROR.message}
           </Box>
         )}
         {!AI_DISABLED && engineDataUnavailable && (
-          <Box sx={{ ...STATUS_BANNER_SX, background: STATUS.warningTint }}>
-            <AlertTriangle
-              size={16}
-              strokeWidth={1.75}
-              color={STATUS.warning}
-              aria-hidden
-              style={{ flexShrink: 0, marginTop: 2 }}
-            />
-            <Box sx={{ minWidth: 0 }}>
-              <Box component="span" sx={{ fontWeight: 600 }}>
-                Coaching without engine analysis.
-              </Box>{" "}
-              Stockfish could not run in this browser, so evaluations, move
-              classifications and accuracy are unavailable. Ideas, plans and
-              openings still work.
-            </Box>
+          <Box
+            sx={{
+              mb: 1,
+              px: 1.5,
+              py: 1,
+              borderRadius: "10px",
+              border: "1px solid rgba(249,115,22,0.28)",
+              background: "rgba(249,115,22,0.08)",
+              fontSize: "0.78rem",
+              lineHeight: 1.5,
+              color: "rgba(255,255,255,0.75)",
+            }}
+          >
+            <Box component="span" sx={{ color: "#FB923C", fontWeight: 600 }}>
+              Coaching without engine analysis.
+            </Box>{" "}
+            Stockfish could not run in this browser, so evaluations, move
+            classifications and accuracy are unavailable. Ideas, plans and
+            openings still work.
           </Box>
         )}
         {!AI_DISABLED && signedOut && (
           <Box
             {...SIGN_IN_PROPS}
             sx={{
-              ...STATUS_BANNER_SX,
-              background: STATUS.infoTint,
+              mb: 1,
+              px: 1.5,
+              py: 1,
+              borderRadius: "10px",
+              border: "1px solid rgba(249,115,22,0.28)",
+              background: "rgba(249,115,22,0.08)",
+              fontSize: "0.78rem",
+              lineHeight: 1.5,
+              color: "rgba(255,255,255,0.75)",
+              display: "flex",
               alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1.5,
               flexWrap: "wrap",
             }}
           >
-            <Info
-              size={16}
-              strokeWidth={1.75}
-              color={STATUS.info}
-              aria-hidden
-              style={{ flexShrink: 0 }}
-            />
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Box component="span" sx={{ fontWeight: 600 }}>
+            <Box>
+              <Box component="span" sx={{ color: "#FB923C", fontWeight: 600 }}>
                 The coach needs a free account.
               </Box>{" "}
               Engine analysis runs without one; explanations don&apos;t.
@@ -4807,26 +4758,28 @@ function CoachPanel({
               onClick={onSignIn}
               sx={{
                 textTransform: "none",
-                fontWeight: 600,
-                fontSize: TYPE.caption.fontSize,
+                fontWeight: 700,
+                fontSize: "0.78rem",
                 px: 1.5,
                 py: 0.4,
-                color: ACCENT.hover,
-                background: "transparent",
+                borderRadius: "10px",
+                color: "#0A0A0A",
+                background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
                 "&:hover": {
-                  background: "rgba(255,255,255,0.06)",
+                  background:
+                    "linear-gradient(135deg, #FB923C 0%, #F97316 100%)",
                 },
               }}
             >
-              Sign in
+              Sign in — free
             </Button>
           </Box>
         )}
         <Stack
           {...(signedOut ? SIGN_IN_PROPS : {})}
           direction="row"
-          spacing={1.5}
-          alignItems="center"
+          spacing={1}
+          alignItems="flex-end"
         >
           <TextField
             value={input}
@@ -4881,25 +4834,33 @@ function CoachPanel({
             }}
             placeholder={
               AI_DISABLED
-                ? "Masti is paused. See the note above."
+                ? "AI coaching is paused — see the note above."
                 : signedOut
-                  ? "Sign in to ask the coach: free account, no card."
+                  ? "Sign in to ask the coach — free account, no card."
                   : analysisActive
-                    ? "Analyzing your game. Ask the coach when the engine finishes."
+                    ? "Analyzing your game… coach unlocks when Stockfish finishes."
                     : engineDataUnavailable
-                      ? "Ask anything. The answer comes without engine analysis."
-                      : "Ask about this position"
+                      ? "Ask anything — answering without engine analysis."
+                      : "Ask anything about this position..."
             }
             disabled={AI_DISABLED || analysisActive}
             fullWidth
             multiline
-            maxRows={3}
+            maxRows={4}
             sx={{
               "& .MuiOutlinedInput-root": {
-                fontSize: "0.92rem",
+                backgroundColor: "rgba(255,255,255,0.05)",
+                borderRadius: "16px",
+                fontSize: "0.94rem",
+                "& fieldset": { borderColor: "rgba(255,255,255,0.1)" },
+                "&:hover fieldset": { borderColor: "rgba(255,255,255,0.2)" },
+                "&.Mui-focused fieldset": {
+                  borderColor: "rgba(249,115,22,0.5)",
+                  borderWidth: "1px",
+                },
               },
               "& .MuiOutlinedInput-input": {
-                color: TEXT.primary,
+                color: "rgba(255,255,255,0.95)",
                 "&::placeholder": {
                   color: "rgba(255,255,255,0.4)",
                   opacity: 1,
@@ -4908,22 +4869,25 @@ function CoachPanel({
             }}
           />
           <IconButton
+            aria-label="Send"
             onClick={signedOut ? () => onSignIn?.() : onSend}
             disabled={
               AI_DISABLED || !input.trim() || isThinking || analysisActive
             }
             sx={{
-              width: 44,
-              height: 44,
-              borderRadius: `${RADIUS.control}px`,
-              background: ACCENT.main,
-              color: TEXT.onAccent,
+              width: 42,
+              height: 42,
+              flexShrink: 0,
+              borderRadius: "14px",
+              background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
+              color: "#0A0A0A",
+              transition: "all 160ms ease",
               "&:hover": {
-                background: ACCENT.hover,
+                background: "linear-gradient(135deg, #FB923C 0%, #F97316 100%)",
               },
               "&.Mui-disabled": {
                 background: "rgba(255,255,255,0.05)",
-                color: TEXT.tertiary,
+                color: "rgba(255,255,255,0.2)",
               },
             }}
           >
@@ -5072,26 +5036,25 @@ function InlinePuzzleSolver({
 
   const statusLabel =
     status === "wrong"
-      ? "Not the move. Try again."
+      ? "Not the move — try again."
       : status === "solved"
-        ? "Solved"
+        ? "Solved!"
         : turn === "white"
           ? "White to move"
           : "Black to move";
-  // The status colour goes on the icon; the words stay readable on the
-  // raisedSecondary block (STATUS.error as text there is 4.09:1).
-  const StatusIcon =
-    status === "wrong" ? X : status === "solved" ? Check : null;
-  const statusIconColor = status === "wrong" ? STATUS.error : STATUS.success;
+  const statusColor =
+    status === "wrong"
+      ? "#fca5a5"
+      : status === "solved"
+        ? "#86efac"
+        : "rgba(255,255,255,0.7)";
 
-  // Right or wrong is shown as a ring around the board: a status colour, at
-  // the moment it applies, and no shadow.
-  const flashColor =
+  const flashShadow =
     flash === "green"
-      ? STATUS.success
+      ? "0 0 0 4px rgba(34,197,94,0.55)"
       : flash === "red"
-        ? STATUS.error
-        : "transparent";
+        ? "0 0 0 4px rgba(239,68,68,0.55)"
+        : "0 0 0 0 rgba(0,0,0,0)";
 
   return (
     <Box
@@ -5099,9 +5062,9 @@ function InlinePuzzleSolver({
         mt: 1,
         px: 1.25,
         py: 1.25,
-        borderRadius: `${RADIUS.control}px`,
-        background: SURFACE.raisedSecondary,
-        border: `1px solid ${LINE.hairline}`,
+        borderRadius: "0.6rem",
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(168,85,247,0.18)",
       }}
     >
       <Box
@@ -5110,9 +5073,8 @@ function InlinePuzzleSolver({
           maxWidth: 280,
           mx: "auto",
           borderRadius: "10px",
-          outline: "3px solid",
-          outlineColor: flashColor,
-          transition: `outline-color ${MOTION.hover}`,
+          boxShadow: flashShadow,
+          transition: "box-shadow 400ms ease",
           overflow: "hidden",
         }}
       >
@@ -5128,20 +5090,11 @@ function InlinePuzzleSolver({
         />
       </Box>
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1.25 }}>
-        {StatusIcon && (
-          <StatusIcon
-            size={16}
-            strokeWidth={1.75}
-            color={statusIconColor}
-            aria-hidden
-            style={{ flexShrink: 0 }}
-          />
-        )}
         <Typography
           sx={{
-            fontSize: TYPE.caption.fontSize,
+            fontSize: "0.78rem",
             fontWeight: 600,
-            color: status === "solving" ? TEXT.secondary : TEXT.primary,
+            color: statusColor,
             flex: 1,
           }}
         >
@@ -5154,14 +5107,11 @@ function InlinePuzzleSolver({
             sx={{
               px: 1,
               py: 0.4,
-              fontSize: TYPE.caption.fontSize,
+              fontSize: "0.72rem",
               fontWeight: 600,
-              color: TEXT.secondary,
+              color: "rgba(255,255,255,0.6)",
               textTransform: "none",
-              "&:hover": {
-                color: TEXT.primary,
-                background: "rgba(255,255,255,0.06)",
-              },
+              "&:hover": { color: "rgba(255,255,255,0.9)" },
             }}
           >
             Skip
@@ -5174,14 +5124,15 @@ function InlinePuzzleSolver({
             sx={{
               px: 1.25,
               py: 0.45,
-              fontSize: TYPE.caption.fontSize,
-              fontWeight: 600,
-              background: "transparent",
-              border: `1px solid ${LINE.strong}`,
-              color: TEXT.primary,
+              borderRadius: "0.5rem",
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              background: "rgba(168,85,247,0.15)",
+              border: "1px solid rgba(168,85,247,0.32)",
+              color: "#E9D5FF",
               "&:hover": {
-                background: "rgba(255,255,255,0.06)",
-                borderColor: TEXT.secondary,
+                background: "rgba(168,85,247,0.28)",
+                borderColor: "rgba(168,85,247,0.55)",
               },
             }}
           >
@@ -5253,17 +5204,21 @@ function CoachPuzzleCard({
       sx={{
         mt: 1,
         p: 1.5,
-        borderRadius: `${RADIUS.control}px`,
-        background: SURFACE.raisedSecondary,
-        border: `1px solid ${LINE.hairline}`,
+        borderRadius: "0.85rem",
+        background:
+          "linear-gradient(135deg, rgba(168,85,247,0.08), rgba(168,85,247,0.02))",
+        border: "1px solid rgba(168,85,247,0.25)",
       }}
     >
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.25 }}>
-        <Lightbulb size={16} strokeWidth={1.75} color={TEXT.secondary} />
+        <Lightbulb size={14} color="#C084FC" />
         <Typography
           sx={{
-            ...TYPE.label,
-            color: TEXT.primary,
+            fontSize: "0.76rem",
+            fontWeight: 700,
+            letterSpacing: "0.08em",
+            color: "#E9D5FF",
+            textTransform: "uppercase",
           }}
         >
           {pack.displayTheme}
@@ -5271,9 +5226,9 @@ function CoachPuzzleCard({
         <Box sx={{ flex: 1 }} />
         <Typography
           sx={{
-            fontSize: TYPE.caption.fontSize,
-            color: TEXT.secondary,
-            fontVariantNumeric: "tabular-nums",
+            fontSize: "0.7rem",
+            color: "rgba(255,255,255,0.45)",
+            fontFamily: "Monaco, Menlo, monospace",
           }}
         >
           {pack.status === "loading"
@@ -5290,8 +5245,15 @@ function CoachPuzzleCard({
               key={i}
               sx={{
                 height: 48,
-                borderRadius: `${RADIUS.small}px`,
-                background: "rgba(255,255,255,0.06)",
+                borderRadius: "0.6rem",
+                background:
+                  "linear-gradient(90deg, rgba(168,85,247,0.05) 0%, rgba(168,85,247,0.12) 50%, rgba(168,85,247,0.05) 100%)",
+                backgroundSize: "200% 100%",
+                animation: "shimmer 1.6s ease-in-out infinite",
+                "@keyframes shimmer": {
+                  "0%": { backgroundPosition: "200% 0" },
+                  "100%": { backgroundPosition: "-200% 0" },
+                },
               }}
             />
           ))}
@@ -5302,30 +5264,20 @@ function CoachPuzzleCard({
           sx={{
             px: 1.5,
             py: 1.5,
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 1,
-            borderRadius: `${RADIUS.control}px`,
-            background: STATUS.errorTint,
-            border: `1px solid ${LINE.hairline}`,
+            borderRadius: "0.6rem",
+            background: "rgba(239,68,68,0.08)",
+            border: "1px solid rgba(239,68,68,0.2)",
           }}
         >
-          <AlertTriangle
-            size={16}
-            strokeWidth={1.75}
-            color={STATUS.error}
-            aria-hidden
-            style={{ flexShrink: 0, marginTop: 1 }}
-          />
           <Typography
             sx={{
-              fontSize: TYPE.caption.fontSize,
-              color: TEXT.primary,
+              fontSize: "0.8rem",
+              color: "#fca5a5",
               lineHeight: 1.4,
             }}
           >
             Couldn't reach the puzzle store
-            {pack.error ? `: ${pack.error}` : ""}.
+            {pack.error ? ` — ${pack.error}` : ""}.
           </Typography>
         </Box>
       )}
@@ -5345,22 +5297,23 @@ function CoachPuzzleCard({
                   gap: 1.25,
                   px: 1.25,
                   py: 1,
-                  borderRadius: isExpanded
-                    ? `${RADIUS.small}px ${RADIUS.small}px 0 0`
-                    : `${RADIUS.small}px`,
+                  borderRadius: isExpanded ? "0.6rem 0.6rem 0 0" : "0.6rem",
                   background: isExpanded
-                    ? "rgba(255,255,255,0.10)"
-                    : SURFACE.raisedSecondary,
-                  border: `1px solid ${LINE.hairline}`,
+                    ? "rgba(168,85,247,0.08)"
+                    : "rgba(255,255,255,0.03)",
+                  border: isExpanded
+                    ? "1px solid rgba(168,85,247,0.32)"
+                    : "1px solid rgba(255,255,255,0.05)",
                   borderBottom: isExpanded
                     ? "none"
-                    : `1px solid ${LINE.hairline}`,
+                    : "1px solid rgba(255,255,255,0.05)",
                   cursor: "pointer",
-                  transition: `background-color ${MOTION.hover}`,
+                  transition: "all 160ms ease",
                   "&:hover": {
                     background: isExpanded
-                      ? "rgba(255,255,255,0.10)"
-                      : "rgba(255,255,255,0.06)",
+                      ? "rgba(168,85,247,0.1)"
+                      : "rgba(168,85,247,0.06)",
+                    borderColor: "rgba(168,85,247,0.25)",
                   },
                 }}
               >
@@ -5371,22 +5324,21 @@ function CoachPuzzleCard({
                     flexShrink: 0,
                     borderRadius: "50%",
                     background: isSolved
-                      ? STATUS.successTint
-                      : SURFACE.raisedTertiary,
+                      ? "rgba(34,197,94,0.18)"
+                      : "rgba(168,85,247,0.15)",
+                    border: isSolved
+                      ? "1px solid rgba(34,197,94,0.4)"
+                      : "1px solid rgba(168,85,247,0.3)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: TYPE.caption.fontSize,
-                    fontWeight: 600,
-                    fontVariantNumeric: "tabular-nums",
-                    color: isSolved ? STATUS.success : TEXT.secondary,
+                    fontSize: "0.72rem",
+                    fontWeight: 700,
+                    color: isSolved ? "#86efac" : "#C084FC",
+                    fontFamily: "Monaco, Menlo, monospace",
                   }}
                 >
-                  {isSolved ? (
-                    <Check size={14} strokeWidth={1.75} aria-label="Solved" />
-                  ) : (
-                    i + 1
-                  )}
+                  {isSolved ? <Check size={12} /> : i + 1}
                 </Box>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography
@@ -5402,8 +5354,8 @@ function CoachPuzzleCard({
                   <Typography
                     sx={{
                       mt: 0.25,
-                      fontSize: TYPE.caption.fontSize,
-                      color: TEXT.secondary,
+                      fontSize: "0.72rem",
+                      color: "rgba(255,255,255,0.5)",
                       lineHeight: 1.35,
                     }}
                   >
@@ -5422,14 +5374,16 @@ function CoachPuzzleCard({
                       minWidth: 0,
                       px: 1.25,
                       py: 0.5,
-                      fontSize: TYPE.caption.fontSize,
-                      fontWeight: 600,
-                      background: "transparent",
-                      border: `1px solid ${LINE.strong}`,
-                      color: TEXT.primary,
+                      borderRadius: "0.55rem",
+                      fontSize: "0.72rem",
+                      fontWeight: 700,
+                      letterSpacing: "0.02em",
+                      background: "rgba(168,85,247,0.15)",
+                      border: "1px solid rgba(168,85,247,0.35)",
+                      color: "#E9D5FF",
                       "&:hover": {
-                        background: "rgba(255,255,255,0.06)",
-                        borderColor: TEXT.secondary,
+                        background: "rgba(168,85,247,0.28)",
+                        borderColor: "rgba(168,85,247,0.6)",
                       },
                     }}
                   >
@@ -5439,8 +5393,8 @@ function CoachPuzzleCard({
                 <Box
                   sx={{
                     flexShrink: 0,
-                    color: TEXT.secondary,
-                    transition: `transform ${MOTION.enter}`,
+                    color: "rgba(255,255,255,0.5)",
+                    transition: "transform 200ms ease",
                     transform: isExpanded ? "rotate(180deg)" : "none",
                   }}
                 >
@@ -5450,9 +5404,10 @@ function CoachPuzzleCard({
               {isExpanded && (
                 <Box
                   sx={{
-                    border: `1px solid ${LINE.hairline}`,
+                    border: "1px solid rgba(168,85,247,0.32)",
                     borderTop: "none",
-                    borderRadius: `0 0 ${RADIUS.small}px ${RADIUS.small}px`,
+                    borderRadius: "0 0 0.6rem 0.6rem",
+                    background: "rgba(168,85,247,0.04)",
                     p: 0.5,
                   }}
                 >
@@ -5492,7 +5447,8 @@ function CoachPuzzleCard({
 //   3. Lists of "- foo" bullets get rendered as a real list.
 const INSIGHT_LABEL_RE =
   /^(Idea|Problem|Solution|Outcome|Continuation)\s*:\s*(.+)$/i;
-const CONTINUATION_TAG_RE = /\[(CONTINUATION|MAIA_CONTINUATION):(\d+):(w|b)\]/g;
+const CONTINUATION_TAG_RE =
+  /\[(CONTINUATION|MAIA_CONTINUATION|PLAYED):(\d+):(w|b)\]/g;
 
 function ContinuationPill({
   kind,
@@ -5510,12 +5466,16 @@ function ContinuationPill({
         px: 0.85,
         py: 0.25,
         mx: 0.4,
-        borderRadius: `${RADIUS.small}px`,
-        fontSize: TYPE.caption.fontSize,
-        fontWeight: 500,
-        color: TEXT.secondary,
-        background: SURFACE.raisedSecondary,
-        border: `1px solid ${LINE.hairline}`,
+        borderRadius: "999px",
+        fontSize: "0.68rem",
+        fontWeight: 700,
+        letterSpacing: "0.04em",
+        textTransform: "uppercase",
+        color: isMaia ? "#C4B5FD" : "#FB923C",
+        background: isMaia ? "rgba(196,181,253,0.08)" : "rgba(251,146,60,0.08)",
+        border: isMaia
+          ? "1px solid rgba(196,181,253,0.28)"
+          : "1px solid rgba(251,146,60,0.28)",
       }}
     >
       {isMaia ? "Maia line" : "Engine line"}
@@ -5523,194 +5483,11 @@ function ContinuationPill({
   );
 }
 
-// Dark-themed counterpart to production's EngineContinuation
-// (AICoachChat.tsx:716) and MaiaContinuation (:822). Reads PV directly
-// from the local enginePositions[] (no atoms — the new surface uses
-// component state). Falls back to the lightweight ContinuationPill +
-// "open the Lines tab" footer when data isn't available.
-function InsightContinuationInline({
-  kind,
-  moveNum,
-  color,
-  enginePositions,
-  loadedGame,
-  onJumpToPly,
-  renderInline,
-}: {
-  kind: "CONTINUATION" | "MAIA_CONTINUATION";
-  moveNum: number;
-  color: "w" | "b";
-  enginePositions: PositionEval[] | null;
-  loadedGame: Chess;
-  onJumpToPly?: (ply: number) => void;
-  /** When provided, the PV's SAN moves get run through renderInline with
-   *  forceRecommended=true so each "N. san" turns into a green 🔍
-   *  clickable Box (same styling as recommended-move refs in prose).
-   *  Caller passes CoachBubble's renderInline closure. */
-  renderInline?: (
-    text: string,
-    forceRecommended?: boolean
-  ) => React.ReactNode[];
-}) {
-  // Half-move index inside enginePositions / loadedGame.history():
-  // - white move N lands at ply 2N-1 (1-indexed) → index 2(N-1)
-  // - black move N lands at ply 2N        (1-indexed) → index 2N-1
-  const halfMoveIdx = color === "b" ? moveNum * 2 - 1 : (moveNum - 1) * 2;
-
-  const isMaia = kind === "MAIA_CONTINUATION";
-  const label = isMaia ? "Maia line" : "Engine line";
-
-  const data = useMemo(() => {
-    if (!enginePositions || halfMoveIdx < 0) return null;
-    // The PV at index `halfMoveIdx` is the engine's best continuation
-    // FROM that position. We want the line AT this move, which means
-    // looking at the position BEFORE the move (halfMoveIdx itself).
-    const posEval = enginePositions[halfMoveIdx];
-    const pv = posEval?.lines?.[0];
-    if (!pv?.pv || pv.pv.length === 0) return null;
-
-    // Get FEN before this move by replaying loadedGame's history from its
-    // ROOT — a FEN-loaded game does not start from the standard position.
-    let fenBefore: string | null = null;
-    try {
-      const { board } = replayFromRoot(
-        loadedGame.history(),
-        halfMoveIdx,
-        getRootFen(loadedGame)
-      );
-      fenBefore = board.fen();
-    } catch {
-      return null;
-    }
-
-    // Convert UCI PV → SAN. Bail at the first failure (corrupt UCI).
-    const sans: string[] = [];
-    try {
-      const replay = new Chess(fenBefore);
-      for (const uci of pv.pv.slice(0, 8)) {
-        const mv = replay.move({
-          from: uci.slice(0, 2),
-          to: uci.slice(2, 4),
-          promotion: uci.length >= 5 ? uci[4] : "q",
-        });
-        if (!mv) break;
-        sans.push(mv.san);
-      }
-    } catch {
-      /* SAN conversion partial — render what we got */
-    }
-    if (sans.length === 0) return null;
-
-    const evalStr =
-      typeof pv.mate === "number"
-        ? `M${pv.mate > 0 ? "+" : ""}${pv.mate}`
-        : typeof pv.cp === "number"
-          ? `${pv.cp >= 0 ? "+" : ""}${(pv.cp / 100).toFixed(2)}`
-          : "";
-
-    // Render as "14. e4 c5 15. Nf3 d6 16. d4 …" — chess.com-style
-    // move-number-prefixed display, beginning at the right move number.
-    const display: string[] = [];
-    let m = moveNum;
-    let isWhiteMove = color === "w";
-    for (const san of sans) {
-      if (isWhiteMove) display.push(`${m}.`);
-      display.push(san);
-      if (!isWhiteMove) m += 1;
-      isWhiteMove = !isWhiteMove;
-    }
-    return { evalStr, displayText: display.join(" "), depth: pv.depth };
-  }, [enginePositions, halfMoveIdx, color, moveNum, loadedGame]);
-
-  if (!data) {
-    // Engine data not ready or PV unavailable — fall back to the small
-    // pill marker so the user still knows the coach referenced a line.
-    return <ContinuationPill kind={kind} />;
-  }
-
-  return (
-    <Box
-      onClick={() => onJumpToPly?.(halfMoveIdx)}
-      sx={{
-        mt: 1,
-        mb: 0.5,
-        cursor: onJumpToPly ? "pointer" : "default",
-        background: "transparent",
-        border: `1px solid ${LINE.hairline}`,
-        borderRadius: `${RADIUS.control}px`,
-        px: 1.25,
-        py: 0.85,
-        display: "flex",
-        flexDirection: "column",
-        gap: 0.4,
-        transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
-        "&:hover": onJumpToPly
-          ? {
-              background: "rgba(255,255,255,0.06)",
-              borderColor: LINE.strong,
-            }
-          : {},
-      }}
-    >
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 0.75,
-        }}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0.6,
-            ...TYPE.label,
-            color: TEXT.secondary,
-          }}
-        >
-          {label}
-          {data.evalStr && (
-            <Box
-              component="span"
-              sx={{
-                color: TEXT.secondary,
-                fontFamily: FONT_MONO,
-                fontWeight: 400,
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              {data.evalStr}
-            </Box>
-          )}
-        </Box>
-        {typeof data.depth === "number" && (
-          <Box
-            sx={{
-              fontSize: TYPE.caption.fontSize,
-              color: TEXT.secondary,
-              fontFamily: FONT_MONO,
-            }}
-          >
-            d{data.depth}
-          </Box>
-        )}
-      </Box>
-      <Box
-        sx={{
-          fontFamily: FONT_MONO,
-          fontSize: "0.84rem",
-          color: TEXT.primary,
-          lineHeight: 1.4,
-        }}
-      >
-        {renderInline
-          ? renderInline(data.displayText, !isMaia)
-          : data.displayText}
-      </Box>
-    </Box>
-  );
-}
+// Engine lines under a card used to be drawn here, per token, inside the
+// WHY reveal — and a second, identical box labelled "Maia line" beside it,
+// because the client has no Maia data and the token fell back to the same
+// Stockfish PV. The card now draws ONE proof line (ProofLine.tsx) from the
+// same engine data, with what each move does, above the reveals.
 
 function InsightBodyText({
   text,
@@ -5734,22 +5511,18 @@ function InsightBodyText({
   //   - a paragraph
   // Lines that aren't continuations still get their inline [CONTINUATION:…]
   // tags stripped so the literal token never leaks into prose.
-  const canInline = !!enginePositions && !!loadedGame;
+  // A line token on a line of its own is the CARD's to draw (the proof line
+  // under the headline), never the body's: here it is dropped, and when
+  // engine data is not ready yet a footer pill says a line was cited.
+  const engineReady = !!enginePositions && !!loadedGame;
   const standaloneContinuationRe =
-    /^\[(CONTINUATION|MAIA_CONTINUATION):(\d+):([wb])\]\s*$/i;
-  type Continuation = {
-    kind: "continuation";
-    tagKind: "CONTINUATION" | "MAIA_CONTINUATION";
-    moveNum: number;
-    color: "w" | "b";
-  };
+    /^\[(CONTINUATION|MAIA_CONTINUATION|PLAYED):(\d+):([wb])\]\s*$/i;
 
   const rawLines = text.split(/\r?\n/).map((l) => l.trim());
   const blocks: Array<
     | { kind: "label"; label: string; body: string }
     | { kind: "bullets"; items: string[] }
     | { kind: "para"; body: string }
-    | Continuation
   > = [];
   let bulletBuf: string[] = [];
   const flushBullets = () => {
@@ -5762,24 +5535,13 @@ function InsightBodyText({
   // Track whether any non-inlined continuation tags remained — drives the
   // footer pill fallback for when engine data isn't ready.
   let unInlinedContinuation = false;
-  let unInlinedMaia = false;
 
   for (const rawLine of rawLines) {
     if (!rawLine) continue;
     const contM = standaloneContinuationRe.exec(rawLine);
     if (contM) {
-      const tagKind = contM[1].toUpperCase() as Continuation["tagKind"];
-      if (canInline) {
-        flushBullets();
-        blocks.push({
-          kind: "continuation",
-          tagKind,
-          moveNum: parseInt(contM[2], 10),
-          color: contM[3].toLowerCase() as "w" | "b",
-        });
-      } else {
-        if (tagKind === "MAIA_CONTINUATION") unInlinedMaia = true;
-        else unInlinedContinuation = true;
+      if (!engineReady && contM[1].toUpperCase() === "CONTINUATION") {
+        unInlinedContinuation = true;
       }
       continue;
     }
@@ -5808,14 +5570,13 @@ function InsightBodyText({
   // referenced a line. Keeps the name `hasContinuation`/`hasMaia` so the
   // existing footer JSX below works unchanged.
   const hasContinuation = unInlinedContinuation;
-  const hasMaia = unInlinedMaia;
 
   return (
     <Box
       sx={{
-        fontSize: "0.85rem",
+        fontSize: "0.92rem",
         color: "rgba(255,255,255,0.88)",
-        lineHeight: 1.55,
+        lineHeight: 1.6,
       }}
     >
       {blocks.map((b, i) => {
@@ -5834,10 +5595,13 @@ function InsightBodyText({
             >
               <Box
                 sx={{
-                  ...TYPE.label,
-                  color: TEXT.secondary,
+                  fontSize: "0.62rem",
+                  fontWeight: 800,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: "rgba(251,146,60,0.8)",
                   whiteSpace: "nowrap",
-                  pt: 0.15,
+                  pt: 0.3,
                 }}
               >
                 {b.label}
@@ -5868,7 +5632,7 @@ function InsightBodyText({
                 pl: 2.5,
                 my: 0.75,
                 "& li": { mb: 0.3, color: "rgba(255,255,255,0.86)" },
-                "& li::marker": { color: TEXT.secondary },
+                "& li::marker": { color: "rgba(251,146,60,0.65)" },
               }}
             >
               {b.items.map((it, j) => (
@@ -5879,43 +5643,27 @@ function InsightBodyText({
             </Box>
           );
         }
-        if (b.kind === "continuation") {
-          if (!enginePositions || !loadedGame) return null;
-          return (
-            <InsightContinuationInline
-              key={i}
-              kind={b.tagKind}
-              moveNum={b.moveNum}
-              color={b.color}
-              enginePositions={enginePositions}
-              loadedGame={loadedGame}
-              onJumpToPly={onJumpToPly}
-              renderInline={renderInline}
-            />
-          );
-        }
         return (
           <Box key={i} sx={{ mt: i === 0 ? 0 : 0.6 }}>
             {renderInline(b.body)}
           </Box>
         );
       })}
-      {(hasContinuation || hasMaia) && (
+      {hasContinuation && (
         <Box
           sx={{
             mt: 1.25,
             pt: 1,
-            borderTop: `1px solid ${LINE.hairline}`,
+            borderTop: "1px dashed rgba(255,255,255,0.08)",
             display: "flex",
             gap: 0.5,
             alignItems: "center",
             flexWrap: "wrap",
-            fontSize: TYPE.caption.fontSize,
-            color: TEXT.secondary,
+            fontSize: "0.72rem",
+            color: "rgba(255,255,255,0.55)",
           }}
         >
-          {hasContinuation && <ContinuationPill kind="CONTINUATION" />}
-          {hasMaia && <ContinuationPill kind="MAIA_CONTINUATION" />}
+          <ContinuationPill kind="CONTINUATION" />
           <Box sx={{ ml: 0.35 }}>· open the Lines tab for the full PV</Box>
         </Box>
       )}
@@ -5923,21 +5671,80 @@ function InsightBodyText({
   );
 }
 
+// ─── CoachNote ───────────────────────────────────────────────────────────
+// A labelled teaching note: "LESSON" over the pattern and the check to run
+// next time, "YOUR TURN" over a question the player can answer from the
+// board. The same block under a key moment and in a follow-up, so the
+// lesson looks like the lesson wherever it appears. A coloured rule, not a
+// box: the transcript is prose, and the note is a sentence of it.
+const NOTE_TONES: Record<string, string> = {
+  lesson: "#FB923C",
+  "your turn": "#86efac",
+};
+
+function CoachNote({
+  label,
+  children,
+  renderInline,
+  "data-testid": testId,
+}: {
+  label: string;
+  children: string;
+  renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
+  "data-testid"?: string;
+}) {
+  const tone = NOTE_TONES[label.toLowerCase()] ?? NOTE_TONES.lesson;
+  return (
+    <Box
+      data-testid={testId}
+      sx={{
+        mt: 1,
+        pl: 1.25,
+        borderLeft: `2px solid ${tone}`,
+        display: "grid",
+        gridTemplateColumns: "auto 1fr",
+        columnGap: 1,
+        alignItems: "baseline",
+      }}
+    >
+      <Box
+        sx={{
+          fontSize: "0.62rem",
+          fontWeight: 800,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: tone,
+          whiteSpace: "nowrap",
+          pt: 0.15,
+        }}
+      >
+        {label}
+      </Box>
+      <Box
+        sx={{
+          fontSize: "0.92rem",
+          lineHeight: 1.6,
+          color: "rgba(255,255,255,0.88)",
+        }}
+      >
+        {renderInline(children)}
+      </Box>
+    </Box>
+  );
+}
+
 // ─── DarkInsightCard ─────────────────────────────────────────────────────
-// Dark-themed counterpart to production's InsightCard
-// (src/components/AICoachInsights.tsx). Same parsed InsightData shape via
-// shared parseInsights — we just render it on a glass surface instead of
-// the light Material card the legacy chat uses.
+// A key moment of the review, as a passage of the coach's message rather
+// than a card: the move and its verdict, the lede, the Idea and the
+// Problem, the engine's line drawn as one quiet row, the Solution and the
+// Outcome, then the lesson. Nothing about the move is hidden. Only the
+// game's own continuation and the practice hand-off sit behind a word.
 //
-// Layout:
-//   ┌─────────────────────────────────────────────────────────┐
-//   │ 16. Bf5   [Blunder ??]   −0.57 → M−1                    │
-//   │ Bringing the second rook into play seemed logical…      │
-//   │ [Show why ▾] [Threats] [Roles] [Concept]                │
-//   │ ╭─ Why ───────────────────────────────────────────────╮  │
-//   │ │ Idea / Problem / Solution / Outcome                 │  │
-//   │ ╰─────────────────────────────────────────────────────╯  │
-//   └─────────────────────────────────────────────────────────┘
+// It used to be a bordered glass card inside a bubble inside a stack, with
+// a face of its own, four reveal pills (What happened / Threats / Piece
+// roles / Concept) and a gradient CTA. The threats and roles sections the
+// verbalizer still emits are no longer rendered: they are side facts the
+// reader can ask for, and the coach answers from the same data.
 function DarkInsightCard({
   insight,
   renderInline,
@@ -5946,44 +5753,36 @@ function DarkInsightCard({
   enginePositions,
   loadedGame,
   onJumpToPly,
+  gameSans,
+  rootFen,
+  playerColor,
+  onShowLinePly,
 }: {
   insight: InsightData;
   renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
   onMoveClick?: (moveNumber: number, isBlack: boolean) => void;
-  /** Fires when the user clicks "Practice this concept" — invokes the
-   * parent's triggerPuzzleFetch to attach a real Neo4j-backed pack. */
+  /** Fires when the user clicks "Practice …" — invokes the parent's
+   * triggerPuzzleFetch to attach a real Neo4j-backed pack. */
   onPracticeConcept?: (theme: string, displayName: string) => void;
-  /** Optional engine data — passed through to InsightBodyText so it can
-   * materialise `[CONTINUATION:N:c]` / `[MAIA_CONTINUATION:N:c]` tokens
-   * as live PV widgets. Falls back to the small pill marker if absent. */
+  /** Optional engine data — passed through to InsightBodyText so a stray
+   * inline token is stripped rather than shown. */
   enginePositions?: PositionEval[] | null;
   loadedGame?: Chess;
   onJumpToPly?: (ply: number) => void;
+  /** The game's SAN moves and root, to resolve the passage's lines. */
+  gameSans?: string[];
+  rootFen?: string;
+  playerColor?: "w" | "b" | null;
+  /** Put a ply of a proof line on the main board. */
+  onShowLinePly?: (line: CoachLine, k: number) => void;
 }) {
-  // showWhy is open by default so the card's actual analysis is visible
-  // immediately. The headline alone is a non-spoiler one-liner and was
-  // never enough on its own to demonstrate value — users had to click
-  // four reveals per card (Why / Threats / Roles / Concept) to read a
-  // single insight, and at five-card carousels that's 20+ clicks. The
-  // spoiler-avoidance design assumed users wanted to think about the
-  // position first; in practice with no progressive-reveal UI elsewhere
-  // on the page the convention isn't legible. The three secondary
-  // reveals (Threats / Roles / Concept) stay closed by default — they
-  // are supplementary context and the user can opt in if they want it.
-  const [showWhy, setShowWhy] = useState(true);
-  const [showThreats, setShowThreats] = useState(false);
-  const [showRoles, setShowRoles] = useState(false);
-  const [showConcept, setShowConcept] = useState(false);
+  const why = useMemo(() => splitInsightWhy(insight.why), [insight.why]);
+  const [showPlayed, setShowPlayed] = useState(false);
 
   const cls = (insight.classification ?? "").toLowerCase() as MoveLabel;
   const color = CLASSIFICATION_COLORS[cls] ?? "rgba(255,255,255,0.4)";
   const label = CLASSIFICATION_LABELS[cls] ?? insight.classification ?? "";
   const glyph = CLASSIFICATION_GLYPHS[cls] ?? "";
-  const isNegative =
-    cls === MoveClassification.Blunder ||
-    cls === MoveClassification.Mistake ||
-    cls === MoveClassification.Inaccuracy ||
-    cls === MoveClassification.Miss;
 
   const evalLine =
     insight.evalBefore || insight.evalAfter
@@ -5994,109 +5793,73 @@ function DarkInsightCard({
     ? `${insight.moveLabel} ${insight.playedMove}`
     : insight.moveLabel;
 
-  const Pill = ({
-    label,
-    active,
+  // The lines this passage can draw, from the client's own engine data.
+  const cardColor: "w" | "b" = insight.color === "b" ? "b" : "w";
+  const sans = useMemo(() => gameSans ?? [], [gameSans]);
+  const engineLine = useMemo(
+    () =>
+      engineLineAt(
+        enginePositions,
+        sans,
+        insight.moveNumber,
+        cardColor,
+        rootFen
+      ),
+    [enginePositions, sans, insight.moveNumber, cardColor, rootFen]
+  );
+  const playedLine = useMemo(
+    () =>
+      playedLineAt(
+        sans,
+        insight.moveNumber,
+        cardColor,
+        rootFen,
+        6,
+        enginePositions
+      ),
+    [sans, insight.moveNumber, cardColor, rootFen, enginePositions]
+  );
+
+  const TextLink = ({
     onClick,
+    children,
   }: {
-    label: string;
-    active: boolean;
     onClick: () => void;
+    children: React.ReactNode;
   }) => (
     <Box
+      component="button"
+      type="button"
       onClick={onClick}
       sx={{
+        font: "inherit",
+        fontSize: "0.78rem",
+        fontWeight: 700,
+        color: "#FB923C",
+        background: "none",
+        border: 0,
+        p: 0,
         cursor: "pointer",
-        px: 1.25,
-        py: 0.45,
-        borderRadius: `${RADIUS.pill}px`,
-        fontSize: TYPE.caption.fontSize,
-        fontWeight: 600,
-        color: active ? ACCENT.hover : TEXT.secondary,
-        background: active ? ACCENT.tint : "rgba(255,255,255,0.05)",
-        border: active
-          ? `1px solid ${ACCENT.border}`
-          : `1px solid ${LINE.hairline}`,
-        transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
-        "&:hover": active
-          ? {}
-          : {
-              background: "rgba(255,255,255,0.08)",
-              borderColor: LINE.strong,
-              color: TEXT.primary,
-            },
-        "&:active": { transform: MOTION.pressScale },
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 0.5,
+        "&:hover": { textDecoration: "underline" },
       }}
     >
-      {label}
+      {children}
     </Box>
   );
 
-  const Reveal = ({
-    title,
-    body,
-    onClose,
-  }: {
-    title: string;
-    body: string;
-    onClose: () => void;
-  }) => (
-    <Box
-      sx={{
-        mt: 1,
-        p: 1.25,
-        borderRadius: `${RADIUS.control}px`,
-        border: `1px solid ${LINE.hairline}`,
-        position: "relative",
-      }}
-    >
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          mb: 0.5,
-        }}
-      >
-        <Typography
-          sx={{
-            ...TYPE.label,
-            color: TEXT.secondary,
-          }}
-        >
-          {title}
-        </Typography>
-        <Box
-          onClick={onClose}
-          sx={{
-            cursor: "pointer",
-            color: TEXT.secondary,
-            fontSize: "1rem",
-            lineHeight: 1,
-            transition: `color ${MOTION.hover}`,
-            "&:hover": { color: TEXT.primary },
-          }}
-        >
-          ×
-        </Box>
-      </Box>
-      <InsightBodyText
-        text={body}
-        renderInline={renderInline}
-        enginePositions={enginePositions}
-        loadedGame={loadedGame}
-        onJumpToPly={onJumpToPly}
-      />
-    </Box>
-  );
+  const canPractice =
+    !!insight.conceptKey && !!insight.conceptName && !!onPracticeConcept;
 
   return (
-    <Box>
-      {/* Header: move ref + classification chip + eval delta */}
+    <Box sx={{ minWidth: 0 }}>
+      {/* Header: move ref + verdict + eval delta */}
       <Stack
         direction="row"
         spacing={1}
-        alignItems="center"
+        alignItems="baseline"
         sx={{ flexWrap: "wrap", gap: 0.75 }}
       >
         <Box
@@ -6106,14 +5869,16 @@ function DarkInsightCard({
           sx={{
             cursor: "pointer",
             fontWeight: 700,
-            fontSize: "0.95rem",
-            color: ACCENT.hover,
+            fontSize: "1rem",
+            fontFamily:
+              "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+            color: "#FB923C",
             textDecoration: "underline",
-            textDecorationColor: "rgba(251,146,60,0.4)",
+            textDecorationColor: "rgba(251,146,60,0.35)",
             textUnderlineOffset: "3px",
-            transition: `text-decoration-color ${MOTION.hover}`,
             "&:hover": {
-              textDecorationColor: ACCENT.hover,
+              color: "#FDBA74",
+              textDecorationColor: "#FDBA74",
             },
           }}
         >
@@ -6121,33 +5886,21 @@ function DarkInsightCard({
         </Box>
         <Box
           sx={{
-            px: 0.85,
-            py: 0.25,
-            borderRadius: `${RADIUS.small}px`,
-            background: `${color}24`,
             color,
-            fontSize: TYPE.caption.fontSize,
-            fontWeight: 600,
-            display: "flex",
-            gap: 0.4,
-            alignItems: "center",
+            fontSize: "0.76rem",
+            fontWeight: 700,
+            letterSpacing: "0.02em",
           }}
         >
-          {glyph && <Box component="span">{glyph}</Box>}
+          {glyph ? `${glyph} ` : ""}
           {label}
         </Box>
-        <MastiAvatar
-          mood={classificationMood(cls, "unknown")}
-          size={20}
-          ring={false}
-        />
         {evalLine && (
           <Typography
             sx={{
-              fontSize: TYPE.caption.fontSize,
-              color: TEXT.secondary,
-              fontFamily: FONT_MONO,
-              fontVariantNumeric: "tabular-nums",
+              fontSize: "0.74rem",
+              color: "rgba(255,255,255,0.45)",
+              fontFamily: "ui-monospace, SFMono-Regular, monospace",
             }}
           >
             {evalLine}
@@ -6159,141 +5912,110 @@ function DarkInsightCard({
       {insight.headline && (
         <Typography
           sx={{
-            mt: 1,
-            fontSize: "0.88rem",
+            mt: 0.75,
+            fontSize: "0.95rem",
             color: "rgba(255,255,255,0.92)",
-            lineHeight: 1.45,
+            lineHeight: 1.6,
           }}
         >
           {renderInline(insight.headline)}
         </Typography>
       )}
 
-      {/* Reveal pills */}
-      <Stack
-        direction="row"
-        spacing={0.75}
-        sx={{ mt: 1.25, flexWrap: "wrap", gap: 0.6 }}
-      >
-        {insight.why && (
-          <Pill
-            label={
-              showWhy
-                ? "Hide"
-                : isNegative
-                  ? "Show what was missed"
-                  : "Show why this works"
-            }
-            active={showWhy}
-            onClick={() => setShowWhy((v) => !v)}
+      {/* The intent and the reason: "you wanted X, but Y". */}
+      {why.lead && (
+        <Box sx={{ mt: 0.75 }} data-testid="insight-lead">
+          <InsightBodyText
+            text={why.lead}
+            renderInline={renderInline}
+            enginePositions={enginePositions}
+            loadedGame={loadedGame}
+            onJumpToPly={onJumpToPly}
           />
-        )}
-        {insight.threats && (
-          <Pill
-            label="Threats"
-            active={showThreats}
-            onClick={() => setShowThreats((v) => !v)}
-          />
-        )}
-        {insight.roles && (
-          <Pill
-            label="Piece roles"
-            active={showRoles}
-            onClick={() => setShowRoles((v) => !v)}
-          />
-        )}
-        {(insight.conceptBody || insight.conceptName) && (
-          <Pill
-            label={insight.conceptName ?? "Concept"}
-            active={showConcept}
-            onClick={() => setShowConcept((v) => !v)}
-          />
-        )}
-      </Stack>
-
-      {/* G11 fix: "Practice this concept" used to live INSIDE the
-          Concept reveal panel — users who clicked Threats or Roles
-          first never saw it. Lifted to a top-level primary CTA below
-          the reveal-pill row so any insight with a conceptKey surfaces
-          it inline. The quiet ember tint marks it as the one action that
-          leaves the card, without competing with the send button. */}
-      {insight.conceptKey && insight.conceptName && onPracticeConcept && (
-        <Box
-          onClick={() =>
-            onPracticeConcept(insight.conceptKey!, insight.conceptName!)
-          }
-          sx={{
-            mt: 1,
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 0.65,
-            px: 1.6,
-            py: 0.7,
-            borderRadius: `${RADIUS.pill}px`,
-            background: ACCENT.tint,
-            border: `1px solid ${ACCENT.border}`,
-            color: ACCENT.hover,
-            fontWeight: 600,
-            fontSize: TYPE.caption.fontSize,
-            touchAction: "manipulation",
-            transition: `border-color ${MOTION.hover}, transform ${MOTION.press}`,
-            "&:hover": {
-              borderColor: ACCENT.main,
-            },
-            "&:active": { transform: MOTION.pressScale },
-          }}
-        >
-          Practice {insight.conceptName.toLowerCase()}
         </Box>
       )}
 
-      {showWhy && insight.why && (
-        <Reveal
-          title={
-            insight.bestMove ? `Best move: ${insight.bestMove}` : "Explanation"
-          }
-          body={insight.why}
-          onClose={() => setShowWhy(false)}
+      {/* The proof: the engine's line from this position, drawn rather than
+          described, playable on the board. */}
+      {engineLine && (
+        <ProofLine
+          line={engineLine}
+          playerColor={playerColor ?? null}
+          onShowPly={onShowLinePly}
+          data-testid="insight-engine-line"
         />
       )}
-      {showThreats && insight.threats && (
-        <Reveal
-          title="Threats"
-          body={insight.threats}
-          onClose={() => setShowThreats(false)}
+      {showPlayed && playedLine && (
+        <ProofLine
+          line={playedLine}
+          playerColor={playerColor ?? null}
+          onShowPly={onShowLinePly}
+          label="What happened"
+          data-testid="insight-played-line"
         />
       )}
-      {showRoles && insight.roles && (
-        <Reveal
-          title="Piece roles"
-          body={insight.roles}
-          onClose={() => setShowRoles(false)}
-        />
+
+      {/* The solution and the outcome, in the coach's words, under the line
+          they describe. */}
+      {why.rest && (
+        <Box sx={{ mt: 0.75 }} data-testid="insight-rest">
+          <InsightBodyText
+            text={why.rest}
+            renderInline={renderInline}
+            enginePositions={enginePositions}
+            loadedGame={loadedGame}
+            onJumpToPly={onJumpToPly}
+          />
+        </Box>
       )}
-      {showConcept && (insight.conceptBody || insight.conceptName) && (
-        <Reveal
-          title={insight.conceptName ?? "Concept"}
-          body={insight.conceptBody ?? ""}
-          onClose={() => setShowConcept(false)}
-        />
+
+      {/* The lesson: the pattern to carry into the next game. */}
+      {why.lesson && (
+        <CoachNote
+          label="Lesson"
+          renderInline={renderInline}
+          data-testid="insight-lesson"
+        >
+          {why.lesson}
+        </CoachNote>
+      )}
+
+      {(playedLine || canPractice) && (
+        <Box
+          sx={{
+            mt: 1,
+            display: "flex",
+            gap: 2,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
+          {playedLine && (
+            <TextLink onClick={() => setShowPlayed((v) => !v)}>
+              {showPlayed ? "Hide what happened" : "What happened in the game"}
+            </TextLink>
+          )}
+          {canPractice && (
+            <TextLink
+              onClick={() =>
+                onPracticeConcept!(insight.conceptKey!, insight.conceptName!)
+              }
+            >
+              <Sparkles size={12} />
+              Practice {insight.conceptName!.toLowerCase()}
+            </TextLink>
+          )}
+        </Box>
       )}
     </Box>
   );
 }
 
-// ─── DarkInsightCarousel ────────────────────────────────────────────────
-// Paginated wrapper around DarkInsightCard. Renders one insight at a time
-// with prev/next arrows + counter + progress bar — mirrors production's
-// InsightsCarousel UX (src/components/AICoachInsights.tsx:487) but on
-// our dark glass surface.
-//
-// Animations:
-//   - Card content cross-fades (opacity only) when the insight changes
-//   - Indexed dots double as click targets so the user can jump to any
-//     insight directly
-//   - Keyboard: ← / → arrow keys advance when the carousel has focus
-function DarkInsightCarousel({
+// ─── DarkInsightStack ────────────────────────────────────────────────────
+// The review's key moments, one after another under a small heading, each
+// separated from the next by a rule. No outer box, no counter: the shape
+// of the game is the passages themselves.
+function DarkInsightStack({
   insights,
   renderInline,
   onMoveClick,
@@ -6301,6 +6023,10 @@ function DarkInsightCarousel({
   enginePositions,
   loadedGame,
   onJumpToPly,
+  gameSans,
+  rootFen,
+  playerColor,
+  onShowLinePly,
 }: {
   insights: InsightData[];
   renderInline: (text: string, forceRecommended?: boolean) => React.ReactNode[];
@@ -6309,231 +6035,54 @@ function DarkInsightCarousel({
   enginePositions?: PositionEval[] | null;
   loadedGame?: Chess;
   onJumpToPly?: (ply: number) => void;
+  gameSans?: string[];
+  rootFen?: string;
+  playerColor?: "w" | "b" | null;
+  onShowLinePly?: (line: CoachLine, k: number) => void;
 }) {
-  const [[idx], setState] = useState<[number, 1 | -1]>([0, 1]);
-  const total = insights.length;
-  const clamp = useCallback(
-    (n: number) => ((n % total) + total) % total,
-    [total]
-  );
-  const current = insights[clamp(idx)];
-  const go = useCallback(
-    (delta: 1 | -1) => setState(([prev]) => [clamp(prev + delta), delta]),
-    [clamp]
-  );
-  const jump = useCallback(
-    (target: number) =>
-      setState(([prev]) => [target, (target > prev ? 1 : -1) as 1 | -1]),
-    []
-  );
-  const handleKey = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowLeft") {
-      e.preventDefault();
-      go(-1);
-    } else if (e.key === "ArrowRight") {
-      e.preventDefault();
-      go(1);
-    }
-  };
-
-  if (total === 0) return null;
+  if (insights.length === 0) return null;
 
   return (
-    <Box
-      tabIndex={0}
-      onKeyDown={handleKey}
-      sx={{
-        // No fill of its own: the bubble is the one filled level, and the
-        // hairline groups the key moments inside it.
-        mt: 1.5,
-        borderRadius: `${RADIUS.control}px`,
-        border: `1px solid ${LINE.hairline}`,
-        overflow: "hidden",
-        outline: "none",
-        "&:focus-visible": {
-          outline: `2px solid ${TEXT.primary}`,
-          outlineOffset: 2,
-        },
-      }}
-    >
-      {/* Eyebrow + nav */}
+    <Box data-testid="key-moments" sx={{ mt: 1.5 }}>
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          px: 1.5,
-          py: 1,
-          borderBottom: `1px solid ${LINE.hairline}`,
+          gap: 0.75,
+          fontSize: "0.64rem",
+          fontWeight: 800,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: "rgba(255,255,255,0.45)",
         }}
       >
+        <Flame size={11} color="#FB923C" />
+        Key moments
+      </Box>
+      {insights.map((insight, i) => (
         <Box
+          key={`${insight.moveNumber}${insight.color}-${i}`}
           sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0.85,
+            mt: i === 0 ? 1 : 1.75,
+            pt: i === 0 ? 0 : 1.75,
+            borderTop: i === 0 ? 0 : "1px solid rgba(255,255,255,0.07)",
           }}
         >
-          <Flame size={16} strokeWidth={1.75} color={TEXT.secondary} />
-          <Box
-            sx={{
-              ...TYPE.label,
-              color: TEXT.secondary,
-            }}
-          >
-            Key moments
-          </Box>
+          <DarkInsightCard
+            insight={insight}
+            renderInline={renderInline}
+            onMoveClick={onMoveClick}
+            onPracticeConcept={onPracticeConcept}
+            enginePositions={enginePositions}
+            loadedGame={loadedGame}
+            onJumpToPly={onJumpToPly}
+            gameSans={gameSans}
+            rootFen={rootFen}
+            playerColor={playerColor}
+            onShowLinePly={onShowLinePly}
+          />
         </Box>
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0.5,
-          }}
-        >
-          <Box
-            onClick={() => go(-1)}
-            aria-label="Previous insight"
-            sx={{
-              cursor: total > 1 ? "pointer" : "default",
-              opacity: total > 1 ? 1 : 0.3,
-              width: 24,
-              height: 24,
-              borderRadius: `${RADIUS.small}px`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: TEXT.secondary,
-              transition: `background-color ${MOTION.hover}, color ${MOTION.hover}`,
-              "&:hover":
-                total > 1
-                  ? {
-                      background: "rgba(255,255,255,0.06)",
-                      color: TEXT.primary,
-                    }
-                  : {},
-            }}
-          >
-            <ChevronLeft size={14} />
-          </Box>
-          <Box
-            sx={{
-              fontSize: TYPE.caption.fontSize,
-              fontWeight: 600,
-              color: TEXT.secondary,
-              fontVariantNumeric: "tabular-nums",
-              minWidth: 32,
-              textAlign: "center",
-            }}
-          >
-            {clamp(idx) + 1} / {total}
-          </Box>
-          <Box
-            onClick={() => go(1)}
-            aria-label="Next insight"
-            sx={{
-              cursor: total > 1 ? "pointer" : "default",
-              opacity: total > 1 ? 1 : 0.3,
-              width: 24,
-              height: 24,
-              borderRadius: `${RADIUS.small}px`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: TEXT.secondary,
-              transition: `background-color ${MOTION.hover}, color ${MOTION.hover}`,
-              "&:hover":
-                total > 1
-                  ? {
-                      background: "rgba(255,255,255,0.06)",
-                      color: TEXT.primary,
-                    }
-                  : {},
-            }}
-          >
-            <ChevronRight size={14} />
-          </Box>
-        </Box>
-      </Box>
-
-      {/* Progress bar */}
-      <Box sx={{ position: "relative", height: 2 }}>
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            background: "rgba(255,255,255,0.04)",
-          }}
-        />
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            background: ACCENT.main,
-            transformOrigin: "left",
-            transform: `scaleX(${(clamp(idx) + 1) / total})`,
-            transition: `transform ${MOTION.enter}`,
-          }}
-        />
-      </Box>
-
-      {/* Card body: a 160ms cross-fade per insight, no slide. */}
-      <Box sx={{ position: "relative", p: 1.5 }}>
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={clamp(idx)}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.16, ease: "easeOut" }}
-          >
-            <DarkInsightCard
-              insight={current}
-              renderInline={renderInline}
-              onMoveClick={onMoveClick}
-              onPracticeConcept={onPracticeConcept}
-              enginePositions={enginePositions}
-              loadedGame={loadedGame}
-              onJumpToPly={onJumpToPly}
-            />
-          </motion.div>
-        </AnimatePresence>
-      </Box>
-
-      {/* Indexed dots (jump-to) */}
-      {total > 1 && (
-        <Box
-          sx={{
-            display: "flex",
-            gap: 0.5,
-            justifyContent: "center",
-            pb: 1.25,
-            pt: 0.25,
-          }}
-        >
-          {insights.map((_, i) => {
-            const active = i === clamp(idx);
-            return (
-              <Box
-                key={i}
-                onClick={() => jump(i)}
-                aria-label={`Go to insight ${i + 1}`}
-                sx={{
-                  cursor: "pointer",
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: active ? ACCENT.main : "rgba(255,255,255,0.18)",
-                  transition: `background-color ${MOTION.hover}`,
-                  "&:hover": active
-                    ? {}
-                    : { background: "rgba(255,255,255,0.32)" },
-                }}
-              />
-            );
-          })}
-        </Box>
-      )}
+      ))}
     </Box>
   );
 }
@@ -6566,10 +6115,12 @@ function PuzzleSetCard({
     <Box
       sx={{
         mt: 1.25,
-        borderRadius: `${RADIUS.card}px`,
+        borderRadius: "1rem",
         overflow: "hidden",
-        background: SURFACE.raised,
-        border: `1px solid ${LINE.hairline}`,
+        background:
+          "linear-gradient(135deg, rgba(249,115,22,0.10), rgba(20,22,28,0.75))",
+        border: "1px solid rgba(249,115,22,0.32)",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
       }}
     >
       <Box
@@ -6586,30 +6137,35 @@ function PuzzleSetCard({
             width: 38,
             height: 38,
             flexShrink: 0,
+            borderRadius: "11px",
+            background:
+              "linear-gradient(135deg, rgba(249,115,22,0.9), rgba(234,88,12,0.9))",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            boxShadow: "0 0 18px rgba(249,115,22,0.35)",
           }}
         >
-          <Target size={20} strokeWidth={1.75} color={TEXT.secondary} />
+          <Target size={19} color="#0A0A0A" />
         </Box>
 
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             sx={{
               fontSize: "0.95rem",
-              fontWeight: 700,
-              color: TEXT.primary,
+              fontWeight: 800,
+              color: "rgba(255,255,255,0.96)",
               lineHeight: 1.25,
+              letterSpacing: "-0.01em",
             }}
           >
             {set.displayName}
           </Typography>
           <Typography
             sx={{
-              fontSize: TYPE.caption.fontSize,
-              color: TEXT.secondary,
-              fontVariantNumeric: "tabular-nums",
+              fontSize: "0.74rem",
+              color: "rgba(255,255,255,0.5)",
+              fontFamily: "Monaco, Menlo, monospace",
               mt: 0.25,
             }}
           >
@@ -6625,15 +6181,19 @@ function PuzzleSetCard({
             flexShrink: 0,
             px: 2,
             py: 0.9,
+            borderRadius: "10px",
             fontSize: "0.84rem",
-            fontWeight: 600,
+            fontWeight: 800,
+            letterSpacing: "0.01em",
             textTransform: "none",
-            color: ACCENT.hover,
-            background: ACCENT.tint,
-            border: `1px solid ${ACCENT.border}`,
+            color: "#0A0A0A",
+            background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)",
+            boxShadow: "0 6px 18px rgba(249,115,22,0.4)",
+            transition: "transform 180ms ease, box-shadow 180ms ease",
             "&:hover": {
-              background: ACCENT.tint,
-              borderColor: ACCENT.main,
+              background: "linear-gradient(135deg, #FB923C 0%, #F97316 100%)",
+              transform: "translateY(-1px)",
+              boxShadow: "0 9px 24px rgba(249,115,22,0.5)",
             },
           }}
         >
@@ -6659,6 +6219,8 @@ function CoachBubble({
   onLaunchPuzzleSet,
   enginePositions,
   loadedGame,
+  onShowLinePly,
+  playerColor,
 }: {
   msg: CoachMessage;
   onPromoteToBoard?: (puzzles: DrillPuzzle[], startIndex: number) => void;
@@ -6689,11 +6251,19 @@ function CoachBubble({
   /** Open a generated practice set on /puzzles. */
   onLaunchPuzzleSet?: (set: PuzzleSet) => void;
   /** Engine data passed through to insight cards so `[CONTINUATION:N:c]`
-   *  / `[MAIA_CONTINUATION:N:c]` tokens can materialise inline PVs. */
+   *  / `[PLAYED:N:c]` tokens can materialise as proof lines. */
   enginePositions?: PositionEval[] | null;
   loadedGame?: Chess;
+  /** Put a ply of a proof line on the main board. */
+  onShowLinePly?: (line: CoachLine, k: number) => void;
+  /** The side the reader played, for the proof line's ledger wording. */
+  playerColor?: "w" | "b" | null;
 }) {
   const isUser = msg.role === "user";
+  const gameSans = useMemo(
+    () => (allMoves ?? []).map((m) => m.san),
+    [allMoves]
+  );
 
   // Renderer: handles bold (**…**) AND inline move references (24.Rxd4 →
   // clickable, board jumps on click). `forceRecommended` lets a caller
@@ -6716,8 +6286,8 @@ function CoachBubble({
             key={`b${boldIdx}`}
             component="span"
             sx={{
-              fontWeight: 600,
-              color: TEXT.primary,
+              fontWeight: 700,
+              color: isUser ? "#FED7AA" : "#FB923C",
             }}
           >
             {part.slice(2, -2)}
@@ -6758,8 +6328,8 @@ function CoachBubble({
           const hypothetical = resolution.kind === "hypothetical";
           const ply = hypothetical ? resolution.anchorPly : resolution.ply;
           const playSan = hypothetical ? resolution.san : undefined;
-          const recColor = STATUS.success; // green: an alternative to explore
-          const navColor = isUser ? TEXT.primary : ACCENT.hover;
+          const recColor = "#86efac"; // light green for an alternative to explore
+          const navColor = isUser ? "#FED7AA" : "#FB923C";
           out.push(
             <Box
               key={`${boldIdx}m${ref.start}`}
@@ -6767,7 +6337,7 @@ function CoachBubble({
               onClick={() => onMoveRefClick(ply, playSan)}
               title={
                 hypothetical
-                  ? `Alternative: ${ref.san}. Shows the position after it`
+                  ? `Alternative: ${ref.san} — shows the position after it`
                   : `Jump to ${ref.moveNumber}${
                       ref.isBlack ? "..." : "."
                     } ${ref.san}`
@@ -6779,19 +6349,24 @@ function CoachBubble({
                 textDecoration: "underline",
                 textDecorationStyle: "dotted",
                 textDecorationColor: hypothetical
-                  ? "rgba(48,209,88,0.5)"
+                  ? "rgba(134,239,172,0.5)"
                   : isUser
-                    ? "rgba(255,255,255,0.5)"
+                    ? "rgba(254,215,170,0.5)"
                     : "rgba(251,146,60,0.5)",
                 px: 0.35,
                 borderRadius: "3px",
-                transition: `background-color ${MOTION.hover}, text-decoration-color ${MOTION.hover}`,
+                transition: "all 140ms ease",
                 "&:hover": {
                   textDecorationStyle: "solid",
-                  background: "rgba(255,255,255,0.06)",
+                  background: hypothetical
+                    ? "rgba(34,197,94,0.16)"
+                    : isUser
+                      ? "rgba(255,255,255,0.1)"
+                      : "rgba(249,115,22,0.14)",
                 },
               }}
             >
+              {hypothetical ? "🔍 " : ""}
               {ref.full}
             </Box>
           );
@@ -6823,6 +6398,12 @@ function CoachBubble({
   // `renderInline` already handles `**bold**`, so we leave bold to it
   // rather than relying on react-markdown's `<strong>` to avoid double-
   // bolding when both layers fire on the same span.
+  // Only the DIRECT string children of an element are tokenized here. Every
+  // element react-markdown emits is rendered by one of the components below,
+  // which tokenizes its own strings — so descending into child elements as
+  // well ran renderInline twice over the same text (a list item's paragraph:
+  // once from the <li>, once from the <p>), and a move link came out as
+  // "🔍 🔍 6. Bxb2". Elements are left exactly as they are.
   const processChildren = (node: ReactNode): ReactNode => {
     if (typeof node === "string") {
       return <>{renderInline(node)}</>;
@@ -6831,15 +6412,6 @@ function CoachBubble({
       return node.map((child, idx) => (
         <Fragment key={idx}>{processChildren(child)}</Fragment>
       ));
-    }
-    if (
-      isValidElement<{ children?: ReactNode }>(node) &&
-      node.props != null &&
-      "children" in node.props
-    ) {
-      return cloneElement(node, {
-        children: processChildren(node.props.children),
-      });
     }
     return node;
   };
@@ -6866,7 +6438,7 @@ function CoachBubble({
           target="_blank"
           rel="noopener noreferrer"
           style={{
-            color: isUser ? TEXT.primary : ACCENT.hover,
+            color: isUser ? "#FED7AA" : "#FB923C",
             textDecoration: "underline",
             fontWeight: 600,
           }}
@@ -6903,7 +6475,9 @@ function CoachBubble({
           m: 0,
           mb: 0.75,
           pl: 1.25,
-          borderLeft: `3px solid ${LINE.strong}`,
+          borderLeft: isUser
+            ? "3px solid rgba(0,0,0,0.25)"
+            : "3px solid rgba(251,146,60,0.5)",
           color: "inherit",
           opacity: 0.85,
         }}
@@ -6941,12 +6515,17 @@ function CoachBubble({
       </Box>
     ),
     em: ({ children }: any) => <em>{processChildren(children)}</em>,
-    // We intentionally do NOT remap <strong>: renderInline already turns
-    // `**bold**` into a styled span, and remark-gfm's `<strong>` rendering
-    // would double-bold the same content. Leaving `strong` off this map
-    // means react-markdown emits the default <strong>, but the bold text
-    // never reaches react-markdown because renderInline consumed the
-    // `**…**` syntax first.
+    // react-markdown parses `**bold**` before renderInline ever sees the
+    // text, so bold arrives here as <strong>. Rendered as the same orange
+    // span renderInline uses inside cards, with its own move refs linked.
+    strong: ({ children }: any) => (
+      <Box
+        component="strong"
+        sx={{ fontWeight: 700, color: isUser ? "#0A0A0A" : "#FB923C" }}
+      >
+        {processChildren(children)}
+      </Box>
+    ),
     code: ({ inline, children, ...rest }: any) => {
       // react-markdown 10 still passes `inline` for compatibility; default
       // to "inline" when in doubt — coach output rarely contains real
@@ -6957,12 +6536,15 @@ function CoachBubble({
           <Box
             component="code"
             sx={{
-              fontFamily: FONT_MONO,
+              fontFamily:
+                "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
               fontSize: "0.9em",
               px: 0.45,
               py: 0.05,
               borderRadius: "4px",
-              background: "rgba(255,255,255,0.08)",
+              background: isUser
+                ? "rgba(0,0,0,0.12)"
+                : "rgba(255,255,255,0.08)",
             }}
             {...rest}
           >
@@ -6981,7 +6563,8 @@ function CoachBubble({
             background: "rgba(0,0,0,0.3)",
             overflowX: "auto",
             fontSize: "0.85em",
-            fontFamily: FONT_MONO,
+            fontFamily:
+              "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
           }}
           {...rest}
         >
@@ -7004,49 +6587,169 @@ function CoachBubble({
   // Wraps a chunk of prose in react-markdown but lets renderInline keep
   // owning the bold + move-ref tokenization. Returns a JSX element rather
   // than ReactNode[] so callers can drop it into JSX with `{}`.
+  // A verdict that opens with a move ("6. Na3 walked past a free queen")
+  // is, to markdown, an ordered list starting at 6 — rendered as "1. Na3".
+  // Escaping the dot keeps it prose; the parser strips the backslash, so
+  // the move ref tokenizer still sees "6. Na3" and links it.
+  const protectLeadingMoves = (text: string): string =>
+    text.replace(/^(\s*)(\d{1,3})\.(\s+(?:[NBRQK]?[a-h]|O-O))/gm, "$1$2\\.$3");
+
   const renderMarkdownProse = (text: string): React.ReactNode => (
     <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-      {text}
+      {protectLeadingMoves(text)}
     </ReactMarkdown>
   );
+
+  // A follow-up cites a line with a token on a line of its own
+  // ([CONTINUATION:8:w] / [PLAYED:8:w]); the token becomes a proof line
+  // drawn from the client's own engine data, the prose around it stays
+  // markdown. A token the client cannot resolve yet (engine still running)
+  // simply disappears — the literal never reaches the reader.
+  // A paragraph the coach opens with "Lesson:" or "Your turn:" is a
+  // teaching note (the follow-up prompt asks for exactly these labels);
+  // it gets the same eyebrow block a key-moment card's lesson has.
+  const NOTE_RE = /^\*{0,2}(Lesson|Your turn)\*{0,2}\s*:\s*\*{0,2}([\s\S]+)$/i;
+  const renderProseWithNotes = (text: string): React.ReactNode => {
+    const paragraphs = text.split(/\n{2,}/);
+    if (!paragraphs.some((p) => NOTE_RE.test(p.trim()))) {
+      return renderMarkdownProse(text);
+    }
+    const out: React.ReactNode[] = [];
+    let plain: string[] = [];
+    const flush = () => {
+      if (plain.length > 0) {
+        out.push(
+          <Fragment key={`p${out.length}`}>
+            {renderMarkdownProse(plain.join("\n\n"))}
+          </Fragment>
+        );
+        plain = [];
+      }
+    };
+    for (const p of paragraphs) {
+      const m = NOTE_RE.exec(p.trim());
+      if (!m) {
+        plain.push(p);
+        continue;
+      }
+      flush();
+      const label = /^your/i.test(m[1]) ? "Your turn" : "Lesson";
+      out.push(
+        <CoachNote
+          key={`n${out.length}`}
+          label={label}
+          renderInline={renderInline}
+          data-testid={
+            label === "Lesson" ? "coach-note-lesson" : "coach-note-your-turn"
+          }
+        >
+          {m[2].replace(/\*{2}$/, "").trim()}
+        </CoachNote>
+      );
+    }
+    flush();
+    return <>{out}</>;
+  };
+
+  const renderProseWithLines = (text: string): React.ReactNode => {
+    const parts = splitProseByLineTokens(text);
+    if (parts.length === 1 && parts[0].kind === "text") {
+      return renderProseWithNotes(parts[0].text);
+    }
+    return (
+      <>
+        {parts.map((part, i) => {
+          if (part.kind === "text") {
+            return (
+              <Fragment key={i}>{renderProseWithNotes(part.text)}</Fragment>
+            );
+          }
+          const { token } = part;
+          if (token.kind === "maia") return null;
+          const line =
+            token.kind === "played"
+              ? playedLineAt(
+                  gameSans,
+                  token.moveNumber,
+                  token.color,
+                  rootFen,
+                  6,
+                  enginePositions
+                )
+              : engineLineAt(
+                  enginePositions,
+                  gameSans,
+                  token.moveNumber,
+                  token.color,
+                  rootFen
+                );
+          if (!line) return null;
+          return (
+            <ProofLine
+              key={i}
+              line={line}
+              playerColor={playerColor ?? null}
+              onShowPly={onShowLinePly}
+            />
+          );
+        })}
+      </>
+    );
+  };
 
   const shareable =
     !isUser && msg.content.trim().length > 0 && Boolean(onShare);
 
+  // A coach message is prose on the page, the way a chat assistant's is:
+  // Masti's face at the left, the words beside it, no bubble. A user
+  // message is a soft bubble on the right. The insight passages and puzzle
+  // cards below stay block siblings under the row.
   return (
-    <Box sx={{ position: "relative" }}>
-      {/* The row holds only the face and the bubble; the fragment banner,
-          insight cards and puzzle cards below stay block siblings under it. */}
-      <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1 }}>
-        {/* Every coach bubble gets Masti's face, expression by what the turn
-          is: a greeting waves, a fragment is nervous, an error is dizzy, an
-          answer is an idea. Stills only; twelve loops down a transcript
-          would be noise. */}
+    <Box sx={{ position: "relative", minWidth: 0 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 1.25,
+          minWidth: 0,
+        }}
+      >
+        {/* Every coach message gets Masti's face, expression by what the
+            turn is: a greeting waves, a fragment is nervous, an error is
+            dizzy, an answer is an idea. Stills only; twelve loops down a
+            transcript would be noise. */}
         {!isUser && (
           <MastiAvatar
             mood={msg.mascot ?? (msg.incomplete ? "nervous" : "idea")}
             size={26}
             ring={false}
-            style={{ marginBottom: 2 }}
+            style={{ marginTop: 2, flexShrink: 0 }}
           />
         )}
         <Box
           sx={{
             minWidth: 0,
             flex: 1,
-            px: 2.25,
-            py: 1.5,
-            borderRadius: `${RADIUS.card}px`,
-            background: isUser
-              ? SURFACE.raisedTertiary
-              : SURFACE.raisedSecondary,
-            border: isUser
-              ? "1px solid transparent"
-              : `1px solid ${LINE.hairline}`,
-            color: TEXT.primary,
-            fontSize: "0.92rem",
-            lineHeight: 1.55,
-            fontWeight: isUser ? 600 : 400,
+            ...(isUser
+              ? {
+                  px: 1.75,
+                  py: 1,
+                  borderRadius: "1.1rem",
+                  borderTopRightRadius: "0.35rem",
+                  background: "rgba(249,115,22,0.16)",
+                  border: "1px solid rgba(249,115,22,0.28)",
+                  color: "rgba(255,255,255,0.94)",
+                  fontSize: "0.92rem",
+                  lineHeight: 1.55,
+                  fontWeight: 500,
+                }
+              : {
+                  pt: 0.25,
+                  pr: shareable ? 3.5 : 0,
+                  color: "rgba(255,255,255,0.9)",
+                  fontSize: "0.95rem",
+                  lineHeight: 1.65,
+                }),
             "&:hover .coach-share-btn": { opacity: 1 },
           }}
         >
@@ -7054,19 +6757,19 @@ function CoachBubble({
             // Strip PRACTICE tags first (they're for puzzle attach), then
             // parse INSIGHT/WHY/THREATS/ROLES/CONCEPT blocks via production's
             // shared parseInsights. When present we render prefix prose +
-            // DarkInsightCard per insight + suffix prose. When absent we
-            // fall back to the original raw-text inline rendering.
+            // one passage per insight + suffix prose. When absent we fall
+            // back to the original raw-text inline rendering.
             if (isUser) return renderInline(msg.content);
             const practiceStripped = extractPracticeTags(msg.content).stripped;
             const { prefix, insights, suffix } =
               parseInsights(practiceStripped);
             if (insights.length === 0) {
-              return renderMarkdownProse(practiceStripped);
+              return renderProseWithLines(practiceStripped);
             }
             return (
               <>
                 {prefix.trim() && renderMarkdownProse(prefix)}
-                <DarkInsightCarousel
+                <DarkInsightStack
                   insights={insights}
                   renderInline={renderInline}
                   onMoveClick={(moveNum, isBlack) => {
@@ -7085,32 +6788,38 @@ function CoachBubble({
                   enginePositions={enginePositions}
                   loadedGame={loadedGame}
                   onJumpToPly={onMoveRefClick}
+                  gameSans={gameSans}
+                  rootFen={rootFen}
+                  playerColor={playerColor ?? null}
+                  onShowLinePly={onShowLinePly}
                 />
-                {suffix.trim() && renderMarkdownProse(suffix)}
+                {suffix.trim() && renderProseWithLines(suffix)}
               </>
             );
           })()}
           {shareable && (
-            <Tooltip title="Share this answer as a link or image">
+            <Tooltip title="Share this insight (link + PNG)">
               <IconButton
                 className="coach-share-btn"
+                aria-label="Share this insight"
                 onClick={() => onShare?.(msg)}
                 sx={{
                   position: "absolute",
-                  top: 6,
-                  right: 6,
+                  top: 0,
+                  right: 0,
                   width: 24,
                   height: 24,
                   p: 0,
                   borderRadius: "8px",
                   opacity: 0,
-                  color: TEXT.secondary,
-                  background: SURFACE.raisedTertiary,
-                  border: `1px solid ${LINE.hairline}`,
-                  transition: `opacity ${MOTION.hover}, color ${MOTION.hover}, background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
+                  color: "rgba(255,255,255,0.55)",
+                  background: "rgba(20,22,28,0.7)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  transition: "all 160ms ease",
                   "&:hover": {
-                    color: TEXT.primary,
-                    borderColor: LINE.strong,
+                    color: "#FB923C",
+                    background: "rgba(249,115,22,0.18)",
+                    borderColor: "rgba(249,115,22,0.4)",
                   },
                 }}
               >
@@ -7131,29 +6840,24 @@ function CoachBubble({
         <Box
           sx={{
             mt: 1,
+            ml: "38px",
             px: 1.25,
             py: 0.75,
-            borderRadius: `${RADIUS.control}px`,
+            borderRadius: "0.6rem",
             display: "flex",
             alignItems: "center",
             gap: 0.75,
-            background: STATUS.warningTint,
-            border: `1px solid ${LINE.hairline}`,
-            color: TEXT.primary,
-            fontSize: TYPE.caption.fontSize,
+            background: "rgba(249,115,22,0.08)",
+            border: "1px solid rgba(249,115,22,0.25)",
+            color: "rgba(255,237,213,0.85)",
+            fontSize: "0.78rem",
             lineHeight: 1.4,
           }}
         >
-          <AlertTriangle
-            size={16}
-            strokeWidth={1.75}
-            color={STATUS.warning}
-            aria-hidden
-            style={{ flexShrink: 0 }}
-          />
+          <AlertTriangle size={13} style={{ flexShrink: 0 }} />
           <span>
-            This answer was cut off before it finished. Treat it as partial, and
-            ask again for the full explanation.
+            This answer was cut off before it finished — treat it as partial,
+            and ask again for the full explanation.
           </span>
         </Box>
       )}
@@ -7161,16 +6865,18 @@ function CoachBubble({
         <Box
           sx={{
             mt: 1,
+            ml: "38px",
             p: 1.5,
-            borderRadius: `${RADIUS.control}px`,
-            background: STATUS.successTint,
-            border: `1px solid ${LINE.hairline}`,
+            borderRadius: "0.75rem",
+            background:
+              "linear-gradient(135deg, rgba(34,197,94,0.08), rgba(34,197,94,0.02))",
+            border: "1px solid rgba(34,197,94,0.25)",
             display: "flex",
             alignItems: "center",
             gap: 1.5,
           }}
         >
-          <Flame size={18} strokeWidth={1.75} color={STATUS.success} />
+          <Flame size={16} color="#22c55e" />
           <Box sx={{ flex: 1 }}>
             <Typography
               sx={{
@@ -7185,23 +6891,17 @@ function CoachBubble({
               {msg.insight.eval && (
                 <Typography
                   sx={{
-                    fontSize: TYPE.caption.fontSize,
-                    color: TEXT.secondary,
-                    fontVariantNumeric: "tabular-nums",
+                    fontSize: "0.72rem",
+                    color: "rgba(255,255,255,0.55)",
+                    fontFamily: "Monaco, Menlo, monospace",
                   }}
                 >
-                  Eval:{" "}
-                  <Box component="span" sx={{ fontFamily: FONT_MONO }}>
-                    {msg.insight.eval}
-                  </Box>
+                  Eval: {msg.insight.eval}
                 </Typography>
               )}
               {msg.insight.classification && (
                 <Typography
-                  sx={{
-                    fontSize: TYPE.caption.fontSize,
-                    color: TEXT.secondary,
-                  }}
+                  sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.55)" }}
                 >
                   {msg.insight.classification}
                 </Typography>
@@ -7211,14 +6911,18 @@ function CoachBubble({
         </Box>
       )}
       {msg.puzzleSet && !isUser && onLaunchPuzzleSet && (
-        <PuzzleSetCard set={msg.puzzleSet} onLaunch={onLaunchPuzzleSet} />
+        <Box sx={{ ml: "38px" }}>
+          <PuzzleSetCard set={msg.puzzleSet} onLaunch={onLaunchPuzzleSet} />
+        </Box>
       )}
       {msg.puzzlePack && !isUser && onPromoteToBoard && (
-        <CoachPuzzleCard
-          pack={msg.puzzlePack}
-          onPromote={onPromoteToBoard}
-          onSolved={onPuzzleSolved}
-        />
+        <Box sx={{ ml: "38px" }}>
+          <CoachPuzzleCard
+            pack={msg.puzzlePack}
+            onPromote={onPromoteToBoard}
+            onSolved={onPuzzleSolved}
+          />
+        </Box>
       )}
       {/* G12: FlagButton self-gates on useViewer().isIntern — renders
           nothing for non-intern viewers. We just need to mount it on
@@ -7227,7 +6931,7 @@ function CoachBubble({
         msg.content.trim().length > 0 &&
         allMessages &&
         messageIndex !== undefined && (
-          <Box sx={{ mt: 0.75 }}>
+          <Box sx={{ mt: 0.75, ml: "38px" }}>
             <FlagButton
               message={{ role: "assistant", content: msg.content }}
               messageIndex={messageIndex}
@@ -7248,59 +6952,52 @@ function CoachBubble({
 
 function ThinkingBubble() {
   return (
-    <Box
-      role="status"
-      sx={{
-        px: 2.25,
-        py: 1.5,
-        borderRadius: `${RADIUS.card}px`,
-        background: SURFACE.raisedSecondary,
-        border: `1px solid ${LINE.hairline}`,
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 1,
-      }}
-    >
-      <MastiAvatar mood="thinking" size={24} ring={false} animated loops={0} />
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+      <MastiAvatar mood="thinking" size={26} ring={false} animated loops={0} />
       <Typography
         sx={{
-          fontSize: "0.85rem",
-          color: TEXT.secondary,
+          fontSize: "0.88rem",
+          color: "rgba(255,255,255,0.55)",
         }}
       >
         Masti is thinking
       </Typography>
-      <CircularProgress
-        size={16}
-        thickness={4}
-        aria-hidden
-        sx={{ color: TEXT.secondary, flexShrink: 0 }}
-      />
+      <Stack direction="row" spacing={0.4}>
+        {[0, 1, 2].map((i) => (
+          <Box
+            key={i}
+            sx={{
+              width: 4,
+              height: 4,
+              borderRadius: "50%",
+              background: "#F97316",
+              animation: "bounce 1.2s ease-in-out infinite",
+              animationDelay: `${i * 0.15}s`,
+              "@keyframes bounce": {
+                "0%, 80%, 100%": { transform: "translateY(0)", opacity: 0.4 },
+                "40%": { transform: "translateY(-3px)", opacity: 1 },
+              },
+            }}
+          />
+        ))}
+      </Stack>
     </Box>
   );
 }
 
 /**
- * Board controls, sized to share the strip under the board with the eval
- * sparkline.
- *
- * Was a standalone full-width pill below BOTH columns with 42px buttons and a
- * stacked "MOVE" caption. Now: 34px buttons, one-line move readout, and the
- * arrow-overlay toggles ride in the middle via `arrows` rather than occupying
- * a card of their own.
+ * The board's step buttons, at the left of the strip's first row. Four
+ * small buttons and nothing else: flip, reset, the arrow overlays and the
+ * share link moved into the board menu beside them.
  */
-function MoveNavigator({
+function BoardNav({
   currentPly,
   totalPlies,
   onJumpTo,
-  onFlip,
-  onReset,
 }: {
   currentPly: number;
   totalPlies: number;
   onJumpTo: (ply: number) => void;
-  onFlip: () => void;
-  onReset: () => void;
 }) {
   const NavButton = ({
     onClick,
@@ -7311,30 +7008,25 @@ function MoveNavigator({
     onClick: () => void;
     disabled?: boolean;
     tooltip: string;
-    children: React.ReactNode;
+    children: ReactNode;
   }) => (
     <Tooltip title={tooltip}>
       <span>
         <IconButton
           onClick={onClick}
           disabled={disabled}
+          size="small"
           sx={{
-            width: 34,
-            height: 34,
-            borderRadius: "9px",
-            background: "rgba(255,255,255,0.04)",
-            border: `1px solid ${LINE.hairline}`,
-            color: TEXT.primary,
-            transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
+            width: 30,
+            height: 30,
+            borderRadius: "8px",
+            color: "rgba(255,255,255,0.8)",
+            transition: "all 140ms ease",
             "&:hover": {
-              background: "rgba(255,255,255,0.06)",
-              borderColor: LINE.strong,
-              color: TEXT.primary,
+              background: "rgba(249,115,22,0.12)",
+              color: "#FB923C",
             },
-            "&.Mui-disabled": {
-              color: "rgba(255,255,255,0.2)",
-              borderColor: "rgba(255,255,255,0.04)",
-            },
+            "&.Mui-disabled": { color: "rgba(255,255,255,0.18)" },
           }}
         >
           {children}
@@ -7342,16 +7034,9 @@ function MoveNavigator({
       </span>
     </Tooltip>
   );
-
   return (
     <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 0.6,
-        flexWrap: "wrap",
-        rowGap: 1,
-      }}
+      sx={{ display: "flex", alignItems: "center", gap: 0.25, flexShrink: 0 }}
     >
       <NavButton
         onClick={() => onJumpTo(0)}
@@ -7367,115 +7052,390 @@ function MoveNavigator({
       >
         <ChevronLeft size={16} />
       </NavButton>
-
-      <Box
-        sx={{
-          mx: 0.5,
-          px: 1.25,
-          py: 0.55,
-          borderRadius: "9px",
-          background: SURFACE.raisedSecondary,
-          border: `1px solid ${LINE.hairline}`,
-          minWidth: 62,
-          textAlign: "center",
-        }}
-      >
-        {(() => {
-          const disp = plyToMoveDisplay(currentPly);
-          return disp.color === null ? (
-            <Typography
-              sx={{
-                fontSize: "0.76rem",
-                fontWeight: 700,
-                color: TEXT.primary,
-                lineHeight: 1.4,
-              }}
-            >
-              Start
-            </Typography>
-          ) : (
-            <Stack
-              direction="row"
-              spacing={0.6}
-              alignItems="center"
-              justifyContent="center"
-              sx={{ lineHeight: 1.4 }}
-            >
-              <Typography
-                sx={{
-                  fontSize: "0.82rem",
-                  fontWeight: 700,
-                  color: TEXT.primary,
-                  fontVariantNumeric: "tabular-nums",
-                  lineHeight: 1.4,
-                }}
-              >
-                {disp.moveNum}
-              </Typography>
-              <Box
-                sx={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: disp.color === "white" ? "#F0D9B5" : "#1A1814",
-                  border: "1px solid rgba(255,255,255,0.3)",
-                  flexShrink: 0,
-                }}
-              />
-            </Stack>
-          );
-        })()}
-      </Box>
-
       <NavButton
         onClick={() => onJumpTo(Math.min(totalPlies, currentPly + 1))}
-        disabled={currentPly === totalPlies}
+        disabled={currentPly >= totalPlies}
         tooltip="Next move (→)"
       >
         <ChevronRight size={16} />
       </NavButton>
       <NavButton
         onClick={() => onJumpTo(totalPlies)}
-        disabled={currentPly === totalPlies}
+        disabled={currentPly >= totalPlies}
         tooltip="End"
       >
         <ChevronsRight size={16} />
       </NavButton>
+    </Box>
+  );
+}
 
-      <Box sx={{ flex: 1, minWidth: 8 }} />
+const GLASS_MENU_PAPER = {
+  mt: 0.75,
+  background: "rgba(20,22,28,0.94)",
+  backdropFilter: "blur(16px) saturate(150%)",
+  WebkitBackdropFilter: "blur(16px) saturate(150%)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  borderRadius: "12px",
+  boxShadow:
+    "0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
+} as const;
 
-      <NavButton onClick={onFlip} tooltip="Flip board (F)">
-        <RotateCw size={15} />
-      </NavButton>
-      <NavButton onClick={onReset} tooltip="Reset to start">
-        <RefreshCw size={15} />
-      </NavButton>
-      <Tooltip title="Copy a link to this position">
-        <span>
-          <IconButton
-            onClick={() => {
-              if (typeof navigator !== "undefined" && navigator.clipboard) {
-                navigator.clipboard.writeText(window.location.href);
-              }
-            }}
+/**
+ * Everything about the board that is not stepping through it: flip, reset,
+ * the four arrow overlays with Maia's Elo, a link to the position. One
+ * button under the board instead of a row of eight chips and buttons.
+ */
+function BoardMenu({
+  onFlip,
+  onReset,
+  arrows,
+  onArrowsChange,
+}: {
+  onFlip: () => void;
+  onReset: () => void;
+  arrows: ArrowToggleState;
+  onArrowsChange: (next: ArrowToggleState) => void;
+}) {
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const close = () => setAnchorEl(null);
+  const arrowKeys = ["best", "common", "game", "maia"] as const;
+  const itemSx = {
+    fontSize: "0.82rem",
+    color: "rgba(255,255,255,0.88)",
+    gap: 1.25,
+    py: 0.85,
+    "&:hover": { background: "rgba(249,115,22,0.1)" },
+  } as const;
+  return (
+    <>
+      <Tooltip title="Board options">
+        <IconButton
+          aria-label="Board options"
+          aria-haspopup="menu"
+          data-testid="board-menu"
+          onClick={(e) => setAnchorEl(e.currentTarget)}
+          size="small"
+          sx={{
+            width: 30,
+            height: 30,
+            flexShrink: 0,
+            borderRadius: "8px",
+            color: "rgba(255,255,255,0.7)",
+            "&:hover": {
+              background: "rgba(249,115,22,0.12)",
+              color: "#FB923C",
+            },
+          }}
+        >
+          <Ellipsis size={16} />
+        </IconButton>
+      </Tooltip>
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={close}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        slotProps={{ paper: { sx: { ...GLASS_MENU_PAPER, minWidth: 240 } } }}
+        MenuListProps={{ sx: { py: 0.5 } }}
+      >
+        <MenuItem
+          onClick={() => {
+            onFlip();
+            close();
+          }}
+          sx={itemSx}
+        >
+          <RotateCw size={14} />
+          Flip board
+          <Box
+            component="span"
             sx={{
-              width: 34,
-              height: 34,
-              borderRadius: "9px",
-              background: "rgba(255,255,255,0.04)",
-              border: `1px solid ${LINE.hairline}`,
-              color: TEXT.primary,
-              transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
-              "&:hover": {
-                background: "rgba(255,255,255,0.06)",
-                borderColor: LINE.strong,
-              },
+              ml: "auto",
+              fontFamily: "Monaco, Menlo, monospace",
+              fontSize: "0.7rem",
+              color: "rgba(255,255,255,0.4)",
             }}
           >
-            <Share2 size={15} />
-          </IconButton>
-        </span>
-      </Tooltip>
+            F
+          </Box>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            onReset();
+            close();
+          }}
+          sx={itemSx}
+        >
+          <RefreshCw size={14} />
+          Reset to start
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            if (typeof navigator !== "undefined" && navigator.clipboard) {
+              void navigator.clipboard.writeText(window.location.href);
+            }
+            close();
+          }}
+          sx={itemSx}
+        >
+          <Share2 size={14} />
+          Copy link to this position
+        </MenuItem>
+        <Divider sx={{ borderColor: "rgba(255,255,255,0.08)", my: 0.5 }} />
+        <Box
+          sx={{
+            px: 2,
+            pt: 0.75,
+            pb: 0.25,
+            fontSize: "0.62rem",
+            fontWeight: 800,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.42)",
+          }}
+        >
+          Arrows on the board
+        </Box>
+        {arrowKeys.map((key) => {
+          const opt = ARROW_PALETTE[key];
+          const on = arrows[key];
+          return (
+            <MenuItem
+              key={key}
+              onClick={() => onArrowsChange({ ...arrows, [key]: !on })}
+              sx={itemSx}
+            >
+              <Box
+                component="span"
+                sx={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: "4px",
+                  border: `1px solid ${on ? opt.color : "rgba(255,255,255,0.25)"}`,
+                  background: on ? opt.color : "transparent",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#0A0A0A",
+                  flexShrink: 0,
+                }}
+              >
+                {on && <Check size={11} strokeWidth={3} />}
+              </Box>
+              {opt.label}
+            </MenuItem>
+          );
+        })}
+        {arrows.maia && (
+          <Box sx={{ px: 2, pt: 0.5, pb: 1 }}>
+            <Typography
+              sx={{
+                fontSize: "0.7rem",
+                color: "rgba(255,255,255,0.55)",
+                mb: 0.25,
+              }}
+            >
+              Maia plays like a {arrows.maiaElo}-rated player
+            </Typography>
+            <Slider
+              size="small"
+              value={arrows.maiaElo}
+              min={1100}
+              max={2200}
+              step={100}
+              onChange={(_, v) =>
+                onArrowsChange({
+                  ...arrows,
+                  maiaElo: Array.isArray(v) ? v[0] : v,
+                })
+              }
+              sx={{ color: ARROW_PALETTE.maia.color }}
+            />
+          </Box>
+        )}
+      </Menu>
+    </>
+  );
+}
+
+/**
+ * The chat column's identity: Masti's face, his name and his attitude, in
+ * one row with the view switch. The face is decided by the page from what
+ * it already knows (coach working, engine running, the current move's
+ * verdict, the result on the board) and defaults to a wave.
+ */
+function CoachHeader({
+  mood,
+  moodPulse,
+  personalityId,
+  onChangePersonality,
+}: {
+  mood?: MastiMood;
+  /** Changes when the face should animate again. */
+  moodPulse?: number;
+  personalityId?: string;
+  onChangePersonality?: (id: string) => void;
+}) {
+  const personality = useMemo(
+    () => getPersonalityById(personalityId ?? defaultPersonalityId),
+    [personalityId]
+  );
+  const [menuOpen, setMenuOpen] = useState(false);
+  const chipRef = useRef<HTMLDivElement>(null);
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+      <MastiAvatar
+        mood={mood ?? "wave"}
+        size={32}
+        animated
+        loops={2}
+        replayKey={`${mood ?? "wave"}:${moodPulse ?? 0}`}
+        data-testid="coach-masti"
+      />
+      <Typography
+        data-testid="coach-title"
+        sx={{
+          fontSize: "0.95rem",
+          fontWeight: 700,
+          color: "rgba(255,255,255,0.94)",
+          lineHeight: 1.1,
+          whiteSpace: "nowrap",
+        }}
+      >
+        Masti
+      </Typography>
+      {onChangePersonality && (
+        <Tooltip title={`Masti's attitude: ${personality.title}`}>
+          <Box
+            ref={chipRef}
+            data-testid="coach-attitude-chip"
+            onClick={() => setMenuOpen((v) => !v)}
+            sx={{
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 0.35,
+              minWidth: 0,
+              color: "rgba(255,255,255,0.5)",
+              fontSize: "0.74rem",
+              fontWeight: 600,
+              "&:hover": { color: "#FB923C" },
+            }}
+          >
+            <Box
+              component="span"
+              sx={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: { xs: 96, sm: 140 },
+              }}
+            >
+              {personality.title.replace(/^The /, "")}
+            </Box>
+            <ChevronDown size={11} />
+          </Box>
+        </Tooltip>
+      )}
+      <Menu
+        anchorEl={chipRef.current}
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        slotProps={{
+          paper: { sx: { ...GLASS_MENU_PAPER, minWidth: 280, maxWidth: 320 } },
+        }}
+        MenuListProps={{ sx: { py: 0.5 } }}
+      >
+        <Box
+          sx={{
+            px: 1.75,
+            pt: 1,
+            pb: 0.5,
+            fontSize: "0.62rem",
+            fontWeight: 800,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.42)",
+          }}
+        >
+          Masti&apos;s attitude
+        </Box>
+        {coachPersonalities.map((p) => {
+          const isActive = p.id === personality.id;
+          return (
+            <Box
+              key={p.id}
+              onClick={() => {
+                onChangePersonality?.(p.id);
+                setMenuOpen(false);
+              }}
+              sx={{
+                cursor: "pointer",
+                px: 1.75,
+                py: 1,
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 1.25,
+                transition: "background 160ms ease",
+                background: isActive ? "rgba(249,115,22,0.08)" : "transparent",
+                borderLeft: isActive
+                  ? "2px solid #FB923C"
+                  : "2px solid transparent",
+                "&:hover": {
+                  background: "rgba(249,115,22,0.12)",
+                },
+              }}
+            >
+              {/* Same monkey, a different face per attitude. Stills: seven
+                  animated faces in one menu would be a zoo. */}
+              <MastiAvatar
+                mood={p.mood}
+                size={32}
+                ring={isActive}
+                decorative
+                style={{ marginTop: 2 }}
+              />
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography
+                  sx={{
+                    fontSize: "0.84rem",
+                    fontWeight: 700,
+                    color: isActive ? "#FB923C" : "rgba(255,255,255,0.92)",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {p.name}
+                  <Box
+                    component="span"
+                    sx={{
+                      ml: 0.6,
+                      fontSize: "0.7rem",
+                      fontWeight: 600,
+                      color: "rgba(255,255,255,0.42)",
+                    }}
+                  >
+                    {p.title}
+                  </Box>
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: "0.74rem",
+                    color: "rgba(255,255,255,0.58)",
+                    lineHeight: 1.4,
+                    mt: 0.25,
+                  }}
+                >
+                  {p.description}
+                </Typography>
+              </Box>
+            </Box>
+          );
+        })}
+      </Menu>
     </Box>
   );
 }
@@ -7980,12 +7940,13 @@ export default function AnalysisPage() {
 
   // In puzzle mode, prepopulate the coach with a contextual seed message
   const isPuzzleMode = Boolean(puzzleFen);
+  const gameSans = useMemo(() => allMoves.map((m) => m.san), [allMoves]);
 
-  // Production's killer "you blundered, here are puzzles for that exact
-  // pattern" UX — surfaces when the current ply is a Mistake / Blunder /
-  // Miss. Drives the inline ContextualPuzzleRecommendations mount inside
-  // the Coach tab. Heavy lifting (mistake → puzzles via /api/mistake-puzzles)
-  // is delegated to the production component; we just compute the input.
+  // The mistake under the cursor, when the current ply is a Mistake /
+  // Blunder / Miss. It feeds the suggestion chips ("Why was Nc7+ a
+  // blunder?"); the puzzle-recommendation card it used to mount in the
+  // conversation is gone, since the strip under the board now analyses
+  // every move and the review's passages offer practice themselves.
   const mistakeContext = useMemo<{
     fen: string;
     movePlayed: string;
@@ -8061,6 +8022,11 @@ export default function AnalysisPage() {
               : null,
             openingName:
               headers.Opening?.trim() || detectedOpening?.name || null,
+            playerColor: playerSide
+              ? playerSide.color === "white"
+                ? "w"
+                : "b"
+              : null,
           }),
     [
       hasGame,
@@ -8070,6 +8036,7 @@ export default function AnalysisPage() {
       currentPly,
       headers.Opening,
       detectedOpening,
+      playerSide,
     ]
   );
 
@@ -8237,8 +8204,8 @@ export default function AnalysisPage() {
         const greeting =
           opts?.greeting ??
           (newHeaders.White && newHeaders.Black
-            ? `Loaded **${newHeaders.White} vs ${newHeaders.Black}**${yearSuffix}. I'm running the engine over every move now. The Moves tab fills in with each move's verdict as it finishes. Ask me about any move in the meantime.`
-            : "Loaded a new game. I'm running the engine over every move now. The Moves tab fills in with each move's verdict as it finishes. Ask me about the position or any move in the meantime.");
+            ? `Loaded **${newHeaders.White} vs ${newHeaders.Black}**${yearSuffix}. Step through the moves and the line under the board says what each one does. Ask me anything, or start with **Analyze my game** for the moments that decided it.`
+            : "Loaded a new game. Step through the moves and the line under the board says what each one does. Ask me anything about the position or any move.");
         setMessages([
           // D3: UI-authored greeting, not model output.
           {
@@ -8400,6 +8367,14 @@ export default function AnalysisPage() {
   // from currentFen so the live candidate list updates on the new position.
   const [takeoverPreview, setTakeoverPreview] =
     useState<ExplorationPreview | null>(null);
+  // Where the coach last moved the board, so the reader can get back. Set
+  // when a follow-up's question named a move (the server's `anchor`) and
+  // the board was elsewhere; cleared as soon as the board moves again.
+  const [coachJump, setCoachJump] = useState<{
+    fromPly: number;
+    toPly: number;
+    label: string;
+  } | null>(null);
 
   // Desync fix (companion to the ae4cf45 replay fix): navigating game history
   // (arrows / move-history strip) advances `currentPly` → `currentFen`, but the
@@ -8420,6 +8395,9 @@ export default function AnalysisPage() {
       return;
     }
     setTakeoverPreview(null);
+  }, [currentPly]);
+  useEffect(() => {
+    setCoachJump((j) => (j && j.toPly !== currentPly ? null : j));
   }, [currentPly]);
 
   // Arrow toggle state (Engine best / Most common / Game played / Maia)
@@ -8959,6 +8937,56 @@ export default function AnalysisPage() {
     [allMoves, currentPly, displayFen, rootFen]
   );
 
+  // On the stacked layout the board may be scrolled away while the reader
+  // is in the conversation; a tap on a line's Play or on one of its moves
+  // is a request to see the board, so bring it back into view. On the
+  // two-column layout it is never off screen and this does nothing.
+  const boardColumnRef = useRef<HTMLDivElement>(null);
+  const revealBoard = useCallback(() => {
+    const el = boardColumnRef.current;
+    if (!el || typeof window === "undefined") return;
+    const r = el.getBoundingClientRect();
+    if (r.bottom < 120 || r.top > window.innerHeight - 120) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
+  // A proof line's "show this on the board": the game's own continuation is
+  // the mainline, so the cursor moves; an engine line branches off the
+  // mainline at its anchor and rides the exploration preview, exactly like
+  // a green move link, so the strip's state row, the eval bar and Esc all
+  // work.
+  const handleShowLinePly = useCallback(
+    (line: CoachLine, k: number) => {
+      revealBoard();
+      if (line.kind === "played") {
+        setTakeoverPreview(null);
+        setCurrentPly(
+          line.anchorPly + Math.max(0, Math.min(k, line.sans.length))
+        );
+        return;
+      }
+      if (k <= 0) {
+        setTakeoverPreview(null);
+        setCurrentPly(line.anchorPly);
+        return;
+      }
+      const preview = buildLinePreview(
+        allMoves,
+        line.anchorPly,
+        line.sans.slice(0, k),
+        rootFen
+      );
+      if (!preview) return;
+      if (line.anchorPly !== currentPly) {
+        keepPreviewOnPlySyncRef.current = true;
+      }
+      setCurrentPly(line.anchorPly);
+      setTakeoverPreview(preview);
+    },
+    [allMoves, currentPly, rootFen, revealBoard]
+  );
+
   // User makes a move on the board directly (interactive in takeover mode)
   const handleBoardMove = useCallback(
     (orig: string, dest: string) => {
@@ -9124,6 +9152,18 @@ export default function AnalysisPage() {
               ];
             });
           },
+          // The answer is about a move the question named: put that
+          // position on the board, and leave a way back.
+          onAnchor: (anchor) => {
+            if (anchor.ply === currentPly) return;
+            setCoachJump({
+              fromPly: currentPly,
+              toPly: anchor.ply,
+              label: `${anchor.moveNumber}${anchor.color === "b" ? "..." : "."} ${anchor.san}`,
+            });
+            setTakeoverPreview(null);
+            setCurrentPly(anchor.ply);
+          },
           // D4: no `done` event arrived — the answer is a fragment.
           onTruncated: () => {
             setMessages((prev) => {
@@ -9147,10 +9187,10 @@ export default function AnalysisPage() {
         );
         const errorText =
           err instanceof CoachAuthError
-            ? "**Sign-in required.** The coach needs a free account. Use **Sign in** above and ask again."
+            ? "**Sign-in required** — the coach needs a free account. Use **Sign in** above and ask again."
             : err instanceof CoachApiError
               ? `**Coach is offline** (HTTP ${err.status}).`
-              : "**Couldn't reach Masti.** Check your connection and try again.";
+              : "**Network error** reaching the coach.";
         setMessages((prev) => {
           if (prev.length === 0) return prev;
           const last = prev[prev.length - 1];
@@ -9698,6 +9738,18 @@ export default function AnalysisPage() {
               ];
             });
           },
+          // The answer is about a move the question named: put that
+          // position on the board, and leave a way back.
+          onAnchor: (anchor) => {
+            if (anchor.ply === currentPly) return;
+            setCoachJump({
+              fromPly: currentPly,
+              toPly: anchor.ply,
+              label: `${anchor.moveNumber}${anchor.color === "b" ? "..." : "."} ${anchor.san}`,
+            });
+            setTakeoverPreview(null);
+            setCurrentPly(anchor.ply);
+          },
           // D4: no `done` event arrived — the answer is a fragment.
           onTruncated: () => {
             setMessages((prev) => {
@@ -9736,10 +9788,10 @@ export default function AnalysisPage() {
         );
         const errorText =
           err instanceof CoachAuthError
-            ? "**Sign-in required.** The coach needs a free account. Use **Sign in** above and ask again."
+            ? "**Sign-in required** — the coach needs a free account. Use **Sign in** above and ask again."
             : err instanceof CoachApiError
               ? `**Coach is offline** (HTTP ${err.status}).`
-              : "**Couldn't reach Masti.** Check your connection and try again.";
+              : "**Network error** reaching the coach.";
         setMessages((prev) => {
           if (prev.length === 0) return prev;
           const last = prev[prev.length - 1];
@@ -9851,6 +9903,18 @@ export default function AnalysisPage() {
               ];
             });
           },
+          // The answer is about a move the question named: put that
+          // position on the board, and leave a way back.
+          onAnchor: (anchor) => {
+            if (anchor.ply === currentPly) return;
+            setCoachJump({
+              fromPly: currentPly,
+              toPly: anchor.ply,
+              label: `${anchor.moveNumber}${anchor.color === "b" ? "..." : "."} ${anchor.san}`,
+            });
+            setTakeoverPreview(null);
+            setCurrentPly(anchor.ply);
+          },
           // D4: no `done` event arrived — the answer is a fragment.
           onTruncated: () => {
             setMessages((prev) => {
@@ -9902,10 +9966,10 @@ export default function AnalysisPage() {
         );
         const errorText =
           err instanceof CoachAuthError
-            ? "**Sign-in required.** The coach needs a free account. Sign in on chessmasti.com and refresh."
+            ? "**Sign-in required** — the coach endpoint is auth-gated. Sign in on chessmasti.com and refresh."
             : err instanceof CoachApiError
-              ? `**Coach is offline** (HTTP ${err.status}). Try again in a moment.`
-              : "**Couldn't reach Masti.** Check your connection and try again.";
+              ? `**Coach is offline** (HTTP ${err.status}). The LLM provider returned an error — try again in a moment.`
+              : "**Network error** reaching the coach. Try again?";
         setMessages((prev) => {
           if (prev.length === 0) return prev;
           const last = prev[prev.length - 1];
@@ -10009,8 +10073,8 @@ export default function AnalysisPage() {
       if (!theme) {
         say(
           "I need a pattern to search for. Step to a move I've flagged as a " +
-            "mistake and run `/puzzle-generation` there, or name one yourself, " +
-            "for example `/puzzle-generation fork`."
+            "mistake and run `/puzzle-generation` there, or name one yourself " +
+            "— for example `/puzzle-generation fork`."
         );
         return;
       }
@@ -10047,7 +10111,7 @@ export default function AnalysisPage() {
         if (mapped.length === 0) {
           say(
             `No puzzles came back for **${theme}**. The pattern may be too ` +
-              "specific. Try a broader one, or a different move."
+              "specific — try a broader one, or a different move."
           );
           return;
         }
@@ -10065,15 +10129,15 @@ export default function AnalysisPage() {
             ? `${mapped.length} puzzles on **${set.displayName}**.`
             : `${mapped.length} puzzles on **${set.displayName}**, drawn from ` +
                 "positions that share this pattern.\n\nHit Practice to run " +
-                "them. You'll come back here afterwards, and this set stays " +
+                "them — you'll come back here afterwards, and this set stays " +
                 "in the conversation so you can redo it any time.",
           { puzzleSet: set }
         );
         setCommandUsed(true);
       } catch (err) {
         say(
-          "The puzzle store didn't answer just now. Try again in a moment. " +
-            "Your game and this conversation are untouched."
+          "The puzzle store didn't answer just now. Try again in a moment — " +
+            "your game and this conversation are untouched."
         );
         console.warn("[puzzle-generation]", err);
       } finally {
@@ -10139,7 +10203,7 @@ export default function AnalysisPage() {
           {
             role: "coach",
             content:
-              "Here are three puzzles with the same pattern. Solve them here, or move one onto the big board.",
+              "Pulled three positions in the same family from the master puzzle index — solve them inline, or move any one onto the big board.",
             ply: currentPly,
             synthetic: true,
           },
@@ -10151,7 +10215,9 @@ export default function AnalysisPage() {
         );
         return;
       }
-      setInput(s);
+      // A chip is a question, not a draft: tapping it asks it. (It used to
+      // fill the composer and wait for a second tap on Send.)
+      void handleSendRef.current?.(s);
     },
     [messages, currentPly, displayFen, triggerPuzzleFetch]
   );
@@ -10292,15 +10358,19 @@ export default function AnalysisPage() {
   return (
     <ThemeProvider theme={analysisTheme}>
       <Head>
-        <title>Analyze your game · Chess Masti</title>
+        <title>Chess Masti — Analyze your game</title>
         <meta
           name="description"
-          content="Stockfish evaluates your game and Masti explains it. Free chess coaching for players aged 13 and older."
+          content="Stockfish 17 evaluates, an AI coach explains, a validator checks every claim. Engine-grounded chess coaching, free for players aged 13 and older."
         />
         <meta name="color-scheme" content="dark" />
-        <meta name="theme-color" content={SURFACE.page} />
+        <meta name="theme-color" content="#08090C" />
         <style>{`
-          html, body { background-color: ${SURFACE.page}; color-scheme: dark; margin: 0; }
+          html, body { background-color: #08090C; color-scheme: dark; margin: 0; }
+          ::-webkit-scrollbar { width: 10px; height: 10px; }
+          ::-webkit-scrollbar-track { background: #08090C; }
+          ::-webkit-scrollbar-thumb { background: rgba(249,115,22,0.18); border-radius: 5px; }
+          ::-webkit-scrollbar-thumb:hover { background: rgba(249,115,22,0.32); }
         `}</style>
       </Head>
 
@@ -10341,34 +10411,39 @@ export default function AnalysisPage() {
 
       <OnboardingHelp
         storageKey="cm-tour-analysis-v1"
-        title="Welcome to Analyze"
-        subtitle="A few things people find late"
+        title="Welcome to the Analyze surface"
+        subtitle="A few things power users discover late"
         tips={[
           {
             icon: Command,
+            iconColor: "#F97316",
             title: "Command palette",
             shortcut: "⌘K",
-            body: "Jump to any move, flip the board, or ask the coach a question without taking your hands off the keyboard.",
+            body: "Jump to any move, flip the board, or fire a question to the coach without taking your hands off the keyboard.",
           },
           {
             icon: BookOpen,
-            title: "Browse master games",
-            body: "Open the Masters tab to see master games from this position. Filter by player, and click a move to preview it on the board.",
+            iconColor: "#22c55e",
+            title: "Browse the master database",
+            body: "Switch the right panel to Masters. It becomes a live browser of millions of master-game positions: filter by player, click any move to preview it on the board.",
           },
           {
             icon: MousePointerClick,
-            title: "Try your own moves",
-            body: "In the Masters tab, drag any piece to explore a line. The master games update to the new position.",
+            iconColor: "#A855F7",
+            title: "Drag pieces freely in Masters",
+            body: "In Masters the board is interactive. Drag any piece to explore a variation and the panel re-queries the new position.",
           },
           {
             icon: Activity,
-            title: "Toggle the four arrow overlays",
-            body: "Above the eval sparkline: Engine best, Most common, Game played and Maia (with a rating slider). Mix and match to see where humans, masters and engines disagree.",
+            iconColor: "#FB923C",
+            title: "Arrows on the board",
+            body: "The menu under the board overlays the engine's best move, the most common move, the move played, or Maia's guess at a chosen Elo. Mix them to see where humans, masters and engines disagree.",
           },
           {
             icon: Eye,
-            title: "Jump along the evaluation graph",
-            body: "Click anywhere on the graph under the board to jump to that move. The dots are key moments.",
+            iconColor: "#FBBF24",
+            title: "Scrub the evaluation arc",
+            body: "Click anywhere on the arc under the board to jump to that move. The dots are the key moments.",
           },
         ]}
       />
@@ -10380,10 +10455,12 @@ export default function AnalysisPage() {
         one screen, so the layout falls back to ordinary document flow.
       */}
       <Box
-        // Lets the partner preview (/partners/chessusa/N) turn this locked
-        // screen into a scrolling one, since its banner sits inside the box
-        // and would otherwise push the bottom of the board out of reach.
-        // Inert everywhere else. See VIEWPORT_LOCK_ATTR.
+        // Lets a partner banner (the live placement, or a /partners/<slug>/N
+        // preview) show this box's overflow instead of clipping it, since the
+        // banner sits inside the box and would otherwise push the bottom of
+        // the board out of reach. The height stays, so the columns still
+        // shrink to one screen; only what the banner genuinely squeezes out
+        // makes the page scroll. Inert with no banner. See VIEWPORT_LOCK_ATTR.
         {...VIEWPORT_LOCK_PROPS}
         sx={{
           height: { lg: "100dvh" },
@@ -10473,7 +10550,7 @@ export default function AnalysisPage() {
               // 680px track left a short window with a 450px board floating
               // in dead space while the chat was squeezed next to it.
               //
-              // 227px is the page chrome around the square (padding, nav bar,
+              // 300px is the page chrome around the square (padding, nav bar,
               // strip, card padding), measured rather than derived. It only
               // tunes how much slack the column carries: BoardArea measures
               // its real box, so an imprecise estimate here can never make
@@ -10483,7 +10560,7 @@ export default function AnalysisPage() {
                 // minimum, so the stacked column grew to the board's
                 // min-content width and hung off the right of a phone.
                 xs: "minmax(0, 1fr)",
-                lg: "minmax(420px, min(900px, calc(100dvh - 227px))) minmax(380px, 1fr)",
+                lg: "minmax(420px, min(900px, calc(100dvh - 300px))) minmax(380px, 1fr)",
               },
               gap: { xs: 3, lg: 2 },
               alignItems: { xs: "start", lg: "stretch" },
@@ -10499,6 +10576,7 @@ export default function AnalysisPage() {
                 minHeight: { lg: 0 },
                 maxWidth: "100%",
               }}
+              ref={boardColumnRef}
             >
               {drillState && (
                 <DrillBanner
@@ -10506,12 +10584,6 @@ export default function AnalysisPage() {
                   onExit={exitDrill}
                   onRestart={restartDrill}
                   onSkip={advanceDrill}
-                />
-              )}
-              {!drillState && takeoverPreview && (
-                <ExplorationBanner
-                  preview={takeoverPreview}
-                  onReturn={returnToAnchor}
                 />
               )}
               <ErrorBoundary name="preview-analysis-board">
@@ -10551,24 +10623,14 @@ export default function AnalysisPage() {
               </ErrorBoundary>
 
               {/*
-                One strip under the board instead of four stacked cards
-                (arrows / sparkline / key-moments / navigator). The key-moment
-                chips are gone: they duplicated the sparkline's own markers,
-                which are now hoverable and clickable.
+                The strip under the board: the evaluation arc as a scrubber,
+                then where the board is and what the move there does. One
+                block of fixed height, no card around it, so stepping through
+                the game moves nothing but the pieces. The exploration and
+                coach-jump states live in its first row rather than as
+                banners above the board, which resized the board each time.
               */}
-              <Box
-                sx={{
-                  mt: { xs: 2, lg: 1.25 },
-                  flexShrink: 0,
-                  p: { xs: 1.5, lg: 1.25 },
-                  borderRadius: `${RADIUS.card}px`,
-                  background: SURFACE.raised,
-                  border: `1px solid ${LINE.hairline}`,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 1,
-                }}
-              >
+              <Box sx={{ flexShrink: 0, mt: { xs: 1.25, lg: 0.75 } }}>
                 <EvalSparkline
                   series={evalSeries}
                   currentPly={currentPly}
@@ -10579,204 +10641,201 @@ export default function AnalysisPage() {
                   errored={analysisError !== null}
                   hasGame={hasGame}
                 />
-                <MoveNavigator
-                  currentPly={currentPly}
-                  totalPlies={allMoves.length}
-                  onJumpTo={setCurrentPly}
-                  onFlip={() =>
-                    setBoardOrientation((o) =>
-                      o === "white" ? "black" : "white"
-                    )
+                <MoveAnalysisCard
+                  gameSans={gameSans}
+                  positions={classifiedPositions ?? enginePositions}
+                  ply={currentPly}
+                  rootFen={rootFen}
+                  playerColor={
+                    playerSide
+                      ? playerSide.color === "white"
+                        ? "w"
+                        : "b"
+                      : null
                   }
-                  onReset={() => setCurrentPly(0)}
+                  onShowLinePly={handleShowLinePly}
+                  onAsk={!authLoading && !user ? undefined : handleSuggestion}
+                  busy={isThinking || analysisActive}
+                  analyzing={analysisActive}
+                  nav={
+                    <BoardNav
+                      currentPly={currentPly}
+                      totalPlies={allMoves.length}
+                      onJumpTo={setCurrentPly}
+                    />
+                  }
+                  menu={
+                    <BoardMenu
+                      onFlip={() =>
+                        setBoardOrientation((o) =>
+                          o === "white" ? "black" : "white"
+                        )
+                      }
+                      onReset={() => setCurrentPly(0)}
+                      arrows={arrowToggles}
+                      onArrowsChange={setArrowToggles}
+                    />
+                  }
+                  state={
+                    !drillState && takeoverPreview ? (
+                      <ExploringState
+                        preview={takeoverPreview}
+                        onReturn={returnToAnchor}
+                      />
+                    ) : !drillState && coachJump ? (
+                      <CoachJumpState
+                        jump={coachJump}
+                        onBack={() => {
+                          const from = coachJump.fromPly;
+                          setCoachJump(null);
+                          setCurrentPly(from);
+                        }}
+                      />
+                    ) : null
+                  }
                 />
-                {/* Own row rather than inline with the navigator: sharing one
-                    row made the pills wrap on a narrow column, and a strip
-                    whose height changes with viewport width is exactly what
-                    the board-column sizing above can't predict. */}
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "center",
-                    borderTop: "1px solid rgba(255,255,255,0.05)",
-                    pt: 1,
-                  }}
-                >
-                  <BoardArrowToggles
-                    compact
-                    state={arrowToggles}
-                    onChange={setArrowToggles}
-                  />
-                </Box>
               </Box>
             </Box>
 
-            {/* Right column: tabbed surface — Coach / Masters / Moves.
-                The Masters tab makes the main board interactive for
-                exploration (same role the old "Takeover" modal had). */}
+            {/* Right column: the conversation, with the Moves, Masters and
+                Lines views a word away in its header. The Masters view makes
+                the main board interactive for exploration. */}
             <ErrorBoundary name="preview-analysis-tabs">
               <Box
                 sx={{
                   position: "relative",
                   display: "flex",
                   flexDirection: "column",
+                  minWidth: 0,
                   minHeight: { lg: 0 },
                   height: { lg: "100%" },
                 }}
               >
-                <TabStrip
-                  active={rightTab}
-                  onChange={handleTabChange}
-                  // The move COUNT. This used to be `${currentPly}/${total}`,
-                  // which on a freshly loaded game read "0/20" and was taken
-                  // for analysis progress stuck at zero; the cursor position
-                  // is already visible in the move list itself.
-                  movesBadge={
-                    allMoves.length > 0 ? String(allMoves.length) : undefined
-                  }
-                  mastersBadge={
-                    rightTab === "masters" && takeoverCandidates.length > 0
-                      ? String(takeoverCandidates.length)
-                      : undefined
-                  }
-                />
+                <Box
+                  sx={{
+                    flexShrink: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    px: { xs: 0.5, sm: 1 },
+                    pb: 1,
+                    borderBottom: "1px solid rgba(255,255,255,0.06)",
+                  }}
+                >
+                  <CoachHeader
+                    mood={coachMasti.mood}
+                    moodPulse={coachMasti.replayKey}
+                    personalityId={personality.id}
+                    onChangePersonality={(id) => setSelectedPersonalityId(id)}
+                  />
+                  <Box sx={{ flex: 1 }} />
+                  <ViewSwitch active={rightTab} onChange={handleTabChange} />
+                </Box>
                 {/* The one scrolling surface on the page: the panel is pinned
-                  to the column's height and each tab scrolls internally. */}
+                    to the column's height and each view scrolls internally.
+                    Below lg the column is in document flow, so the panel is
+                    given a screen of its own: scroll the board away and the
+                    conversation fills the viewport like any chat. */}
                 <Box
                   sx={{
                     position: "relative",
-                    height: { xs: 600, lg: "auto" },
+                    // 150px: the column header above, and room below for
+                    // the help button that floats over the bottom corner.
+                    height: { xs: "calc(100dvh - 150px)", lg: "auto" },
+                    minHeight: { xs: 480, lg: 0 },
                     flex: { lg: 1 },
-                    minHeight: { lg: 0 },
                   }}
                 >
-                  <AnimatePresence mode="wait" initial={false}>
-                    {rightTab === "coach" && (
-                      <motion.div
-                        key="coach"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.18, ease: "easeOut" }}
-                        style={{ position: "absolute", inset: 0 }}
-                      >
-                        <CoachPanel
-                          messages={messages}
-                          input={input}
-                          onChangeInput={setInput}
-                          onSend={handleSend}
-                          onSuggestion={handleSuggestion}
-                          signedOut={!authLoading && !user}
-                          onSignIn={() => openAuthDialog()}
-                          isThinking={isThinking}
-                          mood={coachMasti.mood}
-                          moodPulse={coachMasti.replayKey}
-                          analysisActive={analysisActive}
-                          engineDataUnavailable={engineDataUnavailable}
-                          onPromoteToBoard={handlePromoteToBoard}
-                          allMoves={allMoves}
-                          rootFen={rootFen}
-                          onMoveRefClick={handleCoachMoveRef}
-                          playerSide={playerSide}
-                          sideUiEligible={!isPuzzleMode && allMoves.length > 0}
-                          onChoosePlayerSide={handleChoosePlayerSide}
-                          onRunCommand={handleRunCommand}
-                          onLaunchPuzzleSet={launchPuzzleSet}
-                          onShareMessage={(m) =>
-                            setShareDialog({ msg: m, fen: displayFen })
-                          }
-                          mistakeContext={mistakeContext}
-                          userRating={resolveUserRating(profile) ?? 1500}
-                          coachContextIdProp={coachContextIdRef.current}
-                          enginePositions={enginePositions}
-                          loadedGame={loadedGame}
-                          suggestions={coachSuggestions}
-                          personalityId={personality.id}
-                          onChangePersonality={(id) =>
-                            setSelectedPersonalityId(id)
-                          }
-                          onPuzzleSolved={(puzzle, secs) =>
-                            recordSolved(puzzle.id, secs, puzzle.solution)
-                          }
-                          onPracticeConcept={(theme, name, msgIdx) =>
-                            triggerPuzzleFetch(msgIdx, theme, name, displayFen)
-                          }
-                        />
-                      </motion.div>
-                    )}
-                    {rightTab === "masters" && (
-                      <motion.div
-                        key="masters"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.18, ease: "easeOut" }}
-                        style={{ position: "absolute", inset: 0 }}
-                      >
-                        <MasterGamesPanel
-                          fen={displayFen}
-                          ply={currentPly}
-                          playedSan={playedSanAtPly}
-                          onPreviewMove={handleTakeoverPreviewMove}
-                          onStepBack={stepBackHalfMove}
-                          selectSan={
-                            undoneMove &&
-                            normalizePosition(undoneMove.fen) ===
-                              normalizePosition(displayFen)
-                              ? undoneMove.san
-                              : undefined
-                          }
-                          onSendToCoach={handleTakeoverSendToCoach}
-                          onCandidatesUpdate={setTakeoverCandidates}
-                          moves={allMoves}
-                          onJumpToPly={setCurrentPly}
-                        />
-                      </motion.div>
-                    )}
-                    {rightTab === "moves" && (
-                      <motion.div
-                        key="moves"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.18, ease: "easeOut" }}
-                        style={{ position: "absolute", inset: 0 }}
-                      >
-                        <MovesListPanel
-                          moves={allMoves}
-                          currentPly={currentPly}
-                          positions={classifiedPositions}
-                          accuracy={gameEvalFull?.accuracy ?? null}
-                          onJumpTo={setCurrentPly}
-                          onAskCoach={handleAskCoachAboutMove}
-                        />
-                      </motion.div>
-                    )}
-                    {rightTab === "lines" && (
-                      <motion.div
-                        key="lines"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.18, ease: "easeOut" }}
-                        style={{ position: "absolute", inset: 0 }}
-                      >
-                        <EngineLinesPanel
-                          position={displayPositionEval}
-                          fen={displayFen}
-                          engineName={engineSettings.engineName}
-                          status={linesStatus}
-                          exploring={takeoverPreview}
-                          onReturnToAnchor={returnToAnchor}
-                          settings={linesSettings}
-                          onSettingsChange={setLinesSettings}
-                          onEngineNameChange={(n) =>
-                            setEngineSettings((s) => ({ ...s, engineName: n }))
-                          }
-                        />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  {rightTab === "coach" && (
+                    <Box key="coach" sx={{ position: "absolute", inset: 0 }}>
+                      <CoachPanel
+                        messages={messages}
+                        input={input}
+                        onChangeInput={setInput}
+                        onSend={handleSend}
+                        onSuggestion={handleSuggestion}
+                        signedOut={!authLoading && !user}
+                        onSignIn={() => openAuthDialog()}
+                        isThinking={isThinking}
+                        analysisActive={analysisActive}
+                        engineDataUnavailable={engineDataUnavailable}
+                        onPromoteToBoard={handlePromoteToBoard}
+                        allMoves={allMoves}
+                        rootFen={rootFen}
+                        onMoveRefClick={handleCoachMoveRef}
+                        onShowLinePly={handleShowLinePly}
+                        playerSide={playerSide}
+                        sideUiEligible={!isPuzzleMode && allMoves.length > 0}
+                        onChoosePlayerSide={handleChoosePlayerSide}
+                        onRunCommand={handleRunCommand}
+                        onLaunchPuzzleSet={launchPuzzleSet}
+                        onShareMessage={(m) =>
+                          setShareDialog({ msg: m, fen: displayFen })
+                        }
+                        coachContextIdProp={coachContextIdRef.current}
+                        enginePositions={enginePositions}
+                        loadedGame={loadedGame}
+                        suggestions={coachSuggestions}
+                        onPuzzleSolved={(puzzle, secs) =>
+                          recordSolved(puzzle.id, secs, puzzle.solution)
+                        }
+                        onPracticeConcept={(theme, name, msgIdx) =>
+                          triggerPuzzleFetch(msgIdx, theme, name, displayFen)
+                        }
+                      />
+                    </Box>
+                  )}
+                  {rightTab === "masters" && (
+                    <Box key="masters" sx={{ position: "absolute", inset: 0 }}>
+                      <MasterGamesPanel
+                        fen={displayFen}
+                        ply={currentPly}
+                        playedSan={playedSanAtPly}
+                        onPreviewMove={handleTakeoverPreviewMove}
+                        onStepBack={stepBackHalfMove}
+                        selectSan={
+                          undoneMove &&
+                          normalizePosition(undoneMove.fen) ===
+                            normalizePosition(displayFen)
+                            ? undoneMove.san
+                            : undefined
+                        }
+                        onSendToCoach={handleTakeoverSendToCoach}
+                        onCandidatesUpdate={setTakeoverCandidates}
+                        moves={allMoves}
+                        onJumpToPly={setCurrentPly}
+                      />
+                    </Box>
+                  )}
+                  {rightTab === "moves" && (
+                    <Box key="moves" sx={{ position: "absolute", inset: 0 }}>
+                      <MovesListPanel
+                        moves={allMoves}
+                        currentPly={currentPly}
+                        positions={classifiedPositions}
+                        accuracy={gameEvalFull?.accuracy ?? null}
+                        onJumpTo={setCurrentPly}
+                        onAskCoach={handleAskCoachAboutMove}
+                      />
+                    </Box>
+                  )}
+                  {rightTab === "lines" && (
+                    <Box key="lines" sx={{ position: "absolute", inset: 0 }}>
+                      <EngineLinesPanel
+                        position={displayPositionEval}
+                        fen={displayFen}
+                        engineName={engineSettings.engineName}
+                        status={linesStatus}
+                        exploring={takeoverPreview}
+                        onReturnToAnchor={returnToAnchor}
+                        settings={linesSettings}
+                        onSettingsChange={setLinesSettings}
+                        onEngineNameChange={(n) =>
+                          setEngineSettings((s) => ({ ...s, engineName: n }))
+                        }
+                      />
+                    </Box>
+                  )}
                 </Box>
               </Box>
             </ErrorBoundary>
@@ -10833,16 +10892,17 @@ export default function AnalysisPage() {
                     gap: 0.5,
                     px: 0.85,
                     py: 0.25,
-                    borderRadius: `${RADIUS.small}px`,
-                    background: SURFACE.raisedSecondary,
-                    border: `1px solid ${LINE.hairline}`,
-                    color: TEXT.secondary,
+                    borderRadius: "5px",
+                    background: "rgba(249,115,22,0.1)",
+                    border: "1px solid rgba(249,115,22,0.25)",
+                    color: "#FB923C",
+                    fontFamily: "Monaco, Menlo, monospace",
                     fontWeight: 600,
-                    fontSize: TYPE.caption.fontSize,
-                    transition: `background-color ${MOTION.hover}, color ${MOTION.hover}`,
+                    fontSize: "0.72rem",
+                    transition: "all 180ms ease",
                     "&:hover": {
-                      background: SURFACE.raisedTertiary,
-                      color: TEXT.primary,
+                      background: "rgba(249,115,22,0.18)",
+                      borderColor: "rgba(249,115,22,0.4)",
                     },
                   }}
                 >
@@ -10852,7 +10912,7 @@ export default function AnalysisPage() {
               </Stack>
             </Stack>
             <Stack direction="row" spacing={2.5} alignItems="center">
-              <Box>Analysis by</Box>
+              <Box>Engine-grounded by</Box>
               <Box sx={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
                 Stockfish 17
               </Box>

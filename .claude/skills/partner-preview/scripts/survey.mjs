@@ -1,8 +1,27 @@
-// Per-page survey of the partner preview surface against a local production
-// server. For each route, under the prefix and bare, at 1280x900 and 390x844
-// (drawer open on the phone): banner present, <html> attribute, the locked
-// box's overflow and clipped pixels, page scroll, and every visible sign-in
-// ask. Prints one line per page; anything unexpected is visible at a glance.
+// Per-page survey of the partner surface against a local production server.
+// For each route, under the prefix and bare, at 1280x900 and 390x844 (drawer
+// open on the phone): banner present, the data-cm-partner attribute, the
+// locked box's overflow and clipped pixels, page scroll, and every visible
+// sign-in ask. Prints one line per page. Anything unexpected is visible at a
+// glance.
+//
+// Reading the output while a live placement is set (LIVE_PLACEMENT in
+// src/components/ads/partners.ts): the bare rows show banner=1 and
+// attr=chessusa:2 as well, which is the live banner and not a leak. Only the
+// prefixed rows should have an empty asks list, and the bare Pages Router
+// rows should list the usual asks (nav Sign in, the coach gate, the rail
+// chip, the captions). /faq is an App Router page with no NavPill and lists
+// none on either kind of row. The data-cm-preview attribute is not printed,
+// so a prefixed row and a bare row are told apart by the URL column and the
+// asks. With no live placement the bare rows read banner=0 attr=-. Under a
+// banner the locked boxes read "visible" on both kinds of row, /puzzles and
+// /analysis both with clipped=0px at 1280x900 and 1440x900: the rule shows
+// overflow and nothing else, and on those viewports nothing is squeezed out.
+// A clipped figure above 0 is overflow the page scrolls by (max= grows by
+// the same amount), not a clip. Without a banner the 1280x900 rows read
+// "hidden". The
+// 390x844 rows read "visible" either way, since neither layout locks at
+// phone width.
 //
 //   node .claude/skills/partner-preview/scripts/survey.mjs
 //   BASE=http://127.0.0.1:3123 PREFIX=/partners/ChessUSA/1 ROUTES=/,/puzzles SHOTS=/tmp/shots node …

@@ -10,8 +10,7 @@
  */
 
 import { createHash } from "crypto";
-import { Chess } from "chess.js";
-import { detectOpening } from "@/lib/unifiedOpeningDetector";
+import { buildGameOverview } from "@/lib/coach/gameOverview";
 import { logger } from "@/lib/logging";
 import type { MastermindGameEval } from "./mastermind/routeHelpers";
 import type { CompactContract } from "./contract/followUp";
@@ -73,6 +72,13 @@ export interface AnalysisContext {
    * far too large to hold 50 of in a serverless instance's memory.
    */
   compactContract?: CompactContract;
+  /**
+   * The attitude the review was written in ("friendly", "grandmaster", …).
+   * The follow-up prompt (followUpPrompt.ts) is per attitude and is built on
+   * read, so the id has to travel with the context. Optional: entries written
+   * before this field existed fall back to the default attitude.
+   */
+  personalityId?: string;
 }
 
 const MAX_CACHE_SIZE = 50;
@@ -248,60 +254,6 @@ export function getAnalysisContext(contextId: string): AnalysisContext | null {
  *   3. Pointer to the prior deep analysis (lives in conversation history)
  *   4. The compactGameContext block (PGN + per-move narrative + top mistakes)
  */
-/**
- * Facts about the game as a whole, for the follow-up context (E1).
- *
- * Everything here is DERIVED from what the context already stores, so this
- * needs no new fields and works for entries written before it existed. Each
- * line is emitted only when the underlying value is genuinely present — an
- * absent opening is left out rather than guessed at, which is the entire point
- * of the document this comes from.
- */
-function buildGameOverview(context: AnalysisContext): string[] {
-  const out: string[] = [];
-
-  const moves = context.playedMoves ?? [];
-  if (moves.length > 0) {
-    try {
-      const game = new Chess();
-      for (const san of moves) {
-        try {
-          game.move(san);
-        } catch {
-          break;
-        }
-      }
-      const opening = detectOpening(game);
-      if (opening && opening.name && opening.name !== "Opening") {
-        out.push(
-          `Opening: ${opening.name}${opening.eco ? ` (ECO ${opening.eco})` : ""}`,
-        );
-      }
-    } catch {
-      // Opening detection is best-effort; never block the context on it.
-    }
-  }
-
-  // gameEval is `z.any()` at the request boundary, so read defensively.
-  const ge = context.gameEval as
-    | {
-        accuracy?: { white?: number; black?: number };
-        estimatedElo?: { white?: number; black?: number };
-      }
-    | undefined;
-  const side = context.playerColor === "w" ? "white" : "black";
-  const acc = ge?.accuracy?.[side];
-  if (typeof acc === "number" && Number.isFinite(acc)) {
-    out.push(`Your accuracy this game: ${acc.toFixed(1)}%`);
-  }
-  const elo = ge?.estimatedElo?.[side];
-  if (typeof elo === "number" && Number.isFinite(elo)) {
-    out.push(`Estimated Elo for this game: ${Math.round(elo)}`);
-  }
-
-  return out;
-}
-
 export function buildCondensedContext(context: AnalysisContext): string {
   const lines: string[] = [];
 

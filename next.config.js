@@ -131,9 +131,10 @@ const nextConfig = {
     // /partners/ChessUSA/1/puzzles serves the REAL /puzzles page with that
     // advertiser's creative 2a in the slot below the nav. Any site path works,
     // and the advertiser and option are in the URL rather than in a cookie,
-    // which is what makes the placement impossible to leak: a normal visitor
-    // on /puzzles cannot end up in a state where the banner appears, because
-    // there is no state.
+    // which is what keeps a preview from leaking: a normal visitor on /puzzles
+    // cannot end up inside someone's preview, because there is no state. What
+    // a normal visitor does see is the live placement (LIVE_PLACEMENT in
+    // src/components/ads/partners.ts), which never depends on these rewrites.
     //
     // The advertiser list is an ALLOWLIST, spelled out here rather than left
     // as a wildcard :partner. A wildcard would make every /partners/<anything>
@@ -236,6 +237,18 @@ const nextConfig = {
        * never hand-edited.
        */
       source: "/masti/:path*",
+      headers: [
+        { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+      ],
+    },
+    {
+      /**
+       * The advertiser faces, self-hosted so a page with a live banner makes
+       * no request to Google (src/components/ads/partners.ts). Same versioned
+       * directory convention as /masti: a changed file is a new /v2/, never
+       * an edit in place, so a year of immutable caching is safe.
+       */
+      source: "/fonts/partners/:path*",
       headers: [
         { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
       ],

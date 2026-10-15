@@ -6,8 +6,25 @@ import {
 } from "@/lib/analysisContextCache";
 import { buildFenPositionFacts } from "@/lib/mastermind/positionFacts";
 import { renderContractCompact } from "@/lib/contract/followUp";
-import { refereeFollowUp } from "@/lib/contract/followUpReferee";
+import {
+  refereeFollowUp,
+  type LicensedLine,
+} from "@/lib/contract/followUpReferee";
 import { FOLLOWUP_REDUCED_GROUNDING_NOTE } from "@/lib/prompts/followupGrounding";
+import {
+  FOLLOWUP_MAX_TOKENS,
+  FOLLOWUP_PROMPT_VERSION,
+  getFollowUpPromptMode,
+  getFollowUpSystemPromptStable,
+  followUpTurnReminder,
+} from "@/lib/prompts/followUpPrompt";
+import { resolveQuestionAnchor } from "@/lib/coach/questionAnchor";
+import {
+  buildAnchorBlock,
+  anchorAlternativeFen,
+  anchorLicensedLines,
+  buildFollowUpCondensedContext,
+} from "@/lib/coach/followUpContext";
 import { buildRelationalFacts } from "@/lib/relational/relationalFactsBuilder";
 import { validateAIResponse } from "@/lib/aiResponseValidator";
 import { chatSchema, validateRequest } from "@/lib/validation/schemas";
@@ -43,6 +60,9 @@ import { aiRefusal } from "@/lib/coach/aiGate";
 
 const log = logger.child({ module: "chat" });
 
+/** Prior messages replayed under the follow-up prompt: four exchanges. */
+const FOLLOWUP_HISTORY_MESSAGES = 8;
+
 /**
  * Lightweight chat endpoint for follow-up messages.
  *
@@ -68,14 +88,41 @@ const log = logger.child({ module: "chat" });
  */
 function refereeChatReply(
   reply: string,
-  context: { compactContract?: import("@/lib/contract/followUp").CompactContract; compactGameContext?: string; playedMoves?: string[] },
+  context: {
+    compactContract?: import("@/lib/contract/followUp").CompactContract;
+    compactGameContext?: string;
+    playedMoves?: string[];
+  },
   activeFen: string,
   requestId: string,
+  /**
+   * The move the question named (questionAnchor.ts): its two boards license
+   * piece-on-square claims and its narrated lines license moves and tactical
+   * words, exactly as a reviewed insight's do. Without this, a follow-up
+   * about a move that was never a card had every board claim deleted.
+   */
+  anchorLicence?: {
+    fens: readonly string[];
+    text: string;
+    /** The ply of `activeFen`, so a sentence's moves are read as a line from it. */
+    activePly?: number;
+    /** The anchor's engine line, for numbered moves cited from it. */
+    lines?: readonly LicensedLine[];
+  },
+  /**
+   * Spans a Mastermind validator contradicted in this very reply, when the
+   * reply is a draft the pipeline rejected: the referee drops the sentence
+   * each one is about.
+   */
+  flaggedSpans?: readonly string[]
 ): string {
   if (!context.compactContract) return reply;
   try {
+    const evalSource = `${context.compactGameContext ?? ""}\n${anchorLicence?.text ?? ""}`;
     const licensedEvals = Array.from(
-      (context.compactGameContext ?? "").matchAll(/(?<![A-Za-z0-9.])([+-]\d+(?:\.\d{1,2})?|M[+-]?\d+)(?![A-Za-z0-9.%])/g),
+      evalSource.matchAll(
+        /(?<![A-Za-z0-9.])([+-]\d+(?:\.\d{1,2})?|M[+-]?\d+)(?![A-Za-z0-9.%])/g
+      )
     ).map((m) => m[1]);
     const result = refereeFollowUp({
       reply,
@@ -83,6 +130,11 @@ function refereeChatReply(
       activeFen,
       moveHistory: context.playedMoves ?? [],
       licensedEvals,
+      extraFens: anchorLicence?.fens,
+      extraLicensedText: anchorLicence?.text,
+      activePly: anchorLicence?.activePly,
+      extraLines: anchorLicence?.lines,
+      flaggedSpans,
     });
     if (result.dropped.length > 0) {
       log.info("followup_referee_dropped", {
@@ -102,7 +154,10 @@ export async function POST(request: NextRequest) {
   // AI is switched off on purpose (see lib/coach/aiAvailability). Refuse
   // BEFORE any work, auth or spend, and with a code that says "off", not
   // "broken" — the difference decides whether the user retries forever.
-  { const refusal = await aiRefusal(); if (refusal) return refusal; }
+  {
+    const refusal = await aiRefusal();
+    if (refusal) return refusal;
+  }
   const guard = await requireSession();
   if ("response" in guard) return guard.response;
   // Same `reportFatal` helper as /api/enhanced-analysis: fire a structured
@@ -181,22 +236,74 @@ export async function POST(request: NextRequest) {
           // unparseable client FEN — keep context.fen
         }
       }
+      let effectiveMoveIndex = moveIndex;
 
-      // Per-turn oracle facts for the active position. The v3.4+ system
+      const playerColorLetter: "w" | "b" =
+        context.playerColor === "b" || context.playerColor === "black"
+          ? "b"
+          : "w";
+      const followUpMode = getFollowUpPromptMode();
+      const useFollowUpPrompt = followUpMode === "v1";
+
+      // The move the question names wins over the board the client shows.
+      // "Why was 8. Nc7+ a mistake?" asked from the start position used to be
+      // grounded, validated and refereed against the start position. The
+      // anchor moves everything — facts, pipeline ply, referee boards — to the
+      // move in question, and the response tells the client to put that
+      // position on the board.
+      const anchor = resolveQuestionAnchor(
+        userMessage,
+        context.playedMoves ?? [],
+        playerColorLetter,
+        moveIndex
+      );
+      if (anchor) {
+        activeFen = anchor.fenAfter;
+        effectiveMoveIndex = anchor.ply;
+      }
+
+      // Per-turn oracle facts for the position under discussion. The system
       // prompt forbids any attack/capture/pin/fork claim not present in a
-      // VERIFIED POSITION FACTS block, but this path never injected one —
-      // the constraint was unsatisfiable on every follow-up turn, forcing
-      // the model to either break its own rules or refuse tactical talk
-      // (audit §3.4). buildRelationalFacts is a pure chess.js computation.
+      // VERIFIED POSITION FACTS block, so one is injected on every turn
+      // (audit §3.4). With an anchor, the block is about THAT move: both
+      // boards, the relational read, the eval swing, the engine's line and
+      // the game's continuation, each narrated ply by ply.
       let perTurnFacts = "";
+      let anchorBlock = "";
       try {
-        const boardFacts = buildFenPositionFacts(activeFen);
-        const relational = buildRelationalFacts(activeFen);
-        perTurnFacts = [boardFacts, relational.summary]
-          .filter(Boolean)
-          .join("\n\n");
+        if (anchor) {
+          anchorBlock = buildAnchorBlock(
+            anchor,
+            context.playedMoves ?? [],
+            context.gameEval as never,
+            playerColorLetter
+          );
+          const relationalAfter = buildRelationalFacts(anchor.fenAfter).summary;
+          perTurnFacts = [
+            anchorBlock,
+            relationalAfter
+              ? `VERIFIED POSITION FACTS after ${anchor.san}:\n${relationalAfter}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join("\n\n");
+        } else {
+          const boardFacts = buildFenPositionFacts(activeFen);
+          const relational = buildRelationalFacts(activeFen);
+          perTurnFacts = [boardFacts, relational.summary]
+            .filter(Boolean)
+            .join("\n\n");
+        }
       } catch {
         // oracle failure — proceed without per-turn facts (legacy behavior)
+      }
+      if (anchor) {
+        log.info("followup_anchor", {
+          requestId: extractRequestId(request.headers),
+          matched: anchor.matched,
+          ply: anchor.ply,
+          askedSan: anchor.askedSan ?? null,
+        });
       }
 
       // PR-CI-6a — follow-up grounding. When the review above was served
@@ -206,14 +313,36 @@ export async function POST(request: NextRequest) {
       // degraded source forbids. Absent (legacy-served review, or a context
       // cached before this landed) it renders to "" and the turn behaves
       // exactly as before.
+      // With an anchor the block is focused: the engine line and its story
+      // for the move asked about alone, the other findings' verdicts and
+      // evals without their lines (followUp.ts, ContractFocus). Live, the
+      // other moments' lines were where a borrowed "9...Kxc7" came from.
       const contractBlock = context.compactContract
-        ? renderContractCompact(context.compactContract)
+        ? renderContractCompact(
+            context.compactContract,
+            undefined,
+            anchor
+              ? { moveNumber: anchor.moveNumber, color: anchor.color }
+              : undefined
+          )
         : "";
 
-      const cachedSystemPrompt =
-        context.systemPromptStable ?? context.systemPrompt;
+      // The follow-up prompt (followUpPrompt.ts): the verdict / proof /
+      // lesson shape with a word budget, per attitude, cached like turn 1.
+      // `COACH_FOLLOWUP_PROMPT=legacy` puts the turn-1 prompt back here.
+      const cachedSystemPrompt = useFollowUpPrompt
+        ? getFollowUpSystemPromptStable(context.personalityId ?? "friendly")
+        : (context.systemPromptStable ?? context.systemPrompt);
+      // Half-moves of the position under discussion, for the windowed table.
+      const centerPly = anchor
+        ? anchor.ply
+        : typeof moveIndex === "number"
+          ? moveIndex
+          : null;
       const condensedContext = [
-        buildCondensedContext(context),
+        useFollowUpPrompt
+          ? buildFollowUpCondensedContext(context, centerPly)
+          : buildCondensedContext(context),
         contractBlock,
         perTurnFacts,
         // T3 option A: this turn made no fresh external lookups — the prompt
@@ -223,9 +352,14 @@ export async function POST(request: NextRequest) {
       ]
         .filter(Boolean)
         .join("\n\n");
-      const uncachedSuffix = context.systemPromptStable
-        ? `${context.systemPromptSuffix ?? ""}\n\n${condensedContext}`.trim()
-        : condensedContext;
+      const uncachedSuffix =
+        useFollowUpPrompt || context.systemPromptStable
+          ? `${context.systemPromptSuffix ?? ""}\n\n${condensedContext}`.trim()
+          : condensedContext;
+      // Output cap. The follow-up prompt budgets FOLLOWUP_WORD_BUDGET words;
+      // the cap is several times that so only a runaway answer is ever cut
+      // mid-sentence.
+      const outputCap = useFollowUpPrompt ? FOLLOWUP_MAX_TOKENS : 3000;
 
       const nonSystemMessages: LLMMessage[] = [];
 
@@ -254,6 +388,7 @@ export async function POST(request: NextRequest) {
         // any entry that slipped through unchanged.
         const canonical = context.initialAnalysis?.trim();
         let droppedCanonical = false;
+        const priorTurns: LLMMessage[] = [];
         for (const msg of conversationHistory) {
           if (
             !droppedCanonical &&
@@ -266,18 +401,76 @@ export async function POST(request: NextRequest) {
             continue;
           }
           if (msg.role && msg.content) {
-            nonSystemMessages.push({
+            priorTurns.push({
               role: msg.role as "user" | "assistant",
               content: msg.content,
             });
           }
         }
+        // Deep in a conversation every earlier answer is replayed as the
+        // model's own words, and it imitates them: six essays in, the seventh
+        // is an essay. The follow-up prompt keeps the last four exchanges;
+        // the review and the contract carry everything older that matters.
+        // Trimmed to start on a user turn so the roles keep alternating.
+        let kept = useFollowUpPrompt
+          ? priorTurns.slice(-FOLLOWUP_HISTORY_MESSAGES)
+          : priorTurns;
+        while (kept.length > 0 && kept[0].role !== "user") kept = kept.slice(1);
+        nonSystemMessages.push(...kept);
       }
 
-      // Current user message
-      nonSystemMessages.push({ role: "user", content: userMessage });
+      // The player's question, with the budget under it on the follow-up
+      // path (followUpPrompt.ts): the model's copy of the turn only. The
+      // transcript the client keeps, the anchor and the referee all see the
+      // question as typed.
+      nonSystemMessages.push({
+        role: "user",
+        content: useFollowUpPrompt
+          ? `${userMessage}\n\n${followUpTurnReminder(userMessage)}`
+          : userMessage,
+      });
 
       const systemText = cachedSystemPrompt;
+      // What the client needs to put the discussed position on the board,
+      // and what the referee needs to license claims about it.
+      const anchorFields = anchor
+        ? {
+            anchor: {
+              ply: anchor.ply,
+              moveNumber: anchor.moveNumber,
+              color: anchor.color,
+              san: anchor.san,
+              ...(anchor.askedSan ? { askedSan: anchor.askedSan } : {}),
+            },
+            followUpPrompt: useFollowUpPrompt
+              ? FOLLOWUP_PROMPT_VERSION
+              : "legacy",
+          }
+        : {
+            followUpPrompt: useFollowUpPrompt
+              ? FOLLOWUP_PROMPT_VERSION
+              : "legacy",
+          };
+      const altFen = anchor ? anchorAlternativeFen(anchor) : null;
+      const anchorLicence = anchor
+        ? {
+            fens: [
+              anchor.fenBefore,
+              anchor.fenAfter,
+              ...(altFen ? [altFen] : []),
+            ],
+            text: anchorBlock,
+            activePly: anchor.ply,
+            lines: anchorLicensedLines(anchor, context.gameEval as never),
+          }
+        : {
+            fens: [],
+            text: "",
+            activePly:
+              typeof effectiveMoveIndex === "number"
+                ? effectiveMoveIndex
+                : undefined,
+          };
 
       // Stage B insertion (§3.7.9 chat-equivalent of A): single env read.
       const { validatorsEnabled } = getMastermindEnv();
@@ -299,10 +492,10 @@ export async function POST(request: NextRequest) {
         // slicing the history to k keeps eval indexing aligned). Without it,
         // the pipeline stays last-move-anchored (legacy behavior).
         const effectiveMoveHistory =
-          typeof moveIndex === "number" &&
+          typeof effectiveMoveIndex === "number" &&
           Array.isArray(context.playedMoves) &&
-          moveIndex <= context.playedMoves.length
-            ? context.playedMoves.slice(0, moveIndex)
+          effectiveMoveIndex <= context.playedMoves.length
+            ? context.playedMoves.slice(0, effectiveMoveIndex)
             : context.playedMoves;
         const prep = await prepareMastermindContext({
           userMessage,
@@ -345,7 +538,7 @@ export async function POST(request: NextRequest) {
                     systemSuffix: uncachedSuffix,
                     messages: nonSystemMessages,
                     temperature: 0.7,
-                    maxTokens: 3000,
+                    maxTokens: outputCap,
                     cacheSystem: true,
                   },
                   stockfishEval: prep.moveCtx.stockfishEval,
@@ -386,8 +579,43 @@ export async function POST(request: NextRequest) {
             );
           }
 
+          // The pipeline's fallback is a template about the position ("What
+          // changed: … What to look at: …") that answers no question. It was
+          // built for the review, where a template beats a hallucinated
+          // card. The follow-up reply has a sentence-level referee of its
+          // own, so when the validators rejected the model's draft the draft
+          // is served instead, minus every sentence a validator contradicted
+          // (the spans ride with the issues), and the referee licenses the
+          // rest. A pipeline that timed out or never got a draft, the legacy
+          // prompt, and a context with no contract to referee against still
+          // serve the template. Live (2026-09-26) the template stood in for
+          // two of six answers.
+          const isFallbackUsed =
+            pipelineResult.finalOutcome === "fallback_used";
+          const draft =
+            useFollowUpPrompt &&
+            isFallbackUsed &&
+            !pipelineResult.timedOut &&
+            context.compactContract
+              ? pipelineResult.lastDraft
+              : undefined;
+          const flaggedSpans = draft
+            ? pipelineResult.cumulativeIssues
+                .filter((i) => i.severity === "error")
+                .map((i) => i.llm_span)
+                .filter((span) => typeof span === "string" && span.length > 0)
+            : undefined;
+          if (draft) {
+            log.info("followup_draft_served", {
+              requestId,
+              retryCount: pipelineResult.retryCount,
+              issues: pipelineResult.cumulativeIssues.map((i) => i.check_name),
+            });
+          }
           const rawContent =
-            pipelineResult.finalResponse || "I couldn't generate a response.";
+            draft ||
+            pipelineResult.finalResponse ||
+            "I couldn't generate a response.";
           const validation = validateAIResponse(rawContent, activeFen);
 
           forwardPipelineTelemetryForRoute({
@@ -413,10 +641,9 @@ export async function POST(request: NextRequest) {
           // buildFallbackResponse prose cites pre-move position state by
           // design (role changes from featureDelta), while validateAIResponse
           // checks against post-move FEN → systematic false positive.
-          const isFallbackUsed =
-            pipelineResult.finalOutcome === "fallback_used";
+          const servedTemplate = isFallbackUsed && !draft;
           const usePositionAnchoredAnnotation =
-            !isFallbackUsed &&
+            !servedTemplate &&
             POSITION_ANCHORED_VALIDATOR_CATEGORIES.has(prep.category);
           return NextResponse.json({
             gameAnalysis: {
@@ -427,14 +654,20 @@ export async function POST(request: NextRequest) {
                 context,
                 activeFen,
                 requestId,
+                anchorLicence,
+                flaggedSpans
               ),
               position: activeFen,
+              ...anchorFields,
               validationScore: validation.score,
               cached: false,
               fastPath: true,
               pipeline: {
                 finalOutcome: pipelineResult.finalOutcome,
                 retryCount: pipelineResult.retryCount,
+                // True when the validators' rejected draft was served,
+                // refereed, in place of the template.
+                servedDraft: !!draft,
                 totalCostUsd: pipelineResult.totalCostUsd,
                 category: prep.category,
                 classifierConfidence: prep.classifierConfidence,
@@ -467,7 +700,7 @@ export async function POST(request: NextRequest) {
           systemSuffix: uncachedSuffix,
           messages: nonSystemMessages,
           temperature: 0.7,
-          maxTokens: 3000,
+          maxTokens: outputCap,
           cacheSystem: true,
         });
       } catch (err) {
@@ -495,8 +728,10 @@ export async function POST(request: NextRequest) {
             context,
             activeFen,
             requestId,
+            anchorLicence
           ),
           position: activeFen,
+          ...anchorFields,
           validationScore: validation.score,
           cached: false,
           fastPath: true,

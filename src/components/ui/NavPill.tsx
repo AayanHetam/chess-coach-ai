@@ -475,8 +475,9 @@ export function NavPill({
           SELF_CHROMED_ROUTES (/, /analysis, /play, /practice, /plan, /profile,
           /puzzles, /scout, /courses, /database) mount their own NavPill inside
           the page, so Layout has no hook below the nav for any of them.
-          Renders nothing at all unless the viewer opened one of the three
-          /partners/chessusa/N links. See PartnerSlot.tsx. */}
+          Shows the live placement (LIVE_PLACEMENT in partners.ts), or the
+          creative a /partners/<advertiser>/N link names, or nothing. See
+          PartnerSlot.tsx. */}
       <PartnerSlotPages />
 
       <AppDrawer

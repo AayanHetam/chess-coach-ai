@@ -1,6 +1,6 @@
 /**
- * The advertisers the preview surface can serve, and everything about each one
- * that is not a React component.
+ * The advertisers the partner slot can serve, in preview or live, and
+ * everything about each one that is not a React component.
  *
  * Deliberately a leaf module: no React, no MUI, no page imports, nothing from
  * ./PartnerSlot. The boot script, the path regex, the analytics guards and the
@@ -11,7 +11,11 @@
  * 1. Add the slug to PartnerSlug and an entry to PARTNERS below.
  * 2. Write the creatives in <slug>Turn2.tsx and register the renderer in
  *    PartnerSlot.tsx's PARTNER_CREATIVES.
- * 3. Add the rewrite source to next.config.js. It is a separate file in
+ * 3. Put the latin woff2 of every face the creatives set text in under
+ *    public/fonts/partners/v1 (with its OFL file; see the README there) and
+ *    list it in `fonts`. The faces are served from this domain on purpose:
+ *    a live placement must not make every visitor's page load call Google.
+ * 4. Add the rewrite source to next.config.js. It is a separate file in
  *    CommonJS and cannot import this one, so the two are kept honest by
  *    partnerPrefix.test.ts, which reads the config as text and fails if a
  *    slug here has no rule there.
@@ -37,6 +41,48 @@ export function isPartnerOptionId(value: unknown): value is PartnerOptionId {
     PARTNER_OPTION_IDS.includes(value as PartnerOptionId)
   );
 }
+
+/* ── fonts ───────────────────────────────────────────────────────────────── */
+
+/**
+ * Where the partner faces live. Versioned: next.config.js serves the
+ * directory with a one-year immutable cache header, so a changed file is a
+ * new directory, never an edit in place.
+ */
+export const PARTNER_FONT_DIR = "/fonts/partners/v1";
+
+/**
+ * One @font-face rule. `weight` is CSS font-weight syntax, so a variable file
+ * declares its range ("600 800") and a static instance its one weight.
+ */
+export interface PartnerFontFace {
+  /** The family name exactly as the creatives write it in font-family. */
+  family: string;
+  weight: string;
+  /** File name under PARTNER_FONT_DIR. */
+  file: string;
+}
+
+const ARCHIVO_600_800: PartnerFontFace = {
+  family: "Archivo",
+  weight: "600 800",
+  file: "archivo-latin.woff2",
+};
+const PLEX_MONO_600: PartnerFontFace = {
+  family: "IBM Plex Mono",
+  weight: "600",
+  file: "ibm-plex-mono-600-latin.woff2",
+};
+const PLEX_MONO_700: PartnerFontFace = {
+  family: "IBM Plex Mono",
+  weight: "700",
+  file: "ibm-plex-mono-700-latin.woff2",
+};
+const SOURCE_SERIF_700: PartnerFontFace = {
+  family: "Source Serif 4",
+  weight: "700",
+  file: "source-serif-4-700-latin.woff2",
+};
 
 /* ── partners ────────────────────────────────────────────────────────────── */
 
@@ -69,11 +115,14 @@ export interface PartnerDef {
   /** utm_campaign for this flight. */
   campaign: string;
   /**
-   * The webfont stylesheet this partner's creatives are set in. Appended by
-   * the boot script only under this partner's prefix, so a real visitor —
-   * and an advertiser looking at someone else's links — requests none of it.
+   * The faces this partner's creatives set text in, served from this domain
+   * (PARTNER_FONT_DIR). Every partner's rules are in the page CSS, but a
+   * browser downloads a face only once text on the page is set in it, so a
+   * page shows exactly one advertiser's banner and fetches exactly that
+   * advertiser's faces; the boot script preloads those same files so they
+   * are in flight before the banner mounts.
    */
-  fontHref: string;
+  fonts: readonly PartnerFontFace[];
   /** Per-option creative code, name and accessible label. */
   options: Record<PartnerOptionId, PartnerOptionMeta>;
 }
@@ -87,9 +136,12 @@ const CHESSUSA: PartnerDef = {
   linkSegment: "ChessUSA",
   displayName: "ChessUSA",
   href: "https://www.chessusa.com/",
+  // The tag ChessUSA was pitched with and may already filter on. The flight
+  // that went live on 2026-10-14 is Q4; the tag is kept as pitched on purpose
+  // and only changes together with ChessUSA, since renaming it mid-flight
+  // would split their reporting. The shell reads it from here.
   campaign: "chessusa_2026q3",
-  fontHref:
-    "https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@700&display=swap",
+  fonts: [ARCHIVO_600_800, PLEX_MONO_700],
   options: {
     "1": {
       code: "2a",
@@ -116,7 +168,7 @@ const CHESSUSA: PartnerDef = {
  * sit more than 150 degrees of hue from Chess Masti's ember accent.
  *
  * Direction 2b is set in Source Serif 4, which is why this partner's font
- * request differs from ChessUSA's. Weight 600 of IBM Plex Mono is needed too
+ * list differs from ChessUSA's. Weight 600 of IBM Plex Mono is needed too
  * (2a and 2c set the code at 600 and 700 respectively).
  */
 const CHESSHOUSE: PartnerDef = {
@@ -125,8 +177,7 @@ const CHESSHOUSE: PartnerDef = {
   displayName: "Chess House",
   href: "https://www.chesshouse.com/",
   campaign: "chesshouse_2026q3",
-  fontHref:
-    "https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@600;700&family=Source+Serif+4:wght@700&display=swap",
+  fonts: [ARCHIVO_600_800, PLEX_MONO_600, PLEX_MONO_700, SOURCE_SERIF_700],
   options: {
     "1": {
       code: "2a",
@@ -154,18 +205,74 @@ export const PARTNERS: Record<PartnerSlug, PartnerDef> = {
 /** Every slug the surface serves, in registry order. */
 export const PARTNER_SLUGS = Object.keys(PARTNERS) as PartnerSlug[];
 
+/**
+ * Every distinct face any partner needs, in registry order, each file once.
+ * This is what partnerSlotCss turns into @font-face rules.
+ */
+export const PARTNER_FONT_FACES: readonly PartnerFontFace[] = Object.values(
+  PARTNERS
+)
+  .flatMap((p) => p.fonts)
+  .filter((face, i, all) => all.findIndex((f) => f.file === face.file) === i);
+
+/** Absolute URL path of one face's file. */
+export function partnerFontUrl(face: PartnerFontFace): string {
+  return `${PARTNER_FONT_DIR}/${face.file}`;
+}
+
 export function isPartnerSlug(value: unknown): value is PartnerSlug {
   return typeof value === "string" && value.toLowerCase() in PARTNERS;
 }
 
 /**
- * A resolved preview: which advertiser, which of their three creatives.
- * Null everywhere else, which is every URL a real visitor ever sees.
+ * A resolved placement: which advertiser, which of their three creatives. A
+ * preview URL names one; so does the live placement below.
  */
-export interface PartnerPreview {
+export interface PartnerPlacement {
   slug: PartnerSlug;
   option: PartnerOptionId;
 }
+
+/** The same shape, under the name the preview call sites use. */
+export type PartnerPreview = PartnerPlacement;
+
+/* ── the live placement ──────────────────────────────────────────────────── */
+
+/**
+ * What every visitor sees on every page, or null for none. This is the one
+ * value that turns the surface from a demo into an advertisement: with it
+ * set, real visitors load that advertiser's banner, faces and artwork on
+ * every page not matched by LIVE_EXCLUDED_RE_SOURCE below.
+ *
+ * ChessUSA bought unit 2b (option "2") on 2026-10-14. Taking it down is
+ * setting this to null and deploying; running another is naming it here. A
+ * reviewed, versioned value on purpose rather than an environment toggle:
+ * an advertisement on every page of the product belongs in the repo's
+ * history, and a test pins it so a stray edit cannot swap or drop it quietly.
+ *
+ * Nothing preview-only follows from it. The sign-in asks stay (they key on
+ * PREVIEW_ATTR), the router is not patched, analytics run as normal, and the
+ * pages stay indexable. Nothing is sent anywhere either: the banner is
+ * first-party HTML, its faces come from this domain, and the only thing the
+ * advertiser learns is the UTM query on a click.
+ */
+export const LIVE_PLACEMENT: PartnerPlacement | null = {
+  slug: "chessusa",
+  option: "2",
+};
+
+/**
+ * Where the live placement never shows, as a regex source shared verbatim by
+ * placementForPath and the boot script: anything under /partners/ (the iframe
+ * shell, the framed route, and the preview prefixes, which resolve on their
+ * own), the COPPA age gate, where no advertisement is served to anyone, the
+ * password-reset form, a one-shot token flow kept free of chrome, and the
+ * intern and admin dashboards, which are internal tools rather than pages
+ * the advertiser is paying to be seen on. The list is the only place these
+ * are spelled out; comments elsewhere point here.
+ */
+export const LIVE_EXCLUDED_RE_SOURCE =
+  "^\\/(partners\\/|auth\\/age(?:\\/|$)|reset-password(?:\\/|$)|intern(?:\\/|$)|admin(?:\\/|$))";
 
 /**
  * The regex source that decides the whole surface, built from the registry so
@@ -186,6 +293,6 @@ export const PARTNER_PATH_RE_SOURCE = `^\\/partners\\/(${PARTNER_SLUGS.join(
  * survey script prints it — and for the tests that compare the shipped boot
  * script against the TS path resolver.
  */
-export function partnerAttrValue(preview: PartnerPreview): string {
-  return `${preview.slug}:${preview.option}`;
+export function partnerAttrValue(placement: PartnerPlacement): string {
+  return `${placement.slug}:${placement.option}`;
 }

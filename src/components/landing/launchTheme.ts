@@ -37,11 +37,11 @@ export const homeRootSx: SxProps<Theme> = {
 };
 
 /** The content column under the nav: takes the rest of the screen. */
-export const homeColumnSx: SxProps<Theme> = {
+export const homeColumnSx = {
   flex: 1,
   display: "flex",
   flexDirection: "column",
   width: "100%",
   maxWidth: 1120,
   mx: "auto",
-};
+} satisfies SxProps<Theme>;

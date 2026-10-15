@@ -5,6 +5,7 @@ import {
   findPlyForMoveRef,
   plyBeforeMove,
   buildRecommendedPreview,
+  buildLinePreview,
   playSanOnFen,
   resolveMoveRef,
 } from "@/components/preview-analysis/coachMoveRefs";
@@ -187,5 +188,31 @@ describe("playSanOnFen — chained PV continuation clicks", () => {
 
   it("returns null on an illegal move", () => {
     expect(playSanOnFen(new Chess().fen(), "Ke2")).toBeNull();
+  });
+});
+
+describe("buildLinePreview — the proof line on the board", () => {
+  const game = new Chess();
+  for (const san of ["e4", "c5", "Nf3", "Nc6", "d4", "cxd4", "Nxd4", "Qb6", "Nf3", "Qxb2", "Na3", "Qxa1", "Nb5", "Qxc1"]) game.move(san);
+  const moves = game.history({ verbose: true });
+
+  it("branches off the mainline at the anchor and plays the plies asked for", () => {
+    const one = buildLinePreview(moves, 14, ["Qxc1"]);
+    expect(one).not.toBeNull();
+    expect(one!.san).toBe("Qxc1");
+    expect(one!.from).toBe("d1");
+    expect(one!.to).toBe("c1");
+    expect(one!.anchorPly).toBe(14);
+    expect(one!.path).toEqual(["Qxc1"]);
+    const three = buildLinePreview(moves, 14, ["Qxc1", "Rb8", "Qf4"]);
+    expect(three!.path).toEqual(["Qxc1", "Rb8", "Qf4"]);
+    expect(three!.san).toBe("Qf4");
+    expect(three!.fen).toContain(" b ");
+  });
+
+  it("refuses an illegal ply instead of guessing", () => {
+    expect(buildLinePreview(moves, 14, ["Qxc1", "Kg8"])).toBeNull();
+    expect(buildLinePreview(moves, 14, [])).toBeNull();
+    expect(buildLinePreview(moves, 99, ["Qxc1"])).toBeNull();
   });
 });

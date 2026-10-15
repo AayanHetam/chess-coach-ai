@@ -29,7 +29,7 @@ import { ThemeProvider } from "@mui/material/styles";
 
 import { NavPill } from "@/components/ui/NavPill";
 import { PartnerBanner } from "@/components/ads/PartnerBanner";
-import { FONT_HREF } from "@/components/ads/PartnerSlot";
+import { FOLD_SLACK_ATTR } from "@/components/ads/PartnerSlot";
 import {
   CHESSUSA_HREF,
   chessusaCreative,
@@ -86,7 +86,16 @@ function HomeSurface({ banner }: { banner: React.ReactNode }) {
       <Box sx={homeRootSx}>
         <NavPill active="launch" />
         {banner}
-        <Box sx={homeColumnSx}>
+        <Box
+          sx={{
+            ...homeColumnSx,
+            // The live site spends the hero's fold slack whenever a banner
+            // is on the page (FOLD_SLACK_ATTR). This route is excluded from
+            // the live placement and never carries the html attribute, so
+            // it applies the same rule itself to stay a faithful render.
+            [`& [${FOLD_SLACK_ATTR}]`]: { pt: 0 },
+          }}
+        >
           <Hero />
         </Box>
       </Box>
@@ -296,12 +305,11 @@ export default function PartnerPreviewLive({ variant, page }: LiveProps) {
             directive survives even where the meta tag is never parsed. */}
         <meta name="robots" content="noindex, nofollow" />
         <title>ChessUSA placement preview — Chess Masti</title>
-        {/* The Turn-2 units are set in Archivo and IBM Plex Mono. Under the
-            /partners/chessusa/N prefix the boot script appends this link; this
-            route is not a numeric-option path, so it links the faces itself.
-            Without it the shell fell back to system fonts and stopped being a
-            faithful preview of the production creative. */}
-        <link rel="stylesheet" href={FONT_HREF} />
+        {/* The Turn-2 units are set in Archivo and IBM Plex Mono. Their
+            @font-face rules reach this page the way they reach every other:
+            in partnerSlotCss from _document, served from this domain. The
+            faces download once the creative's text renders, so this route
+            needs no link of its own. */}
       </Head>
       {page === "home" && <HomeSurface banner={banner} />}
       {page === "learn" && <LearnSurface banner={banner} />}

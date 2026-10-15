@@ -7,8 +7,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   PARTNER_ATTR,
+  PREVIEW_ATTR,
   SIGN_IN_ATTR,
   SIGN_IN_PROPS,
+  FOLD_SLACK_ATTR,
+  FOLD_SLACK_PROPS,
   VIEWPORT_LOCK_ATTR,
   VIEWPORT_LOCK_PROPS,
   anchorRewriteHandler,
@@ -347,20 +350,21 @@ describe("patchAppRouter", () => {
   });
 });
 
-describe("the viewport-locked layouts scroll under the prefix, and only there", () => {
-  it("ships one rule, scoped to the html attribute", () => {
+describe("the viewport-locked layouts show their overflow whenever a banner is on the page", () => {
+  it("ships one rule, scoped to the banner attribute (preview and live alike)", () => {
     expect(partnerSlotCss).toContain(
-      `html[${PARTNER_ATTR}] [${VIEWPORT_LOCK_ATTR}]{height:auto;min-height:100dvh;overflow:visible}`
+      `html[${PARTNER_ATTR}] [${VIEWPORT_LOCK_ATTR}]{overflow:visible}`
     );
-    // No unscoped rule: a real visitor's /analysis must stay one screen tall.
-    const unscoped = partnerSlotCss
+    // Overflow only. Touching the height would take the definite height
+    // away from the flex children, and a long coach transcript would then
+    // grow the page instead of scrolling inside its column.
+    const rules = partnerSlotCss
       .split("\n")
-      .filter(
-        (line) =>
-          line.includes(VIEWPORT_LOCK_ATTR) &&
-          !line.includes(`html[${PARTNER_ATTR}]`)
-      );
-    expect(unscoped).toEqual([]);
+      .filter((line) => line.includes(VIEWPORT_LOCK_ATTR));
+    expect(rules).toHaveLength(1);
+    expect(rules[0]).not.toMatch(/height/);
+    // No unscoped rule: without a banner the locked pages clip as designed.
+    expect(rules[0].startsWith(`html[${PARTNER_ATTR}]`)).toBe(true);
   });
 
   it("is what the two locked roots spread onto their box", () => {
@@ -368,19 +372,36 @@ describe("the viewport-locked layouts scroll under the prefix, and only there", 
   });
 });
 
-describe("sign-in affordances hide under the prefix, and only there", () => {
-  it("ships one display:none rule, scoped to the html attribute", () => {
+describe("the landing hero gives up its fold slack whenever a banner is on the page", () => {
+  it("ships one rule, scoped to the banner attribute", () => {
     expect(partnerSlotCss).toContain(
-      `html[${PARTNER_ATTR}] [${SIGN_IN_ATTR}]{display:none}`
+      `html[${PARTNER_ATTR}] [${FOLD_SLACK_ATTR}]{padding-top:0}`
     );
-    // No unscoped rule: a real visitor must keep every way to sign in.
-    const unscoped = partnerSlotCss
+    const rules = partnerSlotCss
+      .split("\n")
+      .filter((line) => line.includes(FOLD_SLACK_ATTR));
+    expect(rules).toHaveLength(1);
+    expect(rules[0].startsWith(`html[${PARTNER_ATTR}]`)).toBe(true);
+    expect(FOLD_SLACK_PROPS).toEqual({ [FOLD_SLACK_ATTR]: "" });
+  });
+});
+
+describe("sign-in affordances hide under the prefix, and only there", () => {
+  it("ships one display:none rule, scoped to the PREVIEW attribute", () => {
+    expect(partnerSlotCss).toContain(
+      `html[${PREVIEW_ATTR}] [${SIGN_IN_ATTR}]{display:none}`
+    );
+    // No rule keyed on anything else: the live placement sets the banner
+    // attribute for every visitor, and a real visitor must keep every way to
+    // sign in.
+    const elsewhere = partnerSlotCss
       .split("\n")
       .filter(
         (line) =>
-          line.includes(SIGN_IN_ATTR) && !line.includes(`html[${PARTNER_ATTR}]`)
+          line.includes(SIGN_IN_ATTR) && !line.includes(`html[${PREVIEW_ATTR}]`)
       );
-    expect(unscoped).toEqual([]);
+    expect(elsewhere).toEqual([]);
+    expect(PREVIEW_ATTR).not.toBe(PARTNER_ATTR);
   });
 
   it("is what the affordances spread", () => {

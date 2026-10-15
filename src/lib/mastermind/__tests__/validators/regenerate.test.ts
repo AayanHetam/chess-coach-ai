@@ -111,6 +111,7 @@ describe("regenerateUntilValid", () => {
     expect(r.finalOutcome).toBe("passed_initial");
     expect(r.retryCount).toBe(0);
     expect(r.finalResponse).toBe("good response");
+    expect(r.lastDraft).toBeUndefined();
     expect(llm.calls).toBe(1);
   });
 
@@ -163,6 +164,8 @@ describe("regenerateUntilValid", () => {
     });
     expect(r.finalOutcome).toBe("fallback_used");
     expect(r.finalResponse).toBe("FALLBACK CONTENT");
+    // The rejected draft rides along, for a route with a referee of its own.
+    expect(r.lastDraft).toBe("bad3");
     expect(llm.calls).toBe(3);
     expect(r.cumulativeIssues.length).toBeGreaterThan(0);
   });
@@ -285,6 +288,8 @@ describe("regenerateUntilValid: signal cancellation (fix-orphan-pipeline-cancell
     expect(llm.calls).toBe(0); // never entered the loop body
     expect(r.finalResponse).toBe("fallback used");
     expect(r.finalOutcome).toBe("fallback_used");
+    // No attempt completed, so there is no draft to offer.
+    expect(r.lastDraft).toBeUndefined();
   });
 
   it("signal aborts mid-loop → breaks before spawning next retry's callLLM", async () => {

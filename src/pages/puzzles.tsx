@@ -1766,10 +1766,13 @@ export default function PreviewPuzzlesPage() {
         flow rather than trapping a phone inside a 100dvh box.
       */}
       <Box
-        // Lets the partner preview (/partners/chessusa/N) turn this locked
-        // screen into a scrolling one, since its banner sits inside the box
-        // and would otherwise push the bottom of the board out of reach.
-        // Inert everywhere else. See VIEWPORT_LOCK_ATTR.
+        // Lets a partner banner (the live placement, or a /partners/<slug>/N
+        // preview) show this box's overflow instead of clipping it, since the
+        // banner sits inside the box and would otherwise push the bottom of
+        // the board out of reach. The height stays, so the measured board
+        // gives up the banner's height and the coach column keeps scrolling
+        // inside itself; only what the banner genuinely squeezes out makes
+        // the page scroll. Inert with no banner. See VIEWPORT_LOCK_ATTR.
         {...VIEWPORT_LOCK_PROPS}
         sx={{
           // Minus whatever the fixed cookie banner occupies, published by

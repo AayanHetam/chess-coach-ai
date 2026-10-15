@@ -46,7 +46,13 @@ const RESULT_TONE: Record<string, { color: string; bg: string }> = {
 /** "win" as a word on a chip: "Win". Case is set here, not by a transform. */
 const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function GameRow({ game, now }: { game: RecentGame; now: number }) {
+export function RecentGameRow({
+  game,
+  now,
+}: {
+  game: RecentGame;
+  now: number;
+}) {
   const router = useRouter();
   const tone = RESULT_TONE[game.result ?? "none"];
   const when = formatRelativeTime(game.playedAt, now);
@@ -333,7 +339,7 @@ export function RecentGamesCard({
 
       <Box sx={{ mx: -1.25 }}>
         {visible.map((g) => (
-          <GameRow key={g.id} game={g} now={now} />
+          <RecentGameRow key={g.id} game={g} now={now} />
         ))}
       </Box>
 

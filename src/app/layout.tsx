@@ -67,8 +67,10 @@ export default function RootLayout({
         {/* Partner slot: reserve + un-hide, both before first paint. The CSS
             is plain rather than MUI so it exists at paint time, and the script
             is inline and head-blocking for the same reason — together they are
-            what stop the banner shifting the page when it mounts. A visitor
-            without the cookie runs four statements and loads nothing. */}
+            what stop the banner shifting the page when it mounts. The script
+            decides between a preview prefix, the live placement and nothing
+            (see LIVE_PLACEMENT in partners.ts); with nothing live, a normal
+            URL runs a few statements and loads nothing. */}
         <style dangerouslySetInnerHTML={{ __html: partnerSlotCss }} />
         <script dangerouslySetInnerHTML={{ __html: partnerBootScript }} />
       </head>
@@ -76,8 +78,8 @@ export default function RootLayout({
         <ThemeRegistry>
           {/* The App Router tree is the ~25 SEO landing pages. They render no
               NavPill, so the partner slot needs its own mount here to make the
-              placement genuinely sitewide. Renders nothing unless the viewer
-              opened one of the three /partners/chessusa/N links. */}
+              placement genuinely sitewide. Shows the live placement, or the
+              creative a /partners/<advertiser>/N link names, or nothing. */}
           <PartnerSlotApp />
           {children}
         </ThemeRegistry>

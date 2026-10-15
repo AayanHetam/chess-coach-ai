@@ -310,3 +310,62 @@ describe("memory bound (plan §7 gate: 50 cached contexts)", () => {
     );
   });
 });
+
+describe("focus on the move under discussion (2026-09-26)", () => {
+  // Two findings whose lines share a first move: the live confusion was an
+  // answer about move 8 quoting "Kxc7" from move 9's line as if it followed
+  // 8. Qxc1.
+  const m1 = makeInsight({
+    factIdPrefix: "M1",
+    moveNumber: 8,
+    color: "w",
+    colorName: "White",
+    playedSan: "Nc7+",
+    bestSan: "Qxc1",
+    lines: [lineFact("M1.pv0", ["Qxc1", "Rb8", "Qf4"], [], { cp: 284, display: "+2.84" })],
+  });
+  const m2 = makeInsight({
+    factIdPrefix: "M2",
+    moveNumber: 9,
+    color: "w",
+    colorName: "White",
+    playedSan: "Nxa8",
+    bestSan: "Qxc1",
+    lines: [lineFact("M2.pv0", ["Qxc1", "Kxc7", "Bb5"], [], { cp: -134, display: "-1.34" })],
+  });
+  const compact = toCompactContract(makeContract([m1, m2]), ["M1", "M2"]);
+
+  it("gives the engine line for the focused move only, and says the others are withheld", () => {
+    const out = renderContractCompact(compact, undefined, { moveNumber: 8, color: "w" });
+    expect(out).toContain("8.Qxc1 Rb8 9.Qf4");
+    expect(out).not.toContain("Kxc7");
+    // The other finding keeps its verdict and evals.
+    expect(out).toContain("move 9 White played Nxa8");
+    expect(out).toContain("-2.12"); // the finding's own eval after the move
+    expect(out).toContain("engine line: withheld this turn");
+    expect(out).toContain("The question is about move 8 (White)");
+  });
+
+  it("a focused move that is not a finding withholds every line", () => {
+    const out = renderContractCompact(compact, undefined, { moveNumber: 6, color: "w" });
+    expect(out).not.toContain("Rb8");
+    expect(out).not.toContain("Kxc7");
+    expect(out).toContain("The question is about move 6 (White)");
+  });
+
+  it("puts the focused finding first so a budget never drops it", () => {
+    const out = renderContractCompact(compact, undefined, { moveNumber: 9, color: "w" });
+    expect(out.indexOf("[M2")).toBeGreaterThan(-1);
+    expect(out.indexOf("[M2")).toBeLessThan(out.indexOf("[M1"));
+    expect(out).toContain("Kxc7");
+    expect(out).not.toContain("Rb8");
+  });
+
+  it("without a focus every line is there, as before", () => {
+    const out = renderContractCompact(compact);
+    expect(out).toContain("Rb8");
+    expect(out).toContain("Kxc7");
+    expect(out).not.toContain("withheld");
+    expect(out).not.toContain("The question is about");
+  });
+});

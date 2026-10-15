@@ -95,18 +95,25 @@ describe("the strip with the re-check", () => {
     expect(a.sentence).not.toMatch(/hanging|en prise|can now be taken/);
   });
 
-  it("Game B, 15.Qh7+: 'You had mate in 3 with 15. Nxe6+'", () => {
+  it("Game B, 15.Qh7+: 'You had mate in 3 with 15. Nxe6+' — said of whoever had it", () => {
     const b = loadGame("gameB");
-    const a = analyzeMoveAt(
-      b.sans,
-      passOne("gameB", 29, MoveClassification.Inaccuracy),
-      29,
-      undefined,
-      "w",
-      recheckFor("gameB")
-    )!;
-    expect(a.missedMateIn).toBe(3);
-    expect(a.sentence).toMatch(/You had mate in 3 with 15\. Nxe6\+\.$/);
+    const as = (side: "w" | "b" | null) =>
+      analyzeMoveAt(
+        b.sans,
+        passOne("gameB", 29, MoveClassification.Inaccuracy),
+        29,
+        undefined,
+        side,
+        recheckFor("gameB")
+      )!;
+    expect(as("w").missedMateIn).toBe(3);
+    expect(as("w").sentence).toMatch(/You had mate in 3 with 15\. Nxe6\+\.$/);
+    expect(as(null).sentence).toMatch(
+      /White had mate in 3 with 15\. Nxe6\+\.$/
+    );
+    expect(as("b").sentence).toMatch(
+      /Your opponent had mate in 3 with 15\. Nxe6\+\.$/
+    );
   });
 
   it("a 'great' move that was not the engine's first choice is not called the move the engine rates highest", () => {

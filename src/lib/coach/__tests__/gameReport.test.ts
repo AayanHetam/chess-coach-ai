@@ -193,5 +193,30 @@ describe("when the side is unknown", () => {
   it("speaks in the third person and credits both sides", () => {
     const report = buildGameReport(input("gameB", { playerColor: null }))!;
     expect(report.verdict).toBe("White won by checkmate on move 22.");
+    expect(report.story.join(" ")).toContain(
+      "White had mate in 3 with 15.Nxe6+, but played 15.Qh7+ instead"
+    );
+    expect(renderReportHead(report).text).toContain(
+      "White had mate in 3 with 15.Nxe6+ (M+3, depth 20)"
+    );
+    expect(report.habit?.because).toContain(
+      "At 15.Qh7+ White had mate in 3 with 15.Nxe6+"
+    );
+    const all = `${renderReportHead(report).text}\n${renderReportTail(report).text}`;
+    expect(all).not.toMatch(/\byou had mate\b/i);
+  });
+});
+
+describe("when you were Black", () => {
+  it("White's missed mate is your opponent's, and not in your verdict", () => {
+    const report = buildGameReport(input("gameB", { playerColor: "b" }))!;
+    expect(report.verdict).toBe("You lost with Black by checkmate on move 22.");
+    expect(report.story.join(" ")).toContain(
+      "Your opponent had mate in 3 with 15.Nxe6+, but played 15.Qh7+ instead"
+    );
+    expect(renderReportHead(report).text).toContain(
+      "Your opponent had mate in 3 with 15.Nxe6+"
+    );
+    expect(renderReportHead(report).text).not.toMatch(/\bYou had mate\b/);
   });
 });

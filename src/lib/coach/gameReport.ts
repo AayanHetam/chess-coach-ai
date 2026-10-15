@@ -109,6 +109,13 @@ export interface GameReport {
 export type ReportSource = "verified-fact" | "engine" | "judgment";
 
 const SIDE: Record<Color, string> = { w: "White", b: "Black" };
+
+/** Who had the move: you, your opponent, or the side when whose game it is is not known. */
+function moverName(mo: ReportMoment, midSentence = false): string {
+  if (mo.byPlayer === null) return SIDE[mo.mover];
+  const name = mo.byPlayer ? "You" : "Your opponent";
+  return midSentence ? name.toLowerCase() : name;
+}
 const opp = (c: Color): Color => (c === "w" ? "b" : "w");
 
 // ── Per-move data ───────────────────────────────────────────────────────────
@@ -457,7 +464,7 @@ function pickHabit(
   ) {
     const parts = greedy.map((m) =>
       m.kind === "missed_mate" && m.best
-        ? `at ${m.label} you had mate in ${m.mateIn} with ${m.best.label}`
+        ? `at ${m.label} ${moverName(m, true)} had mate in ${m.mateIn} with ${m.best.label}`
         : `at ${m.label} the material cost the attack (${m.before.display} → ${m.after.display})`
     );
     return {
@@ -607,7 +614,7 @@ function storyOf(
       beats.push({
         move: mo.move,
         score: importance(mo),
-        text: `You had mate in ${mo.mateIn} with ${mo.best.label}, but played ${mo.label} instead (${at(mo.after)}).`,
+        text: `${moverName(mo)} had mate in ${mo.mateIn} with ${mo.best.label}, but played ${mo.label} instead (${at(mo.after)}).`,
       });
     } else if (mo.kind === "mistake") {
       const lead = mo.did.length
@@ -740,7 +747,7 @@ function momentLine(mo: ReportMoment): { fact: string; why: string } {
   const swing = `${mo.before.display} → ${mo.after.display}, depth ${mo.after.depth}`;
   let fact: string;
   if (mo.kind === "missed_mate" && mo.best) {
-    fact = `You had mate in ${mo.mateIn} with ${mo.best.label} (${mo.before.display}, depth ${mo.before.depth}); after ${mo.label} it was ${mo.after.display}.`;
+    fact = `${moverName(mo)} had mate in ${mo.mateIn} with ${mo.best.label} (${mo.before.display}, depth ${mo.before.depth}); after ${mo.label} it was ${mo.after.display}.`;
   } else {
     const did = mo.did.length ? `${capitalise(mo.did.join(" and "))}; ` : "";
     const instead = mo.best

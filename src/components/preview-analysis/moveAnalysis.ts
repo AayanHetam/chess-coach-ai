@@ -297,7 +297,7 @@ export function describeMove(a: MoveAnalysis): string {
   const cls = a.classification;
 
   if (a.missedMateIn !== null) {
-    return `${does} You had mate in ${a.missedMateIn}${bestLabel ? ` with ${bestLabel}` : ""}.`;
+    return `${does} ${who} had mate in ${a.missedMateIn}${bestLabel ? ` with ${bestLabel}` : ""}.`;
   }
   if (cls === MoveClassification.Forced) {
     return `${does} The only move here.`;

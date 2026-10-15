@@ -5,6 +5,14 @@ import {
   ANALYSIS_HANDOFF_PARAM,
   consumeStagedGame,
 } from "@/lib/analysis/handoff";
+import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
+import { runDeepRecheck, selectFlaggedMoments } from "@/lib/coach/deepRecheck";
+import {
+  RECHECK_BUDGET_MS,
+  RECHECK_DEPTH,
+  RECHECK_PER_POSITION_MS,
+  uciRecheckEngine,
+} from "./deepRecheckClient";
 import {
   Box,
   Button,
@@ -533,6 +541,8 @@ function buildContextBlurb(
  */
 /** Build-time flag; see lib/coach/aiAvailability. */
 const AI_DISABLED = isAiDisabledPublic();
+/** COACH_CLAIM_VERIFIER, read once (NEXT_PUBLIC_ value inlined at build). */
+const CLAIM_VERIFIER = isClaimVerifierEnabled();
 
 async function streamCoachReply(params: {
   prevMessages: CoachMessage[];
@@ -7373,6 +7383,12 @@ export default function AnalysisPage() {
   // Save flow (G4) can persist a complete eval to Firestore/IndexedDB
   // instead of synthesising one. Populated alongside enginePositions.
   const [gameEvalFull, setGameEvalFull] = useState<GameEval | null>(null);
+  // COACH_CLAIM_VERIFIER pass 2: once the review finishes, the moments the
+  // coach will talk about are searched again at depth 20 (deepRecheck.ts)
+  // and ride to the server as gameEval.recheck. While it runs,
+  // `analysisActive` holds the first coach turn and keeps the Lines panel
+  // off the engine. Always false with the flag off.
+  const [recheckRunning, setRecheckRunning] = useState(false);
 
   // G8: real Maia predictions via /api/maia-predict, keyed by
   // `${fen}|${elo}`. Hand-table is the synchronous cold-start fallback.
@@ -7596,7 +7612,15 @@ export default function AnalysisPage() {
       status: engineStatus,
     });
 
-  const analysisActive = engineDataPending;
+  const analysisActive = engineDataPending || recheckRunning;
+  // COACH_CLAIM_VERIFIER: the coach-request handlers are memoized on a few
+  // deps and would otherwise read these from the render that made them, so
+  // the first turn could miss the re-check result, or still see it running.
+  // With the flag off they keep reading their own closure, as before.
+  const analysisActiveRef = useRef(analysisActive);
+  analysisActiveRef.current = analysisActive;
+  const gameEvalFullRef = useRef(gameEvalFull);
+  gameEvalFullRef.current = gameEvalFull;
 
   useEffect(() => {
     if (!engine || enginePositions || analysisError) return;
@@ -7658,6 +7682,57 @@ export default function AnalysisPage() {
   // the PGN headers, or a stored per-game answer) or by the user clicking
   // the ask card / the switch chip. Threads into coachExtras.playerColor.
   const [playerSide, setPlayerSide] = useState<PlayerSide | null>(null);
+
+  // COACH_CLAIM_VERIFIER pass 2 (see recheckRunning above). Once per review:
+  // the side is read through a ref so answering "which side were you?"
+  // mid-run does not cancel and restart the search.
+  const playerSideRef = useRef(playerSide);
+  playerSideRef.current = playerSide;
+  const recheckedEvalRef = useRef<GameEval | null>(null);
+  useEffect(() => {
+    if (!CLAIM_VERIFIER || !engine || !gameEvalFull || gameEvalFull.recheck) {
+      return;
+    }
+    if (recheckedEvalRef.current === gameEvalFull) return;
+    recheckedEvalRef.current = gameEvalFull;
+    let fens: string[];
+    try {
+      fens = getEvaluateGameParams(loadedGame).fens;
+    } catch {
+      return;
+    }
+    const side = playerSideRef.current;
+    const moments = selectFlaggedMoments(gameEvalFull.positions, {
+      playerColor: side ? (side.color === "white" ? "w" : "b") : null,
+      firstMover: fens[0]?.split(" ")[1] === "b" ? "b" : "w",
+    });
+    if (moments.length === 0) return;
+    let cancelled = false;
+    const startedFor = gameEvalFull;
+    setRecheckRunning(true);
+    runDeepRecheck({
+      fens,
+      moments,
+      engine: uciRecheckEngine(engine, engineSettings.engineName),
+      depth: RECHECK_DEPTH,
+      budgetMs: RECHECK_BUDGET_MS,
+      perPositionMs: RECHECK_PER_POSITION_MS,
+    })
+      .then((recheck) => {
+        if (cancelled) return;
+        setGameEvalFull((g) => (g === startedFor ? { ...g, recheck } : g));
+      })
+      .catch(() => {
+        /* pass 1 stands, labelled with its own depth */
+      })
+      .finally(() => {
+        if (!cancelled) setRecheckRunning(false);
+      });
+    return () => {
+      cancelled = true;
+      setRecheckRunning(false);
+    };
+  }, [engine, gameEvalFull, loadedGame, engineSettings.engineName]);
 
   // ─── Production-parity personalization extras for the deep coach path ───
   // Production's AICoachChat (line 2459-2487) threads playerColor +
@@ -8928,7 +9003,7 @@ export default function AnalysisPage() {
           allMoves,
           loadedGame,
           enginePositions,
-          gameEvalFull,
+          gameEvalFull: CLAIM_VERIFIER ? gameEvalFullRef.current : gameEvalFull,
           contextIdRef: coachContextIdRef,
           ...coachExtras,
           onDelta: (chunk) => {
@@ -9516,7 +9591,7 @@ export default function AnalysisPage() {
           allMoves,
           loadedGame,
           enginePositions,
-          gameEvalFull,
+          gameEvalFull: CLAIM_VERIFIER ? gameEvalFullRef.current : gameEvalFull,
           contextIdRef: coachContextIdRef,
           ...coachExtras,
           onDelta: (chunk) => {
@@ -9635,12 +9710,18 @@ export default function AnalysisPage() {
   useEffect(() => {
     if (autoAnalyzeFiredRef.current) return;
     if (autoAnalyzeState !== "pending") return;
-    if (!enginePositions || isThinking) return;
+    if (!enginePositions || isThinking || recheckRunning) return;
     if (allMoves.length === 0) return;
     autoAnalyzeFiredRef.current = true;
     setAutoAnalyzeState("sent-awaiting-insights");
     handleSendRef.current?.("Analyze my game.");
-  }, [autoAnalyzeState, enginePositions, isThinking, allMoves.length]);
+  }, [
+    autoAnalyzeState,
+    enginePositions,
+    isThinking,
+    recheckRunning,
+    allMoves.length,
+  ]);
 
   const handleSend = useCallback(
     async (overrideText?: string) => {
@@ -9656,7 +9737,7 @@ export default function AnalysisPage() {
       // while Stockfish is still computing. gameEval would be undefined,
       // landing the user in the route's no-eval branch where the LLM
       // produces a conversational reply with no grounded mistake insights.
-      if (analysisActive) return;
+      if (CLAIM_VERIFIER ? analysisActiveRef.current : analysisActive) return;
       const prevForApi = messages;
       setMessages((prev) => [
         ...prev,
@@ -9680,7 +9761,7 @@ export default function AnalysisPage() {
           allMoves,
           loadedGame,
           enginePositions,
-          gameEvalFull,
+          gameEvalFull: CLAIM_VERIFIER ? gameEvalFullRef.current : gameEvalFull,
           contextIdRef: coachContextIdRef,
           ...coachExtras,
           onDelta: (chunk) => {
@@ -10437,6 +10518,7 @@ export default function AnalysisPage() {
                 <MoveAnalysisCard
                   gameSans={gameSans}
                   positions={classifiedPositions ?? enginePositions}
+                  recheck={gameEvalFull?.recheck ?? null}
                   ply={currentPly}
                   rootFen={rootFen}
                   playerColor={

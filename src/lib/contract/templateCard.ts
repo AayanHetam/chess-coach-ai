@@ -28,6 +28,7 @@ import { formatPvAsMoveList } from "./chessFormat";
 import { renderInsightHeader, INSIGHT_CLOSE_TOKEN } from "./insightGrammar";
 import { runInsightChecks } from "./refereeChecks";
 import type { EvalFact, InsightContract } from "./types";
+import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
 
 function evalPhrase(f: EvalFact): string {
   if (f.sentinel || f.display === "") return "engine data unavailable";
@@ -86,11 +87,20 @@ export function renderTemplateCardBody(insight: InsightContract): string {
   lines.push("");
   lines.push(s.ideaLead);
 
-  // Eval swing — always from contract displays (sentinel-safe).
-  const dropPawns = Math.abs(insight.severityDropPawns).toFixed(1);
-  lines.push(
-    `- The evaluation moved from ${evalPhrase(insight.evalBefore)} to ${evalPhrase(insight.evalAfter)} after ${insight.playedSan} — about ${dropPawns} pawns of ground.`,
-  );
+  // Eval swing — always from contract displays (sentinel-safe). A missed
+  // forced mate is said as one (COACH_CLAIM_VERIFIER): its mate-flattened
+  // "drop" used to read as "about 95.0 pawns of ground".
+  const missed = isClaimVerifierEnabled() ? insight.missedMate : undefined;
+  if (missed) {
+    lines.push(
+      `- You had mate in ${missed.mateIn} here${missed.bestSan ? ` with ${missed.bestSan}` : ""}; after ${insight.playedSan} the evaluation is ${evalPhrase(insight.evalAfter)}.`,
+    );
+  } else {
+    const dropPawns = Math.abs(insight.severityDropPawns).toFixed(1);
+    lines.push(
+      `- The evaluation moved from ${evalPhrase(insight.evalBefore)} to ${evalPhrase(insight.evalAfter)} after ${insight.playedSan} — about ${dropPawns} pawns of ground.`,
+    );
+  }
 
   // Best move + engine line (whitelisted SAN only).
   const bestLine = insight.lines.find((l) => !l.isPlayedLine && l.san.length > 0) ?? insight.lines[0];

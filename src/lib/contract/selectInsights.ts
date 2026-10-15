@@ -50,7 +50,15 @@ export type InsightSelectionPolicy = "legacy";
 export interface SelectInsightsOptions {
   /** Currently only "legacy" is implemented (see module doc). */
   policy?: InsightSelectionPolicy;
+  /**
+   * COACH_CLAIM_VERIFIER: the before/after evaluations to use for move `i`
+   * when both of its positions were re-checked deeper (coach/deepRecheck.ts),
+   * or null to keep pass 1's. A pair is always one depth, never mixed.
+   */
+  pairAt?: (i: number) => { before: PairPosition; after: PairPosition } | null;
 }
+
+type PairPosition = NonNullable<GameEvalInput["positions"]>[number];
 
 export interface MistakeCandidate {
   /** 0-based half-move index. */
@@ -128,8 +136,9 @@ export function selectInsights(
   const mistakes: MistakeCandidate[] = [];
   if (positions && positions.length > 0) {
     for (let i = 0; i < moveHistory.length; i++) {
-      const evalBefore = positions[i];
-      const evalAfter = positions[i + 1];
+      const pair = opts.pairAt?.(i) ?? null;
+      const evalBefore = pair?.before ?? positions[i];
+      const evalAfter = pair?.after ?? positions[i + 1];
       const beforeIsSentinel = evalBefore?.lines?.[0]?.depth === 0;
       const afterIsSentinel = evalAfter?.lines?.[0]?.depth === 0;
       if (!evalBefore?.lines?.[0] || !evalAfter?.lines?.[0] || beforeIsSentinel || afterIsSentinel) {
@@ -179,8 +188,9 @@ export function selectInsights(
   const intelCandidates: IntelCandidate[] = [];
   if (positions) {
     for (let i = 0; i < moveHistory.length; i++) {
-      const evalBefore = positions[i];
-      const evalAfter = positions[i + 1];
+      const pair = opts.pairAt?.(i) ?? null;
+      const evalBefore = pair?.before ?? positions[i];
+      const evalAfter = pair?.after ?? positions[i + 1];
       if (!evalBefore?.lines?.[0] || !evalAfter?.lines?.[0]) continue;
       if (evalBefore.lines[0].depth === 0 || evalAfter.lines[0].depth === 0) continue;
       // T8: a retried position comes back 4 plies shallower and merges in

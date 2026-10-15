@@ -14,7 +14,13 @@
  * player asks.
  */
 import { MoveClassification } from "@/types/enums";
-import type { PositionEval } from "@/types/eval";
+import type { LineEval, PositionEval } from "@/types/eval";
+import { getLineWinPercentage } from "@/lib/engine/helpers/winPercentage";
+import {
+  missedMate,
+  recheckedPair,
+  type GameEvalRecheck,
+} from "@/lib/coach/deepRecheck";
 import { captionLine, type LineCaption } from "@/lib/coach/lineCaptions";
 import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
 import { verifyClaims } from "@/lib/coach/verifyClaims";
@@ -48,6 +54,14 @@ export interface MoveAnalysis {
   playedLine: CoachLine | null;
   /** The plain-words verdict: why the move works, or does not. */
   sentence: string;
+  /**
+   * COACH_CLAIM_VERIFIER: how deep the evals beside the move were searched
+   * ("d20" for a re-checked move, "d16" for the review pass), so a depth-16
+   * number never reads as a depth-20 one. Null with the flag off.
+   */
+  depthLabel: string | null;
+  /** COACH_CLAIM_VERIFIER: the mover had mate in N before this move and let it go. */
+  missedMateIn: number | null;
 }
 
 const NEGATIVE = new Set<string>([
@@ -115,6 +129,27 @@ function labelFor(moveNumber: number, color: "w" | "b", san: string): string {
 }
 
 /**
+ * The browser classifier's expected-points tiers (moveClassification.ts),
+ * for a re-checked move read from its deeper pair: win chance lost by the
+ * mover, 2 / 5 / 10 / 20 points.
+ */
+function classifyByLoss(
+  before: LineEval,
+  after: LineEval,
+  mover: "w" | "b"
+): MoveClassification {
+  const wb = getLineWinPercentage(before);
+  const wa = getLineWinPercentage(after);
+  const loss = Math.max(0, mover === "w" ? wb - wa : wa - wb) / 100;
+  if (loss <= 0) return MoveClassification.Best;
+  if (loss <= 0.02) return MoveClassification.Excellent;
+  if (loss <= 0.05) return MoveClassification.Good;
+  if (loss <= 0.1) return MoveClassification.Inaccuracy;
+  if (loss <= 0.2) return MoveClassification.Mistake;
+  return MoveClassification.Blunder;
+}
+
+/**
  * Analyse the move that produced the position after `ply` half-moves.
  * Null at the start position, off the end of the game, or without engine
  * data for the move.
@@ -124,15 +159,27 @@ export function analyzeMoveAt(
   positions: readonly PositionEval[] | null | undefined,
   ply: number,
   rootFen: string | undefined,
-  playerColor: "w" | "b" | null
+  playerColor: "w" | "b" | null,
+  /** COACH_CLAIM_VERIFIER pass 2: a re-checked move reads its deeper pair. */
+  recheck?: GameEvalRecheck | null
 ): MoveAnalysis | null {
   if (!positions || ply < 1 || ply > gameSans.length) return null;
   const index = ply - 1;
   const san = gameSans[index];
   const color: "w" | "b" = index % 2 === 0 ? "w" : "b";
   const moveNumber = Math.floor(index / 2) + 1;
-  const before = positions[index];
-  const after = positions[ply];
+  const verified = isClaimVerifierEnabled();
+  const deep = verified ? recheckedPair(recheck, index) : null;
+  const before: PositionEval | undefined = deep
+    ? { ...positions[index], lines: deep.before.lines }
+    : positions[index];
+  const after: PositionEval | undefined = deep
+    ? { ...positions[ply], lines: deep.after.lines }
+    : positions[ply];
+  // The engine's line from before the move comes from the deeper pair too.
+  const linePositions = deep
+    ? positions.map((p, k) => (k === index ? before! : p))
+    : positions;
   if (!before?.lines?.[0] && !after?.lines?.[0]) return null;
 
   const played = playedLineAt(
@@ -149,7 +196,7 @@ export function analyzeMoveAt(
   const first = playedCaptions?.plies[0];
 
   let engineLine = engineLineAt(
-    positions,
+    linePositions,
     gameSans,
     moveNumber,
     color,
@@ -160,7 +207,6 @@ export function analyzeMoveAt(
     bestSan = null;
     engineLine = null;
   }
-  const verified = isClaimVerifierEnabled();
   const engineFirst = engineLine
     ? captionLine(engineLine.startFen, engineLine.sans, playerColor).plies[0]
     : undefined;
@@ -188,8 +234,17 @@ export function analyzeMoveAt(
         : first.caption
       : "";
 
-  const classification = (after?.moveClassification ??
-    null) as MoveClassification | null;
+  // A re-checked move's browser label came from the shallower pair; its
+  // verdict is read again from the deeper one.
+  const classification = deep
+    ? bestSan === null
+      ? MoveClassification.Best
+      : classifyByLoss(deep.before.lines[0], deep.after.lines[0], color)
+    : ((after?.moveClassification ?? null) as MoveClassification | null);
+  const missed = verified
+    ? missedMate(before?.lines?.[0], after?.lines?.[0], color)
+    : null;
+  const shownDepth = before?.lines?.[0]?.depth;
   const analysis: MoveAnalysis = {
     ply,
     moveNumber,
@@ -207,6 +262,8 @@ export function analyzeMoveAt(
     bestCaption,
     playedLine: played,
     sentence: "",
+    depthLabel: verified && shownDepth ? `d${shownDepth}` : null,
+    missedMateIn: missed?.mateIn ?? null,
   };
   analysis.sentence = describeMove(analysis);
   return analysis;
@@ -239,6 +296,9 @@ export function describeMove(a: MoveAnalysis): string {
     : "";
   const cls = a.classification;
 
+  if (a.missedMateIn !== null) {
+    return `${does} You had mate in ${a.missedMateIn}${bestLabel ? ` with ${bestLabel}` : ""}.`;
+  }
   if (cls === MoveClassification.Forced) {
     return `${does} The only move here.`;
   }

@@ -116,10 +116,17 @@ export function truthAt(
 /**
  * The stored truth as the browser's `PositionEval[]`, one per position of
  * the game. A finished game's last position gets the same depth-0 stub the
- * browser's engine stores for a terminal position.
+ * browser's engine stores for a terminal position (uciEngine.evaluateGame):
+ * mate ±1 for the side that delivered checkmate, 0.00 for stalemate.
  */
 export function positionEvals(game: GameId, depth: 16 | 20): PositionEval[] {
   return loadEngineTruth().games[game].depths[String(depth)].map((p) => {
+    if (p.terminal === "checkmate") {
+      const mated = p.fen.split(" ")[1];
+      return {
+        lines: [{ pv: [], depth: 0, multiPv: 1, mate: mated === "w" ? -1 : 1 }],
+      };
+    }
     if (p.terminal) return { lines: [{ pv: [], depth: 0, multiPv: 1, cp: 0 }] };
     return {
       bestMove: p.bestMove ?? undefined,

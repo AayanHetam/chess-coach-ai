@@ -21,6 +21,7 @@
  */
 import { buildPgnFromMoves, formatPvAsMoveList } from "./chessFormat";
 import { projectLineStory, type LineStory } from "./lineStory";
+import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
 import type { PositionFeatureDelta } from "@/lib/mastermind/featureDelta";
 import type { ThreatNode } from "@/lib/mastermind/threatTree";
 import type {
@@ -455,13 +456,26 @@ function pruneVacant(value: unknown): unknown {
   return out;
 }
 
-function projectNode(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(projectNode);
+/**
+ * `evalDepths` (COACH_CLAIM_VERIFIER): every evaluation keeps its search
+ * depth and gains the engine that produced it, so the model never reads a
+ * depth-16 number as if it were a depth-20 one. Off, the wire is unchanged.
+ */
+function projectNode(value: unknown, evalDepths = false): unknown {
+  if (Array.isArray(value)) return value.map((v) => projectNode(v, evalDepths));
   if (value === null || typeof value !== "object") return value;
   const obj = value as Record<string, unknown>;
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {
-    if (isEvalFactShape(obj) && EVAL_WIRE_DROP.has(k)) continue;
+    if (isEvalFactShape(obj) && EVAL_WIRE_DROP.has(k)) {
+      // A sentinel's depth 0 means "no search", not a depth: it stays off.
+      if (evalDepths && k === "depth" && obj.sentinel !== true) out.depth = v;
+      if (evalDepths && k === "provenance") {
+        const engine = (v as { engine?: unknown } | null)?.engine;
+        if (typeof engine === "string") out.engine = engine;
+      }
+      continue;
+    }
     if (k === "pvUci" && Array.isArray(obj.san)) continue;
     // A line's story reaches the model as one sentence per ply ("s2 8.Nc7+ —
     // gives check; forks …") plus the material ledger — the structured facts
@@ -474,10 +488,10 @@ function projectNode(value: unknown): unknown {
       continue;
     }
     if (k === "featureDelta") {
-      out[k] = projectNode(pruneVacant(v));
+      out[k] = projectNode(pruneVacant(v), evalDepths);
       continue;
     }
-    out[k] = projectNode(v);
+    out[k] = projectNode(v, evalDepths);
   }
   return out;
 }
@@ -519,6 +533,6 @@ export function serializeForVerbalizer(contract: CoachContract): string {
   });
   const moveTable = projectMoveTable(rest.moveTable);
   return JSON.stringify(
-    sortKeysDeep(projectNode({ ...rest, insights, moveTable })),
+    sortKeysDeep(projectNode({ ...rest, insights, moveTable }, isClaimVerifierEnabled())),
   );
 }

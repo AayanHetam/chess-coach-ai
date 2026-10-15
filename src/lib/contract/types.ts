@@ -61,6 +61,12 @@ export interface Provenance {
   confidence: FactConfidence;
   depth?: number;
   fetchedAtMs?: number;
+  /**
+   * COACH_CLAIM_VERIFIER: the engine that produced the number, e.g.
+   * "stockfish_17_lite" — pass 1, or the deep re-check for a re-checked move.
+   * With `depth`, it keeps a depth-16 number from passing as a depth-20 one.
+   */
+  engine?: string;
 }
 
 // ── Degraded<T>: unavailability is a first-class, referee-visible state ────
@@ -230,6 +236,13 @@ export interface InsightContract {
    * flag off and on contracts built before it existed.
    */
   refutation?: string[];
+  /**
+   * COACH_CLAIM_VERIFIER: the mover had a forced mate before this move and
+   * no longer has one ("you had mate in 3 with 15. Nxe6+"). Absent otherwise
+   * and with the flag off — a missed mate used to surface only as a
+   * mate-flattened "95 pawns" drop.
+   */
+  missedMate?: { mateIn: number; bestSan: string | null; line: string[] };
   allowedTacticalKeywords: string[];
   voterConfidence: VoterConfidence;
   positionConfidence: PositionConfidence;

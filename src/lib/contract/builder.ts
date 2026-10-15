@@ -17,6 +17,7 @@ import { annotatePosition, annotationToPromptContext } from "@/lib/positionAnnot
 import { detectMotifs } from "@/lib/tactics";
 import { buildLineStory, type LineStory } from "./lineStory";
 import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
+import { missedMate, recheckedPair, type GameEvalRecheck } from "@/lib/coach/deepRecheck";
 import { logger } from "@/lib/logging";
 
 const log = logger.child({ module: "contract-builder" });
@@ -94,7 +95,7 @@ export interface BuildCoachContractArgs {
 type RawLine = PositionEvalInput["lines"][number];
 
 // ── EvalFact construction ───────────────────────────────────────────────────
-function evalFactFromLine(line: RawLine | undefined): EvalFact {
+function evalFactFromLine(line: RawLine | undefined, engine?: string): EvalFact {
   const cp = line?.cp === undefined ? null : line.cp;
   const mate = line?.mate === undefined ? null : line.mate;
   const depth = line?.depth ?? 0;
@@ -109,7 +110,7 @@ function evalFactFromLine(line: RawLine | undefined): EvalFact {
     depth,
     sentinel,
     display,
-    provenance: { source: "stockfish_client", confidence: "client_reported", depth },
+    provenance: { source: "stockfish_client", confidence: "client_reported", depth, ...(engine ? { engine } : {}) },
   };
 }
 
@@ -213,7 +214,14 @@ function degradeVisibility(
 }
 
 // ── Line facts ──────────────────────────────────────────────────────────────
-function buildLineFacts(idPrefix: string, fenBefore: string, playedSan: string, lines: RawLine[], movedFrom: ReadonlySet<string>): LineFact[] {
+function buildLineFacts(
+  idPrefix: string,
+  fenBefore: string,
+  playedSan: string,
+  lines: RawLine[],
+  movedFrom: ReadonlySet<string>,
+  engine?: string,
+): LineFact[] {
   return lines.map((l, idx) => {
     const pvUci = l.pv ?? [];
     const san = pvUci.length > 0 ? convertPvToSan(fenBefore, pvUci) : [];
@@ -223,7 +231,7 @@ function buildLineFacts(idPrefix: string, fenBefore: string, playedSan: string, 
       id: `${idPrefix}.pv${idx}`,
       san,
       pvUci,
-      eval: evalFactFromLine(l),
+      eval: evalFactFromLine(l, engine),
       isPlayedLine: firstMove === playedSan,
       story: safeLineStory(fenBefore, san, movedFrom),
     };
@@ -281,7 +289,33 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
 
   const evalIntegrity = computeEvalIntegrity(gameEval, moveHistory, replayedPlies);
   const declaredDepth = requestedDepth(gameEval);
-  const selection = selectInsights(moveHistory, gameEval, playerColor);
+
+  // COACH_CLAIM_VERIFIER: a move whose two positions were re-checked deeper
+  // (gameEval.recheck, coach/deepRecheck.ts) is read from the deeper pair —
+  // in selection, in its card's evals and lines, in the move table. A pair
+  // is one depth, never mixed; every other move keeps pass 1. Every eval
+  // records the engine it came from.
+  const claimVerifier = isClaimVerifierEnabled();
+  const recheck = claimVerifier ? ((gameEval as { recheck?: GameEvalRecheck } | undefined)?.recheck ?? null) : null;
+  const passOneEngine = claimVerifier
+    ? ((gameEval as { settings?: { engine?: string } } | undefined)?.settings?.engine ?? undefined)
+    : undefined;
+  type PositionIn = NonNullable<typeof positions>[number];
+  const deepPairAt = (i: number): { before: PositionIn; after: PositionIn } | null => {
+    const deep = recheckedPair(recheck, i);
+    if (!deep) return null;
+    const asPosition = (p: { lines: GameEvalRecheck["positions"][string]["lines"]; bestMove?: string }, base: PositionIn | undefined) =>
+      ({ ...(base ?? {}), lines: p.lines, bestMove: p.bestMove ?? p.lines[0]?.pv?.[0] }) as PositionIn;
+    return { before: asPosition(deep.before, positions?.[i]), after: asPosition(deep.after, positions?.[i + 1]) };
+  };
+  /** Move i's before/after evaluations and the engine behind them. */
+  const pairFor = (i: number) => {
+    const deep = deepPairAt(i);
+    return deep
+      ? { before: deep.before, after: deep.after, engine: recheck!.engine, deep: true }
+      : { before: positions?.[i], after: positions?.[i + 1], engine: passOneEngine, deep: false };
+  };
+  const selection = selectInsights(moveHistory, gameEval, playerColor, recheck ? { pairAt: deepPairAt } : {});
 
   // --- pgnHeaders: only truthy fields, keyed by GameHeadersInput names ---
   const pgnHeaders: Record<string, string> = {};
@@ -328,8 +362,9 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
     }
     const fenBefore = getFenAtHalfMove(moveHistory, i);
     const fenAfter = getFenAtHalfMove(moveHistory, i + 1);
-    const evalBefore = positions![i];
-    const evalAfter = positions![i + 1];
+    const pair = pairFor(i);
+    const evalBefore = pair.before;
+    const evalAfter = pair.after;
 
     let bestWas: MoveTableEntry["bestWas"] = null;
     if (evalBefore?.bestMove && evalBefore.bestMove !== "N/A") {
@@ -342,7 +377,7 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
             line: {
               san: convertPvToSan(fenBefore, bestLine.pv),
               pvUci: bestLine.pv,
-              eval: evalFactFromLine(bestLine),
+              eval: evalFactFromLine(bestLine, pair.engine),
             },
           };
         } else {
@@ -363,10 +398,13 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
       // Dropping it here rather than in the renderer matters: the referee
       // validates prose AGAINST the contract, so a label that reaches this
       // object is one the referee will certify as backed.
-      classification: isComparableDepthPair(evalBefore, evalAfter, declaredDepth)
-        ? (evalAfter?.moveClassification ?? null)
-        : null,
-      evalAfter: evalAfter?.lines?.[0] ? evalFactFromLine(evalAfter.lines[0]) : null,
+      // A re-checked move's browser label was computed from the shallower
+      // pair; it no longer describes the evals beside it, so it goes.
+      classification:
+        !pair.deep && isComparableDepthPair(evalBefore, evalAfter, declaredDepth)
+          ? (evalAfter?.moveClassification ?? null)
+          : null,
+      evalAfter: evalAfter?.lines?.[0] ? evalFactFromLine(evalAfter.lines[0], pair.engine) : null,
       bestWas,
     });
   }
@@ -399,7 +437,7 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
   const plans = new Map<number, PlyFetchPlan>();
 
   for (const ply of unionPlies) {
-    const evalBefore = positions?.[ply];
+    const evalBefore = pairFor(ply).before;
     const fenBefore = getFenAtHalfMove(moveHistory, ply);
     const sfCp = evalBefore?.lines?.[0]?.cp ?? null;
     const bestUci = evalBefore?.lines?.[0]?.pv?.[0] ?? null;
@@ -456,7 +494,8 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
   const insights: InsightContract[] = [];
   for (const ply of unionPlies) {
     const plan = plans.get(ply)!;
-    const evalBefore = positions?.[ply];
+    const plyPair = pairFor(ply);
+    const evalBefore = plyPair.before;
     // Both legacy loops guaranteed lines[0] exists for selected plies.
     if (!evalBefore?.lines?.[0]) continue;
     const lines = evalBefore.lines;
@@ -507,7 +546,7 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
     });
 
     const movedFrom = new Set(fromSquares.slice(0, ply));
-    const lineFacts = buildLineFacts(topRank ? `M${topRank}` : `I${intelRank}`, fenBefore, playedSan, lines, movedFrom);
+    const lineFacts = buildLineFacts(topRank ? `M${topRank}` : `I${intelRank}`, fenBefore, playedSan, lines, movedFrom, plyPair.engine);
     // What the game actually did from here: the played move and the next few
     // real plies, told the same way as the engine lines ("after your Ng4,
     // White played d6 and your knight was left en prise"). Same detectors,
@@ -525,7 +564,7 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
     // selected candidate these fallbacks should never see a scoreless line;
     // if one arrives anyway, declining the card beats inventing its eval.
     const cpBeforeFlat = topCand?.cpBeforeFlat ?? flattenEval(lines[0]);
-    const evalAfterLine = positions?.[ply + 1]?.lines?.[0];
+    const evalAfterLine = plyPair.after?.lines?.[0];
     const cpAfterFlat =
       topCand?.cpAfterFlat ?? (evalAfterLine ? flattenEval(evalAfterLine) : null);
     if (cpBeforeFlat === null || cpAfterFlat === null) {
@@ -629,8 +668,14 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
       cpAfterFlat,
       fenBefore,
       fenAfter,
-      evalBefore: evalFactFromLine(lines[0]),
-      evalAfter: evalAfterLine ? evalFactFromLine(evalAfterLine) : evalFactFromLine(undefined),
+      evalBefore: evalFactFromLine(lines[0], plyPair.engine),
+      evalAfter: evalAfterLine ? evalFactFromLine(evalAfterLine, plyPair.engine) : evalFactFromLine(undefined),
+      // COACH_CLAIM_VERIFIER: "you had mate in N" — a forced mate the move let go.
+      ...(() => {
+        if (!claimVerifier) return {};
+        const missed = missedMate(lines[0] as never, evalAfterLine as never, ply % 2 === 0 ? "w" : "b");
+        return missed ? { missedMate: { mateIn: missed.mateIn, bestSan: bestPvSan[0] ?? null, line: bestPvSan.slice(0, 8) } } : {};
+      })(),
       // COACH_CLAIM_VERIFIER: what actually punishes the move, for the claim
       // gate (a "this leaves the knight hanging" reason must be the piece
       // this line takes). Referee-only; never serialized to the verbalizer.

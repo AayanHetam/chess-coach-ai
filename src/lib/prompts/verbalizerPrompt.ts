@@ -115,13 +115,20 @@ const LEGACY_PLUMBING_EXAMPLE = `"The material ledger reads: White up 9" is plum
 export const VERIFIED_MATERIAL_RULE = `- The "material:" line gives two different numbers: where material STANDS at the end of the shown plies, and how much those plies CHANGED it. "Wins a pawn", "wins the exchange", "gets the rook back" come only from the change; "ahead", "behind", "comes out up/down" only from where it stands at the end — a line can win a rook and still end four points behind. When it says to state no material result (the plies stop mid-exchange, or the line ends in mate), state none. Never compute your own count.`;
 const VERIFIED_PLUMBING_EXAMPLE = `"The material line says White is 9 points up at the end" is plumbing; "and White ends a whole queen ahead" is coaching.`;
 
-/** The charter as served: with the verified material rules when COACH_CLAIM_VERIFIER is on. */
+/** COACH_CLAIM_VERIFIER: evaluations carry their depth and engine; re-checked moments and missed mates. */
+export const VERIFIED_DEPTH_RULES = `
+DEPTH AND MATES (verified analysis):
+- Every evaluation carries the engine and the depth that produced it ("engine", "depth"). A deeper search is stronger evidence. When a moment was re-checked deeper, its evaluation, best move and lines ARE the deeper ones; never present a depth-16 number as if it were as reliable as a depth-20 one.
+- If an insight carries "missedMate", the player had a forced mate there: say it plainly ("you had mate in 3 with 15. Nxe6+", cited to the insight's own id) and never describe it as pawns of evaluation lost.`.trim();
+
+/** The charter as served: with the verified material and depth rules when COACH_CLAIM_VERIFIER is on. */
 export function getVerbalizerCharter(): string {
   if (!isClaimVerifierEnabled()) return VERBALIZER_CHARTER;
-  return VERBALIZER_CHARTER.replace(LEGACY_MATERIAL_RULE, VERIFIED_MATERIAL_RULE).replace(
+  const material = VERBALIZER_CHARTER.replace(LEGACY_MATERIAL_RULE, VERIFIED_MATERIAL_RULE).replace(
     LEGACY_PLUMBING_EXAMPLE,
     VERIFIED_PLUMBING_EXAMPLE,
   );
+  return `${material}\n\n${VERIFIED_DEPTH_RULES}`;
 }
 
 export interface VerbalizerSystemParts {

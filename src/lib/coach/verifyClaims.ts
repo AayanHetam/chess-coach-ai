@@ -50,6 +50,31 @@ function balanceOf(game: Chess): MaterialBalance {
   return sum as MaterialBalance;
 }
 
+/** The piece on `square` read straight off a FEN's board field (no chess.js). */
+function pieceOnSquare(
+  fen: string,
+  square: string
+): { type: PieceSymbol; color: Color } | null {
+  if (!/^[a-h][1-8]$/.test(square)) return null;
+  const rows = fen.split(" ")[0]?.split("/");
+  const row = rows?.[8 - Number(square[1])];
+  if (!row) return null;
+  let file = 0;
+  const target = square.charCodeAt(0) - 97;
+  for (const ch of row) {
+    if (ch >= "1" && ch <= "8") {
+      file += Number(ch);
+      continue;
+    }
+    if (file === target) {
+      const lower = ch.toLowerCase() as PieceSymbol;
+      return { type: lower, color: ch === lower ? "b" : "w" };
+    }
+    file += 1;
+  }
+  return null;
+}
+
 /** The balance of a position, or null when chess.js rejects the FEN. */
 export function materialBalance(fen: string): MaterialBalance | null {
   try {
@@ -175,7 +200,35 @@ function recaptureOn(game: Chess, square: Square): boolean {
     .some((m) => m.to === square && !!m.captured);
 }
 
+/**
+ * Replays are pure, and the claim gate asks about the same few lines many
+ * times per card (every claim, every ladder re-check): a small LRU keeps the
+ * deterministic referee inside its per-card budget. Callers must treat the
+ * result as read-only.
+ */
+const REPLAY_CACHE_MAX = 256;
+const replayCache = new Map<string, LineReplay>();
+
 export function replayLine(
+  startFen: string,
+  moves: readonly string[]
+): LineReplay {
+  const key = `${startFen}|${moves.join(" ")}`;
+  const hit = replayCache.get(key);
+  if (hit) {
+    replayCache.delete(key);
+    replayCache.set(key, hit);
+    return hit;
+  }
+  const replay = replayLineUncached(startFen, moves);
+  replayCache.set(key, replay);
+  if (replayCache.size > REPLAY_CACHE_MAX) {
+    replayCache.delete(replayCache.keys().next().value as string);
+  }
+  return replay;
+}
+
+function replayLineUncached(
   startFen: string,
   moves: readonly string[]
 ): LineReplay {
@@ -212,6 +265,9 @@ export function replayLine(
     const capturedSquare = mv.flags.includes("e")
       ? (`${mv.to[0]}${mv.from[1]}` as Square)
       : (mv.to as Square);
+    // One move generation per ply answers both mate and stalemate.
+    const inCheck = game.inCheck();
+    const noMoves = game.moves().length === 0;
     plies.push({
       index: i,
       san: mv.san,
@@ -225,9 +281,9 @@ export function replayLine(
         ? { piece: mv.captured, square: capturedSquare }
         : null,
       promotion: mv.promotion ?? null,
-      givesCheck: game.inCheck(),
-      isMate: game.isCheckmate(),
-      isStalemate: game.isStalemate(),
+      givesCheck: inCheck,
+      isMate: inCheck && noMoves,
+      isStalemate: !inCheck && noMoves,
       fenBefore,
       fenAfter: game.fen(),
       balanceAfter: balanceOf(game),
@@ -451,7 +507,7 @@ function evaluate(
           "unverified",
           `ply ${k} is past the end of the line (${n} plies)`
         );
-      const there = new Chess(fenAt(replay, k)).get(claim.square);
+      const there = pieceOnSquare(fenAt(replay, k), claim.square);
       if (!there)
         return verdict(claim, "false", `${claim.square} is empty`, null);
       const actual = { piece: there.type, color: there.color };
@@ -659,7 +715,7 @@ function evaluate(
           "no refutation line to check against"
         );
       const endFen = fenAt(replay, n);
-      const target = new Chess(endFen).get(claim.square);
+      const target = pieceOnSquare(endFen, claim.square);
       if (!target)
         return verdict(
           claim,
@@ -689,7 +745,7 @@ function evaluate(
         if (ply.mover !== refuter) continue;
         if (refuterMoves >= within) break;
         refuterMoves++;
-        const stillThere = new Chess(ply.fenBefore).get(claim.square);
+        const stillThere = pieceOnSquare(ply.fenBefore, claim.square);
         const same =
           !!stillThere &&
           stillThere.type === target.type &&
@@ -749,7 +805,7 @@ function evaluate(
     }
     case "piece_on_in_line": {
       for (let k = 0; k <= n; k++) {
-        const there = new Chess(fenAt(replay, k)).get(claim.square);
+        const there = pieceOnSquare(fenAt(replay, k), claim.square);
         if (
           there &&
           there.type === claim.piece &&

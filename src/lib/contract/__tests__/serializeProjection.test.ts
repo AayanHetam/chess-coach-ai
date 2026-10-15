@@ -18,7 +18,7 @@
  * second reading of the same rule), so an over-broad strip shows up as a diff
  * rather than as a smaller number nobody reads.
  */
-import { describe, it, beforeAll, afterAll, expect } from "vitest";
+import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { buildCoachContract } from "@/lib/contract/builder";
@@ -274,12 +274,31 @@ describe("verbalizer JSON projection", () => {
         .filter((e): e is Record<string, unknown> => !!e && typeof e === "object");
       expect(evals.length).toBeGreaterThan(0);
       for (const e of evals) {
-        expect(Object.keys(e).sort()).toEqual(["display", "sentinel"]);
+        // COACH_CLAIM_VERIFIER (on in tests): each eval also says how deep it
+        // was searched — never the raw cp/mate numbers.
+        expect(e).not.toHaveProperty("cp");
+        expect(e).not.toHaveProperty("mate");
+        expect(Object.keys(e).sort()).toEqual(e.sentinel ? ["display", "sentinel"] : ["depth", "display", "sentinel"]);
       }
       // The sentinel case is the reason this matters: its raw form is
       // {cp: 0, depth: 0}, which the charter then has to forbid the model
       // from printing as "+0.00". It must never reach the wire.
       expect(JSON.stringify(wire)).not.toContain('"cp":0,"depth":0');
+    }
+  });
+
+  it("with COACH_CLAIM_VERIFIER off, an eval is its display and sentinel flag only", () => {
+    vi.stubEnv("COACH_CLAIM_VERIFIER", "0");
+    try {
+      for (const name of NAMES) {
+        const wire = JSON.parse(serializeForVerbalizer(contracts.get(name)!));
+        const evals = collectByKey(wire, "evalAfter")
+          .concat(collectByKey(wire, "evalBefore"))
+          .filter((e): e is Record<string, unknown> => !!e && typeof e === "object");
+        for (const e of evals) expect(Object.keys(e).sort()).toEqual(["display", "sentinel"]);
+      }
+    } finally {
+      vi.unstubAllEnvs();
     }
   });
 

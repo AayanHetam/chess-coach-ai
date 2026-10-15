@@ -18,6 +18,7 @@ import { detectMotifs } from "@/lib/tactics";
 import { buildLineStory, type LineStory } from "./lineStory";
 import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
 import { missedMate, recheckedPair, type GameEvalRecheck } from "@/lib/coach/deepRecheck";
+import { buildGameReport } from "@/lib/coach/gameReport";
 import { logger } from "@/lib/logging";
 
 const log = logger.child({ module: "contract-builder" });
@@ -781,6 +782,26 @@ export async function buildCoachContract(args: BuildCoachContractArgs): Promise<
       plies: insights.map((i) => i.ply),
     });
     if (intent.length) contract.intent = intent;
+  }
+
+  // COACH_CLAIM_VERIFIER: the verified game report (verdict, story, the
+  // decisive moments, credit, one habit), written by code from replayed
+  // facts and the engine's numbers. The app shows it around the cards; the
+  // model gets it as REPORT FACTS so its cards agree (verbalizerPrompt.ts).
+  if (claimVerifier && positions && positions.length > 0) {
+    try {
+      const report = buildGameReport({
+        sans: moveHistory.slice(0, replayedPlies),
+        positions: positions as unknown as GameEval["positions"],
+        recheck,
+        playerColor: playerColor === "w" || playerColor === "b" ? playerColor : null,
+        result: pgnHeaders.result ?? null,
+        engine: passOneEngine ?? "the engine",
+      });
+      if (report) contract.report = report;
+    } catch {
+      // the report is additive: no report, never a broken contract
+    }
   }
 
   // Plan §5 gate definition: contract build time is CPU-only, measured OVER

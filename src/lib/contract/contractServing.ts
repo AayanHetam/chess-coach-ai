@@ -41,6 +41,12 @@ import {
 import { getContractEnv } from "@/env";
 import { createEnforcedContractStream } from "./enforcedStream";
 import type { EnforcedStreamSummary } from "./enforcedStream";
+import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
+import {
+  renderReportHead,
+  renderReportTail,
+  type ReportSource,
+} from "@/lib/coach/gameReport";
 import type { LadderDeps, LadderStage } from "./ladder";
 import type { ArmingTable } from "./armingConfig";
 import { CONTRACT_VERSION } from "./types";
@@ -121,7 +127,10 @@ export interface ContractDoneMetadata {
    * COACH_CLAIM_VERIFIER only: each shipped sentence labelled verified-fact /
    * engine / judgment, and the board claims the gate blocked, per card.
    */
-  claimVerifier?: EnforcedStreamSummary["claimVerifier"];
+  claimVerifier?: EnforcedStreamSummary["claimVerifier"] & {
+    /** The verified report's sentences, labelled. */
+    report?: { sentences: Array<{ text: string; source: ReportSource }> };
+  };
 }
 
 export interface ContractServingArgs {
@@ -211,6 +220,15 @@ export async function serveContractAnalysis(
     };
   }
 
+  // COACH_CLAIM_VERIFIER: the verified report frames the cards — verdict,
+  // story and decisive moments before them, credit and the habit after. Code
+  // wrote every sentence of it (coach/gameReport.ts); it streams first so
+  // the reader has the shape of the game while the cards are written.
+  const report = isClaimVerifierEnabled() ? (contract.report ?? null) : null;
+  const reportHead = report ? renderReportHead(report) : null;
+  const reportTail = report ? renderReportTail(report) : null;
+  if (reportHead) args.emitText(reportHead.text);
+
   const systemParts = getVerbalizerSystemPromptParts(args.promptInput);
   const userTurn = buildVerbalizerUserTurn({
     contract,
@@ -279,12 +297,18 @@ export async function serveContractAnalysis(
   }
 
   const summary = await stream.end();
-  let analysisContent = summary.finalText || "No analysis generated.";
+  let analysisContent =
+    summary.finalText || (reportHead ? "" : "No analysis generated.");
   if (generationTruncated && !summary.unclosedBlock) {
     // Cut cleanly between cards — the block gate had nothing to footnote, so
     // say it here rather than end mid-review with no signal.
     args.emitText(GENERATION_BUDGET_NOTE);
     analysisContent += GENERATION_BUDGET_NOTE;
+  }
+
+  if (reportHead && reportTail) {
+    args.emitText(reportTail.text);
+    analysisContent = `${reportHead.text}${analysisContent}${reportTail.text}`;
   }
 
   const allVerified =
@@ -326,7 +350,20 @@ export async function serveContractAnalysis(
       overviewViolations: summary.overviewViolations,
       generationTruncated,
       cached: false,
-      ...(summary.claimVerifier ? { claimVerifier: summary.claimVerifier } : {}),
+      ...(summary.claimVerifier
+        ? {
+            claimVerifier: {
+              ...summary.claimVerifier,
+              ...(reportHead && reportTail
+                ? {
+                    report: {
+                      sentences: [...reportHead.sources, ...reportTail.sources],
+                    },
+                  }
+                : {}),
+            },
+          }
+        : {}),
     },
     summary,
     llmResult,

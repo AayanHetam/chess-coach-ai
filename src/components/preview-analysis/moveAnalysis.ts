@@ -309,6 +309,11 @@ export function describeMove(a: MoveAnalysis): string {
     cls === MoveClassification.Brilliant ||
     cls === MoveClassification.Great
   ) {
+    // COACH_CLAIM_VERIFIER: "the move the engine rates highest" only when it
+    // was; neither label requires the engine's first choice.
+    if (isClaimVerifierEnabled() && a.bestSan !== null) {
+      return `${does} A strong move. ${instead}`.trim();
+    }
     return `${does} ${who === "You" ? "You found" : `${who} found`} the move the engine rates highest — a hard one to see.`;
   }
   if (cls === MoveClassification.Best) {

@@ -25,6 +25,7 @@
 import { getCoachChatSystemPromptParts } from "./coachChatPrompt";
 import type { CoachChatPromptInput } from "./coachChatPrompt";
 import { formatVerbalizerExamples } from "./verbalizerGoldExamples";
+import { gameReportPromptBlock } from "@/lib/coach/gameReport";
 import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
 import { renderInsightHeader } from "@/lib/contract/insightGrammar";
 import { serializeForVerbalizer } from "@/lib/contract/serialize";
@@ -260,6 +261,9 @@ export function buildVerbalizerUserTurn(args: VerbalizerUserTurnArgs): string {
   sections.push(
     `## CARD PLAN (emit exactly these cards, in this order, each opening with the exact header line shown)\n${
       cardPlan ||
+      (contract.report
+        ? "There are no cards for this game, and the app already shows the player its report. Write one short, warm closing sentence with no chess facts in it: no moves, squares, evaluations or material."
+        : null) ||
       // Zero-card reviews (e.g. a clean opening) emit NO [INSIGHT] blocks, so
       // nothing here reaches the ladder — this prose ships as written. Phrased
       // as a directive rather than a parenthetical note, because the model was
@@ -268,6 +272,9 @@ export function buildVerbalizerUserTurn(args: VerbalizerUserTurnArgs): string {
       "There are no cards for this game. Write a short, warm overview instead: what the player did well, where the position stands, and one thing to think about next. Assert only facts drawn from the contract above, cite each of them, and do not mention the contract itself."
     }`,
   );
+  // COACH_CLAIM_VERIFIER: the app shows the verified report around the cards;
+  // the model gets the same facts so its cards agree, and no others.
+  if (contract.report) sections.push(gameReportPromptBlock(contract.report));
   // The gold examples used to be appended here; they now ride in the cached
   // stable system block (getVerbalizerSystemPromptParts). Keep this turn to
   // per-game evidence only — every byte of it is billed uncached.

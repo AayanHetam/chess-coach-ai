@@ -109,6 +109,20 @@ describe("the strip with the re-check", () => {
     expect(a.sentence).toMatch(/You had mate in 3 with 15\. Nxe6\+\.$/);
   });
 
+  it("a 'great' move that was not the engine's first choice is not called the move the engine rates highest", () => {
+    const b = loadGame("gameB");
+    const a = analyzeMoveAt(
+      b.sans,
+      passOne("gameB", 23, MoveClassification.Great),
+      23,
+      undefined,
+      "w"
+    )!;
+    expect(a.bestSan).toBe("Bd3");
+    expect(a.sentence).not.toMatch(/rates highest/);
+    expect(a.sentence).toMatch(/A strong move\. The engine preferred 12\. Bd3/);
+  });
+
   it("with the flag off, the re-check is ignored and nothing is labelled", () => {
     vi.stubEnv("COACH_CLAIM_VERIFIER", "0");
     vi.stubEnv("NEXT_PUBLIC_COACH_CLAIM_VERIFIER", "0");

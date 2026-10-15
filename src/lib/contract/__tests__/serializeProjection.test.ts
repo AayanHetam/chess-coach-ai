@@ -183,6 +183,11 @@ describe("verbalizer JSON projection", () => {
         Array.from(keyNames(collectByKey(before, storyKey))).forEach((k) => explained.add(k));
       }
       explained.add("gameStory");
+      // Rule 6 (COACH_CLAIM_VERIFIER): the verified game report is shown by
+      // the app and reaches the model as its own REPORT FACTS block in the
+      // user turn (verbalizerPrompt.ts), never inside the contract JSON.
+      Array.from(keyNames(collectByKey(before, "report"))).forEach((k) => explained.add(k));
+      explained.add("report");
 
       const afterKeys = keyNames(after);
       const beforeKeys = keyNames(before);

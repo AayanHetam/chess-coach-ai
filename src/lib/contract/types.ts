@@ -36,6 +36,7 @@ import type { RoleChange } from "@/lib/mastermind/pieceRoles";
 import type { VoterConfidence } from "@/lib/grounding/voter";
 import type { PositionConfidence } from "@/lib/grounding/positionConfidence";
 import type { EvalIntegrity } from "./gameEvalSchema";
+import type { GameReport } from "@/lib/coach/gameReport";
 
 export const CONTRACT_VERSION = "1.0" as const;
 
@@ -352,6 +353,12 @@ export interface CoachContract {
    * render from it until it has been measured against served output.
    */
   intent?: IntentSummary[];
+  /**
+   * COACH_CLAIM_VERIFIER: the verified game report (coach/gameReport.ts).
+   * Rendered by the app around the cards; the model sees it as REPORT FACTS
+   * in its user turn, never inside the contract JSON (serialize strips it).
+   */
+  report?: GameReport;
   /** Real zod-backed sanity layer over the z.any() gameEval (audit #5):
    * flags, never mutates, never rejects. */
   evalIntegrity: EvalIntegrity;

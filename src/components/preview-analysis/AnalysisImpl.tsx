@@ -7,6 +7,7 @@ import {
 } from "@/lib/analysis/handoff";
 import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
 import { runDeepRecheck, selectFlaggedMoments } from "@/lib/coach/deepRecheck";
+import { gateBrilliantChips } from "@/lib/coach/gameReport";
 import {
   RECHECK_BUDGET_MS,
   RECHECK_DEPTH,
@@ -7435,16 +7436,36 @@ export default function AnalysisPage() {
       return enginePositions;
     }
     try {
-      return getMovesClassification(
+      const classified = getMovesClassification(
         enginePositions,
         params.uciMoves,
         params.fens
       );
+      // COACH_CLAIM_VERIFIER: a "brilliant" chip is earned (engine-best,
+      // credit-worthy, a sound sacrifice by static count), or taken back.
+      return CLAIM_VERIFIER
+        ? gateBrilliantChips(
+            {
+              sans: loadedGame.history(),
+              positions: enginePositions,
+              recheck: gameEvalFull?.recheck ?? null,
+              playerColor: null,
+              engine: engineSettings.engineName,
+              rootFen: params.fens[0],
+            },
+            classified
+          )
+        : classified;
     } catch (err) {
       console.warn("[preview/analysis] classification failed:", err);
       return enginePositions;
     }
-  }, [enginePositions, loadedGame]);
+  }, [
+    enginePositions,
+    loadedGame,
+    gameEvalFull?.recheck,
+    engineSettings.engineName,
+  ]);
 
   // G9: derive real key moments from classification. Production's
   // SurpriseAnalyzer is a separate Stockfish pass that adds a lot of

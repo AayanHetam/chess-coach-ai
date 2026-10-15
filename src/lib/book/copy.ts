@@ -85,7 +85,7 @@ export function renderBookExit(state: BookExitResponse): Rendered | null {
         detail:
           `${cap(floor)} ${who} play it there` +
           (exit.transposes
-            ? ", though it rejoins a position they do know — a move order rather than a departure."
+            ? ", though it rejoins a position they do know: a move order rather than a departure."
             : ".") +
           ` You were with them ${inMoves(exit.depth)}.`,
         moves: exit.common,
@@ -113,7 +113,7 @@ export function renderBookExit(state: BookExitResponse): Rendered | null {
         headline:
           exit.depth > 0
             ? `You stayed inside what ${who} play, for every move we can see.`
-            : `Nothing to measure yet — the game has no moves.`,
+            : `Nothing to measure yet. The game has no moves.`,
         detail:
           exit.depth > 0
             ? `Our book stops at move ${Math.ceil((corpus.maxPly ?? 14) / 2)}, so this says nothing about what came after.`

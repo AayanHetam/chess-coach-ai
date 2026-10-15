@@ -10,7 +10,7 @@
  *   [⏮ ◀ ▶ ⏭]  8. Nc7+  ?? Blunder  +2.48 → −1.34        [Ask Masti] [⋯]
  *   Gives check; forks the king on e8 and the rook on a8. This is where it
  *   went wrong. The engine preferred 8. Qxc1, which takes the queen on c1.
- *   ENGINE PREFERRED  8.Qxc1 Rb8 9.Qf4 Nf6 …  → White ends a queen up  ▶ Play
+ *   Engine preferred  8.Qxc1 Rb8 9.Qf4 Nf6 …  → White ends a queen up  ▶ Play
  *   8.Qxc1 takes the queen on c1
  *
  * The first row's label gives way to the board's state when it is off the
@@ -29,11 +29,10 @@ import { Box, Tooltip } from "@mui/material";
 import { MessageCircle } from "lucide-react";
 import { MoveClassification } from "@/types/enums";
 import type { PositionEval } from "@/types/eval";
+import { ACCENT, FONT_MONO, MOTION, RADIUS, TEXT, TYPE } from "@/theme/tokens";
 import { ProofLine } from "./ProofLine";
 import type { CoachLine } from "./coachLines";
 import { analyzeMoveAt, type MoveAnalysis } from "./moveAnalysis";
-
-const MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
 
 const STYLE: Record<string, { label: string; glyph: string; color: string }> = {
   [MoveClassification.Blunder]: {
@@ -72,17 +71,17 @@ const STYLE: Record<string, { label: string; glyph: string; color: string }> = {
   [MoveClassification.Okay]: {
     label: "Okay",
     glyph: "",
-    color: "rgba(255,255,255,0.6)",
+    color: TEXT.secondary,
   },
   [MoveClassification.Forced]: {
     label: "Forced",
     glyph: "",
-    color: "rgba(255,255,255,0.6)",
+    color: TEXT.secondary,
   },
   [MoveClassification.Opening]: {
     label: "Book",
     glyph: "",
-    color: "rgba(255,255,255,0.6)",
+    color: TEXT.secondary,
   },
 };
 
@@ -212,11 +211,17 @@ export function MoveAnalysisCard({
                 component="span"
                 data-testid="move-analysis-label"
                 sx={{
-                  fontFamily: MONO,
-                  fontSize: "0.92rem",
-                  fontWeight: 700,
-                  color: "rgba(255,255,255,0.94)",
+                  fontFamily: FONT_MONO,
+                  fontSize: TYPE.bodySmall.fontSize,
+                  fontWeight: 600,
+                  color: TEXT.primary,
                   whiteSpace: "nowrap",
+                  // On a narrow phone the SAN gives way before the verdict
+                  // does: the verdict word is the classification's
+                  // non-colour channel.
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                 }}
               >
                 {label}
@@ -226,9 +231,10 @@ export function MoveAnalysisCard({
                   component="span"
                   data-testid="move-analysis-verdict"
                   sx={{
+                    flexShrink: 0,
                     color: style.color,
-                    fontSize: "0.74rem",
-                    fontWeight: 700,
+                    fontSize: TYPE.caption.fontSize,
+                    fontWeight: 600,
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -242,9 +248,9 @@ export function MoveAnalysisCard({
                     component="span"
                     sx={{
                       display: { xs: "none", sm: "inline" },
-                      fontFamily: MONO,
-                      fontSize: "0.74rem",
-                      color: "rgba(255,255,255,0.5)",
+                      fontSize: TYPE.caption.fontSize,
+                      fontVariantNumeric: "tabular-nums",
+                      color: TEXT.secondary,
                       whiteSpace: "nowrap",
                     }}
                   >
@@ -271,20 +277,30 @@ export function MoveAnalysisCard({
                 gap: 0.5,
                 height: 28,
                 px: { xs: 0.75, sm: 1 },
-                borderRadius: "999px",
-                border: "1px solid rgba(249,115,22,0.35)",
-                background: "rgba(249,115,22,0.08)",
-                color: "#FB923C",
+                // A quiet tinted action: the coach is one tap away, but the
+                // screen's one solid ember belongs elsewhere.
+                borderRadius: `${RADIUS.pill}px`,
+                border: 0,
+                background: ACCENT.tint,
+                color: ACCENT.hover,
                 font: "inherit",
-                fontSize: "0.72rem",
-                fontWeight: 700,
+                fontSize: TYPE.caption.fontSize,
+                fontWeight: 600,
+                lineHeight: 1,
                 cursor: busy ? "default" : "pointer",
                 opacity: busy ? 0.5 : 1,
-                transition: "background 140ms ease",
-                "&:hover": busy ? {} : { background: "rgba(249,115,22,0.18)" },
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
+                transition: `background-color ${MOTION.hover}, transform ${MOTION.press}`,
+                "&:hover": busy ? {} : { background: ACCENT.tintHover },
+                "&:active": busy ? {} : { transform: MOTION.pressScale },
+                "&:focus-visible": {
+                  outline: "2px solid #FFFFFF",
+                  outlineOffset: 2,
+                },
               }}
             >
-              <MessageCircle size={13} />
+              <MessageCircle size={16} strokeWidth={1.75} aria-hidden />
               <Box
                 component="span"
                 sx={{ display: { xs: "none", sm: "inline" } }}
@@ -306,9 +322,7 @@ export function MoveAnalysisCard({
             mt: 0.5,
             fontSize: "0.86rem",
             lineHeight: 1.5,
-            color: analysis
-              ? "rgba(255,255,255,0.88)"
-              : "rgba(255,255,255,0.45)",
+            color: analysis ? TEXT.primary : TEXT.secondary,
             // A hard height, not a minimum: the strip's whole point is that
             // it never changes size as the cursor moves. Four lines on a
             // phone, three beside a board.
@@ -341,7 +355,7 @@ export function MoveAnalysisCard({
             minHeight: "calc(24px + 1.3em + 2px)",
             fontSize: "0.76rem",
             lineHeight: "24px",
-            color: "rgba(255,255,255,0.4)",
+            color: TEXT.secondary,
           }}
         >
           {analysis

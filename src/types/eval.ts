@@ -1,5 +1,6 @@
 import { Move } from "chess.js";
 import { EngineName, MoveClassification } from "./enums";
+import type { GameEvalRecheck } from "@/lib/coach/deepRecheck";
 
 /**
  * Where an evaluation actually came from.
@@ -52,6 +53,11 @@ export interface GameEval {
   accuracy: Accuracy;
   estimatedElo?: EstimatedElo;
   settings: EngineSettings;
+  /**
+   * COACH_CLAIM_VERIFIER pass 2: the flagged moments re-searched deeper
+   * (coach/deepRecheck.ts). `positions` stays pass 1, untouched.
+   */
+  recheck?: GameEvalRecheck;
 }
 
 export interface EvaluatePositionWithUpdateParams {

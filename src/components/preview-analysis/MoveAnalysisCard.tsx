@@ -29,6 +29,7 @@ import { Box, Tooltip } from "@mui/material";
 import { MessageCircle } from "lucide-react";
 import { MoveClassification } from "@/types/enums";
 import type { PositionEval } from "@/types/eval";
+import type { GameEvalRecheck } from "@/lib/coach/deepRecheck";
 import { ACCENT, FONT_MONO, MOTION, RADIUS, TEXT, TYPE } from "@/theme/tokens";
 import { ProofLine } from "./ProofLine";
 import type { CoachLine } from "./coachLines";
@@ -88,6 +89,8 @@ const STYLE: Record<string, { label: string; glyph: string; color: string }> = {
 export interface MoveAnalysisCardProps {
   gameSans: readonly string[];
   positions: readonly PositionEval[] | null | undefined;
+  /** COACH_CLAIM_VERIFIER pass 2: re-checked moves read their deeper evals. */
+  recheck?: GameEvalRecheck | null;
   ply: number;
   rootFen?: string;
   playerColor: "w" | "b" | null;
@@ -139,6 +142,7 @@ function fallbackLabel(gameSans: readonly string[], ply: number): string {
 export function MoveAnalysisCard({
   gameSans,
   positions,
+  recheck = null,
   ply,
   rootFen,
   playerColor,
@@ -151,8 +155,9 @@ export function MoveAnalysisCard({
   state,
 }: MoveAnalysisCardProps) {
   const analysis = useMemo(
-    () => analyzeMoveAt(gameSans, positions, ply, rootFen, playerColor),
-    [gameSans, positions, ply, rootFen, playerColor]
+    () =>
+      analyzeMoveAt(gameSans, positions, ply, rootFen, playerColor, recheck),
+    [gameSans, positions, ply, rootFen, playerColor, recheck]
   );
 
   const cls = analysis?.classification ?? null;
@@ -301,6 +306,7 @@ export function MoveAnalysisCard({
                     }}
                   >
                     {analysis.evalBefore} → {analysis.evalAfter}
+                    {analysis.depthLabel ? ` · ${analysis.depthLabel}` : ""}
                   </Box>
                 </Tooltip>
               )}

@@ -25,6 +25,8 @@
 import { getCoachChatSystemPromptParts } from "./coachChatPrompt";
 import type { CoachChatPromptInput } from "./coachChatPrompt";
 import { formatVerbalizerExamples } from "./verbalizerGoldExamples";
+import { gameReportPromptBlock } from "@/lib/coach/gameReport";
+import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
 import { renderInsightHeader } from "@/lib/contract/insightGrammar";
 import { serializeForVerbalizer } from "@/lib/contract/serialize";
 import { partitionSentinelCards } from "@/lib/contract/sentinelGuard";
@@ -106,6 +108,34 @@ VOICE (graded, and it outranks structure):
 - NEVER narrate your own plumbing. The reader must never see the words "contract", "card plan", "move table", "fact id", "story", "ledger", "offer note", "the instructions", or any parenthetical explaining WHERE a number came from — those are yours, not theirs. Cite with the token and say nothing else about provenance. "The material ledger reads: White up 9" is plumbing; "and White is a whole queen ahead" is coaching.
 `.trim();
 
+/** The two charter sentences that taught the model to read a line's material CHANGE as where material ends. */
+export const LEGACY_MATERIAL_RULE =
+  '- The "material:" line is the only source for "wins a pawn", "wins the exchange", "gets the rook back". Say its sense in coach words ("White comes out a rook ahead"), never its label, and never compute your own count.';
+const LEGACY_PLUMBING_EXAMPLE =
+  '"The material ledger reads: White up 9" is plumbing; "and White is a whole queen ahead" is coaching.';
+
+/** COACH_CLAIM_VERIFIER: the "material:" line now carries the verified end balance and the change, separately. */
+export const VERIFIED_MATERIAL_RULE =
+  '- The "material:" line gives two different numbers: where material STANDS at the end of the shown plies, and how much those plies CHANGED it. "Wins a pawn", "wins the exchange", "gets the rook back" come only from the change; "ahead", "behind", "comes out up/down" only from where it stands at the end — a line can win a rook and still end four points behind. When it says to state no material result (the plies stop mid-exchange, or the line ends in mate), state none. Never compute your own count.';
+const VERIFIED_PLUMBING_EXAMPLE =
+  '"The material line says White is 9 points up at the end" is plumbing; "and White ends a whole queen ahead" is coaching.';
+
+/** COACH_CLAIM_VERIFIER: evaluations carry their depth and engine; re-checked moments and missed mates. */
+export const VERIFIED_DEPTH_RULES = `
+DEPTH AND MATES (verified analysis):
+- Every evaluation carries the engine and the depth that produced it ("engine", "depth"). A deeper search is stronger evidence. When a moment was re-checked deeper, its evaluation, best move and lines ARE the deeper ones; never present a depth-16 number as if it were as reliable as a depth-20 one.
+- If an insight carries "missedMate", the player had a forced mate there: say it plainly ("you had mate in 3 with 15. Nxe6+", cited to the insight's own id) and never describe it as pawns of evaluation lost.`.trim();
+
+/** The charter as served: with the verified material and depth rules when COACH_CLAIM_VERIFIER is on. */
+export function getVerbalizerCharter(): string {
+  if (!isClaimVerifierEnabled()) return VERBALIZER_CHARTER;
+  const material = VERBALIZER_CHARTER.replace(
+    LEGACY_MATERIAL_RULE,
+    VERIFIED_MATERIAL_RULE
+  ).replace(LEGACY_PLUMBING_EXAMPLE, VERIFIED_PLUMBING_EXAMPLE);
+  return `${material}\n\n${VERIFIED_DEPTH_RULES}`;
+}
+
 export interface VerbalizerSystemParts {
   stable: string;
   perUser: string;
@@ -128,7 +158,7 @@ export function getVerbalizerSystemPromptParts(
   // the charter, where they cost a cache read instead. Anything per-game must
   // stay OUT of this string or it would poison the shared prefix.
   return {
-    stable: `${parts.stable}\n\n${VERBALIZER_CHARTER}\n\n${formatVerbalizerExamples().trim()}`,
+    stable: `${parts.stable}\n\n${getVerbalizerCharter()}\n\n${formatVerbalizerExamples().trim()}`,
     perUser: parts.perUser,
   };
 }
@@ -235,6 +265,9 @@ export function buildVerbalizerUserTurn(args: VerbalizerUserTurnArgs): string {
   sections.push(
     `## CARD PLAN (emit exactly these cards, in this order, each opening with the exact header line shown)\n${
       cardPlan ||
+      (contract.report
+        ? "There are no cards for this game, and the app already shows the player its report. Write one short, warm closing sentence with no chess facts in it: no moves, squares, evaluations or material."
+        : null) ||
       // Zero-card reviews (e.g. a clean opening) emit NO [INSIGHT] blocks, so
       // nothing here reaches the ladder — this prose ships as written. Phrased
       // as a directive rather than a parenthetical note, because the model was
@@ -243,6 +276,9 @@ export function buildVerbalizerUserTurn(args: VerbalizerUserTurnArgs): string {
       "There are no cards for this game. Write a short, warm overview instead: what the player did well, where the position stands, and one thing to think about next. Assert only facts drawn from the contract above, cite each of them, and do not mention the contract itself."
     }`,
   );
+  // COACH_CLAIM_VERIFIER: the app shows the verified report around the cards;
+  // the model gets the same facts so its cards agree, and no others.
+  if (contract.report) sections.push(gameReportPromptBlock(contract.report));
   // The gold examples used to be appended here; they now ride in the cached
   // stable system block (getVerbalizerSystemPromptParts). Keep this turn to
   // per-game evidence only — every byte of it is billed uncached.

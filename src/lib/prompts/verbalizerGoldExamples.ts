@@ -16,6 +16,7 @@
  * purpose: the few-shots teach the CITATION GRAMMAR + register, not the full
  * schema — the real user turn carries the full contract JSON.
  */
+import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
 
 export interface VerbalizerGoldExample {
   id: string;
@@ -273,8 +274,63 @@ export const VERBALIZER_GOLD_EXAMPLES: VerbalizerGoldExample[] = [
   },
 ];
 
+/**
+ * COACH_CLAIM_VERIFIER. The line-story example above was written against the
+ * old ledger, which printed the CHANGE over a line as if it were where
+ * material ends: its ideal answer says "White is up a rook" while White,
+ * nine points down before the line, ends four behind. With the verifier on,
+ * the story's material lines are the verified ones (projectLineStory) and
+ * the prose keeps the change and the end balance apart. Each `from` must
+ * match the example exactly once (pinned in verbalizerPrompt.test.ts).
+ */
+export const VERIFIED_MATERIAL_REWRITES: ReadonlyArray<{
+  id: string;
+  from: string;
+  to: string;
+}> = [
+  {
+    id: "v41-line-story-chain",
+    from: "material: material level for White after 3 shown plies",
+    to: "material: at the end White is 9 points down; before the line White was 9 points down, so these 3 plies change nothing",
+  },
+  {
+    id: "v41-line-story-chain",
+    from: "material: White up 5 after 5 shown plies",
+    to: "material: at the end White is 4 points down; before the line White was 9 points down, so these 5 plies gain White 5 points",
+  },
+  {
+    id: "v41-line-story-chain",
+    from: "The ledger says White is up a rook after those five plies [F:M1.game], yet the eval says the position got worse [F:M1]",
+    to: "Those five plies do win back a rook's worth [F:M1.game], but White started them nine points down and still ends four behind [F:M1.game], and the eval says the position got worse [F:M1]",
+  },
+  {
+    id: "v41-line-story-chain",
+    from: "while keeping material level [F:M1.pv0]",
+    to: "while the material count stays where it was [F:M1.pv0]",
+  },
+];
+
+/** The examples as the prompt carries them: with the verified material wording when COACH_CLAIM_VERIFIER is on. */
+export function verbalizerGoldExamples(
+  verifiedMaterial: boolean
+): VerbalizerGoldExample[] {
+  if (!verifiedMaterial) return VERBALIZER_GOLD_EXAMPLES;
+  return VERBALIZER_GOLD_EXAMPLES.map((ex) =>
+    VERIFIED_MATERIAL_REWRITES.filter((r) => r.id === ex.id).reduce(
+      (acc, r) => ({
+        ...acc,
+        contractSlice: acc.contractSlice.replace(r.from, r.to),
+        idealProse: acc.idealProse.replace(r.from, r.to),
+      }),
+      ex
+    )
+  );
+}
+
 /** Prompt-injectable rendering (mirrors formatExamplesForPrompt's framing). */
-export function formatVerbalizerExamples(): string {
+export function formatVerbalizerExamples(
+  verifiedMaterial = isClaimVerifierEnabled()
+): string {
   let out =
     "\n\n=== CONTRACT→PROSE EXAMPLES (match this citation discipline and voice) ===\n" +
     "Each example shows an abridged fact contract and the ideal verbalization. " +
@@ -282,7 +338,7 @@ export function formatVerbalizerExamples(): string {
     "Idea:/Problem:/Solution:/Outcome: line and each [THREATS]/[ROLES] bullet, and " +
     "including consecutive sentences that repeat the same id. Rhetoric, the closing " +
     "takeaway, and the general [CONCEPT] body carry none.\n\n";
-  VERBALIZER_GOLD_EXAMPLES.forEach((ex, i) => {
+  verbalizerGoldExamples(verifiedMaterial).forEach((ex, i) => {
     out += `EXAMPLE ${i + 1} — ${ex.scenario}:\nCONTRACT (abridged):\n${ex.contractSlice}\nIDEAL RESPONSE:\n${ex.idealProse}\n\n`;
   });
   return out;

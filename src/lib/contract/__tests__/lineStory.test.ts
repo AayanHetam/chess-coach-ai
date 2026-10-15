@@ -3,7 +3,7 @@
  * Positions are replayed through chess.js in the assertions themselves, so a
  * wrong fixture fails on the replay, not on the detector.
  */
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { Chess } from "chess.js";
 import { buildLineStory, projectLineStory } from "../lineStory";
 
@@ -15,6 +15,9 @@ function fenAfter(moves: string, n?: number): string {
 }
 const F07 = "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Qb6 Nf3 Qxb2 Na3 Qxa1 Nb5 Qxc1 Nc7+ Kd8 Nxa8 Qxd1+ Kxd1 e5";
 const kinds = (story: ReturnType<typeof buildLineStory>, i: number) => story.plies[i].facts.map((f) => f.kind);
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("the game continuation of fixture 07 from 8.Nc7+", () => {
   const story = buildLineStory(fenAfter(F07, 14), ["Nc7+", "Kd8", "Nxa8", "Qxd1+", "Kxd1", "e5"]);
@@ -31,6 +34,21 @@ describe("the game continuation of fixture 07 from 8.Nc7+", () => {
     expect(story.owner).toBe("w");
     expect(story.plies.map((p) => p.netCp)).toEqual([0, 0, 500, -400, 500, 500]);
     expect(story.netMaterialCp).toBe(500);
+  });
+  it("tells the model where material ends, not just what the line won: White nets a rook and is still 4 down", () => {
+    expect(story.material).toMatchObject({
+      verified: true,
+      startBalance: -9,
+      endBalance: -4,
+      delta: 5,
+      midCaptureSequence: null,
+    });
+    expect(projectLineStory(story).at(-1)).toBe(
+      "material: at the end White is 4 points down; before the line White was 9 points down, so these 6 plies gain White 5 points"
+    );
+  });
+  it("with COACH_CLAIM_VERIFIER off, the legacy ledger line is unchanged", () => {
+    vi.stubEnv("COACH_CLAIM_VERIFIER", "0");
     expect(projectLineStory(story).at(-1)).toBe("material: White up 5 after 6 shown plies");
   });
   it("a ply with nothing to say stays quiet", () => {
@@ -45,7 +63,9 @@ describe("mates", () => {
     expect(story.endsInMate).toBe(true);
     expect(story.plies).toHaveLength(3);
     expect(kinds(story, 2)).toEqual(["checkmate"]);
-    expect(projectLineStory(story).at(-1)).toContain("ending in mate");
+    expect(projectLineStory(story).at(-1)).toBe(
+      "material: the line ends in mate (White mates), so no count applies"
+    );
   });
   it("a checking move narrates the check and whether the checker hangs, not the whole board", () => {
     // Greek gift: while Black is in check every SEE read is distorted, so Bxh7+ must not
@@ -102,7 +122,9 @@ describe("what the adversarial review taught it (2026-09-05)", () => {
     const story = buildLineStory("k7/8/1K6/8/8/8/8/2Q5 w - - 0 1", ["Qc7"]);
     expect(story.plies[0].facts).toEqual([{ kind: "stalemate" }]);
     expect(story.endsInStalemate).toBe(true);
-    expect(projectLineStory(story).at(-1)).toContain("ending in stalemate");
+    expect(projectLineStory(story).at(-1)).toBe(
+      "material: the line ends in stalemate, a draw"
+    );
   });
   it("names a double check, and a knight check that uncovers an attack on the queen is not a 'discovered check'", () => {
     const dbl = buildLineStory("r2bk3/3p1p2/4N3/8/8/8/8/4R1K1 w - - 0 1", ["Nc7+", "Kf8"]);
@@ -313,7 +335,7 @@ describe("robustness", () => {
     expect(projectLineStory(story)).toEqual([
       "s0 8.Nc7+ — gives check; forks the king on e8 and the rook on a8",
       "s1 8...Kd8 — the king steps out of check; the only legal move; attacks the knight on c7",
-      "material: material level for White after 2 shown plies",
+      "material: at the end White is 9 points down; before the line White was 9 points down, so these 2 plies change nothing",
     ]);
   });
 });

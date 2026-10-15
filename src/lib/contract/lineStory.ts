@@ -34,8 +34,21 @@
 import { Chess, type Color, type PieceSymbol, type Square } from "chess.js";
 import { detectMotifs, type AnyMotif } from "@/lib/tactics";
 import { detectTrappedPieces } from "@/lib/tactics/motifs/trapped_piece";
-import { attackersOf, cheapestCapture, rawAttacks, see, squareToCoord, coordToSquare } from "@/lib/tactics/utils";
+import { attackersOf, rawAttacks, see } from "@/lib/tactics/utils";
+import {
+  capturable,
+  enPassantWins,
+  exposesDearerPiece,
+  withTurn,
+} from "@/lib/tactics/capturable";
 import { PIECE_UNITS } from "@/lib/tactics/netMaterial";
+import {
+  replayLine,
+  sideValue,
+  type MaterialBalance,
+  type MaterialDelta,
+} from "@/lib/coach/verifyClaims";
+import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
 import {
   CENTRE_SQUARES,
   batteryPartner,
@@ -104,11 +117,32 @@ export interface PlyStory {
   sayable: string;
 }
 
+/**
+ * Where material stands, from the claim verifier replaying the narrated
+ * plies (coach/verifyClaims.ts). `netMaterialCp` above is a CHANGE that
+ * starts at 0 on the line's first move; printing it as where the line ends
+ * was the "you come out 1 up" bug. Read the end balance from here.
+ */
+export interface LineStoryMaterial {
+  /** Every narrated ply replayed; when false, nothing below may be said. */
+  verified: boolean;
+  startBalance: MaterialBalance | null;
+  endBalance: MaterialBalance | null;
+  delta: MaterialDelta | null;
+  /** The narrated plies stop mid-exchange: the end balance is a snapshot, not a result. */
+  midCaptureSequence: { square: Square; recapturer: Color } | null;
+  /** The position after the last narrated ply; null when unverified. */
+  endFen: string | null;
+}
+
 export interface LineStory {
   plies: PlyStory[];
   /** Owner of the line = the side that plays its first move. */
   owner: Color;
-  /** Net material for the owner at the end of the shown plies (centipawns). */
+  /**
+   * The owner's material CHANGE over the shown plies (centipawns), starting
+   * from 0 — not where material stands. See `material` for that.
+   */
   netMaterialCp: number;
   endsInMate: boolean;
   endsInStalemate: boolean;
@@ -128,6 +162,8 @@ export interface LineStory {
     units: number;
     outcome: "not_recovered" | "declined_in_line";
   } | null;
+  /** Start, end and change kept apart. Absent on stories cached before it existed. */
+  material?: LineStoryMaterial;
 }
 
 const PIECE_NAME: Record<PieceSymbol, string> = {
@@ -136,8 +172,6 @@ const PIECE_NAME: Record<PieceSymbol, string> = {
 const name = (p: PieceSymbol) => PIECE_NAME[p];
 const opp = (c: Color): Color => (c === "w" ? "b" : "w");
 const cp = (p: PieceSymbol) => (PIECE_UNITS[p] ?? 0) * 100;
-/** A piece is "en prise" only when taking it clears a full pawn — a +10cp knight-for-bishop read is a trade, not a hanging piece. */
-const EN_PRISE_MIN_CP = 100;
 /** Narration never runs past this many plies, however forcing the line stays. */
 const HARD_CAP = 12;
 
@@ -152,86 +186,6 @@ export interface LineStoryOptions {
    * story falls back to a heuristic (home square of the right type, and the
    * side still has castling rights or it is very early). */
   movedFrom?: ReadonlySet<string>;
-}
-
-/** A position with `color` to move, or null when chess.js rejects the flip. */
-function withTurn(fen: string, color: Color): Chess | null {
-  const parts = fen.split(" ");
-  if (parts[1] !== color) {
-    parts[1] = color;
-    parts[3] = "-";
-  }
-  try {
-    return new Chess(parts.join(" "));
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Would moving the piece on `from` uncover a dearer friendly piece to an
- * enemy slider? Legal-move SEE respects absolute pins but is blind to
- * relative ones: a knight pinned to its queen "can" recapture, so the square
- * it guards reads as safe and the pawn it attacks reads as hanging.
- */
-function exposesDearerPiece(game: Chess, from: Square, capturedValueCp: number): boolean {
-  const mover = game.get(from);
-  if (!mover) return false;
-  const enemy = opp(mover.color);
-  const [fx, fy] = squareToCoord(from);
-  for (const s of attackersOf(game, from, enemy)) {
-    if (!["b", "r", "q"].includes(s.piece)) continue;
-    const [sx, sy] = squareToCoord(s.square);
-    const dx = Math.sign(fx - sx), dy = Math.sign(fy - sy);
-    // Walk on past `from` along the same ray to the first piece behind it.
-    let x = fx + dx, y = fy + dy;
-    while (x >= 0 && x <= 7 && y >= 0 && y <= 7) {
-      const sq = coordToSquare(x, y)!;
-      const p = game.get(sq);
-      if (p) {
-        if (p.color === mover.color && (p.type === "k" || cp(p.type) > capturedValueCp)) return true;
-        break;
-      }
-      x += dx; y += dy;
-    }
-  }
-  return false;
-}
-
-/**
- * A legal en passant capture of the pawn on `sq` by `by`: null when there is
- * none, else whether it WINS the pawn (the capturing pawn cannot be taken
- * back). Attack scans see pawn geometry only, so a double step landing beside
- * an enemy pawn used to read as safe — and as "passed".
- */
-function enPassantWins(game: Chess, sq: Square, by: Color): boolean | null {
-  const target = game.get(sq);
-  if (!target || target.type !== "p" || target.color === by || game.turn() !== by) return null;
-  const epSquare = game.fen().split(" ")[3];
-  if (!epSquare || epSquare === "-" || squareInFront(sq, by) !== epSquare) return null;
-  const ep = game.moves({ verbose: true }).find((m) => m.flags.includes("e") && m.to === epSquare);
-  if (!ep) return null;
-  try {
-    const clone = new Chess(game.fen());
-    clone.move(ep.san);
-    return !clone.moves({ verbose: true }).some((m) => m.to === epSquare && m.captured);
-  } catch {
-    return null;
-  }
-}
-
-/** Can `by` win the piece on `sq` outright — a full pawn of profit, by a capturer that is not relatively pinned? */
-function capturable(game: Chess, sq: Square, by: Color): boolean {
-  const target = game.get(sq);
-  if (!target || target.color === by || target.type === "k") return false;
-  if (target.type === "p" && enPassantWins(game, sq, by) === true) return true;
-  if (attackersOf(game, sq, by).length === 0) return false;
-  if (see(game, sq, by) < EN_PRISE_MIN_CP) return false;
-  const positioned = withTurn(game.fen(), by);
-  if (!positioned) return false;
-  const cap = cheapestCapture(positioned, sq);
-  if (!cap) return false;
-  return !exposesDearerPiece(positioned, cap.from, cp(target.type));
 }
 
 /** Squares of `color` pieces the enemy can win outright, by square. */
@@ -309,7 +263,7 @@ function motifSayable(m: AnyMotif): string | null {
   }
 }
 
-function factSayable(f: StoryFact): string | null {
+export function factSayable(f: StoryFact): string | null {
   switch (f.kind) {
     case "checkmate": return "checkmate";
     case "stalemate": return "stalemate — the game is drawn";
@@ -533,6 +487,59 @@ function formatNet(netCp: number, owner: Color): string {
   if (netCp === 0) return `material level for ${side}`;
   const units = Math.abs(netCp) / 100;
   return `${side} ${netCp > 0 ? "up" : "down"} ${units % 1 === 0 ? units : units.toFixed(1)}`;
+}
+
+const SIDE: Record<Color, string> = { w: "White", b: "Black" };
+const points = (n: number) => `${n} point${n === 1 ? "" : "s"}`;
+const standing = (v: number) =>
+  v === 0 ? "level" : `${points(Math.abs(v))} ${v > 0 ? "up" : "down"}`;
+
+/**
+ * The `material:` line from the verified balances (COACH_CLAIM_VERIFIER):
+ * where material STANDS at the end and how much the plies CHANGED it, as two
+ * numbers, never one dressed as the other. A line that stops mid-exchange,
+ * or could not be replayed, says to state no material result.
+ */
+function verifiedMaterialLine(story: LineStory): string {
+  const n = story.plies.length;
+  const plies = `${n} ${n === 1 ? "ply" : "plies"}`;
+  if (story.endsInMate) {
+    const winner = story.plies[n - 1]?.mover ?? story.owner;
+    return `material: the line ends in mate (${SIDE[winner]} mates), so no count applies`;
+  }
+  if (story.endsInStalemate)
+    return "material: the line ends in stalemate, a draw";
+  const m = story.material;
+  if (
+    !m ||
+    !m.verified ||
+    m.startBalance === null ||
+    m.endBalance === null ||
+    m.delta === null
+  ) {
+    return "material: not stated — these plies could not be checked move by move, so state no material result";
+  }
+  if (m.midCaptureSequence) {
+    return `material: these ${plies} stop in the middle of an exchange (a recapture on ${m.midCaptureSequence.square} is still available), so state no material result for this line`;
+  }
+  const owner = story.owner;
+  const end = sideValue(m.endBalance, owner);
+  const start = sideValue(m.startBalance, owner);
+  const change = sideValue(m.delta, owner);
+  const endPart =
+    end === 0
+      ? "level at the end"
+      : `at the end ${SIDE[owner]} is ${standing(end)}`;
+  const startPart =
+    start === 0
+      ? "it was level before the line"
+      : `before the line ${SIDE[owner]} was ${standing(start)}`;
+  const changePart =
+    change === 0
+      ? "change nothing"
+      : `${change > 0 ? "gain" : "cost"} ${SIDE[owner]} ${points(Math.abs(change))}`;
+  const more = story.truncated ? " — the line continues beyond these" : "";
+  return `material: ${endPart}; ${startPart}, so these ${plies} ${changePart}${more}`;
 }
 
 /** How far to narrate: maxPlies, then on while the line stays forcing (checks/captures), up to HARD_CAP. */
@@ -841,7 +848,31 @@ export function buildLineStory(fenStart: string, san: readonly string[], opts: L
     }
   }
 
-  return { plies, owner, netMaterialCp: netCp, endsInMate, endsInStalemate, truncated, unresolvedSacrifice };
+  // Where material stands, decided by the claim verifier replaying exactly
+  // the narrated plies — never derived from the running change above.
+  const replay = replayLine(
+    fenStart,
+    plies.map((p) => p.san)
+  );
+  const material: LineStoryMaterial = {
+    verified: replay.ok,
+    startBalance: replay.startBalance,
+    endBalance: replay.endBalance,
+    delta: replay.delta,
+    midCaptureSequence: replay.midCaptureSequence,
+    endFen: replay.ok ? (replay.plies.at(-1)?.fenAfter ?? fenStart) : null,
+  };
+
+  return {
+    plies,
+    owner,
+    netMaterialCp: netCp,
+    endsInMate,
+    endsInStalemate,
+    truncated,
+    unresolvedSacrifice,
+    material,
+  };
 }
 
 /**
@@ -852,8 +883,20 @@ export function buildLineStory(fenStart: string, san: readonly string[], opts: L
 export function projectLineStory(story: LineStory): string[] {
   const out = story.plies.map((p) => `s${p.i} ${p.sayable}`);
   const n = story.plies.length;
-  const ending = story.endsInMate ? ", ending in mate" : story.endsInStalemate ? ", ending in stalemate (a draw)" : story.truncated ? " — the line continues beyond these" : "";
-  out.push(`material: ${formatNet(story.netMaterialCp, story.owner)} after ${n} shown ${n === 1 ? "ply" : "plies"}${ending}`);
+  if (isClaimVerifierEnabled()) {
+    out.push(verifiedMaterialLine(story));
+  } else {
+    const ending = story.endsInMate
+      ? ", ending in mate"
+      : story.endsInStalemate
+        ? ", ending in stalemate (a draw)"
+        : story.truncated
+          ? " — the line continues beyond these"
+          : "";
+    out.push(
+      `material: ${formatNet(story.netMaterialCp, story.owner)} after ${n} shown ${n === 1 ? "ply" : "plies"}${ending}`
+    );
+  }
   if (story.unresolvedSacrifice) {
     const u = story.unresolvedSacrifice;
     out.push(

@@ -54,6 +54,8 @@ import {
 } from "./refereeChecks";
 import type { RefereeViolation } from "./refereeChecks";
 import type { CoachContract, InsightContract } from "./types";
+import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
+import { checkCardClaims } from "@/lib/coach/claimGate";
 
 // ── Result types ────────────────────────────────────────────────────────────
 export type RefereeSeverity = "error" | "warn";
@@ -71,7 +73,8 @@ export interface RefereeFinding {
     | "stage9_positional_claim"
     | "stage9_mate_in_n"
     | "stage9_material_win"
-    | "relational_claim";
+    | "relational_claim"
+    | "claim_verifier";
   severity: RefereeSeverity;
   /** RefereeViolationCategory for contract checks; check_name for validator
    * issues. */
@@ -253,6 +256,12 @@ export function refereeInsight(
   for (const i of mate.issues) findings.push(issueToFinding("stage9_mate_in_n", i, false));
   for (const i of material.issues) findings.push(issueToFinding("stage9_material_win", i, false));
 
+  // Check 7 (COACH_CLAIM_VERIFIER): board claims replayed on chess.js.
+  if (isClaimVerifierEnabled())
+    findings.push(
+      ...claimVerifierFindings(prose, insight, opts.playerPerspective)
+    );
+
   return {
     factIdPrefix: insight.factIdPrefix,
     findings,
@@ -260,6 +269,51 @@ export function refereeInsight(
     warnCount: findings.filter((f) => f.severity === "warn").length,
     elapsedMs: Date.now() - t0,
   };
+}
+
+// ── Check 7: board claims, replayed (COACH_CLAIM_VERIFIER) ──────────────────
+/**
+ * One error per sentence the claim gate would not ship as written: a false
+ * board claim, or an unverified one outside an opinion. The span is the
+ * whole sentence, so the ladder's sentence-drop removes exactly it. A
+ * verifier that throws blocks the card (fail closed: the ladder falls to the
+ * template card, built from contract facts only).
+ */
+function claimVerifierFindings(
+  prose: string,
+  insight: InsightContract,
+  perspective: "white" | "black" | undefined
+): RefereeFinding[] {
+  try {
+    const playerColor =
+      perspective === "black" ? "b" : perspective === "white" ? "w" : undefined;
+    return checkCardClaims(prose, insight, { playerColor })
+      .sentences.filter((s) => s.action !== "keep")
+      .map((s) => {
+        const first =
+          s.claims.find((c) => c.verdict.status !== "verified") ?? s.claims[0];
+        return {
+          check: "claim_verifier" as const,
+          severity: "error" as const,
+          category:
+            first.verdict.status === "false"
+              ? first.claim.kind
+              : `${first.claim.kind}_unverified`,
+          span: s.text,
+          detail: first.verdict.reason,
+        };
+      });
+  } catch (err) {
+    return [
+      {
+        check: "claim_verifier",
+        severity: "error",
+        category: "verifier_error",
+        span: "",
+        detail: `claim verifier failed: ${err instanceof Error ? err.message : "error"}`,
+      },
+    ];
+  }
 }
 
 // ── Check 6: relational claims (Haiku structured output, bounded) ──────────

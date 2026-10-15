@@ -36,6 +36,7 @@ import type { RoleChange } from "@/lib/mastermind/pieceRoles";
 import type { VoterConfidence } from "@/lib/grounding/voter";
 import type { PositionConfidence } from "@/lib/grounding/positionConfidence";
 import type { EvalIntegrity } from "./gameEvalSchema";
+import type { GameReport } from "@/lib/coach/gameReport";
 
 export const CONTRACT_VERSION = "1.0" as const;
 
@@ -61,6 +62,12 @@ export interface Provenance {
   confidence: FactConfidence;
   depth?: number;
   fetchedAtMs?: number;
+  /**
+   * COACH_CLAIM_VERIFIER: the engine that produced the number, e.g.
+   * "stockfish_17_lite" — pass 1, or the deep re-check for a re-checked move.
+   * With `depth`, it keeps a depth-16 number from passing as a depth-20 one.
+   */
+  engine?: string;
 }
 
 // ── Degraded<T>: unavailability is a first-class, referee-visible state ────
@@ -222,6 +229,21 @@ export interface InsightContract {
    * cached contracts stay valid.
    */
   motifLicense?: AnyMotif[];
+  /**
+   * REFEREE ONLY (COACH_CLAIM_VERIFIER), never serialized to the verbalizer:
+   * the engine's reply line after the played move, SAN, up to 6 plies — what
+   * actually punishes the move. The claim gate requires a "this leaves the
+   * knight hanging" reason to be a piece this line takes. Absent with the
+   * flag off and on contracts built before it existed.
+   */
+  refutation?: string[];
+  /**
+   * COACH_CLAIM_VERIFIER: the mover had a forced mate before this move and
+   * no longer has one ("you had mate in 3 with 15. Nxe6+"). Absent otherwise
+   * and with the flag off — a missed mate used to surface only as a
+   * mate-flattened "95 pawns" drop.
+   */
+  missedMate?: { mateIn: number; bestSan: string | null; line: string[] };
   allowedTacticalKeywords: string[];
   voterConfidence: VoterConfidence;
   positionConfidence: PositionConfidence;
@@ -331,6 +353,12 @@ export interface CoachContract {
    * render from it until it has been measured against served output.
    */
   intent?: IntentSummary[];
+  /**
+   * COACH_CLAIM_VERIFIER: the verified game report (coach/gameReport.ts).
+   * Rendered by the app around the cards; the model sees it as REPORT FACTS
+   * in its user turn, never inside the contract JSON (serialize strips it).
+   */
+  report?: GameReport;
   /** Real zod-backed sanity layer over the z.any() gameEval (audit #5):
    * flags, never mutates, never rejects. */
   evalIntegrity: EvalIntegrity;

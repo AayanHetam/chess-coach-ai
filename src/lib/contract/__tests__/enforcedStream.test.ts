@@ -142,6 +142,9 @@ describe("enforced stream", () => {
   });
 
   it("an off-plan extra card (no contract insight left) ships fail-visible with an unverified footnote", async () => {
+    // Flag-off behaviour. With COACH_CLAIM_VERIFIER on, an off-plan card is
+    // left out instead (ladderClaimGate.test.ts): nothing to check it against.
+    vi.stubEnv("COACH_CLAIM_VERIFIER", "0");
     const { stream, emitted } = makeStream();
     feed(
       stream,
@@ -153,5 +156,6 @@ describe("enforced stream", () => {
     expect(full).toContain("An invented third card.");
     expect(full).toContain("served unverified");
     expect(summary.cards).toHaveLength(2); // ladder ran only on anchored cards
+    vi.unstubAllEnvs();
   });
 });

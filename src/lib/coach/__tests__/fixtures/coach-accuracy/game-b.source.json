@@ -1,0 +1,11 @@
+{
+  "about": "Provenance for game-b.pgn. The PGN came from the public archive API; moveList is the game's own TCN move list from the public game endpoint, kept so a test can decode it independently and check the PGN against it.",
+  "link": "https://www.chess.com/game/live/185345453122",
+  "pgnFetchedFrom": "https://api.chess.com/pub/player/lazer_wizard/games/2026/10",
+  "moveListFetchedFrom": "https://www.chess.com/callback/live/game/185345453122",
+  "fetchedOn": "2026-10-15",
+  "plyCount": 43,
+  "result": "1-0",
+  "gameEndReason": "checkmated",
+  "moveList": "mC0SgvZJbs!TCKTZlBYIBI9Ift5QcD7PegPjsH8!t3!?vMZKdN2U3U?2N32TfbjabaKUHYUDY4TM32MLaeIRoE"
+}

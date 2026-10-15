@@ -35,6 +35,12 @@ import { refereeInsight, refereeInsightRelational } from "./referee";
 import type { RefereeInsightOpts, RefereeRelationalOpts } from "./referee";
 import { renderTemplateCardBody } from "./templateCard";
 import type { CoachContract, InsightContract } from "./types";
+import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
+import {
+  applyClaimGate,
+  checkCardClaims,
+  type SentenceSource,
+} from "@/lib/coach/claimGate";
 
 // ── Budgets (per review, shared across cards — plan §4 hard caps) ───────────
 export interface LadderBudgets {
@@ -116,6 +122,19 @@ export interface LadderCardResult {
   costUsd: number;
   elapsedMs: number;
   deadlineBreached: boolean;
+  /**
+   * COACH_CLAIM_VERIFIER only: the source of every shipped sentence
+   * (verified-fact / engine / judgment, citations stripped) and the board
+   * claims the gate blocked in the model's original body.
+   */
+  claimVerifier?: {
+    sentences: Array<{ text: string; source: SentenceSource }>;
+    blocked: Array<{
+      kind: string;
+      status: "false" | "unverified";
+      reason: string;
+    }>;
+  };
 }
 
 export interface LadderDeps {
@@ -419,6 +438,10 @@ export async function runInsightLadder(
   const correct = opts.deps?.correctImpl ?? correctStreamedAnalysis;
   const callLLM = opts.deps?.callLLMImpl ?? defaultCallLLM;
   const { insight } = opts;
+  const claimGate = isClaimVerifierEnabled();
+  const perspective = opts.refereeOpts.playerPerspective;
+  const playerColor =
+    perspective === "black" ? "b" : perspective === "white" ? "w" : undefined;
 
   let costUsd = 0;
   let editsUsed = 0;
@@ -430,7 +453,12 @@ export async function runInsightLadder(
     stage: LadderStage,
     finalText: string,
     initial: BodyEvaluation | null,
+    /** The shipped body before wrapping (citations intact), for the claim labels. */
+    body?: string
   ): LadderCardResult => ({
+    ...(claimGate && body !== undefined
+      ? { claimVerifier: claimVerifierReport(body, initial) }
+      : {}),
     factIdPrefix: insight.factIdPrefix,
     stage,
     finalText,
@@ -449,12 +477,47 @@ export async function runInsightLadder(
     deadlineBreached,
   });
 
+  /** Where each shipped sentence's facts come from, and what the gate blocked. */
+  const claimVerifierReport = (
+    body: string,
+    initial: BodyEvaluation | null
+  ): NonNullable<LadderCardResult["claimVerifier"]> => {
+    let sentences: Array<{ text: string; source: SentenceSource }> = [];
+    try {
+      sentences = checkCardClaims(stripGrammarTokenLines(body), insight, {
+        playerColor,
+        log: false,
+      }).sentences.map((s) => ({
+        text: stripCitations(s.text).trim(),
+        source: s.source,
+      }));
+    } catch {
+      /* labels are telemetry; the body already passed (or is the template) */
+    }
+    const blocked = (initial?.errors ?? [])
+      .filter((f) => f.check === "claim_verifier")
+      .map((f) => ({
+        kind: f.category.replace(/_unverified$/, ""),
+        status: f.category.endsWith("_unverified")
+          ? ("unverified" as const)
+          : ("false" as const),
+        reason: f.detail,
+      }));
+    return { sentences, blocked };
+  };
+
   let initial: BodyEvaluation;
   try {
     initial = await evaluateBody(modelBody.trim(), opts, armingTable, now, "live");
     relationalParsesUsed += initial.relationalParsesUsed;
     costUsd += initial.costUsd;
   } catch (err) {
+    if (claimGate) {
+      // Fail closed (COACH_CLAIM_VERIFIER): prose that could not be checked
+      // never ships. The template card states only contract facts.
+      const template = renderTemplateCardBody(insight);
+      return finish("templated", wrapBlock(insight, template), null, template);
+    }
     // Referee-INFRASTRUCTURE failure: fail visible — raw body + footnote
     // (plan §4 circuit breaker; reserved for infra, not violations).
     const note = `\n\n*Engine check unavailable for this card (${err instanceof Error ? err.message.slice(0, 80) : "internal error"}) — the analysis above was served unverified.*`;
@@ -462,11 +525,56 @@ export async function runInsightLadder(
   }
 
   if (initial.errors.length === 0) {
-    return finish("pass", wrapBlock(insight, modelBody.trim()), initial);
+    return finish(
+      "pass",
+      wrapBlock(insight, modelBody.trim()),
+      initial,
+      modelBody.trim()
+    );
   }
   // Relational error findings re-asserted (span presence) on recheck passes
   // instead of paying a fresh Haiku parse per ladder stage.
   const priorRelational = initial.errors.filter((f) => f.check === "relational_claim");
+
+  // ── (a0) COACH_CLAIM_VERIFIER: board claims are code's to fix ─────────────
+  // When the only violations are claim-gate findings, no LLM rung runs (no
+  // paid self-correction): each false sentence becomes the verified fact or
+  // goes, unverified non-opinion sentences go, the result is re-checked, and
+  // anything that still fails gets the template card.
+  if (claimGate && initial.errors.every((f) => f.check === "claim_verifier")) {
+    try {
+      const gated = applyClaimGate(
+        modelBody.trim(),
+        checkCardClaims(stripGrammarTokenLines(modelBody.trim()), insight, {
+          playerColor,
+          log: false,
+        })
+      );
+      if (gated !== null) {
+        const check = await evaluateBody(
+          gated,
+          opts,
+          armingTable,
+          now,
+          "recheck",
+          priorRelational
+        );
+        costUsd += check.costUsd;
+        if (check.errors.length === 0) {
+          return finish(
+            "sentence_drop",
+            wrapBlock(insight, gated),
+            initial,
+            gated
+          );
+        }
+      }
+    } catch {
+      /* fall to the template */
+    }
+    const template = renderTemplateCardBody(insight);
+    return finish("templated", wrapBlock(insight, template), initial, template);
+  }
 
   // ── (a) deterministic sentence-drop ───────────────────────────────────────
   const dropped = dropViolatingSentencesDetailed(
@@ -494,7 +602,12 @@ export async function runInsightLadder(
       relationalParsesUsed += check.relationalParsesUsed;
       costUsd += check.costUsd;
       if (check.errors.length === 0) {
-        return finish("sentence_drop", wrapBlock(insight, dropped.text), initial);
+        return finish(
+          "sentence_drop",
+          wrapBlock(insight, dropped.text),
+          initial,
+          dropped.text
+        );
       }
     } catch {
       /* fall through the ladder */
@@ -525,7 +638,12 @@ export async function runInsightLadder(
         relationalParsesUsed += check.relationalParsesUsed;
         costUsd += check.costUsd;
         if (check.errors.length === 0) {
-          return finish("edited", wrapBlock(insight, correction.correctedText), initial);
+          return finish(
+            "edited",
+            wrapBlock(insight, correction.correctedText),
+            initial,
+            correction.correctedText
+          );
         }
       }
     } catch {
@@ -543,7 +661,12 @@ export async function runInsightLadder(
       relationalParsesUsed += check.relationalParsesUsed;
       costUsd += check.costUsd;
       if (check.errors.length === 0) {
-        return finish("sentence_drop", wrapBlock(insight, dropped.text), initial);
+        return finish(
+          "sentence_drop",
+          wrapBlock(insight, dropped.text),
+          initial,
+          dropped.text
+        );
       }
     } catch {
       /* fall through the ladder */
@@ -569,7 +692,12 @@ export async function runInsightLadder(
         relationalParsesUsed += check.relationalParsesUsed;
         costUsd += check.costUsd;
         if (check.errors.length === 0) {
-          return finish("regenerated", wrapBlock(insight, regenBody), initial);
+          return finish(
+            "regenerated",
+            wrapBlock(insight, regenBody),
+            initial,
+            regenBody
+          );
         }
       }
     } catch {
@@ -582,5 +710,6 @@ export async function runInsightLadder(
   }
 
   // ── (d) template card — the deterministic floor, always available ────────
-  return finish("templated", wrapBlock(insight, renderTemplateCardBody(insight)), initial);
+  const template = renderTemplateCardBody(insight);
+  return finish("templated", wrapBlock(insight, template), initial, template);
 }

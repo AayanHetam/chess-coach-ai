@@ -14,8 +14,17 @@
  * player asks.
  */
 import { MoveClassification } from "@/types/enums";
-import type { PositionEval } from "@/types/eval";
-import { captionLine } from "@/lib/coach/lineCaptions";
+import type { LineEval, PositionEval } from "@/types/eval";
+import { getLineWinPercentage } from "@/lib/engine/helpers/winPercentage";
+import {
+  missedMate,
+  recheckedPair,
+  type GameEvalRecheck,
+} from "@/lib/coach/deepRecheck";
+import { captionLine, type LineCaption } from "@/lib/coach/lineCaptions";
+import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
+import { verifyClaims } from "@/lib/coach/verifyClaims";
+import { factSayable, type StoryFact } from "@/lib/contract/lineStory";
 import { engineLineAt, playedLineAt, type CoachLine } from "./coachLines";
 
 export interface MoveAnalysis {
@@ -45,6 +54,14 @@ export interface MoveAnalysis {
   playedLine: CoachLine | null;
   /** The plain-words verdict: why the move works, or does not. */
   sentence: string;
+  /**
+   * COACH_CLAIM_VERIFIER: how deep the evals beside the move were searched
+   * ("d20" for a re-checked move, "d16" for the review pass), so a depth-16
+   * number never reads as a depth-20 one. Null with the flag off.
+   */
+  depthLabel: string | null;
+  /** COACH_CLAIM_VERIFIER: the mover had mate in N before this move and let it go. */
+  missedMateIn: number | null;
 }
 
 const NEGATIVE = new Set<string>([
@@ -67,8 +84,69 @@ function formatEval(
 
 const strip = (s: string) => s.replace(/[+#!?]/g, "");
 
+/** What a move leaves to be taken: the facts that turn a "why" into blame. */
+const COST_KINDS = new Set<StoryFact["kind"]>([
+  "en_prise",
+  "still_en_prise",
+  "leaves_trapped",
+]);
+
+/**
+ * A move's first two facts as the reason it works or fails (COACH_CLAIM_
+ * VERIFIER), minus any "it can be taken" fact that the engine's reply does
+ * not bear out. 12.Ng5's knight on b5 could be taken for nothing by static
+ * count, but the engine's reply (12...g6) never takes it and it had been
+ * loose since move 11: it is not why 12.Ng5 was a slip. A piece the reply
+ * really takes (19.Nxa8 Kxg5) stays the reason. No reply line, no blame.
+ */
+function whyCaption(
+  first: LineCaption,
+  startFen: string,
+  san: string,
+  reply: readonly string[] | undefined
+): string {
+  const kept = first.facts.filter((f) => {
+    if (!COST_KINDS.has(f.kind) || !("square" in f) || !("piece" in f)) {
+      return true;
+    }
+    const [v] = verifyClaims({
+      startFen,
+      line: [san],
+      claims: [{ kind: "refutation_takes", square: f.square, piece: f.piece }],
+      refutation: reply,
+    }).verdicts;
+    return v.status === "verified";
+  });
+  return kept
+    .map(factSayable)
+    .filter((s): s is string => s !== null)
+    .slice(0, 2)
+    .join("; ");
+}
+
 function labelFor(moveNumber: number, color: "w" | "b", san: string): string {
   return `${moveNumber}${color === "w" ? "." : "..."} ${san}`;
+}
+
+/**
+ * The browser classifier's expected-points tiers (moveClassification.ts),
+ * for a re-checked move read from its deeper pair: win chance lost by the
+ * mover, 2 / 5 / 10 / 20 points.
+ */
+function classifyByLoss(
+  before: LineEval,
+  after: LineEval,
+  mover: "w" | "b"
+): MoveClassification {
+  const wb = getLineWinPercentage(before);
+  const wa = getLineWinPercentage(after);
+  const loss = Math.max(0, mover === "w" ? wb - wa : wa - wb) / 100;
+  if (loss <= 0) return MoveClassification.Best;
+  if (loss <= 0.02) return MoveClassification.Excellent;
+  if (loss <= 0.05) return MoveClassification.Good;
+  if (loss <= 0.1) return MoveClassification.Inaccuracy;
+  if (loss <= 0.2) return MoveClassification.Mistake;
+  return MoveClassification.Blunder;
 }
 
 /**
@@ -81,15 +159,27 @@ export function analyzeMoveAt(
   positions: readonly PositionEval[] | null | undefined,
   ply: number,
   rootFen: string | undefined,
-  playerColor: "w" | "b" | null
+  playerColor: "w" | "b" | null,
+  /** COACH_CLAIM_VERIFIER pass 2: a re-checked move reads its deeper pair. */
+  recheck?: GameEvalRecheck | null
 ): MoveAnalysis | null {
   if (!positions || ply < 1 || ply > gameSans.length) return null;
   const index = ply - 1;
   const san = gameSans[index];
   const color: "w" | "b" = index % 2 === 0 ? "w" : "b";
   const moveNumber = Math.floor(index / 2) + 1;
-  const before = positions[index];
-  const after = positions[ply];
+  const verified = isClaimVerifierEnabled();
+  const deep = verified ? recheckedPair(recheck, index) : null;
+  const before: PositionEval | undefined = deep
+    ? { ...positions[index], lines: deep.before.lines }
+    : positions[index];
+  const after: PositionEval | undefined = deep
+    ? { ...positions[ply], lines: deep.after.lines }
+    : positions[ply];
+  // The engine's line from before the move comes from the deeper pair too.
+  const linePositions = deep
+    ? positions.map((p, k) => (k === index ? before! : p))
+    : positions;
   if (!before?.lines?.[0] && !after?.lines?.[0]) return null;
 
   const played = playedLineAt(
@@ -106,7 +196,7 @@ export function analyzeMoveAt(
   const first = playedCaptions?.plies[0];
 
   let engineLine = engineLineAt(
-    positions,
+    linePositions,
     gameSans,
     moveNumber,
     color,
@@ -117,13 +207,44 @@ export function analyzeMoveAt(
     bestSan = null;
     engineLine = null;
   }
-  const bestCaption = engineLine
-    ? (captionLine(engineLine.startFen, engineLine.sans, playerColor).plies[0]
-        ?.caption ?? "")
-    : "";
+  const engineFirst = engineLine
+    ? captionLine(engineLine.startFen, engineLine.sans, playerColor).plies[0]
+    : undefined;
+  const bestCaption =
+    engineLine && engineFirst
+      ? verified
+        ? whyCaption(
+            engineFirst,
+            engineLine.startFen,
+            engineLine.sans[0],
+            engineLine.sans.slice(1)
+          )
+        : engineFirst.caption
+      : "";
+  // The engine's reply to the move actually played: its line from the
+  // position after it.
+  const reply =
+    after?.lines?.[0]?.depth && after.lines[0].pv.length > 0
+      ? after.lines[0].pv
+      : undefined;
+  const caption =
+    first && played
+      ? verified
+        ? whyCaption(first, played.startFen, san, reply)
+        : first.caption
+      : "";
 
-  const classification = (after?.moveClassification ??
-    null) as MoveClassification | null;
+  // A re-checked move's browser label came from the shallower pair; its
+  // verdict is read again from the deeper one.
+  const classification = deep
+    ? bestSan === null
+      ? MoveClassification.Best
+      : classifyByLoss(deep.before.lines[0], deep.after.lines[0], color)
+    : ((after?.moveClassification ?? null) as MoveClassification | null);
+  const missed = verified
+    ? missedMate(before?.lines?.[0], after?.lines?.[0], color)
+    : null;
+  const shownDepth = before?.lines?.[0]?.depth;
   const analysis: MoveAnalysis = {
     ply,
     moveNumber,
@@ -134,13 +255,15 @@ export function analyzeMoveAt(
     classification,
     evalBefore: formatEval(before?.lines?.[0]),
     evalAfter: formatEval(after?.lines?.[0]),
-    caption: first?.caption ?? "",
+    caption,
     captionFull: first?.full ?? "",
     bestSan,
     engineLine,
     bestCaption,
     playedLine: played,
     sentence: "",
+    depthLabel: verified && shownDepth ? `d${shownDepth}` : null,
+    missedMateIn: missed?.mateIn ?? null,
   };
   analysis.sentence = describeMove(analysis);
   return analysis;
@@ -173,6 +296,9 @@ export function describeMove(a: MoveAnalysis): string {
     : "";
   const cls = a.classification;
 
+  if (a.missedMateIn !== null) {
+    return `${does} ${who} had mate in ${a.missedMateIn}${bestLabel ? ` with ${bestLabel}` : ""}.`;
+  }
   if (cls === MoveClassification.Forced) {
     return `${does} The only move here.`;
   }
@@ -183,6 +309,11 @@ export function describeMove(a: MoveAnalysis): string {
     cls === MoveClassification.Brilliant ||
     cls === MoveClassification.Great
   ) {
+    // COACH_CLAIM_VERIFIER: "the move the engine rates highest" only when it
+    // was; neither label requires the engine's first choice.
+    if (isClaimVerifierEnabled() && a.bestSan !== null) {
+      return `${does} A strong move. ${instead}`.trim();
+    }
     return `${does} ${who === "You" ? "You found" : `${who} found`} the move the engine rates highest — a hard one to see.`;
   }
   if (cls === MoveClassification.Best) {

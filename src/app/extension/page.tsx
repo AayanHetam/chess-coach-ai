@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Masti, MastiSays } from "@/components/masti";
+import { ACCENT, MOTION, RADIUS, TEXT } from "@/theme/tokens";
 import { contentPageStyles } from "../_seo/styles";
 
 export const metadata: Metadata = {
-  title: "Chess Masti AI — Chrome Extension",
+  title: "Chess Masti AI: Chrome extension",
   description:
-    "One-click chess coaching for your Lichess and Chess.com games. The 'Analyze with Chess Masti' Chrome extension drops a button into the top nav and opens the AI coach with your PGN already loaded.",
+    "One-click chess coaching for your Lichess and Chess.com games. The 'Analyze with Chess Masti' Chrome extension drops a button into the top nav and opens Masti with your PGN already loaded.",
   alternates: { canonical: "https://chessmasti.com/extension" },
   openGraph: {
-    title: "Chess Masti AI — Chrome Extension",
+    title: "Chess Masti AI: Chrome extension",
     description:
-      "Add an Analyze button to Lichess and Chess.com. One click opens the AI coach.",
+      "Add an Analyze button to Lichess and Chess.com. One click opens Masti.",
     url: "https://chessmasti.com/extension",
     type: "article",
     siteName: "Chess Masti AI",
@@ -28,8 +29,9 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@ChessMastiAI",
     creator: "@ChessMastiAI",
-    title: "Chess Masti AI — Chrome Extension",
-    description: "One-click chess coaching for your Lichess + Chess.com games.",
+    title: "Chess Masti AI: Chrome extension",
+    description:
+      "One-click chess coaching for your Lichess and Chess.com games.",
     images: ["https://chessmasti.com/extension/2-lichess-button.png"],
   },
 };
@@ -41,6 +43,16 @@ const STORE_URL =
   process.env.NEXT_PUBLIC_EXTENSION_STORE_URL ??
   "https://chromewebstore.google.com/detail/analyze-with-chess-masti/fligcdcmibplmdbpggcjecpkclghdnpc";
 
+/*
+ * The light content theme's raised surface, hairline and secondary text
+ * (LIGHT.raised, LIGHT.hairline and LIGHT.textSecondary in
+ * src/theme/chessMasti.ts), written out because this is a CSS string rather
+ * than an sx object.
+ */
+const LIGHT_RAISED = "#F5F5F7";
+const LIGHT_HAIRLINE = "rgba(0, 0, 0, 0.1)";
+const LIGHT_TEXT_SECONDARY = "#6E6E73";
+
 const extraStyles = `
 .cm-content {
   max-width: 920px;
@@ -49,12 +61,11 @@ const extraStyles = `
   margin: 0.4em 0 0.8em;
 }
 .cm-install-card {
-  background: linear-gradient(135deg, #FF8C42 0%, #FF6B35 100%);
-  color: #fff;
-  border-radius: 16px;
+  background: ${LIGHT_RAISED};
+  border: 1px solid ${LIGHT_HAIRLINE};
+  border-radius: ${RADIUS.card}px;
   padding: 40px 36px;
   margin: 2em 0 2.4em;
-  box-shadow: 0 18px 40px rgba(255, 107, 53, 0.32);
   display: flex;
   align-items: center;
   gap: 28px;
@@ -75,40 +86,42 @@ const extraStyles = `
   }
 }
 .cm-install-card h2 {
-  color: #fff;
   margin: 0 0 0.4em;
   font-size: 1.7rem;
-  letter-spacing: -0.01em;
 }
 .cm-install-card p {
-  color: #fff;
-  opacity: 0.95;
   font-size: 1.05rem;
   margin: 0 0 1.4em;
 }
-.cm-install-cta {
+.cm-content .cm-install-cta {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: #fff;
-  color: #FF6B35;
-  font-weight: 700;
+  background: ${ACCENT.main};
+  color: ${TEXT.onAccent};
+  font-weight: 600;
   font-size: 1rem;
   padding: 14px 28px;
-  border-radius: 999px;
+  border-radius: ${RADIUS.pill}px;
   text-decoration: none;
-  letter-spacing: 0.01em;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color ${MOTION.hover}, transform ${MOTION.press};
 }
-.cm-install-cta:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
-  color: #FF6B35;
+.cm-content .cm-install-cta:hover {
+  background: ${ACCENT.hover};
+  color: ${TEXT.onAccent};
+}
+.cm-content .cm-install-cta:active {
+  transform: ${MOTION.pressScale};
+}
+.cm-content .cm-install-cta:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
 }
 .cm-install-note {
   margin-top: 12px;
   font-size: 0.88rem;
-  opacity: 0.85;
 }
 .cm-shotgrid {
   display: grid;
@@ -123,13 +136,12 @@ const extraStyles = `
   width: 100%;
   height: auto;
   display: block;
-  border-radius: 12px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: ${RADIUS.control}px;
+  border: 1px solid ${LIGHT_HAIRLINE};
 }
 .cm-shotgrid figcaption {
   font-size: 0.92rem;
-  color: #555;
+  color: ${LIGHT_TEXT_SECONDARY};
   margin-top: 8px;
   line-height: 1.45;
 }
@@ -143,7 +155,7 @@ const extraStyles = `
   counter-increment: step;
   position: relative;
   padding: 14px 0 14px 56px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid ${LIGHT_HAIRLINE};
   font-size: 1.05rem;
 }
 .cm-steps li:last-child {
@@ -156,10 +168,8 @@ const extraStyles = `
   top: 14px;
   width: 36px;
   height: 36px;
-  border-radius: 50%;
-  background: #FF6B35;
-  color: #fff;
-  font-weight: 700;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -188,7 +198,7 @@ function InstallCTA() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          ♟ Install from the Chrome Web Store →
+          Install from the Chrome Web Store
         </a>
       </div>
     </div>
@@ -207,17 +217,17 @@ export default function ExtensionPage() {
         <nav className="cm-nav" aria-label="Site navigation">
           <Link href="/">Chess Masti AI</Link>
           <span className="cm-nav-sep">/</span>
-          <span>Chrome Extension</span>
+          <span>Chrome extension</span>
         </nav>
 
         <article>
           <header>
-            <h1>Analyze with Chess Masti — the Chrome extension</h1>
+            <h1>Analyze with Chess Masti, the Chrome extension</h1>
             <p className="cm-lede">
               One orange button, dropped into the top navigation of every
-              Lichess and Chess.com game page. Click it. Your PGN comes with
-              you to chessmasti.com and the AI coach is already talking. No
-              copy-paste, no upload, no account.
+              Lichess and Chess.com game page. Click it. Your PGN comes with you
+              to chessmasti.com and Masti is already talking. No copy-paste, no
+              upload, no account.
             </p>
             {/* The coach greets in the hero. Figure and bubble are a flex
                 row, so the bubble shrinks and wraps at phone width instead
@@ -243,19 +253,18 @@ export default function ExtensionPage() {
             <h2>What you get</h2>
             <p>
               The whole point of the extension is to kill the friction between
-              finishing a game and reviewing it. Right now, you finish a game
-              on Lichess or Chess.com and the &quot;Rematch&quot; button is
-              right there. So you click it. The blunder dies undiagnosed.
+              finishing a game and reviewing it. Right now, you finish a game on
+              Lichess or Chess.com and the &quot;Rematch&quot; button is right
+              there. So you click it. The blunder dies undiagnosed.
             </p>
             <p>
               With the extension installed, a single orange{" "}
-              <strong>♟ Analyze with Chess Masti</strong> button sits in the top
+              <strong>Analyze with Chess Masti</strong> button sits in the top
               nav of every game page. Click it and a new tab opens at
-              chessmasti.com with your PGN already loaded. Stockfish 17
-              evaluates in your browser; the AI coach starts a real conversation
-              about your moves; the hallucination validator double-checks every
-              claim. It&apos;s the post-mortem you keep meaning to do, in one
-              click.
+              chessmasti.com with your PGN already loaded. Stockfish evaluates
+              in your browser, Masti starts a real conversation about your
+              moves, and every claim is checked before it reaches you. It&apos;s
+              the post-mortem you keep meaning to do, in one click.
             </p>
           </section>
 
@@ -288,18 +297,17 @@ export default function ExtensionPage() {
                   alt="chessmasti.com analyzing the game in real time"
                 />
                 <figcaption>
-                  Click the button → a new tab opens and Stockfish + the AI
-                  coach get to work immediately on chessmasti.com.
+                  Click the button: a new tab opens and Stockfish and Masti get
+                  to work on chessmasti.com.
                 </figcaption>
               </figure>
               <figure>
                 <img
                   src="/extension/1-insights-blunder-card.png"
-                  alt="Move-by-move insight card identifying a blunder on move 9"
+                  alt="Move-by-move card showing a blunder on move 9"
                 />
                 <figcaption>
-                  Every key moment becomes a shareable insight card with its
-                  own permalink.
+                  Every key moment becomes a shareable card with its own link.
                 </figcaption>
               </figure>
             </div>
@@ -317,7 +325,7 @@ export default function ExtensionPage() {
               </li>
               <li>Visit any game page on lichess.org or chess.com.</li>
               <li>
-                Look for the orange <strong>♟ Analyze with Chess Masti</strong>{" "}
+                Look for the orange <strong>Analyze with Chess Masti</strong>{" "}
                 button in the top navigation bar. (It may take a second to
                 appear on the first page load.)
               </li>
@@ -331,25 +339,24 @@ export default function ExtensionPage() {
               <li>It does not collect personal information.</li>
               <li>It does not track your browsing across sites.</li>
               <li>
-                It has no background script, no storage, and no remote server
-                of its own.
+                It has no background script, no storage, and no remote server of
+                its own.
               </li>
               <li>
-                It runs only on lichess.org and chess.com — no other sites.
+                It runs only on lichess.org and chess.com, and on no other
+                sites.
               </li>
-              <li>
-                It modifies those pages only by adding the single button.
-              </li>
+              <li>It modifies those pages only by adding the single button.</li>
               <li>
                 It sends the PGN only to chessmasti.com, and only when you
-                click — equivalent to copy-pasting the PGN into chessmasti.com
+                click, which is the same as pasting the PGN into chessmasti.com
                 yourself.
               </li>
             </ul>
             <p>
               The full privacy disclosure for both this extension and the
-              chessmasti.com website is at{" "}
-              <Link href="/privacy">/privacy</Link>.
+              chessmasti.com website is at <Link href="/privacy">/privacy</Link>
+              .
             </p>
           </section>
 
@@ -362,9 +369,9 @@ export default function ExtensionPage() {
           </section>
 
           <nav className="cm-cross-links" aria-label="Related pages">
-            <Link href="/how-it-works">How the coaching pipeline works →</Link>
-            <Link href="/faq">FAQ →</Link>
-            <Link href="/privacy">Privacy policy →</Link>
+            <Link href="/how-it-works">How the coaching works</Link>
+            <Link href="/faq">FAQ</Link>
+            <Link href="/privacy">Privacy policy</Link>
           </nav>
         </article>
       </main>

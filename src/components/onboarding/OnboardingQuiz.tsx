@@ -25,29 +25,23 @@ import { useQuizCurrentRating, type QuizRating } from "./useQuizCurrentRating";
 import { isUsernameValid } from "./useOnboardingQuiz";
 import TacticDiagram from "./TacticDiagram";
 import QuizIcon, { type QuizIconName } from "./QuizIcon";
-import { GOAL_DIAGRAMS, GOAL_DIAGRAM_ALT, SPOT_DIAGRAMS } from "./tacticDiagrams";
+import {
+  GOAL_DIAGRAMS,
+  GOAL_DIAGRAM_ALT,
+  SPOT_DIAGRAMS,
+} from "./tacticDiagrams";
+import {
+  ACCENT,
+  LINE,
+  MOTION,
+  RADIUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
-const EASE = [0.22, 0.61, 0.36, 1] as const;
-const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
-const ORANGE_HOVER = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
-
-const ratingInputSx = {
-  "& .MuiOutlinedInput-root": {
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: "12px",
-    color: "rgba(255,255,255,0.94)",
-    "& fieldset": { borderColor: "rgba(255,255,255,0.1)" },
-    "&:hover fieldset": { borderColor: "rgba(255,255,255,0.2)" },
-    "&.Mui-focused fieldset": {
-      borderColor: "rgba(249,115,22,0.55)",
-      borderWidth: "1px",
-    },
-  },
-  "& .MuiInputLabel-root": {
-    color: "rgba(255,255,255,0.55)",
-    "&.Mui-focused": { color: "#FB923C" },
-  },
-} as const;
+// A step swap is a short cross-fade.
+const STEP_TRANSITION = { duration: 0.18, ease: "easeOut" } as const;
 
 /** Play-style option key → its illustration. */
 const PLAY_STYLE_ICON: Record<string, QuizIconName> = {
@@ -64,7 +58,11 @@ const PLAY_STYLE_ICON_ALT: Record<string, string> = {
 };
 
 /** Self-assessment score → rank. Mirrors selfAssessScore's 0/1/2. */
-const LEVEL_ALT = ["Pawn — just starting", "Knight — getting there", "Queen — confident"];
+const LEVEL_ALT = [
+  "Pawn, just starting",
+  "Knight, getting there",
+  "Queen, confident",
+];
 
 /** Days-per-week option → clock fill, reusing the time-budget iconography. */
 const FREQUENCY_ICON: Record<number, QuizIconName> = {
@@ -163,12 +161,14 @@ export default function OnboardingQuiz({
         return (
           <QuizStep
             title={`What's your ${platform} username?`}
-            helper={`We'll read your real rating straight off ${platform} — no need to guess.`}
+            helper={`We'll read your real rating straight off ${platform}, so there's no need to guess.`}
           >
             <TextField
               label={`${platform} username`}
               placeholder={
-                q.answers.playStyle === "lichess" ? "e.g. DrNykterstein" : "e.g. hikaru"
+                q.answers.playStyle === "lichess"
+                  ? "e.g. DrNykterstein"
+                  : "e.g. hikaru"
               }
               fullWidth
               autoFocus
@@ -183,7 +183,6 @@ export default function OnboardingQuiz({
                   ? "Letters, numbers, hyphens and underscores only."
                   : " "
               }
-              sx={ratingInputSx}
             />
           </QuizStep>
         );
@@ -233,7 +232,7 @@ export default function OnboardingQuiz({
         return (
           <QuizStep
             title="What do you want to improve?"
-            helper="Pick a few — each one is shown on the board."
+            helper="Pick a few. Each one is shown on the board."
           >
             {QUIZ_GOAL_OPTIONS.map((o) => (
               <QuizOption
@@ -282,7 +281,7 @@ export default function OnboardingQuiz({
         return (
           <QuizStep
             title="Where do you want each time control to be?"
-            helper="Set a goal on the ones you play — leave the rest blank."
+            helper="Set a goal on the ones you play and leave the rest blank."
           >
             <PerfGoalStep
               drafts={q.answers.perfDrafts}
@@ -299,19 +298,16 @@ export default function OnboardingQuiz({
         return (
           <QuizStep
             title="Pick your handle"
-            helper="It's how we'll address you, and you can sign in with it instead of your email. Don't use your full name — other players can see this."
+            helper="It's how we'll address you, and you can sign in with it instead of your email. Don't use your full name, since other players can see this."
           >
-            <HandleStep
-              value={q.answers.handle ?? ""}
-              onChange={q.setHandle}
-            />
+            <HandleStep value={q.answers.handle ?? ""} onChange={q.setHandle} />
           </QuizStep>
         );
 
       case "frequency":
         return (
           <QuizStep
-            title="How often can you practise?"
+            title="How often can you practice?"
             helper="Little and often beats one long session."
           >
             {FREQUENCY_OPTIONS.map((o) => (
@@ -365,11 +361,18 @@ export default function OnboardingQuiz({
                 alignItems: "flex-start",
                 gap: 1.5,
                 cursor: "pointer",
-                borderRadius: "12px",
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                transition: "background 180ms ease-out",
-                "&:hover": { background: "rgba(255,255,255,0.06)" },
+                borderRadius: `${RADIUS.control}px`,
+                background: SURFACE.raisedSecondary,
+                border: `1px solid ${LINE.hairline}`,
+                transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
+                "&:hover": {
+                  background: SURFACE.raisedTertiary,
+                  borderColor: LINE.strong,
+                },
+                "&:focus-visible": {
+                  outline: `2px solid ${TEXT.primary}`,
+                  outlineOffset: 2,
+                },
               }}
             >
               <Box
@@ -382,33 +385,29 @@ export default function OnboardingQuiz({
                   display: "grid",
                   placeItems: "center",
                   background: q.answers.dailyReminder
-                    ? "linear-gradient(135deg, #F97316, #EA580C)"
+                    ? ACCENT.main
                     : "transparent",
                   border: q.answers.dailyReminder
                     ? "none"
-                    : "2px solid rgba(255,255,255,0.3)",
+                    : `2px solid ${TEXT.tertiary}`,
                 }}
               >
                 {q.answers.dailyReminder && (
-                  <Check size={13} color="#0A0907" strokeWidth={3.5} />
+                  <Check size={13} color={TEXT.onAccent} strokeWidth={3.5} />
                 )}
               </Box>
               <Box>
                 <Typography
                   sx={{
-                    color: "rgba(255,255,255,0.92)",
+                    ...TYPE.bodySmall,
                     fontWeight: 600,
-                    fontSize: "0.92rem",
+                    color: TEXT.primary,
                   }}
                 >
                   Email me a daily nudge
                 </Typography>
                 <Typography
-                  sx={{
-                    color: "rgba(255,255,255,0.5)",
-                    fontSize: "0.8rem",
-                    mt: 0.25,
-                  }}
+                  sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 0.25 }}
                 >
                   One short reminder so you don&apos;t break your streak. Turn
                   it off anytime.
@@ -440,50 +439,32 @@ export default function OnboardingQuiz({
           flexDirection: "column",
           gap: 2.5,
           p: { xs: 2.5, md: 3.5 },
-          borderRadius: "24px",
-          background:
-            "linear-gradient(180deg, rgba(20,22,28,0.92) 0%, rgba(12,14,20,0.92) 100%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          backdropFilter: "blur(20px) saturate(150%)",
-          WebkitBackdropFilter: "blur(20px) saturate(150%)",
-          boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
+          borderRadius: `${RADIUS.card}px`,
+          background: SURFACE.raised,
+          border: `1px solid ${LINE.hairline}`,
         }}
       >
-        {/* Header: progress + start over */}
+        {/* Header: progress + start over. minHeight is the small button's
+            32px, so the row does not grow when Start over appears. */}
         <Box>
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
-              justifyContent: "space-between",
-              minHeight: 28,
+              justifyContent: "flex-end",
+              minHeight: 32,
               mb: 1.25,
             }}
           >
-            <Typography
-              sx={{
-                color: "rgba(255,255,255,0.5)",
-                fontSize: "0.74rem",
-                fontWeight: 600,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-              }}
-            >
-              Chess Masti
-            </Typography>
             {showStartOver && (
               <Button
                 onClick={q.startOver}
+                size="small"
                 sx={{
-                  textTransform: "none",
-                  color: "rgba(255,255,255,0.45)",
-                  fontSize: "0.78rem",
+                  color: TEXT.secondary,
+                  fontSize: TYPE.caption.fontSize,
                   minWidth: 0,
-                  p: "2px 6px",
-                  "&:hover": {
-                    color: "rgba(255,255,255,0.8)",
-                    background: "transparent",
-                  },
+                  "&:hover": { color: TEXT.primary },
                 }}
               >
                 Start over
@@ -498,10 +479,10 @@ export default function OnboardingQuiz({
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={animKey}
-              initial={{ opacity: 0, x: 24 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -24 }}
-              transition={{ duration: 0.28, ease: EASE }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={STEP_TRANSITION}
             >
               {renderContent()}
             </motion.div>
@@ -512,37 +493,21 @@ export default function OnboardingQuiz({
         {q.phase === "questions" && (
           <Box sx={{ display: "flex", gap: 1.5 }}>
             {!q.isFirstStep && (
-              <Button
-                onClick={q.back}
-                sx={{
-                  textTransform: "none",
-                  fontWeight: 600,
-                  px: 2.5,
-                  borderRadius: "12px",
-                  color: "rgba(255,255,255,0.8)",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  "&:hover": { background: "rgba(255,255,255,0.05)" },
-                }}
-              >
+              <Button onClick={q.back} variant="outlined" sx={{ px: 2.5 }}>
                 Back
               </Button>
             )}
             <Button
               onClick={q.next}
               disabled={!q.canAdvance}
+              variant="contained"
               sx={{
                 flex: 1,
                 py: 1.3,
-                borderRadius: "12px",
-                textTransform: "none",
-                fontWeight: 700,
-                fontSize: "0.98rem",
-                color: "#fff",
-                background: ORANGE,
-                "&:hover": { background: ORANGE_HOVER },
+                fontSize: TYPE.body.fontSize,
                 "&.Mui-disabled": {
-                  color: "rgba(255,255,255,0.4)",
-                  background: "rgba(255,255,255,0.06)",
+                  color: TEXT.tertiary,
+                  background: "rgba(255,255,255,0.08)",
                 },
               }}
             >

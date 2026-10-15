@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Box, Button, Popover, Typography } from "@mui/material";
 import { Eye, Info } from "lucide-react";
+import { ACCENT, MOTION, TEXT, TYPE } from "@/theme/tokens";
 import type {
   CoachHighlight,
   TermMention,
@@ -38,7 +39,7 @@ export const CHESS_TERM_GLOSSARY: Record<string, ChessTermEntry> = {
     short:
       "A direct attack on the enemy king. The opponent must respond immediately by moving the king, blocking, or capturing the attacker.",
     detail:
-      "Check is not a winning move on its own — it just constrains the opponent's next move. The real threat is usually what comes after: a tactic that exploits the king's forced reply.",
+      "Check is not a winning move on its own: it just constrains the opponent's next move. The real threat is usually what comes after: a tactic that exploits the king's forced reply.",
   },
   checkmate: {
     name: "Checkmate",
@@ -54,7 +55,7 @@ export const CHESS_TERM_GLOSSARY: Record<string, ChessTermEntry> = {
     short:
       "The side to move has no legal moves but isn't in check. The game is a draw.",
     detail:
-      "Stalemate is a draw, not a loss — even though the stalemated side is often badly down on material. Knowing this saves losing positions; missing it throws away winning ones.",
+      "Stalemate is a draw, not a loss, even though the stalemated side is often badly down on material. Knowing this saves losing positions; missing it throws away winning ones.",
   },
   pin: {
     name: "Pin",
@@ -62,7 +63,7 @@ export const CHESS_TERM_GLOSSARY: Record<string, ChessTermEntry> = {
     short:
       "A piece is attacked along a line and can't (or shouldn't) move because a more valuable piece sits behind it.",
     detail:
-      "Absolute pin: the piece behind is the king — the pinned piece literally can't move. Relative pin: the piece behind is just more valuable — moving the pinned piece would lose material. Pins are powerful because the pinned piece is effectively frozen.",
+      "Absolute pin: the piece behind is the king, so the pinned piece literally can't move. Relative pin: the piece behind is just more valuable, so moving the pinned piece would lose material. Pins are powerful because the pinned piece is effectively frozen.",
     example: "A bishop on b5 pinning a knight on c6 to a king on e8.",
   },
   skewer: {
@@ -79,7 +80,7 @@ export const CHESS_TERM_GLOSSARY: Record<string, ChessTermEntry> = {
     short:
       "A single piece attacks two or more enemy pieces at once. The opponent can only save one.",
     detail:
-      "Knights are famous for forks because they jump over defenders. But any piece can fork — a queen forking king and rook, a pawn forking two pieces with one push.",
+      "Knights are famous for forks because they jump over defenders. But any piece can fork: a queen forking king and rook, a pawn forking two pieces with one push.",
     example: "A knight on f7 forking the king on h8 and the queen on d8.",
   },
   "discovered attack": {
@@ -88,13 +89,12 @@ export const CHESS_TERM_GLOSSARY: Record<string, ChessTermEntry> = {
     short:
       "Moving one piece unmasks an attack from a piece behind it. The piece that moves can do something useful of its own at the same time.",
     detail:
-      "Double-threat by construction: the moved piece makes its own threat, and the piece it unmasks adds another. Discovered check is the strongest version — the moving piece can grab material with impunity because the opponent must address the check.",
+      "Double-threat by construction: the moved piece makes its own threat, and the piece it unmasks adds another. Discovered check is the strongest version: the moving piece can grab material with impunity because the opponent must address the check.",
   },
   "double attack": {
     name: "Double attack",
     aliases: ["double attack", "double threat"],
-    short:
-      "Two threats made in the same move. The opponent can only meet one.",
+    short: "Two threats made in the same move. The opponent can only meet one.",
     detail:
       "Umbrella term that includes forks and discovered attacks. Anything that creates two independent problems on one move qualifies.",
   },
@@ -104,7 +104,7 @@ export const CHESS_TERM_GLOSSARY: Record<string, ChessTermEntry> = {
     short:
       "Forcing a defender off the square it's defending, so a follow-up tactic works.",
     detail:
-      "Often pairs with a sacrifice — give up material to pull the defender, then strike where it used to guard. The opponent can either accept the deflection or watch the threat land anyway.",
+      "Often pairs with a sacrifice: give up material to pull the defender, then strike where it used to guard. The opponent can either accept the deflection or watch the threat land anyway.",
   },
   decoy: {
     name: "Decoy",
@@ -118,7 +118,7 @@ export const CHESS_TERM_GLOSSARY: Record<string, ChessTermEntry> = {
     name: "Zugzwang",
     aliases: ["zugzwang"],
     short:
-      "Any legal move worsens the position. The side to move would prefer to pass — but can't.",
+      "Any legal move worsens the position. The side to move would prefer to pass, but can't.",
     detail:
       "Mostly an endgame concept. King-and-pawn endings live and die on zugzwang. In the middlegame it's rare, since there are usually too many neutral moves available.",
   },
@@ -128,7 +128,7 @@ export const CHESS_TERM_GLOSSARY: Record<string, ChessTermEntry> = {
     short:
       "Checkmate on the 8th rank (or 1st, for Black) when the king is trapped by its own pawns and a rook or queen invades.",
     detail:
-      "Classic pattern. The defender's own kingside pawns (f, g, h) usually do the trapping — the king has no escape square. Prevention: a luft (h-pawn or g-pawn push to create a hole), or trading off heavy pieces.",
+      "Classic pattern. The defender's own kingside pawns (f, g, h) usually do the trapping: the king has no escape square. Prevention: a luft (h-pawn or g-pawn push to create a hole), or trading off heavy pieces.",
   },
   "smothered mate": {
     name: "Smothered mate",
@@ -136,7 +136,7 @@ export const CHESS_TERM_GLOSSARY: Record<string, ChessTermEntry> = {
     short:
       "Checkmate where the king is completely surrounded by its own pieces, leaving only a knight check as the killing blow.",
     detail:
-      "Only a knight can deliver it — every other piece can be blocked. The Philidor pattern (queen sacrifice on g8, then Nf7#) is the canonical example.",
+      "Only a knight can deliver it, since every other piece can be blocked. The Philidor pattern (queen sacrifice on g8, then Nf7#) is the canonical example.",
   },
   overloaded: {
     name: "Overloaded piece",
@@ -159,7 +159,7 @@ export const CHESS_TERM_GLOSSARY: Record<string, ChessTermEntry> = {
 // Pre-build the matcher: one alternation across every alias, longest first
 // so "checkmate" doesn't get half-matched as "check".
 const ALL_ALIASES = Object.entries(CHESS_TERM_GLOSSARY).flatMap(([key, e]) =>
-  e.aliases.map((alias) => ({ alias, key })),
+  e.aliases.map((alias) => ({ alias, key }))
 );
 ALL_ALIASES.sort((a, b) => b.alias.length - a.alias.length);
 
@@ -169,7 +169,7 @@ function escapeRegex(s: string): string {
 
 const MATCH_RE = new RegExp(
   `(${ALL_ALIASES.map((a) => escapeRegex(a.alias)).join("|")})`,
-  "gi",
+  "gi"
 );
 
 function aliasToKey(alias: string): string | undefined {
@@ -245,7 +245,7 @@ export function GlossifiedText({
           </ChessTermInfo>
         ) : (
           <span key={i}>{seg.value}</span>
-        ),
+        )
       )}
     </>
   );
@@ -268,12 +268,16 @@ export function ChessTermInfo({
   onShowOnBoard,
 }: ChessTermInfoProps) {
   const entry = CHESS_TERM_GLOSSARY[termKey];
-  const anchorRef = useRef<HTMLSpanElement>(null);
+  const anchorRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
 
   if (!entry) return <span>{children}</span>;
 
-  const canShowOnBoard = !!(mention && onShowOnBoard && mention.squares.length > 0);
+  const canShowOnBoard = !!(
+    mention &&
+    onShowOnBoard &&
+    mention.squares.length > 0
+  );
   const handleShowOnBoard = () => {
     if (!mention || !onShowOnBoard) return;
     onShowOnBoard({
@@ -286,9 +290,13 @@ export function ChessTermInfo({
 
   return (
     <>
+      {/* A real button inside the prose, so the definition is reachable by
+          keyboard. Reset to read as the inline word it replaces. */}
       <Box
         ref={anchorRef}
-        component="span"
+        component="button"
+        type="button"
+        aria-expanded={open}
         onClick={(e) => {
           e.stopPropagation();
           setOpen((v) => !v);
@@ -297,13 +305,28 @@ export function ChessTermInfo({
           display: "inline-flex",
           alignItems: "baseline",
           gap: "0.18em",
+          p: 0,
+          m: 0,
+          font: "inherit",
+          lineHeight: "inherit",
+          textAlign: "inherit",
+          background: "none",
+          border: "none",
+          borderRadius: 0,
           cursor: "pointer",
-          color: "#FFD1A8",
-          borderBottom: "1px dotted rgba(255,209,168,0.5)",
-          transition: "color 140ms ease, border-color 140ms ease",
+          color: ACCENT.hover,
+          borderBottom: `1px dotted ${ACCENT.border}`,
+          touchAction: "manipulation",
+          WebkitTapHighlightColor: "transparent",
+          transition: `color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
           "&:hover": {
-            color: "#FFB87C",
-            borderBottomColor: "rgba(255,184,124,0.85)",
+            color: ACCENT.main,
+            borderBottomColor: ACCENT.main,
+          },
+          "&:active": { transform: MOTION.pressScale },
+          "&:focus-visible": {
+            outline: `2px solid ${TEXT.primary}`,
+            outlineOffset: 2,
           },
         }}
       >
@@ -327,25 +350,16 @@ export function ChessTermInfo({
             sx: {
               maxWidth: 340,
               p: 2,
-              borderRadius: "1rem",
-              background: "rgba(22,18,14,0.92)",
-              backdropFilter: "blur(12px) saturate(150%)",
-              WebkitBackdropFilter: "blur(12px) saturate(150%)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              boxShadow:
-                "0 24px 64px -16px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,122,26,0.18)",
-              color: "rgba(255,240,224,0.92)",
             },
           },
         }}
       >
         <Typography
-          variant="overline"
+          component="h3"
           sx={{
             display: "block",
-            letterSpacing: "0.18em",
-            color: "#FFD1A8",
-            fontSize: "0.62rem",
+            ...TYPE.label,
+            color: TEXT.secondary,
             mb: 0.5,
           }}
         >
@@ -355,7 +369,7 @@ export function ChessTermInfo({
           sx={{
             fontSize: "0.86rem",
             lineHeight: 1.45,
-            color: "rgba(255,240,224,0.94)",
+            color: TEXT.primary,
             mb: 1.25,
           }}
         >
@@ -365,7 +379,7 @@ export function ChessTermInfo({
           sx={{
             fontSize: "0.78rem",
             lineHeight: 1.5,
-            color: "rgba(255,240,224,0.66)",
+            color: TEXT.secondary,
           }}
         >
           {entry.detail}
@@ -374,9 +388,9 @@ export function ChessTermInfo({
           <Typography
             sx={{
               mt: 1.25,
-              fontSize: "0.74rem",
+              fontSize: TYPE.caption.fontSize,
               lineHeight: 1.45,
-              color: "rgba(255,209,168,0.78)",
+              color: TEXT.secondary,
               fontStyle: "italic",
             }}
           >
@@ -389,22 +403,8 @@ export function ChessTermInfo({
             onClick={handleShowOnBoard}
             startIcon={<Eye size={13} />}
             size="small"
-            sx={{
-              mt: 1.5,
-              px: 1.5,
-              py: 0.5,
-              borderRadius: "999px",
-              background: "linear-gradient(135deg, #FF7A1A, #FB923C)",
-              color: "#0A0907",
-              fontSize: "0.76rem",
-              fontWeight: 700,
-              textTransform: "none",
-              boxShadow: "none",
-              "&:hover": {
-                background: "linear-gradient(135deg, #FB923C, #FBBF24)",
-                boxShadow: "none",
-              },
-            }}
+            variant="contained"
+            sx={{ mt: 1.5 }}
           >
             Show on board ({mention!.squares.length})
           </Button>

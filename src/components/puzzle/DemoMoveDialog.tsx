@@ -14,6 +14,7 @@ import {
   Typography,
 } from "@mui/material";
 import { Play, X } from "lucide-react";
+import { FONT_MONO, LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 
 /**
  * Confirmation modal that opens when the user taps "Show on board" inside
@@ -22,6 +23,9 @@ import { Play, X } from "lucide-react";
  * On confirm, the parent owns the demo lifecycle — DemoMoveDialog is
  * stateless beyond its speed pick. After this dialog closes, the parent
  * begins playing the moves on the user's main board.
+ *
+ * The dialog paper, title, toggle buttons and buttons are styled by the
+ * theme; nothing here restyles them.
  */
 
 export type DemoSpeedKey = "fast" | "normal" | "slow";
@@ -54,84 +58,36 @@ export function DemoMoveDialog({
   const formatted = formatMoveList(moves);
 
   return (
-    <Dialog
-      open={open}
-      onClose={onCancel}
-      maxWidth="xs"
-      fullWidth
-      slotProps={{
-        paper: {
-          sx: {
-            borderRadius: "1.25rem",
-            background: "rgba(22,18,14,0.92)",
-            backdropFilter: "blur(16px) saturate(150%)",
-            WebkitBackdropFilter: "blur(16px) saturate(150%)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            color: "rgba(255,240,224,0.94)",
-            boxShadow:
-              "0 24px 64px -16px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,122,26,0.16)",
-          },
-        },
-      }}
-    >
-      <DialogTitle
-        sx={{
-          pt: 2.5,
-          pb: 1,
-          px: 3,
-          fontSize: "1rem",
-          fontWeight: 700,
-          letterSpacing: "-0.01em",
-        }}
-      >
-        Show on the board
-      </DialogTitle>
+    <Dialog open={open} onClose={onCancel} maxWidth="xs" fullWidth>
+      <DialogTitle>Show on the board</DialogTitle>
 
       <DialogContent sx={{ px: 3, pb: 2 }}>
         <Stack spacing={2}>
           <Box
             sx={{
               p: 1.5,
-              borderRadius: "0.75rem",
-              background: "rgba(0,0,0,0.32)",
-              border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: `${RADIUS.control}px`,
+              background: SURFACE.raisedSecondary,
+              border: `1px solid ${LINE.hairline}`,
             }}
           >
-            <Typography
-              sx={{
-                fontSize: "0.66rem",
-                fontWeight: 700,
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-                color: "rgba(255,209,168,0.7)",
-                mb: 0.5,
-              }}
-            >
+            <Typography sx={{ ...TYPE.label, color: TEXT.secondary, mb: 0.5 }}>
               Line
             </Typography>
             <Typography
               sx={{
-                fontFamily: "Monaco, Menlo, monospace",
+                fontFamily: FONT_MONO,
                 fontSize: "0.92rem",
-                color: "rgba(255,240,224,0.94)",
+                color: TEXT.primary,
                 lineHeight: 1.5,
               }}
             >
-              {formatted || "—"}
+              {formatted || "No moves to show"}
             </Typography>
           </Box>
 
           <Box>
-            <Typography
-              sx={{
-                fontSize: "0.66rem",
-                fontWeight: 700,
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-                color: "rgba(255,209,168,0.7)",
-                mb: 0.75,
-              }}
-            >
+            <Typography sx={{ ...TYPE.label, color: TEXT.secondary, mb: 0.75 }}>
               Speed
             </Typography>
             <ToggleButtonGroup
@@ -141,22 +97,7 @@ export function DemoMoveDialog({
               size="small"
               sx={{
                 width: "100%",
-                "& .MuiToggleButton-root": {
-                  flex: 1,
-                  color: "rgba(255,240,224,0.65)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  fontSize: "0.78rem",
-                  fontWeight: 600,
-                  textTransform: "none",
-                  "&.Mui-selected": {
-                    background: "rgba(255,122,26,0.18)",
-                    color: "#FFD1A8",
-                    borderColor: "rgba(255,122,26,0.4)",
-                  },
-                  "&.Mui-selected:hover": {
-                    background: "rgba(255,122,26,0.22)",
-                  },
-                },
+                "& .MuiToggleButton-root": { flex: 1 },
               }}
             >
               <ToggleButton value="fast">Fast</ToggleButton>
@@ -168,50 +109,26 @@ export function DemoMoveDialog({
           {resumeAfter ? (
             <Typography
               sx={{
-                fontSize: "0.78rem",
-                color: "rgba(255,240,224,0.6)",
+                fontSize: TYPE.caption.fontSize,
+                color: TEXT.secondary,
                 lineHeight: 1.45,
               }}
             >
-              Your puzzle attempt is paused. You'll be returned to your
-              current position when the demo finishes.
+              Your puzzle attempt is paused. You'll be returned to your current
+              position when the demo finishes.
             </Typography>
           ) : null}
         </Stack>
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-        <Button
-          onClick={onCancel}
-          startIcon={<X size={14} />}
-          sx={{
-            color: "rgba(255,240,224,0.65)",
-            textTransform: "none",
-            fontSize: "0.82rem",
-            "&:hover": { background: "rgba(255,255,255,0.04)" },
-          }}
-        >
+        <Button onClick={onCancel} variant="text" startIcon={<X size={14} />}>
           Cancel
         </Button>
         <Button
           onClick={() => onConfirm(speed)}
-          startIcon={<Play size={14} />}
           variant="contained"
-          sx={{
-            px: 2.5,
-            py: 0.75,
-            borderRadius: "999px",
-            background: "linear-gradient(135deg, #FF7A1A, #FB923C)",
-            color: "#0A0907",
-            fontSize: "0.82rem",
-            fontWeight: 700,
-            textTransform: "none",
-            boxShadow: "none",
-            "&:hover": {
-              background: "linear-gradient(135deg, #FB923C, #FBBF24)",
-              boxShadow: "none",
-            },
-          }}
+          startIcon={<Play size={14} />}
         >
           Play on board
         </Button>

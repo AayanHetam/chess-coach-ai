@@ -4,12 +4,14 @@ import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Paper,
   TextField,
   Typography,
 } from "@mui/material";
 import { PageTitle } from "@/components/pageTitle";
 import { Masti, type MastiMood } from "@/components/masti";
+import { LINE, RADIUS, TEXT } from "@/theme/tokens";
 
 /**
  * The card header: the coach in place of the old lock glyph, wearing the
@@ -20,10 +22,10 @@ function ResetHeader({ mood, title }: { mood: MastiMood; title: string }) {
   return (
     <Box
       sx={{
-        background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
         py: 3,
         px: 3,
         textAlign: "center",
+        borderBottom: `1px solid ${LINE.hairline}`,
       }}
     >
       <Masti
@@ -32,7 +34,7 @@ function ResetHeader({ mood, title }: { mood: MastiMood; title: string }) {
         loops={mood === "thinking" ? 0 : 2}
         priority
       />
-      <Typography variant="h6" sx={{ color: "#fff", fontWeight: 700, mt: 1 }}>
+      <Typography variant="h6" sx={{ mt: 1 }}>
         {title}
       </Typography>
     </Box>
@@ -61,7 +63,8 @@ function mastiMoodFor(i: {
 
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const token = typeof router.query.token === "string" ? router.query.token : "";
+  const token =
+    typeof router.query.token === "string" ? router.query.token : "";
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -93,7 +96,7 @@ export default function ResetPasswordPage() {
       setDone(true);
       setTimeout(() => router.push("/"), 1500);
     } catch {
-      setError("Network error. Please try again.");
+      setError("We couldn't reach the server. Try again.");
     } finally {
       setSubmitting(false);
     }
@@ -111,7 +114,8 @@ export default function ResetPasswordPage() {
               p: 0,
               maxWidth: 440,
               width: "100%",
-              borderRadius: 4,
+              borderRadius: `${RADIUS.card}px`,
+              border: `1px solid ${LINE.hairline}`,
               overflow: "hidden",
             }}
           >
@@ -136,7 +140,8 @@ export default function ResetPasswordPage() {
             p: 0,
             maxWidth: 440,
             width: "100%",
-            borderRadius: 4,
+            borderRadius: `${RADIUS.card}px`,
+            border: `1px solid ${LINE.hairline}`,
             overflow: "hidden",
           }}
         >
@@ -148,7 +153,7 @@ export default function ResetPasswordPage() {
           <Box component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>
             {done ? (
               <Alert severity="success">
-                Password updated. Redirecting you to the app…
+                Password updated. Taking you back to Chess Masti.
               </Alert>
             ) : (
               <>
@@ -184,23 +189,24 @@ export default function ResetPasswordPage() {
                   fullWidth
                   variant="contained"
                   disabled={submitting}
-                  sx={{
-                    py: 1.5,
-                    borderRadius: 2.5,
-                    fontWeight: 700,
-                    textTransform: "none",
-                    background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
-                    "&:hover": {
-                      background: "linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)",
-                    },
-                  }}
+                  startIcon={
+                    submitting ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : undefined
+                  }
+                  sx={{ py: 1.5 }}
                 >
-                  {submitting ? "Resetting…" : "Reset password"}
+                  {submitting ? "Resetting" : "Reset password"}
                 </Button>
 
                 <Typography
                   variant="caption"
-                  sx={{ display: "block", mt: 2, color: "#999", textAlign: "center" }}
+                  sx={{
+                    display: "block",
+                    mt: 2,
+                    color: TEXT.secondary,
+                    textAlign: "center",
+                  }}
                 >
                   At least 10 characters, with a number or symbol.
                 </Typography>

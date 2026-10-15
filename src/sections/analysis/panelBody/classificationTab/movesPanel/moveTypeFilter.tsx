@@ -155,7 +155,8 @@ export default function MoveTypeFilter({ onFilterChange }: Props) {
                     : `${CLASSIFICATION_COLORS[type]}20`,
                 },
                 cursor: "pointer",
-                transition: "all 0.2s ease",
+                transition:
+                  "background-color 160ms ease-out, color 160ms ease-out, border-color 160ms ease-out",
                 minWidth: "40px",
               }}
               icon={

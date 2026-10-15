@@ -21,17 +21,20 @@ import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
 import { Box, Typography } from "@mui/material";
-import { motion } from "framer-motion";
 import { useAtomValue } from "jotai";
 import { ChevronLeft, ChevronRight, Dumbbell, RotateCcw } from "lucide-react";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 import { pieceSetAtom } from "@/components/board/states";
 import { Pill } from "@/components/courses/ChapterRow";
 import { Masti, MastiAvatar } from "@/components/masti";
 import { endWords, evalWords, numbered } from "@/lib/courses/lines";
 import { sourceWords } from "@/lib/courses/probes";
-import { branchesOf, defaultBranch, replay, type Branch } from "@/lib/courses/walk";
+import {
+  branchesOf,
+  defaultBranch,
+  replay,
+  type Branch,
+} from "@/lib/courses/walk";
 import { rarity } from "@/lib/repertoire/character";
 import { fetchOpeningTheory } from "@/lib/theory/fetchOpeningTheory";
 import type { OpeningTheory } from "@/types/theory";
@@ -43,12 +46,34 @@ import { bandFor } from "@/lib/repertoire/levels";
 import { loadCourse } from "@/lib/courses/load";
 import { viewFor } from "@/lib/courses/view";
 import { unitsOf } from "@/lib/courses/hub";
-import { chapterParam, courseTrainerHref, isCourseId } from "@/lib/learn/courseRoute";
+import {
+  chapterParam,
+  courseTrainerHref,
+  isCourseId,
+} from "@/lib/learn/courseRoute";
 import { drillHref, lineParam, studyParam } from "@/lib/learn/courseHubRoute";
 import type { Study } from "@/lib/courses/studies";
 
-const EMBER = "#FB923C";
-const MONO = "ui-monospace, SFMono-Regular, Menlo, monospace";
+import {
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
+
+const CARD_SX = {
+  borderRadius: `${RADIUS.card}px`,
+  border: `1px solid ${LINE.hairline}`,
+  background: SURFACE.raised,
+} as const;
+
+const FOCUS_RING = {
+  outline: `2px solid ${TEXT.primary}`,
+  outlineOffset: 2,
+} as const;
 
 interface Props {
   courseId: string;
@@ -77,16 +102,22 @@ export default function ChapterReaderPage(props: Props) {
 
   const { fen, key, lastMove } = useMemo(() => replay(sans), [sans]);
   const node: CourseNode | undefined = props.nodes[key];
-  const branches = useMemo(() => branchesOf(node, props.nodes), [node, props.nodes]);
+  const branches = useMemo(
+    () => branchesOf(node, props.nodes),
+    [node, props.nodes]
+  );
   const forward = useMemo(() => defaultBranch(branches), [branches]);
 
   /** The chapter's own moves are the premise; back never leaves the chapter. */
   const floor = props.chapterLine.length;
   const canBack = sans.length > floor;
 
-  const play = useCallback((branch: Branch) => setSans(prev => [...prev, branch.san]), []);
+  const play = useCallback(
+    (branch: Branch) => setSans((prev) => [...prev, branch.san]),
+    []
+  );
   const back = useCallback(
-    () => setSans(prev => (prev.length > floor ? prev.slice(0, -1) : prev)),
+    () => setSans((prev) => (prev.length > floor ? prev.slice(0, -1) : prev)),
     [floor]
   );
   const restart = useCallback(() => setSans(props.openAt), [props.openAt]);
@@ -113,7 +144,7 @@ export default function ChapterReaderPage(props: Props) {
   useEffect(() => {
     setTheory(null);
     let live = true;
-    fetchOpeningTheory([fen]).then(map => {
+    fetchOpeningTheory([fen]).then((map) => {
       if (live) setTheory(map.get(fen) ?? null);
     });
     return () => {
@@ -127,12 +158,18 @@ export default function ChapterReaderPage(props: Props) {
   return (
     <>
       <Head>
-        <title key="title">{`${title} — ${props.courseName} — Chess Masti`}</title>
+        <title key="title">{`${title} · ${props.courseName} · Chess Masti`}</title>
         <meta name="robots" content="noindex" />
       </Head>
-      <GradientBackdrop />
 
-      <Box sx={{ maxWidth: 1180, mx: "auto", px: { xs: 2, md: 3 }, py: { xs: 2, md: 4 } }}>
+      <Box
+        sx={{
+          maxWidth: 1180,
+          mx: "auto",
+          px: { xs: 2, md: 3 },
+          py: { xs: 2, md: 4 },
+        }}
+      >
         <Box
           component={Link}
           href={`/learn/${props.courseId}`}
@@ -141,10 +178,11 @@ export default function ChapterReaderPage(props: Props) {
             alignItems: "center",
             gap: 0.75,
             minHeight: 44,
-            color: "rgba(255,255,255,0.55)",
-            fontSize: "0.85rem",
+            color: TEXT.secondary,
+            fontSize: TYPE.bodySmall.fontSize,
             textDecoration: "none",
-            "&:hover": { color: "#fff" },
+            transition: `color ${MOTION.hover}`,
+            "&:hover": { color: TEXT.primary },
           }}
           data-testid="reader-back"
         >
@@ -200,7 +238,12 @@ export default function ChapterReaderPage(props: Props) {
                 gap: 1,
               }}
             >
-              <IconButton onClick={back} disabled={!canBack} label="Previous move" testid="reader-back-move">
+              <IconButton
+                onClick={back}
+                disabled={!canBack}
+                label="Previous move"
+                testid="reader-back-move"
+              >
                 <ChevronLeft size={18} aria-hidden />
               </IconButton>
               <IconButton
@@ -211,18 +254,22 @@ export default function ChapterReaderPage(props: Props) {
               >
                 <ChevronRight size={18} aria-hidden />
               </IconButton>
-              <IconButton onClick={restart} disabled={!canBack} label="Back to the start of the chapter" testid="reader-restart">
+              <IconButton
+                onClick={restart}
+                disabled={!canBack}
+                label="Back to the start of the chapter"
+                testid="reader-restart"
+              >
                 <RotateCcw size={15} aria-hidden />
               </IconButton>
               <Typography
                 data-testid="reader-line"
                 sx={{
+                  ...TYPE.caption,
                   flex: 1,
                   minWidth: 0,
-                  fontFamily: MONO,
-                  fontSize: "0.8rem",
-                  color: "rgba(255,255,255,0.72)",
-                  lineHeight: 1.6,
+                  fontFamily: FONT_MONO,
+                  color: TEXT.secondary,
                 }}
               >
                 {numbered(sans)}
@@ -235,27 +282,29 @@ export default function ChapterReaderPage(props: Props) {
             <Box
               data-testid="reader-panel"
               sx={{
+                ...CARD_SX,
                 p: { xs: 2, md: 2.5 },
-                borderRadius: "1.5rem",
-                border: "1px solid rgba(255,255,255,0.10)",
-                background: "rgba(255,255,255,0.03)",
-                backdropFilter: "blur(12px)",
                 display: "grid",
                 gap: 2,
               }}
             >
               {!node ? (
-                <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+                <Box
+                  sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}
+                >
                   {/* The end of the book is a takeaway, not a fault, so Masti
                       has an idea. The copy beside him says so; he is decorative. */}
                   <Masti mood="idea" size={64} loops={2} decorative />
                   <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.88rem", lineHeight: 1.6 }}>
-                      The course stops here. Past this point nobody in the corpus went often enough for
-                      us to call anything theory.
+                    <Typography sx={{ ...TYPE.bodySmall, color: TEXT.primary }}>
+                      The course stops here. Past this point nobody in the
+                      corpus went often enough for us to call anything theory.
                     </Typography>
-                    <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.8rem", lineHeight: 1.6, mt: 0.75 }}>
-                      That is the end of what I can teach here. From this move on, it is your game.
+                    <Typography
+                      sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 0.75 }}
+                    >
+                      That is the end of what I can teach here. From this move
+                      on, it is your game.
                     </Typography>
                   </Box>
                 </Box>
@@ -271,17 +320,30 @@ export default function ChapterReaderPage(props: Props) {
               )}
 
               {node?.end && (
-                <Box data-testid="reader-end" sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+                <Box
+                  data-testid="reader-end"
+                  sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}
+                >
                   {/* The end of a line is the chapter's finished state, and a
                       takeaway, so Masti has an idea. In the panel, never on the
                       board; the copy beside him says it, so he is decorative. */}
-                  <Masti mood="idea" size={64} loops={2} decorative data-testid="reader-end-masti" />
+                  <Masti
+                    mood="idea"
+                    size={64}
+                    loops={2}
+                    decorative
+                    data-testid="reader-end-masti"
+                  />
                   <Box sx={{ minWidth: 0 }}>
                     <Label>The line stops</Label>
-                    <Typography sx={{ color: "rgba(255,255,255,0.66)", fontSize: "0.86rem", mt: 0.5 }}>
+                    <Typography
+                      sx={{ ...TYPE.bodySmall, color: TEXT.primary, mt: 0.5 }}
+                    >
                       {endWords(node.end as Termination)}
                     </Typography>
-                    <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.8rem", lineHeight: 1.6, mt: 0.75 }}>
+                    <Typography
+                      sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 0.75 }}
+                    >
                       {endLine(node.end as Termination)}
                     </Typography>
                   </Box>
@@ -291,27 +353,45 @@ export default function ChapterReaderPage(props: Props) {
               {/* Verbatim, attributed, never rewritten. */}
               {theory && (
                 <Box data-testid="reader-theory">
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                  <Box
+                    sx={{ display: "flex", alignItems: "center", gap: 0.75 }}
+                  >
                     {/* A quoted lesson, so the coach's face is an idea. A still:
                         this block re-renders on every step through the line. */}
                     <MastiAvatar mood="idea" size={20} ring={false} />
-                    <Label>{theory.name ? `The theory — ${theory.name}` : "The theory"}</Label>
+                    <Label>
+                      {theory.name
+                        ? `The theory: ${theory.name}`
+                        : "The theory"}
+                    </Label>
                   </Box>
                   {theory.excerpt.split(/\n{2,}/).map((para, i) => (
                     <Typography
                       key={i}
-                      sx={{ color: "rgba(255,255,255,0.72)", fontSize: "0.86rem", lineHeight: 1.7, mt: 0.75 }}
+                      sx={{ ...TYPE.bodySmall, color: TEXT.primary, mt: 0.75 }}
                     >
                       {para}
                     </Typography>
                   ))}
-                  <Typography sx={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.3)", mt: 0.75 }}>
+                  <Typography
+                    sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 0.75 }}
+                  >
                     From{" "}
-                    <a href={theory.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
+                    <a
+                      href={theory.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: "inherit" }}
+                    >
                       Wikibooks
                     </a>
                     , licensed{" "}
-                    <a href={theory.licenceUrl} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
+                    <a
+                      href={theory.licenceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: "inherit" }}
+                    >
                       {theory.licence}
                     </a>
                     .
@@ -321,22 +401,14 @@ export default function ChapterReaderPage(props: Props) {
             </Box>
 
             {/* ── Hand off ─────────────────────────────────────────────────── */}
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: "1.5rem",
-                border: `1px solid ${EMBER}2e`,
-                background: `${EMBER}0d`,
-                display: "grid",
-                gap: 1.25,
-              }}
-            >
-              <Typography sx={{ color: "#fff", fontSize: "0.92rem", fontWeight: 600 }}>
+            <Box sx={{ ...CARD_SX, p: 2, display: "grid", gap: 1.25 }}>
+              <Typography sx={{ ...TYPE.h5, color: TEXT.primary }}>
                 I&rsquo;ve got this
               </Typography>
-              <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.8rem", lineHeight: 1.6 }}>
-                {props.asked} {props.asked === 1 ? "decision" : "decisions"} in this chapter. The
-                trainer asks before it teaches, so anything you already know it will not drill.
+              <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
+                {props.asked} {props.asked === 1 ? "decision" : "decisions"} in
+                this chapter. The trainer asks before it teaches, so anything
+                you already know it will not drill.
               </Typography>
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
                 <Pill
@@ -347,7 +419,10 @@ export default function ChapterReaderPage(props: Props) {
                 >
                   Train this chapter
                 </Pill>
-                <Pill href={drillHref(props.courseId, props.chapter)} testid="reader-drill">
+                <Pill
+                  href={drillHref(props.courseId, props.chapter)}
+                  testid="reader-drill"
+                >
                   Drill it
                 </Pill>
               </Box>
@@ -357,17 +432,10 @@ export default function ChapterReaderPage(props: Props) {
             {props.studies.length > 0 && (
               <Box
                 data-testid="reader-studies"
-                sx={{
-                  p: 2,
-                  borderRadius: "1.5rem",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  background: "rgba(255,255,255,0.02)",
-                  display: "grid",
-                  gap: 0.75,
-                }}
+                sx={{ ...CARD_SX, p: 2, display: "grid", gap: 0.75 }}
               >
                 <Label>Jump to</Label>
-                {props.studies.map(study => (
+                {props.studies.map((study) => (
                   <Box
                     key={study.id}
                     component="button"
@@ -381,11 +449,15 @@ export default function ChapterReaderPage(props: Props) {
                       cursor: "pointer",
                       minHeight: 44,
                       px: 1,
-                      borderRadius: "0.75rem",
-                      color: "rgba(255,255,255,0.8)",
-                      fontSize: "0.84rem",
-                      "&:hover": { background: "rgba(255,255,255,0.05)", color: "#fff" },
-                      "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: -2 },
+                      borderRadius: `${RADIUS.small}px`,
+                      color: TEXT.primary,
+                      fontSize: TYPE.bodySmall.fontSize,
+                      touchAction: "manipulation",
+                      WebkitTapHighlightColor: "transparent",
+                      transition: `background-color ${MOTION.hover}`,
+                      "&:hover": { background: "rgba(255,255,255,0.06)" },
+                      "&:active": { background: SURFACE.raisedTertiary },
+                      "&:focus-visible": { ...FOCUS_RING, outlineOffset: -2 },
                     }}
                   >
                     {study.title}
@@ -408,9 +480,14 @@ export default function ChapterReaderPage(props: Props) {
  * buries the one position where something IS different. The screenshot made
  * the point — a lone "balanced" under the replies table reads as a stray word.
  */
-function evalNote(cp: number | undefined, side: "white" | "black"): string | null {
+function evalNote(
+  cp: number | undefined,
+  side: "white" | "black"
+): string | null {
   const words = evalWords(cp ?? null, side);
-  return words && words !== "balanced" ? `The engine calls this ${words}` : null;
+  return words && words !== "balanced"
+    ? `The engine calls this ${words}`
+    : null;
 }
 
 /**
@@ -430,13 +507,27 @@ function endLine(end: Termination): string {
 }
 
 /** Our move, and everything that is true about it. */
-function OurMove({ node, side }: { node: CourseNode; side: "white" | "black" }) {
+function OurMove({
+  node,
+  side,
+}: {
+  node: CourseNode;
+  side: "white" | "black";
+}) {
   const source = node.src ? sourceWords(node.src, node.loss) : null;
   const words = evalNote(node.ev?.cp, side);
   return (
     <Box data-testid="reader-our-move">
       <Label>You play</Label>
-      <Typography sx={{ fontFamily: MONO, fontSize: "1.6rem", color: EMBER, mt: 0.5 }}>
+      <Typography
+        sx={{
+          fontFamily: FONT_MONO,
+          fontSize: TYPE.h3.fontSize,
+          fontWeight: 600,
+          color: TEXT.primary,
+          mt: 0.5,
+        }}
+      >
         {node.us}
       </Typography>
       <Box sx={{ display: "grid", gap: 0.5, mt: 1.25 }}>
@@ -445,10 +536,14 @@ function OurMove({ node, side }: { node: CourseNode; side: "white" | "black" }) 
             on every card is wallpaper, not information. */}
         {source && <Line>{source}</Line>}
         {node.loss !== undefined && node.loss > 0 && (
-          <Line>{node.loss} centipawns behind the engine&rsquo;s own choice</Line>
+          <Line>
+            {node.loss} centipawns behind the engine&rsquo;s own choice
+          </Line>
         )}
         {words && <Line>{words}</Line>}
-        {node.g > 0 && <Line>{node.g.toLocaleString()} games reach this position</Line>}
+        {node.g > 0 && (
+          <Line>{node.g.toLocaleString()} games reach this position</Line>
+        )}
       </Box>
     </Box>
   );
@@ -471,7 +566,7 @@ function TheirReplies({
     return (
       <Box data-testid="reader-their-move">
         <Label>Their move</Label>
-        <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.86rem", mt: 0.75 }}>
+        <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary, mt: 0.75 }}>
           Nothing here reaches the share this course covers.
         </Typography>
       </Box>
@@ -481,7 +576,7 @@ function TheirReplies({
     <Box data-testid="reader-their-move">
       <Label>They play</Label>
       <Box sx={{ display: "grid", gap: 0.5, mt: 0.75 }}>
-        {branches.map(branch => {
+        {branches.map((branch) => {
           const pct = Math.round((branch.share ?? 0) * 100);
           const rare = branch.share !== undefined ? rarity(branch.share) : null;
           return (
@@ -492,9 +587,9 @@ function TheirReplies({
               onClick={() => onPlay(branch)}
               sx={{
                 appearance: "none",
-                border: "1px solid rgba(255,255,255,0.08)",
-                background: "rgba(0,0,0,0.22)",
-                borderRadius: "0.9rem",
+                border: `1px solid ${LINE.hairline}`,
+                background: SURFACE.raisedSecondary,
+                borderRadius: `${RADIUS.control}px`,
                 cursor: "pointer",
                 textAlign: "left",
                 minHeight: 48,
@@ -502,34 +597,53 @@ function TheirReplies({
                 display: "flex",
                 alignItems: "center",
                 gap: 1.5,
-                transition: "background 200ms ease-out, border-color 200ms ease-out",
-                "&:hover": { background: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.18)" },
-                "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
+                transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
+                "&:hover": { borderColor: LINE.strong },
+                "&:active": { background: SURFACE.raisedTertiary },
+                "&:focus-visible": FOCUS_RING,
               }}
             >
-              <Typography sx={{ fontFamily: MONO, fontSize: "0.95rem", color: "#fff", minWidth: 62 }}>
+              <Typography
+                sx={{
+                  ...TYPE.bodySmall,
+                  fontFamily: FONT_MONO,
+                  color: TEXT.primary,
+                  minWidth: 62,
+                }}
+              >
                 {branch.san}
               </Typography>
               <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Box sx={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                <Box
+                  sx={{
+                    height: 4,
+                    borderRadius: 2,
+                    background: LINE.hairline,
+                    overflow: "hidden",
+                  }}
+                >
                   <Box
-                    component={motion.div}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.max(2, pct)}%` }}
-                    transition={{ duration: 0.32, ease: "easeOut" }}
-                    sx={{ height: "100%", background: "rgba(255,255,255,0.34)" }}
+                    sx={{
+                      height: "100%",
+                      width: `${Math.max(2, pct)}%`,
+                      background: TEXT.secondary,
+                    }}
                   />
                 </Box>
                 {rare && (
-                  <Typography sx={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.36)", mt: 0.4 }}>
+                  <Typography
+                    sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 0.4 }}
+                  >
                     {rare}
                   </Typography>
                 )}
               </Box>
               <Typography
                 sx={{
-                  fontSize: "0.8rem",
-                  color: "rgba(255,255,255,0.6)",
+                  ...TYPE.caption,
+                  color: TEXT.secondary,
                   fontVariantNumeric: "tabular-nums",
                   minWidth: 38,
                   textAlign: "right",
@@ -550,8 +664,8 @@ function TheirReplies({
         */}
         {node.rc !== undefined && node.rc < 0.97 && (
           <Line>
-            These are {Math.round(node.rc * 100)}% of what people play here; the rest is spread too
-            thin to teach
+            These are {Math.round(node.rc * 100)}% of what people play here; the
+            rest is spread too thin to teach
           </Line>
         )}
         {words && <Line>{words}</Line>}
@@ -562,14 +676,7 @@ function TheirReplies({
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <Typography
-      sx={{
-        fontSize: "0.68rem",
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        color: "rgba(255,255,255,0.45)",
-      }}
-    >
+    <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
       {children}
     </Typography>
   );
@@ -577,7 +684,7 @@ function Label({ children }: { children: React.ReactNode }) {
 
 function Line({ children }: { children: React.ReactNode }) {
   return (
-    <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.8rem", lineHeight: 1.6 }}>
+    <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
       {children}
     </Typography>
   );
@@ -610,14 +717,19 @@ function IconButton({
         width: 44,
         height: 44,
         flexShrink: 0,
-        borderRadius: "0.9rem",
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(255,255,255,0.04)",
-        color: disabled ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.8)",
+        borderRadius: `${RADIUS.control}px`,
+        border: `1px solid ${LINE.strong}`,
+        background: "transparent",
+        color: disabled ? TEXT.tertiary : TEXT.primary,
         cursor: disabled ? "default" : "pointer",
-        transition: "background 200ms ease-out",
-        "&:hover": { background: disabled ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.09)" },
-        "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
+        transition: `background-color ${MOTION.hover}, transform ${MOTION.press}`,
+        "&:hover": {
+          background: disabled ? "transparent" : "rgba(255,255,255,0.06)",
+        },
+        "&:active": disabled ? {} : { transform: MOTION.pressScale },
+        "&:focus-visible": FOCUS_RING,
       }}
     >
       {children}
@@ -625,8 +737,10 @@ function IconButton({
   );
 }
 
-export const getServerSideProps: GetServerSideProps<Props> = async ctx => {
-  const raw = Array.isArray(ctx.params?.courseId) ? ctx.params?.courseId[0] : ctx.params?.courseId;
+export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
+  const raw = Array.isArray(ctx.params?.courseId)
+    ? ctx.params?.courseId[0]
+    : ctx.params?.courseId;
   const chapter = chapterParam(ctx.params?.chapter);
   if (!isCourseId(raw) || chapter === null) return { notFound: true };
 
@@ -646,10 +760,10 @@ export const getServerSideProps: GetServerSideProps<Props> = async ctx => {
   }
 
   const view = viewFor(course, bandFor(rating));
-  const chapterView = view.chapters.find(c => c.i === chapter);
+  const chapterView = view.chapters.find((c) => c.i === chapter);
   if (!chapterView) return { notFound: true };
 
-  const unit = unitsOf(view, course.meta.side).find(u => u.i === chapter)!;
+  const unit = unitsOf(view, course.meta.side).find((u) => u.i === chapter)!;
 
   // This chapter's nodes and the trunk they all share — never the whole course.
   // The cut has already happened in `viewFor`; this is the second half of the
@@ -662,7 +776,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async ctx => {
   // `?study=` opens on a study rather than at the top of the chapter; `?line=`
   // opens on an exact position, which is how the explorer hands one over.
   const study = studyParam(ctx.query.study);
-  const opened = study ? unit.studies.find(s => s.id === study) : undefined;
+  const opened = study ? unit.studies.find((s) => s.id === study) : undefined;
 
   // A line has to BELONG to this chapter. One that does not would open the
   // reader on a position it was never sent the nodes for, which renders as a

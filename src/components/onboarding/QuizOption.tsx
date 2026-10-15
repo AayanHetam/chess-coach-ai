@@ -2,6 +2,15 @@
 
 import type { ReactNode } from "react";
 import { Box, Typography } from "@mui/material";
+import {
+  ACCENT,
+  LINE,
+  MOTION,
+  RADIUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 interface QuizOptionProps {
   label: string;
@@ -18,7 +27,7 @@ interface QuizOptionProps {
   visual?: ReactNode;
 }
 
-/** A selectable glass option row used across every quiz step. */
+/** A selectable option row used across every quiz step. */
 export default function QuizOption({
   label,
   helper,
@@ -42,26 +51,27 @@ export default function QuizOption({
         display: "flex",
         alignItems: "center",
         gap: 1.5,
-        p: "13px 16px",
+        px: 2,
+        py: 1.5,
         minHeight: 56,
-        borderRadius: "14px",
-        background: selected
-          ? "rgba(249,115,22,0.12)"
-          : "rgba(255,255,255,0.03)",
+        borderRadius: `${RADIUS.control}px`,
+        color: TEXT.primary,
+        background: selected ? ACCENT.tint : SURFACE.raisedSecondary,
         border: selected
-          ? "1px solid rgba(249,115,22,0.55)"
-          : "1px solid rgba(255,255,255,0.1)",
-        transition: "background 160ms ease-out, border-color 160ms ease-out",
-        "&:hover": {
-          borderColor: selected
-            ? "rgba(249,115,22,0.7)"
-            : "rgba(255,255,255,0.25)",
-          background: selected
-            ? "rgba(249,115,22,0.16)"
-            : "rgba(255,255,255,0.05)",
+          ? `1px solid ${ACCENT.border}`
+          : `1px solid ${LINE.hairline}`,
+        transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
+        "&:hover": selected
+          ? undefined
+          : {
+              borderColor: LINE.strong,
+              background: SURFACE.raisedTertiary,
+            },
+        "&:active": {
+          background: selected ? ACCENT.tint : SURFACE.raisedTertiary,
         },
         "&:focus-visible": {
-          outline: "2px solid rgba(249,115,22,0.6)",
+          outline: "2px solid #FFFFFF",
           outlineOffset: 2,
         },
       }}
@@ -74,10 +84,8 @@ export default function QuizOption({
           flexShrink: 0,
           borderRadius: multi ? "6px" : "50%",
           border: "2px solid",
-          borderColor: selected ? "#FB923C" : "rgba(255,255,255,0.3)",
-          background: selected
-            ? "linear-gradient(135deg, #F97316 0%, #EA580C 100%)"
-            : "transparent",
+          borderColor: selected ? ACCENT.main : TEXT.tertiary,
+          background: selected ? ACCENT.main : "transparent",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -89,29 +97,19 @@ export default function QuizOption({
               width: 7,
               height: 7,
               borderRadius: multi ? "2px" : "50%",
-              background: "#fff",
+              background: "#FFFFFF",
             }}
           />
         )}
       </Box>
       <Box sx={{ minWidth: 0, flex: 1 }}>
         <Typography
-          sx={{
-            color: "rgba(255,255,255,0.94)",
-            fontWeight: 600,
-            fontSize: "0.95rem",
-          }}
+          sx={{ ...TYPE.bodySmall, fontWeight: 600, color: TEXT.primary }}
         >
           {label}
         </Typography>
         {helper && (
-          <Typography
-            sx={{
-              color: "rgba(255,255,255,0.5)",
-              fontSize: "0.8rem",
-              mt: 0.25,
-            }}
-          >
+          <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 0.25 }}>
             {helper}
           </Typography>
         )}
@@ -125,9 +123,7 @@ export default function QuizOption({
             // Unselected diagrams sit back so the row still reads as a list of
             // labels; selecting one brings its picture forward.
             opacity: selected ? 1 : 0.8,
-            transform: selected ? "scale(1.04)" : "none",
-            transition:
-              "opacity 180ms ease-out, transform 180ms ease-out",
+            transition: `opacity ${MOTION.hover}`,
           }}
         >
           {visual}

@@ -1,14 +1,20 @@
-import { Box, Stack, Tooltip, Typography } from '@mui/material';
-import { Icon } from '@iconify/react';
-import type { HeadToHead, DimensionComparison, RatingPoint } from '@/lib/scout/headToHead';
-import { biggestEdge, biggestGap, ratingTrend } from '@/lib/scout/headToHead';
+import { Box, Stack, Tooltip, Typography } from "@mui/material";
+import { Icon } from "@iconify/react";
+import type {
+  HeadToHead,
+  DimensionComparison,
+  RatingPoint,
+} from "@/lib/scout/headToHead";
+import { biggestEdge, biggestGap, ratingTrend } from "@/lib/scout/headToHead";
 import {
+  TIME_CLASS_LABEL,
   DossierPanel,
   FieldLabel,
   MONO,
   ROSE,
   VerdictPill,
-} from './dossier';
+} from "./dossier";
+import { TEXT } from "@/theme/tokens";
 
 export interface HeadToHeadPanelProps {
   h2h: HeadToHead;
@@ -18,8 +24,8 @@ export interface HeadToHeadPanelProps {
   theirName: string;
 }
 
-const GOOD = '#34d399';
-const BAD = '#f87171';
+const GOOD = "#34d399";
+const BAD = "#f87171";
 
 export default function HeadToHeadPanel({
   h2h,
@@ -40,12 +46,20 @@ export default function HeadToHeadPanel({
       emphasis
       action={
         h2h.timeClass ? (
-          <VerdictPill label={h2h.timeClass} color="rgba(255,255,255,0.45)" />
+          <VerdictPill
+            label={TIME_CLASS_LABEL[h2h.timeClass]}
+            color={TEXT.secondary}
+          />
         ) : undefined
       }
     >
       {/* Expected score */}
-      <Stack direction="row" alignItems="flex-end" justifyContent="space-between" sx={{ mb: 1 }}>
+      <Stack
+        direction="row"
+        alignItems="flex-end"
+        justifyContent="space-between"
+        sx={{ mb: 1 }}
+      >
         <Box>
           <FieldLabel color="rgba(255,255,255,0.38)" size="0.57rem">
             You · {h2h.yourRating}
@@ -53,28 +67,28 @@ export default function HeadToHeadPanel({
           <Typography
             sx={{
               fontFamily: MONO,
-              fontSize: '2.1rem',
+              fontSize: "2.1rem",
               fontWeight: 700,
               lineHeight: 1,
               color: favoured ? BAD : GOOD,
-              fontVariantNumeric: 'tabular-nums',
+              fontVariantNumeric: "tabular-nums",
             }}
           >
             {yourPct}%
           </Typography>
         </Box>
-        <Box sx={{ textAlign: 'right' }}>
+        <Box sx={{ textAlign: "right" }}>
           <FieldLabel color="rgba(255,255,255,0.38)" size="0.57rem">
             {theirName} · {h2h.theirRating}
           </FieldLabel>
           <Typography
             sx={{
               fontFamily: MONO,
-              fontSize: '2.1rem',
+              fontSize: "2.1rem",
               fontWeight: 700,
               lineHeight: 1,
-              color: 'rgba(255,255,255,0.55)',
-              fontVariantNumeric: 'tabular-nums',
+              color: "rgba(255,255,255,0.55)",
+              fontVariantNumeric: "tabular-nums",
             }}
           >
             {theirPct}%
@@ -89,12 +103,12 @@ export default function HeadToHeadPanel({
       >
         <Box
           sx={{
-            display: 'flex',
+            display: "flex",
             height: 10,
-            borderRadius: '3px',
-            overflow: 'hidden',
-            bgcolor: 'rgba(255,255,255,0.07)',
-            cursor: 'help',
+            borderRadius: "3px",
+            overflow: "hidden",
+            bgcolor: "rgba(255,255,255,0.07)",
+            cursor: "help",
             mb: 1,
           }}
         >
@@ -102,30 +116,44 @@ export default function HeadToHeadPanel({
             sx={{
               width: `${yourPct}%`,
               bgcolor: favoured ? BAD : GOOD,
-              transition: 'width 420ms ease',
+              transition: "width 420ms ease",
             }}
           />
         </Box>
       </Tooltip>
 
-      <Typography sx={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.62)', lineHeight: 1.45 }}>
+      <Typography
+        sx={{
+          fontSize: "0.82rem",
+          color: "rgba(255,255,255,0.62)",
+          lineHeight: 1.45,
+        }}
+      >
         {h2h.gap === 0 ? (
-          'Dead even on rating.'
+          "Dead even on rating."
         ) : (
           <>
-            {favoured ? `${theirName} is` : 'You are'}{' '}
-            <Box component="span" sx={{ color: 'rgba(255,255,255,0.92)', fontWeight: 600 }}>
+            {favoured ? `${theirName} is` : "You are"}{" "}
+            <Box
+              component="span"
+              sx={{ color: "rgba(255,255,255,0.92)", fontWeight: 600 }}
+            >
               {Math.abs(h2h.gap)} points
-            </Box>{' '}
+            </Box>{" "}
             ahead — expect to score {yourPct} in 100.
           </>
         )}
       </Typography>
 
       {/* A self-reported rating is not evidence, and the odds inherit that. */}
-      {h2h.yourRatingSource === 'self-reported' && (
-        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 1 }}>
-          <Box sx={{ color: '#fbbf24', display: 'flex' }}>
+      {h2h.yourRatingSource === "self-reported" && (
+        <Stack
+          direction="row"
+          spacing={0.75}
+          alignItems="center"
+          sx={{ mt: 1 }}
+        >
+          <Box sx={{ color: "#fbbf24", display: "flex" }}>
             <Icon icon="mdi:alert-outline" width={12} />
           </Box>
           <FieldLabel color="#fbbf24" size="0.55rem">
@@ -135,21 +163,27 @@ export default function HeadToHeadPanel({
       )}
 
       {/* Where the edge is */}
-      <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+      <Box
+        sx={{ mt: 2.5, pt: 2, borderTop: "1px solid rgba(255,255,255,0.07)" }}
+      >
         <FieldLabel color="rgba(255,255,255,0.38)" size="0.57rem">
           Profile edge
         </FieldLabel>
         <Stack spacing={1.1} sx={{ mt: 1.25 }}>
-          {comparison.map(c => (
+          {comparison.map((c) => (
             <DeltaRow key={c.key} cmp={c} />
           ))}
         </Stack>
 
         {edge && gap && (
-          <Stack direction="row" spacing={2} sx={{ mt: 1.75, flexWrap: 'wrap', gap: 1.25 }}>
+          <Stack
+            direction="row"
+            spacing={2}
+            sx={{ mt: 1.75, flexWrap: "wrap", gap: 1.25 }}
+          >
             {edge.delta > 0 && (
               <Stack direction="row" spacing={0.75} alignItems="center">
-                <Box sx={{ color: ROSE.bright, display: 'flex' }}>
+                <Box sx={{ color: ROSE.bright, display: "flex" }}>
                   <Icon icon="mdi:target" width={12} />
                 </Box>
                 <FieldLabel color={ROSE.bright} size="0.55rem">
@@ -159,7 +193,7 @@ export default function HeadToHeadPanel({
             )}
             {gap.delta < 0 && (
               <Stack direction="row" spacing={0.75} alignItems="center">
-                <Box sx={{ color: 'rgba(255,255,255,0.5)', display: 'flex' }}>
+                <Box sx={{ color: "rgba(255,255,255,0.5)", display: "flex" }}>
                   <Icon icon="mdi:shield-outline" width={12} />
                 </Box>
                 <FieldLabel color="rgba(255,255,255,0.5)" size="0.55rem">
@@ -173,8 +207,15 @@ export default function HeadToHeadPanel({
 
       {/* Their trajectory */}
       {series.length > 1 && (
-        <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+        <Box
+          sx={{ mt: 2.5, pt: 2, borderTop: "1px solid rgba(255,255,255,0.07)" }}
+        >
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ mb: 1 }}
+          >
             <FieldLabel color="rgba(255,255,255,0.38)" size="0.57rem">
               {theirName}&apos;s trajectory
             </FieldLabel>
@@ -201,37 +242,37 @@ function DeltaRow({ cmp }: { cmp: DimensionComparison }) {
       </Box>
 
       {/* Diverging bar: left of centre is theirs, right is yours. */}
-      <Box sx={{ flex: 1, position: 'relative', height: 10, minWidth: 0 }}>
+      <Box sx={{ flex: 1, position: "relative", height: 10, minWidth: 0 }}>
         <Box
           sx={{
-            position: 'absolute',
+            position: "absolute",
             inset: 0,
-            borderRadius: '3px',
-            bgcolor: 'rgba(255,255,255,0.05)',
+            borderRadius: "3px",
+            bgcolor: "rgba(255,255,255,0.05)",
           }}
         />
         <Box
           sx={{
-            position: 'absolute',
-            left: '50%',
+            position: "absolute",
+            left: "50%",
             top: 0,
             bottom: 0,
-            width: '1px',
-            bgcolor: 'rgba(255,255,255,0.22)',
+            width: "1px",
+            bgcolor: "rgba(255,255,255,0.22)",
           }}
         />
         <Box
           sx={{
-            position: 'absolute',
+            position: "absolute",
             top: 1,
             bottom: 1,
-            borderRadius: '2px',
+            borderRadius: "2px",
             bgcolor: mine ? GOOD : BAD,
             opacity: 0.85,
             ...(mine
-              ? { left: '50%', width: `${width}%` }
-              : { right: '50%', width: `${width}%` }),
-            transition: 'width 380ms ease',
+              ? { left: "50%", width: `${width}%` }
+              : { right: "50%", width: `${width}%` }),
+            transition: "width 380ms ease",
           }}
         />
       </Box>
@@ -239,16 +280,16 @@ function DeltaRow({ cmp }: { cmp: DimensionComparison }) {
       <Typography
         sx={{
           fontFamily: MONO,
-          fontSize: '0.76rem',
+          fontSize: "0.76rem",
           fontWeight: 700,
           color: mine ? GOOD : BAD,
           width: 34,
-          textAlign: 'right',
+          textAlign: "right",
           flexShrink: 0,
-          fontVariantNumeric: 'tabular-nums',
+          fontVariantNumeric: "tabular-nums",
         }}
       >
-        {cmp.delta > 0 ? '+' : ''}
+        {cmp.delta > 0 ? "+" : ""}
         {cmp.delta}
       </Typography>
     </Stack>
@@ -259,14 +300,25 @@ function TrendChip({ series }: { series: RatingPoint[] }) {
   const trend = ratingTrend(series);
   if (trend === null) return null;
   const rising = trend > 0;
-  const color = trend === 0 ? 'rgba(255,255,255,0.5)' : rising ? GOOD : BAD;
+  const color = trend === 0 ? "rgba(255,255,255,0.5)" : rising ? GOOD : BAD;
   return (
     <Stack direction="row" spacing={0.5} alignItems="center">
-      <Box sx={{ color, display: 'flex' }}>
-        <Icon icon={rising ? 'mdi:trending-up' : trend === 0 ? 'mdi:trending-neutral' : 'mdi:trending-down'} width={13} />
+      <Box sx={{ color, display: "flex" }}>
+        <Icon
+          icon={
+            rising
+              ? "mdi:trending-up"
+              : trend === 0
+                ? "mdi:trending-neutral"
+                : "mdi:trending-down"
+          }
+          width={13}
+        />
       </Box>
-      <Typography sx={{ fontFamily: MONO, fontSize: '0.75rem', fontWeight: 700, color }}>
-        {trend > 0 ? '+' : ''}
+      <Typography
+        sx={{ fontFamily: MONO, fontSize: "0.75rem", fontWeight: 700, color }}
+      >
+        {trend > 0 ? "+" : ""}
         {trend}
       </Typography>
     </Stack>
@@ -280,7 +332,7 @@ function TrendChip({ series }: { series: RatingPoint[] }) {
 function Sparkline({ series }: { series: RatingPoint[] }) {
   const W = 100;
   const H = 30;
-  const ratings = series.map(p => p.rating);
+  const ratings = series.map((p) => p.rating);
   const min = Math.min(...ratings);
   const max = Math.max(...ratings);
   const span = Math.max(1, max - min);
@@ -295,15 +347,20 @@ function Sparkline({ series }: { series: RatingPoint[] }) {
   const stroke = trend > 0 ? GOOD : trend < 0 ? BAD : ROSE.base;
 
   return (
-    <Box sx={{ position: 'relative' }}>
+    <Box sx={{ position: "relative" }}>
       <Box
         component="svg"
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
-        sx={{ width: '100%', height: 48, display: 'block', overflow: 'visible' }}
+        sx={{
+          width: "100%",
+          height: 48,
+          display: "block",
+          overflow: "visible",
+        }}
       >
         <polyline
-          points={pts.join(' ')}
+          points={pts.join(" ")}
           fill="none"
           stroke={stroke}
           strokeWidth={1.4}

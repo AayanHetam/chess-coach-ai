@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { Box, Typography, Paper, CircularProgress } from "@mui/material";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
+import { Trophy } from "lucide-react";
+import {
+  ACCENT,
+  LINE,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 type RushMode = "three" | "five" | "survival";
 type RushField = "threeMin" | "fiveMin" | "survivalBest";
@@ -132,35 +141,33 @@ export function RushLeaderboard({
         mt: 3,
         maxWidth: 600,
         mx: "auto",
-        borderRadius: "1.5rem",
-        background: "rgba(20,22,28,0.55)",
-        backdropFilter: "blur(14px) saturate(140%)",
-        WebkitBackdropFilter: "blur(14px) saturate(140%)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        boxShadow:
-          "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+        borderRadius: `${RADIUS.card}px`,
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-        <EmojiEventsIcon sx={{ color: "warning.light", fontSize: 22 }} />
-        <Typography sx={{ fontWeight: 700, color: "rgba(255,255,255,0.94)" }}>
+        <Trophy
+          size={20}
+          strokeWidth={1.75}
+          color={TEXT.secondary}
+          aria-hidden
+        />
+        <Typography sx={{ ...TYPE.h5, color: TEXT.primary }}>
           Leaderboard
         </Typography>
       </Box>
 
       {entries === null && !errored && (
         <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
-          <CircularProgress
-            size={22}
-            sx={{ color: "rgba(255,255,255,0.35)" }}
-          />
+          <CircularProgress size={20} />
         </Box>
       )}
 
       {errored && (
         <Typography
           variant="body2"
-          sx={{ color: "rgba(255,255,255,0.45)", textAlign: "center", py: 2 }}
+          sx={{ color: TEXT.secondary, textAlign: "center", py: 2 }}
         >
           Couldn&rsquo;t load the leaderboard right now.
         </Typography>
@@ -169,9 +176,9 @@ export function RushLeaderboard({
       {entries !== null && entries.length === 0 && !errored && (
         <Typography
           variant="body2"
-          sx={{ color: "rgba(255,255,255,0.45)", textAlign: "center", py: 2 }}
+          sx={{ color: TEXT.secondary, textAlign: "center", py: 2 }}
         >
-          No scores yet — be the first.
+          No scores yet. Be the first.
         </Typography>
       )}
 
@@ -189,14 +196,14 @@ export function RushLeaderboard({
                   gap: 1.5,
                   px: 1.5,
                   py: 0.75,
-                  borderRadius: "0.75rem",
+                  borderRadius: `${RADIUS.small}px`,
                   background: isYou
-                    ? "rgba(249,115,22,0.14)"
+                    ? ACCENT.tint
                     : i < 3
-                      ? "rgba(255,255,255,0.04)"
+                      ? SURFACE.raisedSecondary
                       : "transparent",
                   border: isYou
-                    ? "1px solid rgba(249,115,22,0.35)"
+                    ? `1px solid ${ACCENT.border}`
                     : "1px solid transparent",
                 }}
               >
@@ -206,8 +213,8 @@ export function RushLeaderboard({
                     textAlign: "center",
                     fontWeight: 700,
                     fontSize: "0.85rem",
-                    fontFamily: "Monaco, monospace",
-                    color: i < 3 ? MEDAL_COLOR[i] : "rgba(255,255,255,0.4)",
+                    fontVariantNumeric: "tabular-nums",
+                    color: i < 3 ? MEDAL_COLOR[i] : TEXT.secondary,
                   }}
                 >
                   {i + 1}
@@ -217,7 +224,7 @@ export function RushLeaderboard({
                     flex: 1,
                     fontWeight: 600,
                     fontSize: "0.9rem",
-                    color: "rgba(255,255,255,0.88)",
+                    color: TEXT.primary,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
@@ -227,7 +234,7 @@ export function RushLeaderboard({
                   {isYou && (
                     <Box
                       component="span"
-                      sx={{ color: "#F97316", fontWeight: 700, ml: 0.75 }}
+                      sx={{ color: ACCENT.hover, fontWeight: 700, ml: 0.75 }}
                     >
                       you
                     </Box>
@@ -237,8 +244,8 @@ export function RushLeaderboard({
                   sx={{
                     fontWeight: 700,
                     fontSize: "0.9rem",
-                    fontFamily: "Monaco, monospace",
-                    color: "success.light",
+                    fontVariantNumeric: "tabular-nums",
+                    color: STATUS.success,
                   }}
                 >
                   {entry.score}
@@ -257,9 +264,9 @@ export function RushLeaderboard({
                 px: 1.5,
                 py: 0.75,
                 mt: 0.5,
-                borderRadius: "0.75rem",
-                background: "rgba(249,115,22,0.14)",
-                border: "1px solid rgba(249,115,22,0.35)",
+                borderRadius: `${RADIUS.small}px`,
+                background: ACCENT.tint,
+                border: `1px solid ${ACCENT.border}`,
               }}
             >
               <Typography
@@ -268,8 +275,8 @@ export function RushLeaderboard({
                   textAlign: "center",
                   fontWeight: 700,
                   fontSize: "0.85rem",
-                  fontFamily: "Monaco, monospace",
-                  color: "#F97316",
+                  fontVariantNumeric: "tabular-nums",
+                  color: ACCENT.hover,
                 }}
               >
                 {youRank}
@@ -279,7 +286,7 @@ export function RushLeaderboard({
                   flex: 1,
                   fontWeight: 600,
                   fontSize: "0.9rem",
-                  color: "rgba(255,255,255,0.88)",
+                  color: TEXT.primary,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -288,7 +295,7 @@ export function RushLeaderboard({
                 {youHandle ?? "You"}
                 <Box
                   component="span"
-                  sx={{ color: "#F97316", fontWeight: 700, ml: 0.75 }}
+                  sx={{ color: ACCENT.hover, fontWeight: 700, ml: 0.75 }}
                 >
                   you
                 </Box>
@@ -297,8 +304,8 @@ export function RushLeaderboard({
                 sx={{
                   fontWeight: 700,
                   fontSize: "0.9rem",
-                  fontFamily: "Monaco, monospace",
-                  color: "success.light",
+                  fontVariantNumeric: "tabular-nums",
+                  color: STATUS.success,
                 }}
               >
                 {youScore}

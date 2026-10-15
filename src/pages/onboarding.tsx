@@ -16,9 +16,9 @@ import {
 import { shouldSkipQuiz } from "@/lib/onboarding/quizGate";
 import { NavPill } from "@/components/ui/NavPill";
 
-const PAGE_TITLE = "Get your free chess profile — Chess Masti AI";
+const PAGE_TITLE = "Get your free chess profile · Chess Masti AI";
 const PAGE_DESC =
-  "Answer a few questions and get a personalized chess training plan: your level, your weaknesses, and your first puzzles — calibrated by an AI coach. Free.";
+  "Answer a few questions and get a training plan for your rating: your level, your weaknesses, and your first puzzles, set by Masti, your coach. Free.";
 
 /**
  * Pre-auth onboarding quiz funnel. The quiz is completable without an account;
@@ -157,13 +157,10 @@ export default function OnboardingPage() {
           width: "100%",
           pt: 2,
           px: { xs: 2, md: 3 },
-          background:
-            "radial-gradient(1200px 600px at 50% -10%, rgba(249,115,22,0.12), transparent 60%), linear-gradient(180deg, #0A0B0F 0%, #0E1016 100%)",
         }}
       >
-        {/* Mounted inside the page's own gradient rather than by Layout, so
-            the pill sits ON the funnel background instead of on a seam
-            between two near-black surfaces. */}
+        {/* Mounted inside the page rather than by Layout, so the pill sits
+            on the funnel's own frame. */}
         <NavPill />
 
         <OnboardingQuiz

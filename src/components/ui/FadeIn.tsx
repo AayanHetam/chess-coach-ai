@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import type { CSSProperties, ReactNode } from "react";
 
 interface FadeInProps {
@@ -10,29 +9,28 @@ interface FadeInProps {
   style?: CSSProperties;
 }
 
+/**
+ * A short cross-fade for content that arrives (a new chat message). Opacity
+ * only (the keyframes are in the theme's global CSS): nothing slides into
+ * place, and reduced-motion visitors get the baseline's near-zero durations.
+ */
 export function FadeIn({
   children,
   delay = 0,
-  durationMs = 220,
+  durationMs = 180,
   style,
 }: FadeInProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: durationMs / 1000,
-        delay,
-        ease: [0.22, 0.61, 0.36, 1],
-      }}
+    <div
       style={{
         display: "flex",
         flexDirection: "column",
         width: "100%",
+        animation: `cmFadeIn ${durationMs}ms ease-out ${delay}s both`,
         ...style,
       }}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }

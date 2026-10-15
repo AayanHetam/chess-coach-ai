@@ -1,11 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Box, Typography, Button, Paper, Chip, LinearProgress } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Button,
+  Paper,
+  Chip,
+  LinearProgress,
+} from "@mui/material";
 import { useAtomValue, useSetAtom } from "jotai";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
-import GridOnIcon from "@mui/icons-material/GridOn";
+import { Grid3x3, Trophy } from "lucide-react";
 import { useScreenSize } from "@/hooks/useScreenSize";
 import { coordinateTrainerBestAtom } from "@/lib/coordinateTrainer";
 import { DEFAULT_PUZZLE_THEME } from "@/components/puzzle/boardTheme";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+} from "@/theme/tokens";
 
 /**
  * Coordinate Trainer — board-fluency drill. A target square name is shown;
@@ -119,12 +134,15 @@ export default function CoordinateTrainer({ onBack }: CoordinateTrainerProps) {
       setFeedback({ square, correct });
       if (correct) setScore((s) => s + 1);
       else setMisses((m) => m + 1);
-      advanceRef.current = setTimeout(() => {
-        setFeedback(null);
-        setTarget((prev) => randomSquare(prev));
-      }, correct ? CORRECT_ADVANCE_MS : WRONG_ADVANCE_MS);
+      advanceRef.current = setTimeout(
+        () => {
+          setFeedback(null);
+          setTarget((prev) => randomSquare(prev));
+        },
+        correct ? CORRECT_ADVANCE_MS : WRONG_ADVANCE_MS
+      );
     },
-    [phase, feedback, target],
+    [phase, feedback, target]
   );
 
   const formatTimer = (seconds: number) => {
@@ -141,72 +159,48 @@ export default function CoordinateTrainer({ onBack }: CoordinateTrainerProps) {
           p: 4,
           maxWidth: 600,
           mx: "auto",
-          borderRadius: "1.5rem",
-          background: "rgba(20,22,28,0.55)",
-          backdropFilter: "blur(14px) saturate(140%)",
-          WebkitBackdropFilter: "blur(14px) saturate(140%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow:
-            "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+          borderRadius: `${RADIUS.card}px`,
+          background: SURFACE.raised,
+          border: `1px solid ${LINE.hairline}`,
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-          <GridOnIcon sx={{ color: "#6EE7B7", fontSize: 32 }} />
-          <Typography variant="h5" sx={{ fontWeight: 700, color: "rgba(255,255,255,0.94)" }}>
-            Coordinate Trainer
+          <Grid3x3
+            size={20}
+            strokeWidth={1.75}
+            color={TEXT.secondary}
+            aria-hidden
+          />
+          <Typography variant="h5" sx={{ color: TEXT.primary }}>
+            Coordinate trainer
           </Typography>
         </Box>
 
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          You&rsquo;ll be shown a square name — click it on the blank board as
-          fast as you can. {ROUND_SECONDS} seconds, no labels. Board fluency
-          is the thing every strong player has and never talks about.
+          You&rsquo;ll be shown a square name. Click it on the blank board as
+          fast as you can. {ROUND_SECONDS} seconds, no labels.
         </Typography>
 
         {best.best > 0 && (
           <Chip
-            icon={<EmojiEventsIcon sx={{ fontSize: 14 }} />}
+            icon={<Trophy size={16} strokeWidth={1.75} aria-hidden />}
             label={`Best: ${best.best}`}
             size="small"
-            sx={{ mb: 3, bgcolor: "rgba(255,193,7,0.15)", color: "warning.light" }}
+            sx={{ mb: 3 }}
           />
         )}
 
         <Box sx={{ display: "flex", gap: 2 }}>
-          <Button
-            variant="outlined"
-            onClick={onBack}
-            sx={{
-              textTransform: "none",
-              color: "rgba(255,255,255,0.85)",
-              borderColor: "rgba(255,255,255,0.18)",
-              background: "rgba(255,255,255,0.04)",
-              "&:hover": {
-                borderColor: "rgba(52,211,153,0.4)",
-                color: "#6EE7B7",
-                background: "rgba(52,211,153,0.12)",
-              },
-            }}
-          >
+          <Button variant="outlined" onClick={onBack}>
             Back
           </Button>
           <Button
             variant="contained"
             size="large"
             onClick={handleStart}
-            startIcon={<GridOnIcon />}
-            sx={{
-              px: 4,
-              fontWeight: 700,
-              textTransform: "none",
-              borderRadius: "999px",
-              bgcolor: "#F97316",
-              color: "#0A0A0A",
-              boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
-              "&:hover": { bgcolor: "#FB923C" },
-            }}
+            startIcon={<Grid3x3 size={18} strokeWidth={1.75} aria-hidden />}
           >
-            Start Drill
+            Start drill
           </Button>
         </Box>
       </Paper>
@@ -224,60 +218,46 @@ export default function CoordinateTrainer({ onBack }: CoordinateTrainerProps) {
           maxWidth: 480,
           mx: "auto",
           textAlign: "center",
-          borderRadius: "1.5rem",
-          background: "rgba(20,22,28,0.55)",
-          backdropFilter: "blur(14px) saturate(140%)",
-          WebkitBackdropFilter: "blur(14px) saturate(140%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow:
-            "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+          borderRadius: `${RADIUS.card}px`,
+          background: SURFACE.raised,
+          border: `1px solid ${LINE.hairline}`,
         }}
       >
         {isNewBest && (
-          <EmojiEventsIcon sx={{ fontSize: 48, color: "warning.main", mb: 1 }} />
+          <Trophy
+            size={48}
+            strokeWidth={1.75}
+            color={STATUS.warning}
+            aria-hidden
+            style={{ marginBottom: 8 }}
+          />
         )}
-        <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: "rgba(255,255,255,0.94)" }}>
-          {isNewBest ? "New Best!" : "Round Complete!"}
+        <Typography variant="h4" sx={{ mb: 1, color: TEXT.primary }}>
+          {isNewBest ? "New best" : "Round complete"}
         </Typography>
-        <Typography variant="h2" sx={{ fontWeight: 800, color: "success.light", mb: 1 }}>
+        <Typography
+          variant="h2"
+          sx={{
+            color: STATUS.success,
+            mb: 1,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
           {score}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           squares found · {accuracy}% accuracy
         </Typography>
         <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
-          <Button
-            variant="outlined"
-            onClick={onBack}
-            sx={{
-              textTransform: "none",
-              color: "rgba(255,255,255,0.85)",
-              borderColor: "rgba(255,255,255,0.18)",
-              background: "rgba(255,255,255,0.04)",
-              "&:hover": {
-                borderColor: "rgba(52,211,153,0.4)",
-                color: "#6EE7B7",
-                background: "rgba(52,211,153,0.12)",
-              },
-            }}
-          >
-            Back to Setup
+          <Button variant="outlined" onClick={onBack}>
+            Back to setup
           </Button>
           <Button
             variant="contained"
             onClick={handleStart}
-            startIcon={<GridOnIcon />}
-            sx={{
-              textTransform: "none",
-              fontWeight: 700,
-              borderRadius: "999px",
-              bgcolor: "#F97316",
-              color: "#0A0A0A",
-              boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
-              "&:hover": { bgcolor: "#FB923C" },
-            }}
+            startIcon={<Grid3x3 size={18} strokeWidth={1.75} aria-hidden />}
           >
-            Play Again
+            Play again
           </Button>
         </Box>
       </Paper>
@@ -295,44 +275,53 @@ export default function CoordinateTrainer({ onBack }: CoordinateTrainerProps) {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          borderRadius: "1rem",
-          background: "rgba(20,22,28,0.55)",
-          backdropFilter: "blur(14px) saturate(140%)",
-          WebkitBackdropFilter: "blur(14px) saturate(140%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          color: "rgba(255,255,255,0.94)",
+          borderRadius: `${RADIUS.card}px`,
+          background: SURFACE.raised,
+          border: `1px solid ${LINE.hairline}`,
+          color: TEXT.primary,
         }}
       >
         <Box sx={{ textAlign: "center" }}>
-          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>Score</Typography>
-          <Typography variant="h5" sx={{ fontWeight: 700, color: "success.light", lineHeight: 1, fontFamily: "Monaco, monospace" }}>
+          <Typography variant="caption" sx={{ color: TEXT.secondary }}>
+            Score
+          </Typography>
+          <Typography
+            variant="h5"
+            sx={{
+              color: STATUS.success,
+              lineHeight: 1,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
             {score}
           </Typography>
         </Box>
         <Box sx={{ textAlign: "center" }}>
-          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>Find</Typography>
+          <Typography variant="caption" sx={{ color: TEXT.secondary }}>
+            Find
+          </Typography>
           <Typography
             variant="h4"
             sx={{
-              fontWeight: 800,
+              fontWeight: 700,
               lineHeight: 1,
-              color: "#6EE7B7",
-              textTransform: "uppercase",
-              fontFamily: "Monaco, monospace",
+              color: TEXT.primary,
+              fontFamily: FONT_MONO,
             }}
           >
             {target}
           </Typography>
         </Box>
         <Box sx={{ textAlign: "center" }}>
-          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>Time Left</Typography>
+          <Typography variant="caption" sx={{ color: TEXT.secondary }}>
+            Time left
+          </Typography>
           <Typography
             variant="h5"
             sx={{
-              fontWeight: 700,
               lineHeight: 1,
-              fontFamily: "monospace",
-              color: timeLeft <= 10 ? "error.light" : "rgba(255,255,255,0.94)",
+              fontVariantNumeric: "tabular-nums",
+              color: timeLeft <= 10 ? STATUS.error : TEXT.primary,
             }}
           >
             {formatTimer(timeLeft)}
@@ -347,9 +336,8 @@ export default function CoordinateTrainer({ onBack }: CoordinateTrainerProps) {
           mb: 2,
           height: 6,
           borderRadius: 3,
-          bgcolor: "rgba(255,255,255,0.08)",
           "& .MuiLinearProgress-bar": {
-            bgcolor: timeLeft <= 10 ? "error.main" : "info.main",
+            bgcolor: timeLeft <= 10 ? STATUS.error : ACCENT.main,
             transition: "transform 1s linear",
           },
         }}
@@ -365,7 +353,6 @@ export default function CoordinateTrainer({ onBack }: CoordinateTrainerProps) {
             height: boardSize,
             borderRadius: DEFAULT_PUZZLE_THEME.radius,
             overflow: "hidden",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.45)",
           }}
         >
           {RANKS.map((rank, rankIdx) =>
@@ -373,14 +360,13 @@ export default function CoordinateTrainer({ onBack }: CoordinateTrainerProps) {
               const square = `${file}${rank}`;
               const isLight = (fileIdx + rankIdx) % 2 !== 0;
               const isFeedbackSquare = feedback?.square === square;
-              const isTargetReveal = feedback && !feedback.correct && square === target;
+              const isTargetReveal =
+                feedback && !feedback.correct && square === target;
               let background = isLight
                 ? DEFAULT_PUZZLE_THEME.light
                 : DEFAULT_PUZZLE_THEME.dark;
               if (isFeedbackSquare) {
-                background = feedback.correct
-                  ? "#22c55e"
-                  : "#ef4444";
+                background = feedback.correct ? "#22c55e" : "#ef4444";
               } else if (isTargetReveal) {
                 background = "#22c55e";
               }
@@ -395,7 +381,7 @@ export default function CoordinateTrainer({ onBack }: CoordinateTrainerProps) {
                   }}
                 />
               );
-            }),
+            })
           )}
         </Box>
       </Box>

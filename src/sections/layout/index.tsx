@@ -1,27 +1,16 @@
-import {
-  CssBaseline,
-  ThemeProvider,
-  createTheme,
-  Box,
-  Typography,
-} from "@mui/material";
+import { CssBaseline, ThemeProvider, Box, Typography } from "@mui/material";
 import { PropsWithChildren, useMemo } from "react";
-import { red } from "@mui/material/colors";
-import {
-  MAIN_THEME_COLOR,
-  INTERN_THEME_COLOR,
-  INTERN_THEME_COLOR_LIGHT,
-} from "@/constants";
+import { INTERN_THEME_COLOR, INTERN_THEME_COLOR_LIGHT } from "@/constants";
+import { buildChessMastiTheme } from "@/theme/chessMasti";
 import { Lc0DownloadBanner } from "@/components/Lc0DownloadBanner";
 import { useRouter } from "next/router";
 import { useViewer } from "@/hooks/useViewer";
 import { EmployeeChrome } from "@/components/intern/EmployeeChrome";
 import { GlobalAuthDialog } from "@/contexts/AuthDialogContext";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import { PartnerSlotPages } from "@/components/ads/PartnerSlotPages";
 
-// Routes that mount their own <GradientBackdrop /> + <NavPill /> inside the
+// Routes that mount their own <NavPill /> inside the
 // page component. Layout must NOT add a second set, or they double-stack.
 // Everything NOT listed here gets its chrome from Layout below.
 //
@@ -53,7 +42,7 @@ const SELF_CHROMED_ROUTES = new Set([
   "/repetit-training",
   "/scout",
   // The ChessUSA placement preview (a sales asset, noindex, not linked from
-  // anywhere on the site). /live mounts its own GradientBackdrop + NavPill
+  // anywhere on the site). /live mounts its own NavPill
   // because the whole point is to render the real chrome with the ad slot in
   // its real position under it — a Layout-provided pill would stack a second
   // one above the banner. The shell covers the viewport with its own fixed
@@ -87,35 +76,20 @@ export default function Layout({ children }: PropsWithChildren) {
   // /preview/* are server-side 308 stubs that never render a tree.
   const isPreviewStub = router.pathname.startsWith("/preview/");
 
-  const theme = useMemo(() => {
-    // CMIP intern view swaps the brand primary to deep blue. Customer view
-    // (default) keeps the orange theme unchanged.
-    const primary = isIntern ? INTERN_THEME_COLOR : MAIN_THEME_COLOR;
-
-    // Obsidian-Glass is dark everywhere, unconditionally. The old
-    // light/dark toggle lived in the deleted NavBar and the light palette
-    // painted `body { background: #fff }` over the pages' fixed zIndex:-1
-    // backdrops (negative-z elements paint before in-flow backgrounds once
-    // <html> carries its own background) — the white-landing bug of
-    // 2026-08-10. Removing the light mode removes that failure mode.
-    return createTheme({
-      palette: {
-        mode: "dark",
-        error: { main: red[400] },
-        primary: {
-          main: primary,
-          light: isIntern ? INTERN_THEME_COLOR_LIGHT : "#FF8C42",
-        },
-        secondary: { main: "#424242" },
-        background: {
-          // Matches the GradientBackdrop base tone exactly, so the
-          // CssBaseline body layer is invisible behind it.
-          default: "#08090C",
-          paper: "#14161C",
-        },
-      },
-    });
-  }, [isIntern]);
+  const theme = useMemo(
+    () =>
+      // CMIP intern view swaps the brand primary to deep blue. Customer view
+      // (default) keeps the ember accent. Dark everywhere, unconditionally:
+      // the old light palette painted body white over the pages' fixed
+      // backdrops (the white-landing bug of 2026-08-10).
+      isIntern
+        ? buildChessMastiTheme({
+            primary: INTERN_THEME_COLOR,
+            primaryLight: INTERN_THEME_COLOR_LIGHT,
+          })
+        : buildChessMastiTheme(),
+    [isIntern]
+  );
 
   const shell = (
     <>
@@ -141,7 +115,6 @@ export default function Layout({ children }: PropsWithChildren) {
   return (
     <ThemeProvider theme={theme}>
       {shell}
-      <GradientBackdrop />
       <EmployeeChrome>
         <main
           style={{

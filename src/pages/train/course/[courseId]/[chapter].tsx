@@ -26,15 +26,22 @@ import { useRouter } from "next/router";
 import { useAtomValue } from "jotai";
 import { Chess } from "chess.js";
 import { ArrowRight, ChevronLeft } from "lucide-react";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import OpeningDiagram from "@/components/learn/OpeningDiagram";
 import { pieceSetAtom } from "@/components/board/states";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 import type { FlashState } from "@/components/puzzle/FlashOverlay";
-import { CourseRoundRail, CourseRoundStrip } from "@/components/train/CourseRoundRail";
+import {
+  CourseRoundRail,
+  CourseRoundStrip,
+} from "@/components/train/CourseRoundRail";
 import { CourseTeachCard } from "@/components/train/CourseTeachCard";
 import { RoundSummary } from "@/components/train/RoundSummary";
-import { MastiAvatar, MastiSays, scoreMood, type MastiMood } from "@/components/masti";
+import {
+  MastiAvatar,
+  MastiSays,
+  scoreMood,
+  type MastiMood,
+} from "@/components/masti";
 import { hintAt, hintLadder, type Hint } from "@/lib/learn/hint";
 import { fetchOpeningTheory } from "@/lib/theory/fetchOpeningTheory";
 import type { OpeningTheory } from "@/types/theory";
@@ -47,7 +54,11 @@ import { resolveUserRating } from "@/lib/coach/userRating";
 import { bandFor, type BandId } from "@/lib/repertoire/levels";
 import { loadCourse } from "@/lib/courses/load";
 import { viewFor } from "@/lib/courses/view";
-import { probesOf, toTrainerLine, type CourseProbe } from "@/lib/courses/probes";
+import {
+  probesOf,
+  toTrainerLine,
+  type CourseProbe,
+} from "@/lib/courses/probes";
 import { keysUnder, planChapter } from "@/lib/courses/studies";
 import { numbered } from "@/lib/courses/lines";
 import {
@@ -59,6 +70,16 @@ import {
 } from "@/lib/learn/courseRoute";
 import { drillHref, isDrill, studyParam } from "@/lib/learn/courseHubRoute";
 import { loadChapter, writeChapter } from "@/lib/learn/chapterProgress";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 import { pullChapter, pushChapter } from "@/lib/learn/chapterSync";
 import {
   ROUND_SIZE,
@@ -134,7 +155,9 @@ export default function CourseTrainerPage(props: Props) {
 
   // Local first, always. The screen knows what you know before any network.
   useEffect(() => {
-    setRecords(account ? loadChapter(account, props.courseId, props.chapter) : {});
+    setRecords(
+      account ? loadChapter(account, props.courseId, props.chapter) : {}
+    );
     setRecordsKey(`${account}:${props.courseId}:${props.chapter}`);
   }, [account, props.courseId, props.chapter]);
 
@@ -152,7 +175,11 @@ export default function CourseTrainerPage(props: Props) {
   useEffect(() => {
     if (!account) return;
     let live = true;
-    pullChapter({ account, courseId: props.courseId, chapter: props.chapter }).then((merged) => {
+    pullChapter({
+      account,
+      courseId: props.courseId,
+      chapter: props.chapter,
+    }).then((merged) => {
       if (live && merged) setRecords(merged);
     });
     return () => {
@@ -160,7 +187,10 @@ export default function CourseTrainerPage(props: Props) {
     };
   }, [account, props.courseId, props.chapter]);
 
-  const tally = useMemo(() => roundTally(props.probes, records), [props.probes, records]);
+  const tally = useMemo(
+    () => roundTally(props.probes, records),
+    [props.probes, records]
+  );
 
   // ── The round.
   //
@@ -186,7 +216,11 @@ export default function CourseTrainerPage(props: Props) {
           ? courseTrainerHref(props.courseId, props.chapter)
           : courseRoundHref(props.courseId, props.chapter, r);
       }
-      const base = drillHref(props.courseId, props.chapter, props.studyId ?? undefined);
+      const base = drillHref(
+        props.courseId,
+        props.chapter,
+        props.studyId ?? undefined
+      );
       return r === undefined ? base : `${base}&round=${Math.max(1, r)}`;
     },
     [props.drill, props.courseId, props.chapter, props.studyId]
@@ -200,8 +234,13 @@ export default function CourseTrainerPage(props: Props) {
    * and get out of the way, or teach. Keeping them in one piece of state means
    * the board and the panel cannot disagree about which one is happening.
    */
-  const [answer, setAnswer] = useState<{ san: string; right: boolean } | null>(null);
-  const [flash, setFlash] = useState<{ state: FlashState; flashKey: number } | null>(null);
+  const [answer, setAnswer] = useState<{ san: string; right: boolean } | null>(
+    null
+  );
+  const [flash, setFlash] = useState<{
+    state: FlashState;
+    flashKey: number;
+  } | null>(null);
   const [wrongSquare, setWrongSquare] = useState<string | null>(null);
   /** Hint rungs taken on the question that is open. Resets with the question. */
   const [hints, setHints] = useState(0);
@@ -250,7 +289,13 @@ export default function CourseTrainerPage(props: Props) {
         ? startDrill(props.probes, round)
         : // The clock is what lets an earned card come back. Passed in rather
           // than read inside, so the queue stays a pure function of its inputs.
-          startRound(props.probes, recordsRef.current, round, ROUND_SIZE, Date.now())
+          startRound(
+            props.probes,
+            recordsRef.current,
+            round,
+            ROUND_SIZE,
+            Date.now()
+          )
     );
   }, [running, round, props.probes, recordsKey, props.drill]);
 
@@ -266,7 +311,7 @@ export default function CourseTrainerPage(props: Props) {
     setTheory(null);
     if (!probe) return;
     let live = true;
-    fetchOpeningTheory([probe.fen]).then(map => {
+    fetchOpeningTheory([probe.fen]).then((map) => {
       if (live) setTheory(map.get(probe.fen) ?? null);
     });
     return () => {
@@ -285,11 +330,20 @@ export default function CourseTrainerPage(props: Props) {
     (next: Records) => {
       setRecords(next);
       if (!account) return;
-      const ok = writeChapter(account, props.courseId, props.chapter, next, Date.now());
+      const ok = writeChapter(
+        account,
+        props.courseId,
+        props.chapter,
+        next,
+        Date.now()
+      );
       setSaved(ok);
       // The account copy is best-effort and silent. The local write is the one
       // whose failure the player is told about.
-      void pushChapter({ account, courseId: props.courseId, chapter: props.chapter }, next);
+      void pushChapter(
+        { account, courseId: props.courseId, chapter: props.chapter },
+        next
+      );
     },
     [account, props.courseId, props.chapter]
   );
@@ -324,9 +378,17 @@ export default function CourseTrainerPage(props: Props) {
       const now = Date.now();
       persist({
         ...records,
-        [probe.key]: gradeAsk(recordFor(records, probe.key), { right, hinted, round, at: now }),
+        [probe.key]: gradeAsk(recordFor(records, probe.key), {
+          right,
+          hinted,
+          round,
+          at: now,
+        }),
       });
-      setScored(s => ({ right: s.right + (right ? 1 : 0), wrong: s.wrong + (right ? 0 : 1) }));
+      setScored((s) => ({
+        right: s.right + (right ? 1 : 0),
+        wrong: s.wrong + (right ? 0 : 1),
+      }));
       setFlash({ state: right ? "green" : "red", flashKey: now });
       setWrongSquare(right ? null : to);
 
@@ -339,7 +401,7 @@ export default function CourseTrainerPage(props: Props) {
           setFlash(null);
           setAnswer(null);
           setHints(0);
-          setRoundState(s => (s ? answerRound(s, true) : s));
+          setRoundState((s) => (s ? answerRound(s, true) : s));
         }, 900);
       }
       // Wrong stops and waits. The asymmetry is deliberate: attention is spent
@@ -354,11 +416,13 @@ export default function CourseTrainerPage(props: Props) {
     setWrongSquare(null);
     setFlash(null);
     setHints(0);
-    setRoundState(s => (s ? answerRound(s, false) : s));
+    setRoundState((s) => (s ? answerRound(s, false) : s));
   }, []);
 
   const exit = useCallback(() => {
-    void router.push(props.drill ? drillHref(props.courseId) : courseReaderHref(props.courseId));
+    void router.push(
+      props.drill ? drillHref(props.courseId) : courseReaderHref(props.courseId)
+    );
   }, [router, props.courseId, props.drill]);
 
   const restart = useCallback(() => {
@@ -368,7 +432,9 @@ export default function CourseTrainerPage(props: Props) {
     setHints(0);
     setScored({ right: 0, wrong: 0 });
     setRoundState(
-      props.drill ? startDrill(props.probes, round) : startRound(props.probes, records, round)
+      props.drill
+        ? startDrill(props.probes, round)
+        : startRound(props.probes, records, round)
     );
   }, [props.probes, records, round, props.drill]);
 
@@ -384,7 +450,10 @@ export default function CourseTrainerPage(props: Props) {
     [probe]
   );
   const hint = hintAt(ladder, hints);
-  const takeHint = useCallback(() => setHints(h => Math.min(h + 1, ladder.length)), [ladder.length]);
+  const takeHint = useCallback(
+    () => setHints((h) => Math.min(h + 1, ladder.length)),
+    [ladder.length]
+  );
 
   // The round is over: say what it did. This used to `router.replace` straight
   // into the next round, which threw away the one number the mode can claim —
@@ -394,10 +463,9 @@ export default function CourseTrainerPage(props: Props) {
     return (
       <>
         <Head>
-          <title key="title">{`Train ${props.courseName} — Chess Masti AI`}</title>
+          <title key="title">{`Train ${props.courseName} · Chess Masti AI`}</title>
           <meta name="robots" content="noindex" />
         </Head>
-        <GradientBackdrop />
         <Box
           sx={{
             minHeight: "100dvh",
@@ -418,8 +486,14 @@ export default function CourseTrainerPage(props: Props) {
             drill={props.drill}
             dueAt={props.drill ? null : nextDueAt(records)}
             nextHref={round < props.rounds ? phaseHref(round + 1) : null}
-            exitHref={props.drill ? drillHref(props.courseId) : courseReaderHref(props.courseId)}
-            exitLabel={props.drill ? "Drill something else" : "Back to the course"}
+            exitHref={
+              props.drill
+                ? drillHref(props.courseId)
+                : courseReaderHref(props.courseId)
+            }
+            exitLabel={
+              props.drill ? "Drill something else" : "Back to the course"
+            }
             now={now}
           />
         </Box>
@@ -484,11 +558,10 @@ export default function CourseTrainerPage(props: Props) {
   return (
     <>
       <Head>
-        <title key="title">{`Train ${props.courseName} — Chess Masti AI`}</title>
+        <title key="title">{`Train ${props.courseName} · Chess Masti AI`}</title>
         {/* Progress is per account; nothing here belongs in a shared cache. */}
         <meta name="robots" content="noindex" />
       </Head>
-      <GradientBackdrop />
       <Box
         sx={{
           minHeight: "100dvh",
@@ -501,7 +574,11 @@ export default function CourseTrainerPage(props: Props) {
       >
         <Box sx={{ width: "100%", maxWidth: 720 }}>
           <Link
-            href={props.drill ? drillHref(props.courseId) : courseReaderHref(props.courseId)}
+            href={
+              props.drill
+                ? drillHref(props.courseId)
+                : courseReaderHref(props.courseId)
+            }
             style={{
               // On the ANCHOR, not on the text inside it: an <a> is inline by
               // default, so its box is the line box and a minHeight on a child
@@ -512,8 +589,8 @@ export default function CourseTrainerPage(props: Props) {
               minHeight: 44,
               paddingRight: "0.5rem",
               textDecoration: "none",
-              color: "rgba(255,255,255,0.62)",
-              fontSize: "0.85rem",
+              color: TEXT.secondary,
+              fontSize: TYPE.bodySmall.fontSize,
             }}
             data-testid="course-trainer-back"
           >
@@ -522,18 +599,24 @@ export default function CourseTrainerPage(props: Props) {
           </Link>
 
           <Box sx={{ display: "flex", gap: 2, alignItems: "center", mt: 1 }}>
-            <OpeningDiagram moves={props.chapterLine} side={props.side} px={104} />
+            <OpeningDiagram
+              moves={props.chapterLine}
+              side={props.side}
+              px={104}
+            />
             <Box sx={{ minWidth: 0 }}>
               <Typography
                 sx={{
-                  fontFamily: "var(--font-mono, ui-monospace, monospace)",
-                  fontSize: { xs: "0.95rem", md: "1.05rem" },
-                  color: "rgba(255,255,255,0.92)",
+                  ...TYPE.bodySmall,
+                  fontFamily: FONT_MONO,
+                  color: TEXT.primary,
                 }}
               >
                 {numbered(props.chapterLine)}
               </Typography>
-              <Typography sx={{ color: "rgba(255,255,255,0.58)", fontSize: "0.85rem", mt: 0.5 }}>
+              <Typography
+                sx={{ ...TYPE.bodySmall, color: TEXT.secondary, mt: 0.5 }}
+              >
                 {Math.round(props.chapterShare * 100)}% of what you meet here
               </Typography>
             </Box>
@@ -542,24 +625,20 @@ export default function CourseTrainerPage(props: Props) {
           <Typography
             component="h1"
             data-testid="course-headline"
-            sx={{
-              mt: 4,
-              fontSize: { xs: "1.1rem", md: "1.25rem" },
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "rgba(255,255,255,0.92)",
-            }}
+            sx={{ ...TYPE.h3, mt: 4, color: TEXT.primary }}
           >
-            {props.drill ? "Everything, asked cold." : "Before we teach anything, we ask."}
+            {props.drill
+              ? "Everything, asked cold."
+              : "Before we teach anything, we ask."}
           </Typography>
 
           {props.drill && (
             <Typography
               data-testid="drill-scope"
-              sx={{ mt: 1, color: "rgba(255,255,255,0.58)", fontSize: "0.88rem", lineHeight: 1.6 }}
+              sx={{ ...TYPE.bodySmall, mt: 1, color: TEXT.secondary }}
             >
               {props.studyTitle
-                ? `${props.studyTitle} — every decision in it, whether or not you owe it.`
+                ? `${props.studyTitle}: every decision in it, whether or not you owe it.`
                 : "Every decision in this chapter, whether or not you owe it."}
             </Typography>
           )}
@@ -575,18 +654,26 @@ export default function CourseTrainerPage(props: Props) {
               m: 0,
             }}
           >
-            <Bucket label="Not asked yet" value={tally.unseen} testid="bucket-unseen" />
-            <Bucket label="Still learning" value={tally.learning} testid="bucket-learning" />
+            <Bucket
+              label="Not asked yet"
+              value={tally.unseen}
+              testid="bucket-unseen"
+            />
+            <Bucket
+              label="Still learning"
+              value={tally.learning}
+              testid="bucket-learning"
+            />
             <Bucket label="Known" value={tally.known} testid="bucket-known" />
           </Box>
 
           {props.capped && (
             <Typography
               data-testid="course-capped"
-              sx={{ mt: 2, color: "rgba(255,255,255,0.58)", fontSize: "0.85rem" }}
+              sx={{ ...TYPE.bodySmall, mt: 2, color: TEXT.secondary }}
             >
-              Showing the {props.probes.length} most likely of {props.total} positions in this
-              chapter.
+              Showing the {props.probes.length} most likely of {props.total}{" "}
+              positions in this chapter.
             </Typography>
           )}
 
@@ -595,7 +682,10 @@ export default function CourseTrainerPage(props: Props) {
               label="This sitting"
               value={`${props.rounds} ${props.rounds === 1 ? "round" : "rounds"} · ${ROUND_SIZE} positions a round`}
             />
-            <Fact label="Shown to" value={`${props.theoryPlies} plies, the depth for your level`} />
+            <Fact
+              label="Shown to"
+              value={`${props.theoryPlies} plies, the depth for your level`}
+            />
             <Fact label="Your level" value={props.bandName} />
             {/*
               The corpus, named. NOT the band: "Frequencies from Improving"
@@ -637,19 +727,27 @@ export default function CourseTrainerPage(props: Props) {
             >
               <Box
                 sx={{
+                  // The one primary action on the contract screen.
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "space-between",
                   gap: 2,
                   minHeight: 52,
                   px: 3,
-                  borderRadius: "1.5rem",
-                  border: "1px solid rgba(251,146,60,0.42)",
-                  background: "rgba(251,146,60,0.10)",
-                  color: "#FB923C",
-                  fontSize: "0.98rem",
-                  transition: "background 200ms ease-out",
-                  "&:hover": { background: "rgba(251,146,60,0.16)" },
+                  borderRadius: `${RADIUS.pill}px`,
+                  background: ACCENT.main,
+                  color: TEXT.onAccent,
+                  fontSize: TYPE.body.fontSize,
+                  fontWeight: 600,
+                  touchAction: "manipulation",
+                  WebkitTapHighlightColor: "transparent",
+                  transition: `background-color ${MOTION.hover}, transform ${MOTION.press}`,
+                  "&:hover": { background: ACCENT.hover },
+                  "&:active": { transform: MOTION.pressScale },
+                  "a:focus-visible > &": {
+                    outline: `2px solid ${TEXT.primary}`,
+                    outlineOffset: 2,
+                  },
                 }}
               >
                 Start round 1
@@ -740,11 +838,16 @@ function RoundScreen({
   return (
     <>
       <Head>
-        <title key="title">{`Train ${props.courseName} — Chess Masti AI`}</title>
+        <title key="title">{`Train ${props.courseName} · Chess Masti AI`}</title>
         <meta name="robots" content="noindex" />
       </Head>
-      <GradientBackdrop />
-      <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, minHeight: "100dvh" }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          minHeight: "100dvh",
+        }}
+      >
         <CourseRoundStrip {...railProps} title={numbered(props.chapterLine)} />
         <CourseRoundRail {...railProps} />
 
@@ -778,7 +881,11 @@ function RoundScreen({
             />
           </Box>
           <Typography
-            sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.78rem", fontVariantNumeric: "tabular-nums" }}
+            sx={{
+              ...TYPE.caption,
+              color: TEXT.secondary,
+              fontVariantNumeric: "tabular-nums",
+            }}
           >
             {answer
               ? `You played ${answer.san}`
@@ -792,7 +899,7 @@ function RoundScreen({
             flexShrink: 0,
             px: { xs: 2, md: 3 },
             py: { xs: 2, md: 4 },
-            borderLeft: { md: "1px solid rgba(255,255,255,0.06)" },
+            borderLeft: { md: `1px solid ${LINE.hairline}` },
           }}
         >
           {teaching && answer ? (
@@ -821,12 +928,7 @@ function RoundScreen({
                 <Typography
                   role="status"
                   aria-live="polite"
-                  sx={{
-                    fontSize: "1rem",
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                    color: "rgba(255,255,255,0.92)",
-                  }}
+                  sx={{ ...TYPE.h5, color: TEXT.primary }}
                 >
                   Correct.
                 </Typography>
@@ -835,10 +937,10 @@ function RoundScreen({
                   composed, and there is nothing to add to a right answer. */}
               <Typography
                 sx={{
-                  fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                  fontSize: "1.1rem",
-                  textTransform: "none",
-                  color: "#FB923C",
+                  fontFamily: FONT_MONO,
+                  fontSize: TYPE.h4.fontSize,
+                  fontWeight: 600,
+                  color: TEXT.primary,
                 }}
               >
                 {answer.san}
@@ -856,14 +958,7 @@ function RoundScreen({
                   ring={false}
                   data-testid="round-masti"
                 />
-                <Typography
-                  sx={{
-                    fontSize: "1rem",
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                    color: "rgba(255,255,255,0.92)",
-                  }}
-                >
+                <Typography sx={{ ...TYPE.h5, color: TEXT.primary }}>
                   Your move
                 </Typography>
                 {/* Item history as state, not as a sentence. */}
@@ -871,19 +966,20 @@ function RoundScreen({
                   <Typography
                     data-testid="asked-again"
                     sx={{
-                      fontSize: "0.7rem",
+                      ...TYPE.caption,
+                      fontWeight: 500,
                       px: 1,
                       py: 0.25,
-                      borderRadius: "0.6rem",
-                      border: "1px solid rgba(255,255,255,0.14)",
-                      color: "rgba(255,255,255,0.55)",
+                      borderRadius: `${RADIUS.small}px`,
+                      background: SURFACE.raisedSecondary,
+                      color: TEXT.primary,
                     }}
                   >
                     Asked again
                   </Typography>
                 )}
               </Box>
-              <Typography sx={{ color: "rgba(255,255,255,0.62)", fontSize: "0.9rem" }}>
+              <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
                 Play the move this course plays here.
               </Typography>
 
@@ -898,7 +994,7 @@ function RoundScreen({
                   data-testid="hint-text"
                   role="status"
                   aria-live="polite"
-                  sx={{ color: "#FB923C", fontSize: "0.95rem" }}
+                  sx={{ ...TYPE.bodySmall, color: TEXT.primary }}
                 >
                   {hint.text}
                 </Typography>
@@ -913,18 +1009,30 @@ function RoundScreen({
                     justifySelf: "start",
                     minHeight: 44,
                     px: 2,
-                    borderRadius: "0.9rem",
-                    border: "1px solid rgba(255,255,255,0.14)",
-                    background: "rgba(255,255,255,0.04)",
-                    color: "rgba(255,255,255,0.7)",
-                    fontSize: "0.84rem",
+                    borderRadius: `${RADIUS.pill}px`,
+                    border: `1px solid ${LINE.strong}`,
+                    background: "transparent",
+                    color: TEXT.primary,
+                    fontSize: TYPE.bodySmall.fontSize,
+                    fontWeight: 600,
                     cursor: "pointer",
-                    transition: "background 200ms ease-out",
-                    "&:hover": { background: "rgba(255,255,255,0.09)", color: "#fff" },
-                    "&:focus-visible": { outline: "2px solid #FB923C", outlineOffset: 2 },
+                    touchAction: "manipulation",
+                    WebkitTapHighlightColor: "transparent",
+                    transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
+                    "&:hover": {
+                      background: "rgba(255,255,255,0.06)",
+                      borderColor: TEXT.secondary,
+                    },
+                    "&:active": { transform: MOTION.pressScale },
+                    "&:focus-visible": {
+                      outline: `2px solid ${TEXT.primary}`,
+                      outlineOffset: 2,
+                    },
                   }}
                 >
-                  {hint ? "Narrow it down" : "Hint — this one will not count as known"}
+                  {hint
+                    ? "Narrow it down"
+                    : "Hint: this one will not count as known"}
                 </Box>
               )}
             </Box>
@@ -936,9 +1044,9 @@ function RoundScreen({
             <Typography
               data-testid="not-saved"
               sx={{
+                ...TYPE.caption,
                 mt: 2,
-                color: "rgba(255,255,255,0.5)",
-                fontSize: "0.78rem",
+                color: TEXT.secondary,
                 display: "flex",
                 alignItems: "center",
                 gap: 0.75,
@@ -954,25 +1062,38 @@ function RoundScreen({
   );
 }
 
-function Bucket({ label, value, testid }: { label: string; value: number; testid: string }) {
+function Bucket({
+  label,
+  value,
+  testid,
+}: {
+  label: string;
+  value: number;
+  testid: string;
+}) {
   return (
     <Box
       sx={{
-        borderRadius: "1.5rem",
-        border: "1px solid rgba(255,255,255,0.10)",
-        background: "rgba(255,255,255,0.04)",
-        backdropFilter: "blur(12px)",
+        borderRadius: `${RADIUS.card}px`,
+        border: `1px solid ${LINE.hairline}`,
+        background: SURFACE.raised,
         px: 2,
         py: 1.75,
       }}
     >
-      <Box component="dt" sx={{ color: "rgba(255,255,255,0.52)", fontSize: "0.7rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+      <Box component="dt" sx={{ ...TYPE.label, color: TEXT.secondary }}>
         {label}
       </Box>
       <Box
         component="dd"
         data-testid={testid}
-        sx={{ m: 0, mt: 0.5, fontSize: "1.6rem", color: "rgba(255,255,255,0.92)", fontVariantNumeric: "tabular-nums" }}
+        sx={{
+          ...TYPE.h3,
+          m: 0,
+          mt: 0.5,
+          color: TEXT.primary,
+          fontVariantNumeric: "tabular-nums",
+        }}
       >
         {value}
       </Box>
@@ -994,14 +1115,20 @@ function Fact({ label, value }: { label: string; value: string }) {
         alignItems: "baseline",
       }}
     >
-      <Typography sx={{ color: "rgba(255,255,255,0.48)", fontSize: "0.8rem" }}>{label}</Typography>
-      <Typography sx={{ color: "rgba(255,255,255,0.78)", fontSize: "0.88rem" }}>{value}</Typography>
+      <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
+        {label}
+      </Typography>
+      <Typography sx={{ ...TYPE.bodySmall, color: TEXT.primary }}>
+        {value}
+      </Typography>
     </Box>
   );
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
-  const courseId = Array.isArray(ctx.params?.courseId) ? ctx.params?.courseId[0] : ctx.params?.courseId;
+  const courseId = Array.isArray(ctx.params?.courseId)
+    ? ctx.params?.courseId[0]
+    : ctx.params?.courseId;
   const chapter = chapterParam(ctx.params?.chapter);
   if (chapter === null) return { notFound: true };
 
@@ -1046,13 +1173,18 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const studyId = drill ? studyParam(ctx.query.study) : null;
   let studyTitle: string | null = null;
   if (studyId) {
-    const plan = planChapter(view.nodes, chapterView, view.maxPly, course.meta.side);
-    const study = plan.studies.find(candidate => candidate.id === studyId);
+    const plan = planChapter(
+      view.nodes,
+      chapterView,
+      view.maxPly,
+      course.meta.side
+    );
+    const study = plan.studies.find((candidate) => candidate.id === studyId);
     // A study id that is not one of this chapter's studies is not a scope. Fall
     // back to the whole chapter rather than to an empty session.
     if (study) {
       const keys = keysUnder(view.nodes, study.at, view.maxPly, chapter);
-      const narrowed = probes.filter(probe => keys.has(probe.key));
+      const narrowed = probes.filter((probe) => keys.has(probe.key));
       if (narrowed.length > 0) {
         probes = narrowed;
         total = narrowed.length;
@@ -1102,7 +1234,10 @@ function hintSquares(hint: Hint | null): Record<string, React.CSSProperties> {
   if (!hint || hint.squares.length === 0) return {};
   const styles: Record<string, React.CSSProperties> = {};
   for (const square of hint.squares) {
-    styles[square] = { background: "rgba(251,146,60,0.28)", boxShadow: "inset 0 0 0 2px #FB923C" };
+    styles[square] = {
+      background: "rgba(251,146,60,0.28)",
+      boxShadow: `inset 0 0 0 2px ${ACCENT.hover}`,
+    };
   }
   return styles;
 }

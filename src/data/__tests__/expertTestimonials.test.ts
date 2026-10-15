@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { MASTERS_LABEL } from "@/components/landing/HomeMasters";
 import {
   EXPERT_TESTIMONIALS,
   testimonialInitials,
@@ -90,30 +91,34 @@ describe("expert testimonials", () => {
     expect(testimonialInitials("Magnus")).toBe("M");
   });
 
-  it("is rendered by the landing page, directly under the hero", () => {
-    const source = fs.readFileSync(
-      path.join(root, "src/pages/index.tsx"),
+  it("is on the home page's one screen, under the start button", () => {
+    const hero = fs.readFileSync(
+      path.join(root, "src/components/landing/Hero.tsx"),
       "utf8"
     );
-    expect(source).toContain('from "@/data/expertTestimonials"');
-    expect(source).toContain("<ExpertTestimonials />");
-    // Section order: hero, then the grandmasters, then everything else. The
-    // endorsement is the first thing a visitor reads after the pitch.
-    expect(source.indexOf("<Hero />")).toBeLessThan(
-      source.indexOf("<ExpertTestimonials />")
+    const masters = fs.readFileSync(
+      path.join(root, "src/components/landing/HomeMasters.tsx"),
+      "utf8"
     );
-    expect(source.indexOf("<ExpertTestimonials />")).toBeLessThan(
-      source.indexOf("<MarqueeStrip />")
+    expect(masters).toContain('from "@/data/expertTestimonials"');
+    expect(hero).toContain("<HomeMasters");
+    // Under the button, never above it: the endorsement is a credibility
+    // signal for whoever looks, not a choice on the way to the start.
+    expect(hero.indexOf("<StartButton />")).toBeLessThan(
+      hero.indexOf("<HomeMasters")
     );
-    // The hero's one-line signal deep-links to the section.
-    expect(source).toContain('id="gm-backed"');
-    expect(source).toContain('href="#gm-backed"');
-    // The section copy is written against the roster: two grandmasters and
-    // one FIDE Master. A heading that still said "grandmasters" over an FM's
-    // card would overstate his title, so the roster line is pinned here and
-    // must be rewritten in the same change as the data file.
-    // Prettier re-wraps JSX text, so pin the roster phrase, not the whole line.
-    expect(source).toContain("What titled players say");
-    expect(source).toContain("Two grandmasters and a FIDE Master");
+    // The quote is handed to the face's tooltip whole.
+    expect(masters).toContain("{t.quote}");
+    // The label is written against the roster. Each face is named by the
+    // person's own title, so the label must not claim one for the group
+    // that not everyone holds: "grandmasters" over an FM would overstate
+    // his title.
+    expect(MASTERS_LABEL).toBe("Backed by chess masters");
+    const allGrandmasters = EXPERT_TESTIMONIALS.every(
+      (t) => t.title === "Grandmaster"
+    );
+    if (!allGrandmasters) {
+      expect(MASTERS_LABEL).not.toMatch(/grandmaster/i);
+    }
   });
 });

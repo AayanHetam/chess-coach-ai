@@ -9,6 +9,16 @@ import {
   type PerfDraftFields,
   type PerfDrafts,
 } from "@/lib/curriculum/perfGoalDrafts";
+import {
+  ACCENT,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 /**
  * "Your current and goal ratings" — bullet, blitz and rapid, each as a
@@ -25,8 +35,8 @@ import {
  * control is a clearer promise than one abstract number.
  */
 
-const EMBER = "#F97316";
-const EMBER_BRIGHT = "#FB923C";
+const EMBER = ACCENT.main;
+const EMBER_BRIGHT = ACCENT.hover;
 
 interface PerfGoalFieldsProps {
   drafts: PerfDrafts;
@@ -60,7 +70,9 @@ export default function PerfGoalFields({
   );
 }
 
-// ─── One control's card ─────────────────────────────────────────────────────
+// ─── One control's row ──────────────────────────────────────────────────────
+// A nested block on whichever card hosts the fields (the quiz card, the
+// profile goal setter): one filled level, never a second card.
 
 function PerfGoalRow({
   perf,
@@ -88,23 +100,15 @@ function PerfGoalRow({
     <Box
       sx={{
         p: 1.5,
-        borderRadius: "14px",
-        background: "rgba(255,255,255,0.03)",
+        borderRadius: `${RADIUS.control}px`,
+        background: SURFACE.raisedSecondary,
         border: error
-          ? "1px solid rgba(251,191,36,0.45)"
-          : "1px solid rgba(255,255,255,0.08)",
+          ? `1px solid ${STATUS.error}`
+          : `1px solid ${LINE.hairline}`,
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-        <Typography
-          sx={{
-            color: "rgba(255,255,255,0.65)",
-            fontSize: "0.72rem",
-            fontWeight: 700,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-          }}
-        >
+        <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
           {PERF_LABEL[perf]}
         </Typography>
         <Box sx={{ flex: 1 }} />
@@ -112,13 +116,17 @@ function PerfGoalRow({
           <Typography
             sx={{
               px: 1,
-              py: 0.2,
-              borderRadius: "999px",
-              fontSize: "0.72rem",
-              fontWeight: 700,
+              py: 0.25,
+              minHeight: 24,
+              display: "inline-flex",
+              alignItems: "center",
+              borderRadius: `${RADIUS.small}px`,
+              ...TYPE.caption,
+              fontWeight: 600,
+              fontVariantNumeric: "tabular-nums",
               color: EMBER_BRIGHT,
-              background: "rgba(249,115,22,0.14)",
-              border: "1px solid rgba(249,115,22,0.4)",
+              background: ACCENT.tint,
+              border: `1px solid ${ACCENT.border}`,
             }}
           >
             +{gain} pts
@@ -145,7 +153,10 @@ function PerfGoalRow({
       <JourneyBar start={start} goal={goal} />
 
       {error && (
-        <Typography sx={{ color: "#FBBF24", fontSize: "0.75rem", mt: 0.75 }}>
+        <Typography
+          role="alert"
+          sx={{ ...TYPE.caption, color: STATUS.error, mt: 0.75 }}
+        >
           {error}
         </Typography>
       )}
@@ -175,24 +186,28 @@ function RatingField({
         flex: "1 1 130px",
         px: 1.25,
         py: 0.75,
-        borderRadius: "12px",
-        background: "rgba(255,255,255,0.04)",
-        // Ember as glow, never fill — the goal field carries the accent.
+        borderRadius: `${RADIUS.control}px`,
+        // The row is the filled level; the field is a hairline on it.
+        background: "transparent",
+        // Ember as a hairline, never a fill: the goal field carries the accent.
         border: emphasis
-          ? "1px solid rgba(249,115,22,0.5)"
-          : "1px solid rgba(255,255,255,0.1)",
-        boxShadow: emphasis ? "0 0 0 3px rgba(249,115,22,0.10)" : "none",
-        transition: "border-color 180ms ease, box-shadow 180ms ease",
+          ? `1px solid ${ACCENT.border}`
+          : `1px solid ${LINE.hairline}`,
+        transition: `border-color ${MOTION.hover}`,
+        // The input is `all: unset`, so the field shows focus: a white ring,
+        // like every other focusable control.
         "&:focus-within": {
-          borderColor: emphasis ? EMBER_BRIGHT : "rgba(255,255,255,0.3)",
+          borderColor: emphasis ? EMBER_BRIGHT : LINE.strong,
+          outline: "2px solid #FFFFFF",
+          outlineOffset: 2,
         },
       }}
     >
       <Typography
         sx={{
-          color: emphasis ? EMBER_BRIGHT : "rgba(255,255,255,0.55)",
-          fontSize: "0.75rem",
-          fontWeight: 700,
+          ...TYPE.caption,
+          fontWeight: 600,
+          color: emphasis ? EMBER_BRIGHT : TEXT.secondary,
         }}
       >
         {label}
@@ -203,7 +218,6 @@ function RatingField({
         inputMode="numeric"
         aria-label={ariaLabel}
         value={value}
-        placeholder="—"
         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
           onChange(e.target.value)
         }
@@ -211,12 +225,12 @@ function RatingField({
           all: "unset",
           width: "100%",
           minWidth: "3.5ch",
-          color: "#fff",
-          fontWeight: 800,
-          fontSize: "1.25rem",
+          color: TEXT.primary,
+          fontWeight: 600,
+          fontSize: TYPE.h4.fontSize,
           lineHeight: 1.2,
+          fontVariantNumeric: "tabular-nums",
           textAlign: "right",
-          "&::placeholder": { color: "rgba(255,255,255,0.25)" },
         }}
       />
     </Box>
@@ -251,9 +265,7 @@ function JourneyBar({ start, goal }: { start?: number; goal?: number }) {
 
   return (
     <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1, mt: 1.25 }}>
-      <Typography sx={{ color: "rgba(255,255,255,0.35)", fontSize: "0.7rem" }}>
-        {lo}
-      </Typography>
+      <Typography sx={axisLabelSx}>{lo}</Typography>
       <Box sx={{ flex: 1, position: "relative", height: 26 }}>
         {/* marker labels */}
         {startPct !== undefined && (showBoth || goalPct === undefined) && (
@@ -275,7 +287,7 @@ function JourneyBar({ start, goal }: { start?: number; goal?: number }) {
             background: "rgba(255,255,255,0.08)",
           }}
         />
-        {/* the journey: hatched ember from current to goal */}
+        {/* the journey: ember from current to goal */}
         {startPct !== undefined &&
           goalPct !== undefined &&
           goalPct > startPct && (
@@ -287,7 +299,7 @@ function JourneyBar({ start, goal }: { start?: number; goal?: number }) {
                 bottom: 6,
                 height: 5,
                 borderRadius: 3,
-                background: `repeating-linear-gradient(45deg, ${EMBER} 0 5px, rgba(249,115,22,0.35) 5px 10px)`,
+                background: EMBER,
               }}
             />
           )}
@@ -306,7 +318,7 @@ function JourneyBar({ start, goal }: { start?: number; goal?: number }) {
             }}
           />
         )}
-        {/* goal dot, glowing */}
+        {/* goal dot */}
         {goalPct !== undefined && (
           <Box
             sx={{
@@ -316,19 +328,24 @@ function JourneyBar({ start, goal }: { start?: number; goal?: number }) {
               transform: "translateX(-50%)",
               width: 13,
               height: 13,
-              borderRadius: "999px",
+              borderRadius: "50%",
               background: EMBER_BRIGHT,
-              boxShadow: "0 0 0 4px rgba(249,115,22,0.22)",
             }}
           />
         )}
       </Box>
-      <Typography sx={{ color: "rgba(255,255,255,0.35)", fontSize: "0.7rem" }}>
-        {hi}
-      </Typography>
+      <Typography sx={axisLabelSx}>{hi}</Typography>
     </Box>
   );
 }
+
+// The bar's end labels: the 12px floor, readable, numbers aligned.
+const axisLabelSx = {
+  fontSize: "0.75rem",
+  lineHeight: 1.4,
+  color: TEXT.secondary,
+  fontVariantNumeric: "tabular-nums",
+} as const;
 
 function MarkerLabel({
   pct,
@@ -352,9 +369,10 @@ function MarkerLabel({
             : pct > 92
               ? "translateX(-100%)"
               : "translateX(-50%)",
-        fontSize: "0.66rem",
-        fontWeight: 700,
-        color: muted ? "rgba(255,255,255,0.45)" : EMBER_BRIGHT,
+        fontSize: "0.75rem",
+        lineHeight: 1.4,
+        fontWeight: 600,
+        color: muted ? TEXT.secondary : EMBER_BRIGHT,
         whiteSpace: "nowrap",
       }}
     >

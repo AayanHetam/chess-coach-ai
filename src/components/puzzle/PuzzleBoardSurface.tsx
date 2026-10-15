@@ -13,6 +13,16 @@ import type {
 } from "react-chessboard/dist/chessboard/types";
 import { FlashOverlay, type FlashState } from "./FlashOverlay";
 import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
+import {
   DEFAULT_PUZZLE_THEME,
   composePuzzleSquareStyles,
   type BoardTheme,
@@ -167,7 +177,7 @@ export function PuzzleBoardSurface({
   const movableColor: "w" | "b" | null = interactive ? game.turn() : null;
   const isOwnPiece = useCallback(
     (piece: string) => !!movableColor && piece.startsWith(movableColor),
-    [movableColor],
+    [movableColor]
   );
 
   // Legal targets for the selected square, split into quiet vs capture.
@@ -188,7 +198,7 @@ export function PuzzleBoardSurface({
 
   const customPieces = useMemo(
     () => (pieceSet ? buildCustomPieces(pieceSet) : undefined),
-    [pieceSet],
+    [pieceSet]
   );
 
   const squareStyles = useMemo<CustomSquareStyles>(
@@ -211,7 +221,7 @@ export function PuzzleBoardSurface({
       captureSquares,
       selected,
       theme,
-    ],
+    ]
   );
 
   const handleDrop = useCallback(
@@ -220,7 +230,7 @@ export function PuzzleBoardSurface({
       if (!isOwnPiece(piece)) return false;
       return onPieceDrop(source, target, piece);
     },
-    [isOwnPiece, onPieceDrop],
+    [isOwnPiece, onPieceDrop]
   );
 
   const onSquareClick = useCallback(
@@ -248,7 +258,7 @@ export function PuzzleBoardSurface({
       }
       if (piece && isOwnPiece(piece)) setSelected(square);
     },
-    [interactive, onInactiveSquareTap, selected, isOwnPiece, onPieceDrop, game],
+    [interactive, onInactiveSquareTap, selected, isOwnPiece, onPieceDrop, game]
   );
 
   const onPieceDragBegin = useCallback((_p: Piece, sq: Square) => {
@@ -260,7 +270,7 @@ export function PuzzleBoardSurface({
   useLostDragRecovery();
   const isDraggablePiece = useCallback(
     ({ piece }: { piece: Piece }) => isOwnPiece(piece),
-    [isOwnPiece],
+    [isOwnPiece]
   );
 
   // ── Keyboard move entry ──────────────────────────────────────────────
@@ -308,7 +318,7 @@ export function PuzzleBoardSurface({
         setKbText(e.key);
       }
     },
-    [interactive, kbText],
+    [interactive, kbText]
   );
 
   const board = (
@@ -330,7 +340,6 @@ export function PuzzleBoardSurface({
       animationDuration={animationMs ?? 220}
       customBoardStyle={{
         borderRadius: theme.radius,
-        boxShadow: "0 0 0 1px rgba(255,255,255,0.06)",
       }}
     />
   );
@@ -352,7 +361,7 @@ export function PuzzleBoardSurface({
       role="group"
       aria-label={
         interactive
-          ? "Chess board. Type a move in algebraic notation — like e4, Nf3 or O-O — then press Enter."
+          ? "Chess board. Type a move in algebraic notation, like e4, Nf3 or O-O, then press Enter."
           : "Chess board"
       }
       onKeyDown={handleContainerKeyDown}
@@ -362,8 +371,11 @@ export function PuzzleBoardSurface({
         mx: boardWidth ? "auto" : undefined,
         outline: "none",
         borderRadius: theme.radius,
+        // Drawn inside the board edge: the wrappers on /puzzles are the same
+        // size with overflow hidden, so a ring outside would be clipped away.
         "&:focus-visible": {
-          boxShadow: "0 0 0 2px rgba(255,122,26,0.55)",
+          outline: `2px solid ${TEXT.primary}`,
+          outlineOffset: -2,
         },
         // Sighted keyboard users get the affordance the aria-label gives a
         // screen reader — only while the board itself has the focus ring.
@@ -386,18 +398,18 @@ export function PuzzleBoardSurface({
             transform: "translateX(-50%)",
             px: 1.25,
             py: 0.4,
-            borderRadius: "999px",
-            fontSize: "0.7rem",
+            borderRadius: `${RADIUS.small}px`,
+            fontSize: TYPE.caption.fontSize,
             fontWeight: 600,
-            color: "rgba(255,240,224,0.85)",
-            background: "rgba(12,10,8,0.82)",
-            border: "1px solid rgba(255,122,26,0.35)",
+            color: TEXT.primary,
+            background: SURFACE.raisedTertiary,
+            border: `1px solid ${LINE.hairline}`,
             pointerEvents: "none",
             whiteSpace: "nowrap",
             zIndex: 4,
           }}
         >
-          Type a move — e4, Nf3, O-O
+          Type a move: e4, Nf3, O-O
         </Typography>
       )}
       {kbText != null && (
@@ -439,17 +451,15 @@ export function PuzzleBoardSurface({
               width: 128,
               px: 1.25,
               py: 0.6,
-              borderRadius: "0.6rem",
-              border: kbError
-                ? "1px solid rgba(239,68,68,0.65)"
-                : "1px solid rgba(255,122,26,0.45)",
-              background: "rgba(12,10,8,0.92)",
-              color: "rgba(255,240,224,0.95)",
-              fontFamily: "Monaco, Menlo, monospace",
+              borderRadius: `${RADIUS.control}px`,
+              border: `1px solid ${kbError ? STATUS.error : LINE.strong}`,
+              background: SURFACE.raised,
+              color: TEXT.primary,
+              fontFamily: FONT_MONO,
               fontSize: "0.85rem",
               textAlign: "center",
               outline: "none",
-              "&:focus": { boxShadow: "0 0 0 2px rgba(255,122,26,0.35)" },
+              "&:focus": { borderColor: kbError ? STATUS.error : ACCENT.main },
             }}
           />
           {kbError && (
@@ -458,11 +468,11 @@ export function PuzzleBoardSurface({
               sx={{
                 px: 1,
                 py: 0.25,
-                borderRadius: "0.5rem",
-                fontSize: "0.68rem",
-                color: "#FFB4A8",
-                background: "rgba(12,10,8,0.88)",
-                border: "1px solid rgba(239,68,68,0.4)",
+                borderRadius: `${RADIUS.small}px`,
+                fontSize: TYPE.caption.fontSize,
+                color: STATUS.error,
+                background: SURFACE.raised,
+                border: `1px solid ${LINE.hairline}`,
                 whiteSpace: "nowrap",
               }}
             >

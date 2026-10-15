@@ -21,9 +21,7 @@ import {
   type TimeCommitment,
 } from "@/lib/curriculum/dailyPlan";
 import type { ChessPuzzle } from "@/lib/chessPuzzlesService";
-
-const ORANGE = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
-const ORANGE_HOVER = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
+import { STATUS, TEXT, TYPE } from "@/theme/tokens";
 
 async function fetchOne(
   body: Record<string, unknown>
@@ -182,53 +180,32 @@ export default function SessionRunner({ onExit }: { onExit: () => void }) {
 
       window.setTimeout(advance, solved ? 450 : 700);
     },
-    [
-      puzzle,
-      queue,
-      idx,
-      setStats,
-      setSrs,
-      recordTrainingDay,
-      advance,
-    ]
+    [puzzle, queue, idx, setStats, setSrs, recordTrainingDay, advance]
   );
 
   if (done) {
     const delta = stats.rating - startRatingRef.current;
     return (
       <Box sx={{ textAlign: "center", py: 4 }}>
-        <Typography
-          sx={{ color: "#fff", fontWeight: 800, fontSize: "1.6rem", mb: 1 }}
-        >
-          Session complete 🎉
+        <Typography sx={{ ...TYPE.h2, color: TEXT.primary, mb: 1 }}>
+          Session complete
         </Typography>
-        <Typography sx={{ color: "rgba(255,255,255,0.7)", mb: 0.5 }}>
+        <Typography sx={{ color: TEXT.secondary, mb: 0.5 }}>
           {solvedCount} of {queue.length} solved first try.
         </Typography>
         <Typography
           sx={{
-            color: delta >= 0 ? "#4ade80" : "#f87171",
-            fontWeight: 700,
+            color: delta >= 0 ? STATUS.success : STATUS.error,
+            fontWeight: 600,
+            fontVariantNumeric: "tabular-nums",
             mb: 3,
           }}
         >
           Rating {delta >= 0 ? "+" : ""}
           {delta} → {stats.rating}
         </Typography>
-        <Button
-          onClick={onExit}
-          sx={{
-            py: 1.2,
-            px: 4,
-            borderRadius: "12px",
-            textTransform: "none",
-            fontWeight: 700,
-            color: "#fff",
-            background: ORANGE,
-            "&:hover": { background: ORANGE_HOVER },
-          }}
-        >
-          Back to dashboard
+        <Button variant="contained" onClick={onExit}>
+          Back to your plan
         </Button>
       </Box>
     );
@@ -237,14 +214,7 @@ export default function SessionRunner({ onExit }: { onExit: () => void }) {
   return (
     <Box>
       <Box sx={{ mb: 2 }}>
-        <Typography
-          sx={{
-            color: "rgba(255,255,255,0.7)",
-            fontWeight: 600,
-            fontSize: "0.85rem",
-            mb: 1,
-          }}
-        >
+        <Typography sx={{ ...TYPE.label, color: TEXT.secondary, mb: 1 }}>
           {idx < plan.newThemes.length ? "New concept" : "Review"} · {idx + 1}{" "}
           of {queue.length}
         </Typography>
@@ -259,7 +229,7 @@ export default function SessionRunner({ onExit }: { onExit: () => void }) {
         <>
           <Typography
             sx={{
-              color: "rgba(255,255,255,0.8)",
+              color: TEXT.primary,
               textAlign: "center",
               mb: 1.5,
               fontWeight: 600,
@@ -281,12 +251,10 @@ export default function SessionRunner({ onExit }: { onExit: () => void }) {
           />
           <Box sx={{ textAlign: "center", mt: 2 }}>
             <Button
+              variant="text"
+              size="small"
               onClick={() => grade(false)}
-              sx={{
-                textTransform: "none",
-                color: "rgba(255,255,255,0.5)",
-                fontSize: "0.82rem",
-              }}
+              sx={{ color: TEXT.secondary }}
             >
               Skip
             </Button>

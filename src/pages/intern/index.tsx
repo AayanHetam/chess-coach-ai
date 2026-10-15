@@ -16,8 +16,9 @@ import {
 import { Loader } from "@/components/ui/Loader";
 import { useViewer } from "@/hooks/useViewer";
 import { QuotaWidget } from "@/components/intern/QuotaWidget";
-import { INTERN_THEME_COLOR, INTERN_THEME_COLOR_DARK } from "@/constants";
+import { INTERN_THEME_COLOR } from "@/constants";
 import type { SubmissionListItem } from "@/app/api/intern/submissions/list/route";
+import { FONT_MONO, MOTION, TEXT, TYPE } from "@/theme/tokens";
 
 const CATEGORY_LABEL: Record<SubmissionListItem["category"], string> = {
   bad: "Bad",
@@ -25,7 +26,10 @@ const CATEGORY_LABEL: Record<SubmissionListItem["category"], string> = {
   incomplete: "Incomplete",
 };
 
-const CATEGORY_COLOR: Record<SubmissionListItem["category"], { bg: string; fg: string }> = {
+const CATEGORY_COLOR: Record<
+  SubmissionListItem["category"],
+  { bg: string; fg: string }
+> = {
   bad: { bg: "#FBE9E7", fg: "#C62828" },
   inaccurate: { bg: "#FFF8E1", fg: "#9A6300" },
   incomplete: { bg: "#E8EAF6", fg: "#3949AB" },
@@ -64,7 +68,9 @@ export default function InternHome() {
     fetch("/api/intern/submissions/list", { credentials: "include" })
       .then(async (res) => {
         if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as { error?: string };
+          const body = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
           throw new Error(body.error ?? `Failed (${res.status})`);
         }
         return res.json() as Promise<{ items: SubmissionListItem[] }>;
@@ -102,28 +108,33 @@ export default function InternHome() {
         <Stack spacing={3}>
           <Stack direction="row" spacing={1.5} alignItems="center">
             <Chip
-              label="EMPLOYEE"
+              label="Employee"
               size="small"
               sx={{
                 backgroundColor: INTERN_THEME_COLOR,
                 color: "#FFFFFF",
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                fontSize: "0.7rem",
+                fontWeight: 600,
               }}
             />
-            <Typography variant="caption" sx={{ letterSpacing: "0.04em", color: "text.secondary" }}>
-              CHESS MASTI · INTERNAL
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+              Chess Masti · Internal
             </Typography>
           </Stack>
 
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 700, color: INTERN_THEME_COLOR_DARK }}>
+            <Typography
+              variant="h4"
+              sx={{ fontWeight: 700, color: TEXT.primary }}
+            >
               Welcome, {firstName}.
             </Typography>
-            <Typography variant="body2" sx={{ mt: 1, color: "text.secondary", maxWidth: 620 }}>
-              Your flagged coach responses live here. Each row is a (bad response, ideal response)
-              pair that feeds the eval set we use to make the coach measurably smarter.
+            <Typography
+              variant="body2"
+              sx={{ mt: 1, color: "text.secondary", maxWidth: 620 }}
+            >
+              Your flagged coach responses live here. Each row is a (bad
+              response, ideal response) pair that feeds the eval set we use to
+              make the coach measurably smarter.
             </Typography>
           </Box>
 
@@ -135,7 +146,6 @@ export default function InternHome() {
               href="/analysis"
               variant="contained"
               size="medium"
-              sx={{ textTransform: "none", fontWeight: 600 }}
             >
               Open the chess coach →
             </Button>
@@ -144,7 +154,7 @@ export default function InternHome() {
           <Divider />
 
           <Box>
-            <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.06em" }}>
+            <Typography sx={{ ...TYPE.label, color: "text.secondary" }}>
               Your submissions
             </Typography>
 
@@ -156,9 +166,21 @@ export default function InternHome() {
 
             {!items && !listError && (
               <Stack spacing={1.5} sx={{ mt: 1.5 }}>
-                <Skeleton variant="rectangular" height={84} sx={{ borderRadius: 2 }} />
-                <Skeleton variant="rectangular" height={84} sx={{ borderRadius: 2 }} />
-                <Skeleton variant="rectangular" height={84} sx={{ borderRadius: 2 }} />
+                <Skeleton
+                  variant="rectangular"
+                  height={84}
+                  sx={{ borderRadius: 2 }}
+                />
+                <Skeleton
+                  variant="rectangular"
+                  height={84}
+                  sx={{ borderRadius: 2 }}
+                />
+                <Skeleton
+                  variant="rectangular"
+                  height={84}
+                  sx={{ borderRadius: 2 }}
+                />
               </Stack>
             )}
 
@@ -167,9 +189,13 @@ export default function InternHome() {
                 variant="outlined"
                 sx={{ p: 4, mt: 1.5, borderRadius: 2, borderStyle: "dashed" }}
               >
-                <Typography variant="body1" sx={{ textAlign: "center", color: "text.secondary" }}>
-                  No flags yet. Head to <Link href="/analysis">the coach</Link> and click the 🚩 Flag
-                  button on any response that&apos;s wrong, inaccurate, or incomplete.
+                <Typography
+                  variant="body1"
+                  sx={{ textAlign: "center", color: "text.secondary" }}
+                >
+                  No flags yet. Head to <Link href="/analysis">the coach</Link>{" "}
+                  and click the Flag button on any response that&apos;s wrong,
+                  inaccurate, or incomplete.
                 </Typography>
               </Paper>
             )}
@@ -190,7 +216,7 @@ export default function InternHome() {
                         textDecoration: "none",
                         color: "inherit",
                         display: "block",
-                        transition: "border-color 0.15s, background-color 0.15s",
+                        transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
                         "&:hover": {
                           borderColor: INTERN_THEME_COLOR,
                           backgroundColor: "rgba(10, 77, 168, 0.03)",
@@ -209,15 +235,21 @@ export default function InternHome() {
                           sx={{
                             backgroundColor: cat.bg,
                             color: cat.fg,
+                            ...TYPE.caption,
                             fontWeight: 600,
-                            fontSize: "0.7rem",
                           }}
                         />
-                        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: "text.secondary" }}
+                        >
                           {formatRelative(item.flaggedAt)}
                         </Typography>
                         {item.hasGame && (
-                          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                          <Typography
+                            variant="caption"
+                            sx={{ color: "text.secondary" }}
+                          >
                             · Game attached
                           </Typography>
                         )}
@@ -226,8 +258,8 @@ export default function InternHome() {
                         variant="body2"
                         sx={{
                           color: "text.primary",
-                          fontFamily: "monospace",
-                          fontSize: "0.82rem",
+                          fontFamily: FONT_MONO,
+                          fontSize: TYPE.caption.fontSize,
                           opacity: 0.75,
                           mb: 1,
                           whiteSpace: "pre-wrap",

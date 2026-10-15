@@ -52,9 +52,10 @@ export function shouldSkipQuiz(
 }
 
 /**
- * Destination for the "Start your plan" CTA. Completed users go straight to
- * the payoff; everyone else — including anonymous visitors and crawlers, who
- * see the SSR render while auth is still `loading` — goes into the funnel.
+ * Destination for the home page's start button ("Let's go"). Completed
+ * users go straight to the payoff; everyone else — including anonymous
+ * visitors and crawlers, who see the SSR render while auth is still
+ * `loading` — goes into the funnel.
  */
 export function startPlanHref(state: OnboardingViewerState): "/plan" | "/onboarding" {
   return hasCompletedOnboarding(state) ? "/plan" : "/onboarding";

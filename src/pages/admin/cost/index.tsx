@@ -24,9 +24,10 @@ import {
   FormControlLabel,
 } from "@mui/material";
 import { Loader } from "@/components/ui/Loader";
-import RefreshIcon from "@mui/icons-material/Refresh";
+import { Check, RefreshCw, X } from "lucide-react";
 import { useViewer } from "@/hooks/useViewer";
 import { INTERN_THEME_COLOR_DARK } from "@/constants";
+import { FONT_MONO, STATUS, TEXT, TYPE } from "@/theme/tokens";
 import type {
   LLMStatsSnapshot,
   LLMModelTotals,
@@ -290,29 +291,19 @@ export default function AdminCost() {
         <Stack spacing={3}>
           <Stack direction="row" spacing={1.5} alignItems="center">
             <Chip
-              label="ADMIN"
+              label="Admin"
               size="small"
               sx={{
                 backgroundColor: INTERN_THEME_COLOR_DARK,
                 color: "#FFFFFF",
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                fontSize: "0.7rem",
+                fontWeight: 600,
               }}
             />
-            <Typography
-              variant="caption"
-              sx={{ letterSpacing: "0.04em", color: "text.secondary" }}
-            >
-              CHESS MASTI · INTERNAL
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+              Chess Masti · Internal
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
-            <Button
-              component={Link}
-              href="/admin/intern-data"
-              size="small"
-              sx={{ textTransform: "none" }}
-            >
+            <Button component={Link} href="/admin/intern-data" size="small">
               ← Intern data
             </Button>
             <FormControlLabel
@@ -332,9 +323,8 @@ export default function AdminCost() {
             />
             <Button
               size="small"
-              startIcon={<RefreshIcon />}
+              startIcon={<RefreshCw size={16} strokeWidth={1.75} aria-hidden />}
               onClick={() => setRefreshTick((t) => t + 1)}
-              sx={{ textTransform: "none" }}
             >
               Refresh
             </Button>
@@ -342,25 +332,23 @@ export default function AdminCost() {
               size="small"
               onClick={handleTestProviders}
               disabled={testing}
-              sx={{ textTransform: "none" }}
             >
-              {testing ? "Testing…" : "Test providers"}
+              {testing ? "Testing" : "Test providers"}
             </Button>
             <Button
               size="small"
               color="error"
               onClick={handleReset}
               disabled={resetting}
-              sx={{ textTransform: "none" }}
             >
-              {resetting ? "Resetting…" : "Reset stats"}
+              {resetting ? "Resetting" : "Reset stats"}
             </Button>
           </Stack>
 
           <Box>
             <Typography
               variant="h4"
-              sx={{ fontWeight: 700, color: INTERN_THEME_COLOR_DARK }}
+              sx={{ fontWeight: 700, color: TEXT.primary }}
             >
               LLM cost &amp; cache
             </Typography>
@@ -368,7 +356,7 @@ export default function AdminCost() {
               variant="body2"
               sx={{ mt: 1, color: "text.secondary", maxWidth: 760 }}
             >
-              Live readout of <code>/api/admin/llm-stats</code> — the in-memory
+              Live readout of <code>/api/admin/llm-stats</code>, the in-memory
               aggregator that records every <code>callLLM()</code> result. Costs
               are estimated from each model&apos;s public list price.{" "}
               <strong>
@@ -460,10 +448,10 @@ export default function AdminCost() {
                     cacheHitPct === null || cacheHitPct === undefined
                       ? undefined
                       : cacheHitPct >= 0.5
-                        ? "#2E7D32"
+                        ? STATUS.success
                         : cacheHitPct >= 0.2
-                          ? "#E65100"
-                          : "#C62828"
+                          ? STATUS.warning
+                          : STATUS.error
                   }
                   progress={cacheHitPct ?? undefined}
                 />
@@ -472,7 +460,7 @@ export default function AdminCost() {
                   value={formatUSD(totalCostUSD)}
                   caption={
                     hasUnpricedModel
-                      ? "Some models are unpriced — excluded"
+                      ? "Some models are unpriced and excluded"
                       : "Across all providers since process start"
                   }
                 />
@@ -512,7 +500,7 @@ export default function AdminCost() {
                       ? `Counterfactual without cache: ${formatUSD(totalBaselineCostUSD)}`
                       : "No cache-eligible calls yet"
                   }
-                  accent={cacheSavingsUSD > 0 ? "#2E7D32" : undefined}
+                  accent={cacheSavingsUSD > 0 ? STATUS.success : undefined}
                   progress={cacheSavingsPct > 0 ? cacheSavingsPct : undefined}
                 />
                 <StatTile
@@ -538,16 +526,13 @@ export default function AdminCost() {
                       ? `Last: ${relativeTime(snapshot.lastFallback.at)} · status ${snapshot.lastFallback.status ?? "?"}`
                       : "No fallbacks this instance"
                   }
-                  accent={snapshot.fallbackCount > 0 ? "#C62828" : undefined}
+                  accent={snapshot.fallbackCount > 0 ? STATUS.error : undefined}
                 />
               </Stack>
 
               {/* Per-model breakdown */}
               <Box>
-                <Typography
-                  variant="overline"
-                  sx={{ color: "text.secondary", letterSpacing: "0.06em" }}
-                >
+                <Typography sx={{ ...TYPE.label, color: "text.secondary" }}>
                   Per-model breakdown
                 </Typography>
                 <Paper
@@ -569,7 +554,7 @@ export default function AdminCost() {
                             Output
                           </TableCell>
                           <TableCell sx={{ fontWeight: 700 }} align="right">
-                            <Tooltip title="Cache reads / writes — Anthropic only">
+                            <Tooltip title="Cache reads / writes, Anthropic only">
                               <span>Cache R / W</span>
                             </Tooltip>
                           </TableCell>
@@ -600,7 +585,7 @@ export default function AdminCost() {
                                   <Typography
                                     variant="caption"
                                     sx={{
-                                      fontFamily: "monospace",
+                                      fontFamily: FONT_MONO,
                                       color: "text.secondary",
                                     }}
                                   >
@@ -631,7 +616,7 @@ export default function AdminCost() {
                               </TableCell>
                               <TableCell align="right" sx={{ fontWeight: 600 }}>
                                 {row.costUSD === null ? (
-                                  <Tooltip title="No pricing entry for this model — see src/lib/llmPricing.ts">
+                                  <Tooltip title="No pricing entry for this model. See src/lib/llmPricing.ts">
                                     <span>—</span>
                                   </Tooltip>
                                 ) : (
@@ -702,7 +687,7 @@ export default function AdminCost() {
                   <code>{data!.notes.scope}</code>. At present low traffic this
                   is fine; at scale we&apos;d back it with Upstash. Cost is
                   computed from public list prices in{" "}
-                  <code>src/lib/llmPricing.ts</code> — update that file when a
+                  <code>src/lib/llmPricing.ts</code>. Update that file when a
                   vendor changes their published rates.
                 </Typography>
               </Paper>
@@ -729,14 +714,7 @@ function StatTile({
 }) {
   return (
     <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-      <Typography
-        variant="overline"
-        sx={{
-          color: "text.secondary",
-          letterSpacing: "0.06em",
-          fontSize: "0.65rem",
-        }}
-      >
+      <Typography sx={{ ...TYPE.label, color: "text.secondary" }}>
         {label}
       </Typography>
       <Typography
@@ -782,39 +760,25 @@ function ProviderHealthBadge({
   label: string;
   health: ProviderHealth;
 }) {
-  const color = health.ok ? "#2E7D32" : "#C62828";
-  const icon = health.ok ? "✓" : "✗";
+  const color = health.ok ? STATUS.success : STATUS.error;
   return (
     <Stack direction="row" spacing={1} alignItems="center">
+      {/* The status as a bare icon in its colour, beside the word that says it. */}
       <Box
-        sx={{
-          width: 22,
-          height: 22,
-          borderRadius: "50%",
-          backgroundColor: color,
-          color: "#fff",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 13,
-          fontWeight: 700,
-          flexShrink: 0,
-        }}
+        sx={{ display: "flex", alignItems: "center", color, flexShrink: 0 }}
+        aria-hidden
       >
-        {icon}
+        {health.ok ? (
+          <Check size={18} strokeWidth={1.75} />
+        ) : (
+          <X size={18} strokeWidth={1.75} />
+        )}
       </Box>
       <Stack spacing={0} sx={{ minWidth: 0 }}>
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
           {label}
         </Typography>
-        <Typography
-          variant="caption"
-          sx={{
-            color: "text.secondary",
-            fontFamily: "monospace",
-            fontSize: "0.7rem",
-          }}
-        >
+        <Typography variant="caption" sx={{ color: "text.secondary" }}>
           {health.ok ? "available" : "unavailable"}
         </Typography>
       </Stack>

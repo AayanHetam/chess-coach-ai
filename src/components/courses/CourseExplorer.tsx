@@ -23,9 +23,18 @@ import { numbered } from "@/lib/courses/lines";
 import { positionsOf, search, type Position } from "@/lib/courses/explore";
 import { readerLineHref } from "@/lib/learn/courseHubRoute";
 import type { CourseChapter, CourseNode } from "@/types/course";
-
-const EMBER = "#FB923C";
-const MONO = "ui-monospace, SFMono-Regular, Menlo, monospace";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MATERIAL,
+  MOTION,
+  RADIUS,
+  SHADOW,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 type State =
   | { at: "loading" }
@@ -38,7 +47,11 @@ export interface CourseExplorerProps {
   onClose: () => void;
 }
 
-export function CourseExplorer({ courseId, courseName, onClose }: CourseExplorerProps) {
+export function CourseExplorer({
+  courseId,
+  courseName,
+  onClose,
+}: CourseExplorerProps) {
   const [state, setState] = useState<State>({ at: "loading" });
   const [query, setQuery] = useState("");
   const input = useRef<HTMLInputElement>(null);
@@ -46,11 +59,21 @@ export function CourseExplorer({ courseId, courseName, onClose }: CourseExplorer
   useEffect(() => {
     let live = true;
     fetch(`/api/opening-courses/${encodeURIComponent(courseId)}`)
-      .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((data: { chapters: CourseChapter[]; nodes: Record<string, CourseNode> }) => {
-        if (!live) return;
-        setState({ at: "ready", positions: positionsOf(data.nodes, data.chapters) });
-      })
+      .then((r) =>
+        r.ok ? r.json() : Promise.reject(new Error(String(r.status)))
+      )
+      .then(
+        (data: {
+          chapters: CourseChapter[];
+          nodes: Record<string, CourseNode>;
+        }) => {
+          if (!live) return;
+          setState({
+            at: "ready",
+            positions: positionsOf(data.nodes, data.chapters),
+          });
+        }
+      )
       .catch(() => live && setState({ at: "failed" }));
     return () => {
       live = false;
@@ -88,13 +111,13 @@ export function CourseExplorer({ courseId, courseName, onClose }: CourseExplorer
         justifyContent: "center",
         pt: { md: 10 },
         px: { xs: 0, md: 2 },
-        background: "rgba(6,8,12,0.72)",
-        backdropFilter: "blur(6px)",
+        background: MATERIAL.scrim,
       }}
     >
+      {/* A dialog opening: one short cross-fade from just below its place. */}
       <Box
         component={motion.div}
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
         onClick={stop}
@@ -104,21 +127,40 @@ export function CourseExplorer({ courseId, courseName, onClose }: CourseExplorer
           maxHeight: { xs: "86dvh", md: "72dvh" },
           display: "flex",
           flexDirection: "column",
-          borderRadius: { xs: "1.5rem 1.5rem 0 0", md: "1.5rem" },
-          border: "1px solid rgba(255,255,255,0.12)",
-          background: "rgba(16,18,24,0.96)",
-          backdropFilter: "blur(12px)",
+          borderRadius: {
+            xs: `${RADIUS.sheet}px ${RADIUS.sheet}px 0 0`,
+            md: `${RADIUS.sheet}px`,
+          },
+          border: `1px solid ${LINE.hairline}`,
+          background: SURFACE.overlay,
+          boxShadow: SHADOW.modal,
           overflow: "hidden",
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, px: 2, py: 1.5, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-          <Search size={16} color="rgba(255,255,255,0.45)" aria-hidden />
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1.25,
+            px: 2,
+            py: 1.5,
+            borderBottom: `1px solid ${LINE.hairline}`,
+          }}
+        >
+          <Search
+            size={16}
+            color={TEXT.secondary}
+            strokeWidth={1.75}
+            aria-hidden
+          />
           <Box
             component="input"
             ref={input}
             value={query}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
-            placeholder="Moves — d4 d5 Bf4"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setQuery(e.target.value)
+            }
+            placeholder="Moves, like d4 d5 Bf4"
             aria-label="Moves to find"
             data-testid="explorer-input"
             sx={{
@@ -129,10 +171,14 @@ export function CourseExplorer({ courseId, courseName, onClose }: CourseExplorer
               border: "none",
               background: "none",
               outline: "none",
-              color: "#fff",
-              fontFamily: MONO,
-              fontSize: "1rem",
-              "&::placeholder": { color: "rgba(255,255,255,0.32)" },
+              color: TEXT.primary,
+              fontFamily: FONT_MONO,
+              fontSize: TYPE.bodySmall.fontSize,
+              "&::placeholder": { color: TEXT.tertiary },
+              "&:focus-visible": {
+                outline: `2px solid ${TEXT.primary}`,
+                outlineOffset: -2,
+              },
             }}
           />
           <Box
@@ -149,9 +195,17 @@ export function CourseExplorer({ courseId, courseName, onClose }: CourseExplorer
               flexShrink: 0,
               border: "none",
               background: "none",
-              color: "rgba(255,255,255,0.5)",
+              color: TEXT.secondary,
               cursor: "pointer",
-              "&:hover": { color: "#fff" },
+              touchAction: "manipulation",
+              WebkitTapHighlightColor: "transparent",
+              transition: `color ${MOTION.hover}, transform ${MOTION.press}`,
+              "&:hover": { color: TEXT.primary },
+              "&:active": { transform: MOTION.pressScale },
+              "&:focus-visible": {
+                outline: `2px solid ${TEXT.primary}`,
+                outlineOffset: -2,
+              },
             }}
           >
             <X size={18} aria-hidden />
@@ -159,21 +213,25 @@ export function CourseExplorer({ courseId, courseName, onClose }: CourseExplorer
         </Box>
 
         <Box sx={{ overflowY: "auto", px: 1, py: 1 }}>
-          {state.at === "loading" && <Note>Reading the course…</Note>}
-          {state.at === "failed" && <Note>The course is not loading. Nothing is lost.</Note>}
+          {state.at === "loading" && <Note>Reading the course</Note>}
+          {state.at === "failed" && (
+            <Note>The course is not loading. Nothing is lost.</Note>
+          )}
           {state.at === "ready" && query.trim().length === 0 && (
             <Note>
-              Type the moves. {state.positions.length.toLocaleString()} positions in this course at
-              your level.
+              Type the moves. {state.positions.length.toLocaleString()}{" "}
+              positions in this course at your level.
             </Note>
           )}
-          {state.at === "ready" && query.trim().length > 0 && hits.length === 0 && (
-            <Note data-testid="explorer-empty">
-              Nothing in this course reaches that. It may be past the depth for your level, or
-              below the share the course covers.
-            </Note>
-          )}
-          {hits.map(position => (
+          {state.at === "ready" &&
+            query.trim().length > 0 &&
+            hits.length === 0 && (
+              <Note data-testid="explorer-empty">
+                Nothing in this course reaches that. It may be past the depth
+                for your level, or below the share the course covers.
+              </Note>
+            )}
+          {hits.map((position) => (
             <Link
               key={position.key}
               href={readerLineHref(courseId, position.chapter, position.line)}
@@ -187,17 +245,22 @@ export function CourseExplorer({ courseId, courseName, onClose }: CourseExplorer
                   gap: 1.5,
                   minHeight: 52,
                   px: 1.5,
-                  borderRadius: "0.9rem",
-                  transition: "background 180ms ease-out",
+                  borderRadius: `${RADIUS.small}px`,
+                  transition: `background-color ${MOTION.hover}`,
                   "&:hover": { background: "rgba(255,255,255,0.06)" },
+                  "&:active": { background: SURFACE.raisedTertiary },
+                  "a:focus-visible > &": {
+                    outline: `2px solid ${TEXT.primary}`,
+                    outlineOffset: -2,
+                  },
                 }}
               >
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography
                     sx={{
-                      fontFamily: MONO,
-                      fontSize: "0.84rem",
-                      color: "rgba(255,255,255,0.92)",
+                      ...TYPE.bodySmall,
+                      fontFamily: FONT_MONO,
+                      color: TEXT.primary,
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
@@ -205,13 +268,17 @@ export function CourseExplorer({ courseId, courseName, onClose }: CourseExplorer
                   >
                     {numbered(position.line)}
                   </Typography>
-                  <Typography sx={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)" }}>
+                  <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
                     {/* Whose move it is, because that is what decides whether
                         this is a position you are asked about or one you meet. */}
                     {position.ours ? "your move" : "their move"}
                   </Typography>
                 </Box>
-                <Typography sx={{ fontSize: "0.72rem", color: EMBER }}>Open</Typography>
+                <Typography
+                  sx={{ ...TYPE.caption, fontWeight: 600, color: ACCENT.hover }}
+                >
+                  Open
+                </Typography>
               </Box>
             </Link>
           ))}
@@ -221,11 +288,17 @@ export function CourseExplorer({ courseId, courseName, onClose }: CourseExplorer
   );
 }
 
-function Note({ children, ...rest }: { children: React.ReactNode; "data-testid"?: string }) {
+function Note({
+  children,
+  ...rest
+}: {
+  children: React.ReactNode;
+  "data-testid"?: string;
+}) {
   return (
     <Typography
       {...rest}
-      sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.85rem", px: 1.5, py: 2, lineHeight: 1.6 }}
+      sx={{ ...TYPE.bodySmall, color: TEXT.secondary, px: 1.5, py: 2 }}
     >
       {children}
     </Typography>

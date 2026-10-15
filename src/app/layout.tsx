@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import { Suspense } from "react";
 import ThemeRegistry from "@/components/ThemeRegistry";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
@@ -11,8 +10,6 @@ import {
   partnerSlotCss,
 } from "@/components/ads/PartnerSlot";
 import { PartnerSlotApp } from "@/components/ads/PartnerSlotApp";
-
-const inter = Inter({ subsets: ["latin"] });
 
 const DESCRIPTION =
   "Free engine-first AI chess coach: Stockfish analysis, Claude explanations, validated chess claims, mistake-based puzzles, and opponent scouting.";
@@ -77,7 +74,7 @@ export default function RootLayout({
         <style dangerouslySetInnerHTML={{ __html: partnerSlotCss }} />
         <script dangerouslySetInnerHTML={{ __html: partnerBootScript }} />
       </head>
-      <body className={inter.className}>
+      <body>
         <ThemeRegistry>
           {/* The App Router tree is the ~25 SEO landing pages. They render no
               NavPill, so the partner slot needs its own mount here to make the

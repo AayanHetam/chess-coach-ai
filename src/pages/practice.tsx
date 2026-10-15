@@ -5,14 +5,16 @@ import { Box, Button, Grid, Paper, Typography } from "@mui/material";
 import { ThemeProvider } from "@mui/material/styles";
 import Head from "next/head";
 import { useAtomValue } from "jotai";
-import BoltIcon from "@mui/icons-material/Bolt";
-import PsychologyIcon from "@mui/icons-material/Psychology";
-import ExtensionIcon from "@mui/icons-material/Extension";
-import GridOnIcon from "@mui/icons-material/GridOn";
-import PsychologyAltIcon from "@mui/icons-material/PsychologyAlt";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
+import {
+  ArrowRight,
+  Brain,
+  CircleHelp,
+  Grid3x3,
+  Puzzle,
+  TrendingUp,
+  Trophy,
+  Zap,
+} from "lucide-react";
 import { useRouter } from "next/router";
 import { PageTitle } from "@/components/pageTitle";
 import PuzzleRush from "@/sections/practice/PuzzleRush";
@@ -22,9 +24,8 @@ import GuessTheMove from "@/sections/practice/GuessTheMove";
 import PuzzleStats from "@/sections/practice/PuzzleStats";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { chessMastiDarkTheme } from "@/theme/chessMasti";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
-import { ACCENTS, type Accent } from "@/components/ui/accents";
+import { LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 import {
   getSolveRate,
   puzzleStatsAtom,
@@ -48,9 +49,6 @@ type Mode = "hub" | "rush" | "pattern" | "coordinate" | "guess";
 
 const PAGE_BOX_SX = { width: "100%", maxWidth: "100vw", p: { xs: 1, md: 2 } };
 
-/** Practice/training surface identity — the violet the NavPill pill wears. */
-const VIOLET = ACCENTS.violet;
-
 export default function Practice() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("hub");
@@ -59,7 +57,7 @@ export default function Practice() {
   const bestRush = Math.max(
     rushScores.threeMin,
     rushScores.fiveMin,
-    rushScores.survivalBest,
+    rushScores.survivalBest
   );
   const coordinateBest = useAtomValue(coordinateTrainerBestAtom);
 
@@ -110,19 +108,16 @@ export default function Practice() {
   if (mode === "rush") {
     return (
       <ThemeProvider theme={chessMastiDarkTheme}>
-        <PageTitle title="Chess Masti AI - Puzzle Rush" />
+        <PageTitle title="Puzzle rush · Chess Masti AI" />
         <Head>
           <meta name="color-scheme" content="dark" />
-          <meta name="theme-color" content="#08090C" />
-          <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:${VIOLET.soft};border-radius:5px;}`}</style>
+          <meta name="theme-color" content={SURFACE.page} />
         </Head>
-
-        <GradientBackdrop />
 
         <Box
           sx={{
             minHeight: "100vh",
-            color: "rgba(255,255,255,0.94)",
+            color: TEXT.primary,
             pt: 2,
             pb: 4,
             px: { xs: 2, md: 3 },
@@ -143,19 +138,16 @@ export default function Practice() {
   if (mode === "pattern") {
     return (
       <ThemeProvider theme={chessMastiDarkTheme}>
-        <PageTitle title="Chess Masti AI - Pattern Training" />
+        <PageTitle title="Pattern training · Chess Masti AI" />
         <Head>
           <meta name="color-scheme" content="dark" />
-          <meta name="theme-color" content="#08090C" />
-          <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:${VIOLET.soft};border-radius:5px;}`}</style>
+          <meta name="theme-color" content={SURFACE.page} />
         </Head>
-
-        <GradientBackdrop />
 
         <Box
           sx={{
             minHeight: "100vh",
-            color: "rgba(255,255,255,0.94)",
+            color: TEXT.primary,
             pt: 2,
             pb: 4,
             px: { xs: 2, md: 3 },
@@ -176,19 +168,16 @@ export default function Practice() {
   if (mode === "coordinate") {
     return (
       <ThemeProvider theme={chessMastiDarkTheme}>
-        <PageTitle title="Chess Masti AI - Coordinate Trainer" />
+        <PageTitle title="Coordinate trainer · Chess Masti AI" />
         <Head>
           <meta name="color-scheme" content="dark" />
-          <meta name="theme-color" content="#08090C" />
-          <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:${VIOLET.soft};border-radius:5px;}`}</style>
+          <meta name="theme-color" content={SURFACE.page} />
         </Head>
-
-        <GradientBackdrop />
 
         <Box
           sx={{
             minHeight: "100vh",
-            color: "rgba(255,255,255,0.94)",
+            color: TEXT.primary,
             pt: 2,
             pb: 4,
             px: { xs: 2, md: 3 },
@@ -209,19 +198,16 @@ export default function Practice() {
   if (mode === "guess") {
     return (
       <ThemeProvider theme={chessMastiDarkTheme}>
-        <PageTitle title="Chess Masti AI - Guess the Move" />
+        <PageTitle title="Guess the move · Chess Masti AI" />
         <Head>
           <meta name="color-scheme" content="dark" />
-          <meta name="theme-color" content="#08090C" />
-          <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:${VIOLET.soft};border-radius:5px;}`}</style>
+          <meta name="theme-color" content={SURFACE.page} />
         </Head>
-
-        <GradientBackdrop />
 
         <Box
           sx={{
             minHeight: "100vh",
-            color: "rgba(255,255,255,0.94)",
+            color: TEXT.primary,
             pt: 2,
             pb: 4,
             px: { xs: 2, md: 3 },
@@ -241,19 +227,16 @@ export default function Practice() {
 
   return (
     <ThemeProvider theme={chessMastiDarkTheme}>
-      <PageTitle title="Chess Masti AI - Practice" />
+      <PageTitle title="Practice · Chess Masti AI" />
       <Head>
         <meta name="color-scheme" content="dark" />
-        <meta name="theme-color" content="#08090C" />
-        <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:${VIOLET.soft};border-radius:5px;}`}</style>
+        <meta name="theme-color" content={SURFACE.page} />
       </Head>
-
-      <GradientBackdrop />
 
       <Box
         sx={{
           minHeight: "100vh",
-          color: "rgba(255,255,255,0.94)",
+          color: TEXT.primary,
           pt: 2,
           pb: 4,
           px: { xs: 2, md: 3 },
@@ -261,7 +244,14 @@ export default function Practice() {
       >
         <NavPill active="practice" />
 
-        <Box sx={{ width: "100%", maxWidth: 1120, mx: "auto", py: { xs: 2, md: 3 } }}>
+        <Box
+          sx={{
+            width: "100%",
+            maxWidth: 1120,
+            mx: "auto",
+            py: { xs: 2, md: 3 },
+          }}
+        >
           <Box
             sx={{
               display: "flex",
@@ -273,29 +263,10 @@ export default function Practice() {
             }}
           >
             <Box sx={{ minWidth: 0 }}>
-              <Typography
-                sx={{
-                  fontWeight: 700,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  fontSize: "0.72rem",
-                  color: VIOLET.bright,
-                  mb: 0.75,
-                }}
-              >
-                Train
-              </Typography>
-              <Typography
-                variant="h4"
-                sx={{
-                  fontWeight: 800,
-                  mb: 0.5,
-                  color: "rgba(255,255,255,0.94)",
-                }}
-              >
+              <Typography variant="h4" sx={{ mb: 0.5, color: TEXT.primary }}>
                 Practice
               </Typography>
-              <Typography sx={{ color: "rgba(255,255,255,0.62)" }}>
+              <Typography sx={{ color: TEXT.secondary }}>
                 Five ways to sharpen your game.
               </Typography>
             </Box>
@@ -316,16 +287,22 @@ export default function Practice() {
           <Grid container spacing={2.5} sx={{ mb: 4 }}>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <ModeCard
-                icon={<ExtensionIcon fontSize="inherit" />}
+                icon={<Puzzle size={20} strokeWidth={1.75} aria-hidden />}
                 title="Puzzles"
                 desc="Adaptive puzzles tuned to your rating, with Masti walking through every miss. Your main training."
-                cta="Open Puzzles"
+                cta="Open puzzles"
+                primary
                 onClick={() => router.push("/puzzles")}
-                accent={ACCENTS.violet}
                 stat={
                   stats.totalAttempts > 0
                     ? {
-                        icon: <TrendingUpIcon sx={{ fontSize: 16 }} />,
+                        icon: (
+                          <TrendingUp
+                            size={16}
+                            strokeWidth={1.75}
+                            aria-hidden
+                          />
+                        ),
                         label: `Rating ${stats.rating}`,
                       }
                     : undefined
@@ -334,16 +311,17 @@ export default function Practice() {
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <ModeCard
-                icon={<BoltIcon fontSize="inherit" />}
-                title="Puzzle Rush"
-                desc="Solve as many as you can against the clock — 3-minute, 5-minute, or 3-lives Survival."
-                cta="Start Rush"
+                icon={<Zap size={20} strokeWidth={1.75} aria-hidden />}
+                title="Puzzle rush"
+                desc="Solve as many as you can against the clock: 3 minutes, 5 minutes, or survival with 3 lives."
+                cta="Start rush"
                 onClick={() => setMode("rush")}
-                accent={ACCENTS.ember}
                 stat={
                   bestRush > 0
                     ? {
-                        icon: <EmojiEventsIcon sx={{ fontSize: 16 }} />,
+                        icon: (
+                          <Trophy size={16} strokeWidth={1.75} aria-hidden />
+                        ),
                         label: `Best ${bestRush}`,
                       }
                     : undefined
@@ -352,26 +330,26 @@ export default function Practice() {
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <ModeCard
-                icon={<PsychologyIcon fontSize="inherit" />}
-                title="Pattern Training"
-                desc="Blindfold pattern-recognition drills — memorize the position, then find the move with the pieces hidden."
-                cta="Start Pattern"
+                icon={<Brain size={20} strokeWidth={1.75} aria-hidden />}
+                title="Pattern training"
+                desc="Memorize a position, then find the move with the pieces hidden."
+                cta="Start training"
                 onClick={() => setMode("pattern")}
-                accent={ACCENTS.cyan}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <ModeCard
-                icon={<GridOnIcon fontSize="inherit" />}
-                title="Coordinate Trainer"
-                desc="Board-fluency drill — a square is named, click it on the blank board as fast as you can."
-                cta="Start Drill"
+                icon={<Grid3x3 size={20} strokeWidth={1.75} aria-hidden />}
+                title="Coordinate trainer"
+                desc="A square is named. Click it on the blank board as fast as you can."
+                cta="Start drill"
                 onClick={() => setMode("coordinate")}
-                accent={ACCENTS.jade}
                 stat={
                   coordinateBest.best > 0
                     ? {
-                        icon: <EmojiEventsIcon sx={{ fontSize: 16 }} />,
+                        icon: (
+                          <Trophy size={16} strokeWidth={1.75} aria-hidden />
+                        ),
                         label: `Best ${coordinateBest.best}`,
                       }
                     : undefined
@@ -380,12 +358,11 @@ export default function Practice() {
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <ModeCard
-                icon={<PsychologyAltIcon fontSize="inherit" />}
-                title="Guess the Move"
+                icon={<CircleHelp size={20} strokeWidth={1.75} aria-hidden />}
+                title="Guess the move"
                 desc="Step through a real master game and guess the next move before it's revealed."
-                cta="Start Guessing"
+                cta="Start guessing"
                 onClick={() => setMode("guess")}
-                accent={ACCENTS.gold}
               />
             </Grid>
           </Grid>
@@ -403,16 +380,17 @@ function ModeCard({
   desc,
   cta,
   onClick,
-  accent,
   stat,
+  primary = false,
 }: {
   icon: React.ReactNode;
   title: string;
   desc: string;
   cta: string;
   onClick: () => void;
-  accent: Accent;
   stat?: { icon: React.ReactNode; label: string };
+  /** The hub's one contained button: the main training. The rest are outlined. */
+  primary?: boolean;
 }) {
   return (
     <Paper
@@ -422,50 +400,29 @@ function ModeCard({
         display: "flex",
         flexDirection: "column",
         p: { xs: 2.5, md: 3 },
-        borderRadius: "1.75rem",
-        overflow: "hidden",
-        background: `radial-gradient(120% 70% at 50% 0%, ${accent.tint}, transparent 70%), rgba(20,22,28,0.55)`,
-        backdropFilter: "blur(14px) saturate(140%)",
-        WebkitBackdropFilter: "blur(14px) saturate(140%)",
-        border: `1px solid ${accent.border}`,
-        boxShadow: "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
-        transition: "all 200ms ease",
-        "&:hover": {
-          transform: "translateY(-3px)",
-          borderColor: accent.base,
-          boxShadow: `0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06), ${accent.glow}`,
-        },
+        borderRadius: `${RADIUS.card}px`,
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       <Box
         sx={{
-          width: 52,
-          height: 52,
-          borderRadius: "14px",
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          fontSize: 26,
-          color: accent.bright,
-          background: accent.soft,
-          border: `1px solid ${accent.border}`,
-          mb: 2,
+          color: TEXT.secondary,
+          mb: 1.5,
         }}
       >
         {icon}
       </Box>
 
-      <Typography
-        sx={{
-          fontWeight: 800,
-          fontSize: "1.15rem",
-          color: "rgba(255,255,255,0.94)",
-          mb: 0.75,
-        }}
-      >
+      <Typography sx={{ ...TYPE.h5, color: TEXT.primary, mb: 0.75 }}>
         {title}
       </Typography>
-      <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.6)", flex: 1, mb: 2 }}>
+      <Typography
+        variant="body2"
+        sx={{ color: TEXT.secondary, flex: 1, mb: 2 }}
+      >
         {desc}
       </Typography>
 
@@ -476,19 +433,18 @@ function ModeCard({
             alignItems: "center",
             gap: 0.6,
             mb: 2,
-            px: 1.25,
-            py: 0.5,
+            px: 1,
+            py: 0.25,
             width: "fit-content",
-            borderRadius: "999px",
-            color: accent.bright,
-            background: accent.soft,
-            border: `1px solid ${accent.border}`,
+            borderRadius: `${RADIUS.small}px`,
+            color: TEXT.primary,
+            background: SURFACE.raisedSecondary,
           }}
         >
           {stat.icon}
           <Typography
             variant="caption"
-            sx={{ fontWeight: 700, fontFamily: "Monaco, monospace" }}
+            sx={{ fontWeight: 500, fontVariantNumeric: "tabular-nums" }}
           >
             {stat.label}
           </Typography>
@@ -496,20 +452,11 @@ function ModeCard({
       )}
 
       <Button
-        variant="contained"
+        variant={primary ? "contained" : "outlined"}
         fullWidth
-        endIcon={<ArrowForwardIcon />}
+        endIcon={<ArrowRight size={18} strokeWidth={1.75} aria-hidden />}
         onClick={onClick}
-        sx={{
-          mt: "auto",
-          bgcolor: "#F97316",
-          color: "#0A0A0A",
-          "&:hover": { bgcolor: "#FB923C" },
-          boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
-          textTransform: "none",
-          fontWeight: 700,
-          borderRadius: "999px",
-        }}
+        sx={{ mt: "auto" }}
       >
         {cta}
       </Button>

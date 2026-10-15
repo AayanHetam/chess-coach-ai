@@ -10,20 +10,41 @@
 //   finished →  board with result overlay + "play another" CTA
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Divider,
   Stack,
   Switch,
   Typography,
-} from '@mui/material';
-import { Icon } from '@iconify/react';
-import { useLichessLiveGame, SeekOptions } from '@/hooks/useLichessLiveGame';
-import { useScreenSize } from '@/hooks/useScreenSize';
-import LichessLiveBoard from './LichessLiveBoard';
+} from "@mui/material";
+import { Icon } from "@iconify/react";
+import {
+  Circle,
+  Crown,
+  Globe,
+  LineChart,
+  Lock,
+  ShieldCheck,
+  Shuffle,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
+import {
+  ACCENT,
+  LINE,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
+import { useLichessLiveGame, SeekOptions } from "@/hooks/useLichessLiveGame";
+import { useScreenSize } from "@/hooks/useScreenSize";
+import LichessLiveBoard from "./LichessLiveBoard";
 
 /* ── Time-control presets ─────────────────────────────────────────────────── */
 // The Lichess Board API restricts seeks to rapid, classical, and
@@ -34,23 +55,28 @@ const TIME_CONTROLS: Array<{
   time: number;
   increment: number;
   speed: string;
-  icon: string;
 }> = [
-  { label: '10+0',  time: 10, increment: 0,  speed: 'rapid',     icon: 'mdi:rabbit' },
-  { label: '10+5',  time: 10, increment: 5,  speed: 'rapid',     icon: 'mdi:rabbit' },
-  { label: '15+10', time: 15, increment: 10, speed: 'rapid',     icon: 'mdi:rabbit' },
-  { label: '15+15', time: 15, increment: 15, speed: 'rapid',     icon: 'mdi:rabbit' },
-  { label: '30+0',  time: 30, increment: 0,  speed: 'classical', icon: 'mdi:turtle' },
-  { label: '30+20', time: 30, increment: 20, speed: 'classical', icon: 'mdi:turtle' },
-  { label: '60+0',  time: 60, increment: 0,  speed: 'classical', icon: 'mdi:turtle' },
+  { label: "10+0", time: 10, increment: 0, speed: "rapid" },
+  { label: "10+5", time: 10, increment: 5, speed: "rapid" },
+  { label: "15+10", time: 15, increment: 10, speed: "rapid" },
+  { label: "15+15", time: 15, increment: 15, speed: "rapid" },
+  { label: "30+0", time: 30, increment: 0, speed: "classical" },
+  { label: "30+20", time: 30, increment: 20, speed: "classical" },
+  { label: "60+0", time: 60, increment: 0, speed: "classical" },
 ];
 
 const SPEED_LABEL: Record<string, string> = {
-  bullet: 'Bullet',
-  blitz: 'Blitz',
-  rapid: 'Rapid',
-  classical: 'Classical',
+  bullet: "Bullet",
+  blitz: "Blitz",
+  rapid: "Rapid",
+  classical: "Classical",
 };
+
+const COLOR_LABEL = {
+  random: "Random",
+  white: "White",
+  black: "Black",
+} as const;
 
 export default function LichessLivePlay() {
   const screen = useScreenSize();
@@ -77,32 +103,38 @@ export default function LichessLivePlay() {
   // Form state for the lobby.
   const [tc, setTc] = useState(TIME_CONTROLS[0]); // 10+0 default
   const [rated, setRated] = useState(true);
-  const [color, setColor] = useState<'random' | 'white' | 'black'>('random');
+  const [color, setColor] = useState<"random" | "white" | "black">("random");
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Parse query params from the OAuth callback for a one-shot toast.
-  const [banner, setBanner] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const [banner, setBanner] = useState<{
+    kind: "ok" | "err";
+    msg: string;
+  } | null>(null);
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    const lichess = url.searchParams.get('lichess');
-    if (lichess === 'connected') {
-      setBanner({ kind: 'ok', msg: 'Lichess connected. Ready to play!' });
-    } else if (lichess === 'error') {
-      const reason = url.searchParams.get('reason') ?? 'unknown';
-      setBanner({ kind: 'err', msg: `Lichess sign-in failed (${reason}).` });
+    const lichess = url.searchParams.get("lichess");
+    if (lichess === "connected") {
+      setBanner({ kind: "ok", msg: "Lichess connected. Ready to play." });
+    } else if (lichess === "error") {
+      const reason = url.searchParams.get("reason") ?? "unknown";
+      setBanner({
+        kind: "err",
+        msg: `Lichess sign-in failed (${reason}). Try again.`,
+      });
     }
     if (lichess) {
-      url.searchParams.delete('lichess');
-      url.searchParams.delete('reason');
-      window.history.replaceState({}, '', url.toString());
+      url.searchParams.delete("lichess");
+      url.searchParams.delete("reason");
+      window.history.replaceState({}, "", url.toString());
     }
   }, []);
 
   const boardSize = useMemo(() => {
     const width = screen.width;
     const height = screen.height;
-    if (typeof window === 'undefined') return 600;
+    if (typeof window === "undefined") return 600;
     if (window.innerWidth < 900) return Math.min(width - 16, height - 160);
     // Allow up to 85% of viewport height and 800px max for a larger board.
     return Math.min(Math.min(width - 340, 800), height * 0.85 - 80);
@@ -132,14 +164,14 @@ export default function LichessLivePlay() {
         key="lichess-auth-checking"
         sx={{
           maxWidth: 480,
-          mx: 'auto',
+          mx: "auto",
           minHeight: 420,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        <Typography sx={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.9rem' }}>
+        <Typography sx={{ color: TEXT.secondary, fontSize: "0.9rem" }}>
           Checking your Lichess connection…
         </Typography>
       </Box>
@@ -149,39 +181,32 @@ export default function LichessLivePlay() {
   /* ── Not authenticated ─────────────────────────────────────────────────── */
   if (!authenticated) {
     return (
-      <Box key="lichess-connect" sx={{ maxWidth: 480, mx: 'auto' }}>
+      <Box key="lichess-connect" sx={{ maxWidth: 480, mx: "auto" }}>
         <Stack spacing={4} alignItems="center" sx={{ py: 6 }}>
-          {/* Logo / hero */}
-          <Box
-            sx={{
-              width: 88,
-              height: 88,
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#0A0A0A',
-              boxShadow: '0 0 32px rgba(249,115,22,0.4), inset 0 1px 0 rgba(255,255,255,0.18)',
-            }}
-          >
-            <Icon icon="simple-icons:lichess" width={44} style={{ color: '#0A0A0A' }} />
+          {/* Logo */}
+          <Box sx={{ display: "flex", color: TEXT.primary }}>
+            <Icon icon="simple-icons:lichess" width={48} />
           </Box>
 
           <Stack spacing={1} alignItems="center" textAlign="center">
-            <Typography sx={{ fontWeight: 900, fontSize: '1.6rem', lineHeight: 1.2 }}>
+            <Typography sx={{ ...TYPE.h2, color: TEXT.primary }}>
               Play live on Lichess
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 340 }}>
-              Real opponents. Real ratings. Powered by Lichess, played right here on ChessMasti.
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ maxWidth: 340 }}
+            >
+              Real opponents and real ratings on Lichess, played here on Chess
+              Masti.
             </Typography>
           </Stack>
 
           {banner && (
             <Alert
-              severity={banner.kind === 'ok' ? 'success' : 'error'}
+              severity={banner.kind === "ok" ? "success" : "error"}
               onClose={() => setBanner(null)}
-              sx={{ width: '100%' }}
+              sx={{ width: "100%" }}
             >
               {banner.msg}
             </Alert>
@@ -191,20 +216,23 @@ export default function LichessLivePlay() {
           <Stack
             spacing={2}
             sx={{
-              width: '100%',
+              width: "100%",
               p: 2.5,
-              borderRadius: '1.5rem',
-              background: 'rgba(20,22,28,0.55)',
-              backdropFilter: 'blur(14px) saturate(140%)',
-              WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+              borderRadius: `${RADIUS.card}px`,
+              background: SURFACE.raised,
+              border: `1px solid ${LINE.hairline}`,
             }}
           >
-            <FeaturePill icon="mdi:earth" text="Play real opponents worldwide" />
-            <FeaturePill icon="mdi:lightning-bolt" text="Bullet, Blitz, Rapid & Classical" />
-            <FeaturePill icon="mdi:chart-line" text="Your Lichess rating updates normally" />
-            <FeaturePill icon="mdi:shield-check-outline" text="Secure OAuth — no passwords stored" />
+            <FeaturePill icon={Globe} text="Play real opponents worldwide" />
+            <FeaturePill icon={Zap} text="Rapid and classical time controls" />
+            <FeaturePill
+              icon={LineChart}
+              text="Your Lichess rating updates normally"
+            />
+            <FeaturePill
+              icon={ShieldCheck}
+              text="Secure sign-in, no passwords stored"
+            />
           </Stack>
 
           <Button
@@ -213,34 +241,20 @@ export default function LichessLivePlay() {
             size="large"
             onClick={connect}
             startIcon={<Icon icon="simple-icons:lichess" />}
-            sx={{
-              textTransform: 'none',
-              fontWeight: 600,
-              py: 1.6,
-              fontSize: '1.05rem',
-              borderRadius: '12px',
-              bgcolor: '#F97316',
-              color: '#0A0A0A',
-              boxShadow: '0 0 0 1px rgba(249,115,22,0.5), 0 8px 32px rgba(249,115,22,0.25)',
-              transition: 'all 180ms ease',
-              '&:hover': {
-                bgcolor: '#FB923C',
-                transform: 'translateY(-1px)',
-                boxShadow: '0 0 0 1px rgba(249,115,22,0.6), 0 10px 36px rgba(249,115,22,0.35)',
-              },
-            }}
           >
             Connect with Lichess
           </Button>
 
           <Typography variant="caption" color="text.secondary">
-            <Icon
-              icon="mdi:lock-outline"
-              width={12}
-              style={{ verticalAlign: 'middle', marginRight: 4 }}
+            <Lock
+              size={16}
+              strokeWidth={1.75}
+              aria-hidden
+              style={{ verticalAlign: "middle", marginRight: 4 }}
             />
-            Only <strong>board:play</strong> and <strong>challenge</strong> scopes. Revoke any time
-            from Lichess settings.
+            Chess Masti can play your moves, send and accept challenges, and
+            read your board preferences. You can revoke access any time in your
+            Lichess settings.
           </Typography>
         </Stack>
       </Box>
@@ -248,12 +262,22 @@ export default function LichessLivePlay() {
   }
 
   /* ── Playing / finished ────────────────────────────────────────────────── */
-  if ((phase === 'playing' || phase === 'finished') && game && gameState && yourColor) {
+  if (
+    (phase === "playing" || phase === "finished") &&
+    game &&
+    gameState &&
+    yourColor
+  ) {
     return (
-      <Stack key="lichess-board" spacing={2} alignItems="center" sx={{ width: '100%' }}>
+      <Stack
+        key="lichess-board"
+        spacing={2}
+        alignItems="center"
+        sx={{ width: "100%" }}
+      >
         {streamError && (
-          <Alert severity="warning" sx={{ alignSelf: 'stretch' }}>
-            {streamError} — trying to reconnect…
+          <Alert severity="warning" sx={{ alignSelf: "stretch" }}>
+            {streamError}, trying to reconnect…
           </Alert>
         )}
         <LichessLiveBoard
@@ -272,102 +296,57 @@ export default function LichessLivePlay() {
   }
 
   /* ── Seeking ───────────────────────────────────────────────────────────── */
-  if (phase === 'seeking') {
+  if (phase === "seeking") {
     return (
-      <Box key="lichess-seeking" sx={{ maxWidth: 520, mx: 'auto' }}>
+      <Box key="lichess-seeking" sx={{ maxWidth: 520, mx: "auto" }}>
         <Stack spacing={3} alignItems="center" sx={{ py: 4 }}>
           {/* Top status */}
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Box
-              sx={{
-                width: 14,
-                height: 14,
-                borderRadius: '50%',
-                bgcolor: '#F97316',
-                boxShadow: '0 0 8px rgba(249,115,22,0.6)',
-                animation: 'pulse 1.4s ease-in-out infinite',
-                '@keyframes pulse': {
-                  '0%, 100%': { opacity: 1, transform: 'scale(1)' },
-                  '50%': { opacity: 0.5, transform: 'scale(0.85)' },
-                },
-              }}
-            />
-            <Typography sx={{ fontWeight: 700, fontSize: '1rem' }}>
+          <Stack
+            direction="row"
+            spacing={1.5}
+            alignItems="center"
+            role="status"
+          >
+            <CircularProgress size={16} aria-hidden />
+            <Typography sx={{ fontWeight: 600, fontSize: "1rem" }}>
               Waiting for opponent…
             </Typography>
           </Stack>
 
-          {/* Board-like seek overlay */}
+          {/* Board-sized placeholder while the seek is open */}
           <Box
             sx={{
-              width: '100%',
-              aspectRatio: '1',
+              width: "100%",
+              aspectRatio: "1",
               maxWidth: 400,
-              borderRadius: '1.5rem',
-              background: 'linear-gradient(135deg, rgba(249,115,22,0.08), rgba(20,22,28,0.6))',
-              backdropFilter: 'blur(16px) saturate(150%)',
-              WebkitBackdropFilter: 'blur(16px) saturate(150%)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              boxShadow: '0 16px 48px rgba(0,0,0,0.4)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-              overflow: 'hidden',
+              borderRadius: `${RADIUS.card}px`,
+              background: SURFACE.raised,
+              border: `1px solid ${LINE.hairline}`,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              position: "relative",
+              overflow: "hidden",
             }}
           >
-            {/* Chessboard pattern overlay */}
-            <Box
-              sx={{
-                position: 'absolute',
-                inset: 0,
-                opacity: 0.06,
-                backgroundImage: `
-                  linear-gradient(45deg, rgba(249,115,22,0.12) 25%, transparent 25%),
-                  linear-gradient(-45deg, rgba(249,115,22,0.12) 25%, transparent 25%),
-                  linear-gradient(45deg, transparent 75%, rgba(249,115,22,0.12) 75%),
-                  linear-gradient(-45deg, transparent 75%, rgba(249,115,22,0.12) 75%)
-                `,
-                backgroundSize: '60px 60px',
-                backgroundPosition: '0 0, 0 30px, 30px -30px, -30px 0px',
-              }}
+            <Crown
+              size={48}
+              strokeWidth={1.75}
+              color={TEXT.secondary}
+              aria-hidden
+              style={{ marginBottom: 12 }}
             />
-
-            <Icon
-              icon="mdi:crown"
-              width={64}
-              style={{
-                color: '#FB923C',
-                marginBottom: 12,
-                filter: 'drop-shadow(0 0 8px rgba(249,115,22,0.5))',
-              }}
-            />
-            <Typography sx={{ fontWeight: 800, fontSize: '1.25rem', color: '#FB923C' }}>
+            <Typography sx={{ ...TYPE.h4, color: TEXT.primary }}>
               Finding opponent…
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {tc.label} {SPEED_LABEL[tc.speed] ?? tc.speed} · {rated ? 'Rated' : 'Casual'}
+              {tc.label} {SPEED_LABEL[tc.speed] ?? tc.speed} ·{" "}
+              {rated ? "Rated" : "Casual"}
             </Typography>
           </Box>
 
-          <Button
-            variant="outlined"
-            onClick={cancelSeek}
-            sx={{
-              textTransform: 'none',
-              fontWeight: 700,
-              borderRadius: '12px',
-              px: 4,
-              color: 'rgba(255,255,255,0.94)',
-              borderColor: 'rgba(255,255,255,0.12)',
-              transition: 'all 180ms ease',
-              '&:hover': {
-                borderColor: 'rgba(255,255,255,0.2)',
-                bgcolor: 'rgba(255,255,255,0.07)',
-              },
-            }}
-          >
+          <Button variant="outlined" onClick={cancelSeek} sx={{ px: 4 }}>
             Abort
           </Button>
         </Stack>
@@ -379,47 +358,48 @@ export default function LichessLivePlay() {
   // Keyed for the same reason as the branches above: a fresh mount rather
   // than a patch over whatever view preceded it.
   return (
-    <Box key="lichess-lobby" sx={{ maxWidth: 520, mx: 'auto' }}>
+    <Box key="lichess-lobby" sx={{ maxWidth: 520, mx: "auto" }}>
       <Stack spacing={3}>
         {/* ── Profile card ── */}
         <Box
           sx={{
-            position: 'relative',
+            position: "relative",
             p: 3,
-            borderRadius: '1.5rem',
-            background: 'rgba(20,22,28,0.55)',
-            backdropFilter: 'blur(14px) saturate(140%)',
-            WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-            overflow: 'hidden',
+            borderRadius: `${RADIUS.card}px`,
+            background: SURFACE.raised,
+            border: `1px solid ${LINE.hairline}`,
+            overflow: "hidden",
           }}
         >
           <Stack spacing={2.5}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+            >
               <Stack direction="row" spacing={2} alignItems="center">
-                {/* Avatar circle */}
+                {/* Avatar circle: neutral, the same treatment as the player
+                    row on the live board. */}
                 <Box
                   sx={{
                     width: 52,
                     height: 52,
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#0A0A0A',
-                    fontSize: '1.3rem',
-                    fontWeight: 900,
-                    border: '1px solid rgba(249,115,22,0.45)',
-                    boxShadow: '0 0 12px rgba(249,115,22,0.25)',
+                    borderRadius: "50%",
+                    background: SURFACE.raisedSecondary,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: TEXT.primary,
+                    fontSize: "1.3rem",
+                    fontWeight: 700,
+                    border: `1px solid ${LINE.hairline}`,
                   }}
                 >
-                  {(user?.username ?? '?')[0].toUpperCase()}
+                  {(user?.username ?? "?")[0].toUpperCase()}
                 </Box>
                 <Box>
-                  <Typography sx={{ fontWeight: 800, fontSize: '1.15rem', lineHeight: 1.2 }}>
-                    {user?.title ? `${user.title} ` : ''}
+                  <Typography sx={{ ...TYPE.h5, color: TEXT.primary }}>
+                    {user?.title ? `${user.title} ` : ""}
                     {user?.username}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
@@ -432,11 +412,8 @@ export default function LichessLivePlay() {
                 variant="text"
                 onClick={disconnect}
                 sx={{
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  color: 'rgba(255,255,255,0.55)',
-                  fontSize: '0.78rem',
-                  '&:hover': { color: '#fca5a5' },
+                  color: TEXT.secondary,
+                  "&:hover": { color: STATUS.error },
                 }}
               >
                 Disconnect
@@ -447,30 +424,30 @@ export default function LichessLivePlay() {
             {user?.perfs && Object.keys(user.perfs).length > 0 ? (
               <Box
                 sx={{
-                  display: 'flex',
+                  display: "flex",
                   gap: 2,
-                  flexWrap: 'wrap',
-                  bgcolor: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  borderRadius: '12px',
+                  flexWrap: "wrap",
+                  bgcolor: SURFACE.raisedSecondary,
+                  border: `1px solid ${LINE.hairline}`,
+                  borderRadius: `${RADIUS.control}px`,
                   p: 1.5,
                   px: 2,
                 }}
               >
-                {(['bullet', 'blitz', 'rapid', 'classical'] as const)
+                {(["bullet", "blitz", "rapid", "classical"] as const)
                   .filter((k) => user.perfs?.[k])
                   .map((k) => (
                     <Box
                       key={k}
                       sx={{
                         opacity: k === tc.speed ? 1 : 0.5,
-                        transition: 'opacity 0.15s',
+                        transition: "opacity 0.15s",
                       }}
                     >
                       <StatItem
                         label={SPEED_LABEL[k]}
                         value={String(user.perfs![k])}
-                        icon="mdi:chart-line"
+                        icon={LineChart}
                       />
                     </Box>
                   ))}
@@ -478,19 +455,19 @@ export default function LichessLivePlay() {
             ) : user?.rating ? (
               <Box
                 sx={{
-                  display: 'flex',
+                  display: "flex",
                   gap: 3,
-                  bgcolor: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  borderRadius: '12px',
+                  bgcolor: SURFACE.raisedSecondary,
+                  border: `1px solid ${LINE.hairline}`,
+                  borderRadius: `${RADIUS.control}px`,
                   p: 1.5,
                   px: 2,
                 }}
               >
                 <StatItem
-                  label={SPEED_LABEL[user.ratingPerf ?? ''] ?? 'RATING'}
+                  label={SPEED_LABEL[user.ratingPerf ?? ""] ?? "Rating"}
                   value={String(user.rating)}
-                  icon="mdi:chart-line"
+                  icon={LineChart}
                 />
               </Box>
             ) : null}
@@ -498,7 +475,10 @@ export default function LichessLivePlay() {
         </Box>
 
         {banner && (
-          <Alert severity={banner.kind === 'ok' ? 'success' : 'error'} onClose={() => setBanner(null)}>
+          <Alert
+            severity={banner.kind === "ok" ? "success" : "error"}
+            onClose={() => setBanner(null)}
+          >
             {banner.msg}
           </Alert>
         )}
@@ -512,57 +492,52 @@ export default function LichessLivePlay() {
         {/* ── Start a game card ── */}
         <Box
           sx={{
-            position: 'relative',
+            position: "relative",
             p: 3,
-            borderRadius: '1.5rem',
-            background: 'rgba(20,22,28,0.55)',
-            backdropFilter: 'blur(14px) saturate(140%)',
-            WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-            overflow: 'hidden',
+            borderRadius: `${RADIUS.card}px`,
+            background: SURFACE.raised,
+            border: `1px solid ${LINE.hairline}`,
+            overflow: "hidden",
           }}
         >
           <Stack spacing={3}>
-            <Typography sx={{ fontWeight: 900, fontSize: '1.2rem', letterSpacing: '-0.01em' }}>
-              START A GAME
+            <Typography sx={{ ...TYPE.h4, color: TEXT.primary }}>
+              Start a game
             </Typography>
 
             {/* Rated toggle */}
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Typography sx={{ fontWeight: 600, fontSize: '0.95rem' }}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+            >
+              <Typography
+                component="label"
+                htmlFor="lichess-rated-game"
+                sx={{ fontWeight: 600, fontSize: "0.95rem", cursor: "pointer" }}
+              >
                 Rated game
               </Typography>
               <Switch
+                id="lichess-rated-game"
                 checked={rated}
                 onChange={(e) => setRated(e.target.checked)}
-                sx={{
-                  '& .MuiSwitch-switchBase.Mui-checked': {
-                    color: '#F97316',
-                  },
-                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                    backgroundColor: 'rgba(249,115,22,0.5)',
-                  },
-                  '& .MuiSwitch-track': {
-                    backgroundColor: 'rgba(255,255,255,0.18)',
-                  },
-                }}
               />
             </Stack>
 
-            <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
+            <Divider />
 
             {/* Time control */}
             <Box>
               <Typography
-                sx={{ fontWeight: 600, fontSize: '0.8rem', color: 'text.secondary', mb: 1.5, textTransform: 'uppercase', letterSpacing: 0.5 }}
+                sx={{ ...TYPE.label, color: TEXT.secondary, mb: 1.5 }}
               >
                 Time control
               </Typography>
               <Box
                 sx={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))",
                   gap: 1,
                 }}
               >
@@ -572,30 +547,23 @@ export default function LichessLivePlay() {
                     <Button
                       key={opt.label}
                       onClick={() => setTc(opt)}
-                      variant={selected ? 'contained' : 'outlined'}
+                      variant="outlined"
                       size="small"
+                      aria-pressed={selected}
                       sx={{
-                        textTransform: 'none',
-                        fontWeight: 700,
-                        fontSize: '0.82rem',
-                        borderRadius: '12px',
-                        py: 1,
                         minWidth: 0,
+                        fontVariantNumeric: "tabular-nums",
                         ...(selected
                           ? {
-                              background: 'rgba(249,115,22,0.18)',
-                              border: '1px solid rgba(249,115,22,0.4)',
-                              color: '#FB923C',
-                            }
-                          : {
-                              background: 'rgba(255,255,255,0.04)',
-                              border: '1px solid rgba(255,255,255,0.08)',
-                              color: 'rgba(255,255,255,0.94)',
-                              transition: 'all 180ms ease',
-                              '&:hover': {
-                                background: 'rgba(255,255,255,0.07)',
+                              background: ACCENT.tint,
+                              borderColor: ACCENT.border,
+                              color: ACCENT.hover,
+                              "&:hover": {
+                                background: ACCENT.tint,
+                                borderColor: ACCENT.border,
                               },
-                            }),
+                            }
+                          : {}),
                       }}
                     >
                       {opt.label}
@@ -603,64 +571,68 @@ export default function LichessLivePlay() {
                   );
                 })}
               </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ mt: 1, display: "block" }}
+              >
                 {SPEED_LABEL[tc.speed] ?? tc.speed}
-                {tc.increment > 0 ? ` with ${tc.increment}s increment` : ''}
+                {tc.increment > 0 ? ` with ${tc.increment}s increment` : ""}
               </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', opacity: 0.7, fontSize: '0.68rem' }}>
-                The Lichess Board API limits pool seeks to Rapid &amp; Classical.
-                Apps like TakeTakeTake have a formal partnership with Lichess that unlocks faster time controls.
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ mt: 0.5, display: "block" }}
+              >
+                Lichess limits app seeks to rapid and classical games, so faster
+                time controls are not offered here.
               </Typography>
             </Box>
 
-            <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
+            <Divider />
 
             {/* Color select */}
             <Box>
               <Typography
-                sx={{ fontWeight: 600, fontSize: '0.8rem', color: 'text.secondary', mb: 1.5, textTransform: 'uppercase', letterSpacing: 0.5 }}
+                sx={{ ...TYPE.label, color: TEXT.secondary, mb: 1.5 }}
               >
                 Your color
               </Typography>
               <Stack direction="row" spacing={1}>
-                {(['random', 'white', 'black'] as const).map((c) => {
+                {(["random", "white", "black"] as const).map((c) => {
                   const sel = color === c;
-                  const colorIcon =
-                    c === 'random'
-                      ? 'mdi:shuffle-variant'
-                      : c === 'white'
-                      ? 'mdi:circle-outline'
-                      : 'mdi:circle';
+                  const ColorIcon = c === "random" ? Shuffle : Circle;
                   return (
                     <Button
                       key={c}
                       onClick={() => setColor(c)}
-                      variant={sel ? 'contained' : 'outlined'}
+                      variant="outlined"
                       size="small"
-                      startIcon={<Icon icon={colorIcon} width={16} />}
+                      startIcon={
+                        <ColorIcon
+                          size={16}
+                          strokeWidth={1.75}
+                          aria-hidden
+                          fill={c === "black" ? "currentColor" : "none"}
+                        />
+                      }
+                      aria-pressed={sel}
                       sx={{
-                        textTransform: 'capitalize',
-                        fontWeight: 700,
-                        borderRadius: '12px',
                         flex: 1,
                         ...(sel
                           ? {
-                              background: 'rgba(249,115,22,0.18)',
-                              border: '1px solid rgba(249,115,22,0.4)',
-                              color: '#FB923C',
-                            }
-                          : {
-                              background: 'rgba(255,255,255,0.04)',
-                              border: '1px solid rgba(255,255,255,0.08)',
-                              color: 'rgba(255,255,255,0.94)',
-                              transition: 'all 180ms ease',
-                              '&:hover': {
-                                background: 'rgba(255,255,255,0.07)',
+                              background: ACCENT.tint,
+                              borderColor: ACCENT.border,
+                              color: ACCENT.hover,
+                              "&:hover": {
+                                background: ACCENT.tint,
+                                borderColor: ACCENT.border,
                               },
-                            }),
+                            }
+                          : {}),
                       }}
                     >
-                      {c}
+                      {COLOR_LABEL[c]}
                     </Button>
                   );
                 })}
@@ -681,27 +653,9 @@ export default function LichessLivePlay() {
                   color,
                 };
                 // Fire-and-forget — seekGame runs in the background consuming the stream.
-                void seekGame(opts).catch((e) => setSubmitError((e as Error).message));
-              }}
-              sx={{
-                textTransform: 'none',
-                fontWeight: 600,
-                py: 1.6,
-                fontSize: '1.05rem',
-                borderRadius: '12px',
-                bgcolor: '#F97316',
-                color: '#0A0A0A',
-                boxShadow: '0 0 0 1px rgba(249,115,22,0.5), 0 8px 32px rgba(249,115,22,0.25)',
-                transition: 'all 180ms ease',
-                '&:hover': {
-                  bgcolor: '#FB923C',
-                  transform: 'translateY(-1px)',
-                  boxShadow: '0 0 0 1px rgba(249,115,22,0.6), 0 10px 36px rgba(249,115,22,0.35)',
-                },
-                '&.Mui-disabled': {
-                  bgcolor: 'rgba(249,115,22,0.25)',
-                  color: 'rgba(255,255,255,0.4)',
-                },
+                void seekGame(opts).catch((e) =>
+                  setSubmitError((e as Error).message)
+                );
               }}
             >
               Start game
@@ -710,8 +664,18 @@ export default function LichessLivePlay() {
         </Box>
 
         {/* Footer */}
-        <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="center" sx={{ pb: 2 }}>
-          <Icon icon="simple-icons:lichess" width={14} style={{ color: 'rgba(255,255,255,0.5)' }} />
+        <Stack
+          direction="row"
+          spacing={0.75}
+          alignItems="center"
+          justifyContent="center"
+          sx={{ pb: 2 }}
+        >
+          <Icon
+            icon="simple-icons:lichess"
+            width={14}
+            style={{ color: TEXT.secondary }}
+          />
           <Typography variant="caption" color="text.secondary">
             Powered by Lichess
           </Typography>
@@ -723,49 +687,56 @@ export default function LichessLivePlay() {
 
 /* ── Sub-components ────────────────────────────────────────────────────────── */
 
-function FeaturePill({ icon, text }: { icon: string; text: string }) {
+function FeaturePill({
+  icon: FeatureIcon,
+  text,
+}: {
+  icon: LucideIcon;
+  text: string;
+}) {
   return (
     <Stack direction="row" spacing={1.5} alignItems="center">
-      <Box
-        sx={{
-          width: 32,
-          height: 32,
-          borderRadius: '50%',
-          bgcolor: 'rgba(255,255,255,0.06)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-        }}
-      >
-        <Icon icon={icon} width={16} style={{ color: '#FB923C' }} />
+      <Box sx={{ display: "flex", flexShrink: 0, color: TEXT.secondary }}>
+        <FeatureIcon size={20} strokeWidth={1.75} aria-hidden />
       </Box>
-      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+      <Typography variant="body2" sx={{ fontWeight: 500 }}>
         {text}
       </Typography>
     </Stack>
   );
 }
 
-function StatItem({ label, value, icon }: { label: string; value: string; icon: string }) {
+function StatItem({
+  label,
+  value,
+  icon: StatIcon,
+}: {
+  label: string;
+  value: string;
+  icon: LucideIcon;
+}) {
   return (
     <Stack direction="row" spacing={1} alignItems="center">
-      <Icon icon={icon} width={18} style={{ color: '#FB923C' }} />
+      <StatIcon
+        size={18}
+        strokeWidth={1.75}
+        color={TEXT.secondary}
+        aria-hidden
+      />
       <Box>
         <Typography
-          sx={{
-            fontWeight: 300,
-            fontSize: '0.65rem',
-            color: 'text.secondary',
-            textTransform: 'uppercase',
-            letterSpacing: 0.8,
-            lineHeight: 1,
-          }}
+          sx={{ ...TYPE.caption, color: TEXT.secondary, lineHeight: 1.2 }}
         >
           {label}
         </Typography>
-        <Typography sx={{ fontWeight: 800, fontSize: '1.15rem', lineHeight: 1.1 }}>
+        <Typography
+          sx={{
+            fontWeight: 700,
+            fontSize: "1.15rem",
+            lineHeight: 1.1,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
           {value}
         </Typography>
       </Box>

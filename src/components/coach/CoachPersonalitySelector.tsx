@@ -12,6 +12,15 @@ import {
 } from "@mui/material";
 import { Icon } from "@iconify/react";
 import { MastiAvatar } from "@/components/masti";
+import {
+  ACCENT,
+  LINE,
+  MOTION,
+  RADIUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 import { useAtom } from "jotai";
 import { selectedCoachIdAtom } from "@/atoms/coachAtoms";
 import {
@@ -49,34 +58,48 @@ export default function CoachPersonalitySelector({
 
   return (
     <>
-      {/* Compact trigger button */}
+      {/* Compact trigger button. Its two 13px text lines (about 32px) set
+          its height, with room for descenders; the 28px avatar sits inside
+          that. About 46px with the padding, a full phone tap target. */}
       <Box
+        component="button"
+        type="button"
+        aria-haspopup="dialog"
         onClick={() => setDialogOpen(true)}
         sx={{
           display: "flex",
           alignItems: "center",
           gap: 1,
+          width: "100%",
           px: 1.5,
           py: 0.75,
-          borderRadius: 2,
+          borderRadius: `${RADIUS.control}px`,
           cursor: "pointer",
-          backgroundColor: "rgba(255,107,53,0.08)",
-          border: "1px solid rgba(255,107,53,0.2)",
-          transition: "all 0.2s ease",
+          font: "inherit",
+          textAlign: "left",
+          color: TEXT.primary,
+          backgroundColor: SURFACE.raisedSecondary,
+          border: `1px solid ${LINE.hairline}`,
+          transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
           "&:hover": {
-            backgroundColor: "rgba(255,107,53,0.15)",
-            borderColor: "rgba(255,107,53,0.4)",
+            backgroundColor: SURFACE.raisedTertiary,
+            borderColor: LINE.strong,
+          },
+          "&:active": { transform: MOTION.pressScale },
+          "&:focus-visible": {
+            outline: `2px solid ${TEXT.primary}`,
+            outlineOffset: 2,
           },
         }}
       >
         <MastiAvatar mood={currentPersonality.mood} size={28} decorative />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
-            variant="caption"
             sx={{
-              fontWeight: 700,
-              fontSize: "0.75rem",
+              fontSize: TYPE.caption.fontSize,
+              fontWeight: 600,
               lineHeight: 1.2,
+              color: TEXT.primary,
               display: "block",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -86,21 +109,20 @@ export default function CoachPersonalitySelector({
             {currentPersonality.name}
           </Typography>
           <Typography
-            variant="caption"
             sx={{
-              fontSize: "0.65rem",
-              color: "text.secondary",
-              lineHeight: 1,
+              fontSize: TYPE.caption.fontSize,
+              lineHeight: 1.25,
+              color: TEXT.secondary,
+              display: "block",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
           >
             {currentPersonality.title}
           </Typography>
         </Box>
-        <Icon
-          icon="mdi:chevron-down"
-          width={16}
-          color="rgba(255,107,53,0.6)"
-        />
+        <Icon icon="mdi:chevron-down" width={16} color={TEXT.secondary} />
       </Box>
 
       {/* Personality selection dialog */}
@@ -109,47 +131,37 @@ export default function CoachPersonalitySelector({
         onClose={() => setDialogOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 4,
-            overflow: "hidden",
-          },
-        }}
+        PaperProps={{ sx: { overflow: "hidden" } }}
       >
         {/* Header */}
         <Box
           sx={{
-            background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
             py: 2.5,
             px: 3,
             position: "relative",
+            borderBottom: `1px solid ${LINE.hairline}`,
           }}
         >
           <IconButton
             onClick={() => setDialogOpen(false)}
+            aria-label="Close"
             sx={{
               position: "absolute",
               top: 8,
               right: 8,
-              color: "rgba(255,255,255,0.7)",
-              "&:hover": { color: "#fff" },
+              color: TEXT.secondary,
+              "&:hover": { color: TEXT.primary },
             }}
           >
             <Icon icon="mdi:close" />
           </IconButton>
 
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: 800, color: "#fff", mb: 0.5 }}
-          >
-            Choose Your Coach
+          <Typography variant="h6" sx={{ mb: 0.5, pr: 4 }}>
+            Pick Masti&apos;s attitude
           </Typography>
-          <Typography
-            variant="body2"
-            sx={{ color: "rgba(255,255,255,0.85)" }}
-          >
-            Each coach has a unique teaching style. Pick the one that matches
-            how you like to learn.
+          <Typography variant="body2" sx={{ color: TEXT.secondary }}>
+            Each attitude teaches a little differently. Pick the one that suits
+            how you learn.
           </Typography>
         </Box>
 
@@ -168,19 +180,19 @@ export default function CoachPersonalitySelector({
                 <Card
                   key={personality.id}
                   variant="outlined"
+                  // The attitude's colour lives in Masti's mood, not on the
+                  // card: a selected card is the one accent-tinted state.
                   sx={{
-                    borderRadius: 3,
-                    borderColor: isSelected
-                      ? personality.color
-                      : "rgba(0,0,0,0.12)",
-                    borderWidth: isSelected ? 2 : 1,
-                    backgroundColor: isSelected
-                      ? `${personality.color}08`
-                      : "transparent",
-                    transition: "all 0.2s ease",
+                    borderRadius: `${RADIUS.card}px`,
+                    border: isSelected
+                      ? `1px solid ${ACCENT.border}`
+                      : `1px solid ${LINE.hairline}`,
+                    backgroundColor: isSelected ? ACCENT.tint : "transparent",
+                    boxShadow: "none",
+                    transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
                     "&:hover": {
-                      borderColor: personality.color,
-                      boxShadow: `0 4px 16px ${personality.color}20`,
+                      borderColor: isSelected ? ACCENT.border : LINE.strong,
+                      boxShadow: "none",
                     },
                   }}
                 >
@@ -213,7 +225,7 @@ export default function CoachPersonalitySelector({
                           >
                             <Typography
                               variant="body2"
-                              sx={{ fontWeight: 700 }}
+                              sx={{ fontWeight: 600, color: TEXT.primary }}
                             >
                               {personality.name}
                             </Typography>
@@ -222,21 +234,20 @@ export default function CoachPersonalitySelector({
                                 label="Active"
                                 size="small"
                                 sx={{
-                                  height: 20,
-                                  fontSize: "0.6rem",
-                                  fontWeight: 700,
-                                  bgcolor: personality.color,
-                                  color: "#fff",
+                                  minHeight: 24,
+                                  fontSize: TYPE.caption.fontSize,
+                                  fontWeight: 600,
+                                  bgcolor: ACCENT.tint,
+                                  color: ACCENT.hover,
                                 }}
                               />
                             )}
                           </Box>
                           <Typography
-                            variant="caption"
                             sx={{
-                              color: personality.color,
+                              ...TYPE.caption,
                               fontWeight: 600,
-                              fontSize: "0.7rem",
+                              color: TEXT.secondary,
                             }}
                           >
                             {personality.title}
@@ -245,11 +256,9 @@ export default function CoachPersonalitySelector({
                       </Box>
 
                       <Typography
-                        variant="caption"
                         sx={{
-                          color: "text.secondary",
-                          fontSize: "0.75rem",
-                          lineHeight: 1.4,
+                          ...TYPE.caption,
+                          color: TEXT.secondary,
                           display: "-webkit-box",
                           WebkitLineClamp: 2,
                           WebkitBoxOrient: "vertical",

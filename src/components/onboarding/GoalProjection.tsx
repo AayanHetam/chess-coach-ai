@@ -16,6 +16,7 @@ import {
   type Projection,
 } from "@/lib/curriculum/improvementModel";
 import { EMBER } from "./diagramTokens";
+import { LINE, SURFACE } from "@/theme/tokens";
 
 /**
  * "Here's how long that takes" — the projection chart for the goal-rating step.
@@ -57,7 +58,8 @@ export default function GoalProjection({
   daysPerWeek,
 }: GoalProjectionProps) {
   const p: Projection = useMemo(
-    () => projectToGoal({ currentRating, goalRating, minutesPerDay, daysPerWeek }),
+    () =>
+      projectToGoal({ currentRating, goalRating, minutesPerDay, daysPerWeek }),
     [currentRating, goalRating, minutesPerDay, daysPerWeek]
   );
 
@@ -69,12 +71,17 @@ export default function GoalProjection({
   if (p.status === "already_there") {
     return (
       <Note>
-        You&apos;re already at {currentRating}. Aim higher and we&apos;ll map the route.
+        You&apos;re already at {currentRating}. Aim higher and we&apos;ll map
+        the route.
       </Note>
     );
   }
   if (p.status === "no_schedule") {
-    return <Note>Tell us how often you can practise and we&apos;ll plot the route.</Note>;
+    return (
+      <Note>
+        Tell us how often you can practice and we&apos;ll plot the route.
+      </Note>
+    );
   }
   if (p.status === "unrealistic") {
     return (
@@ -96,8 +103,8 @@ export default function GoalProjection({
         mt: 2,
         p: 2,
         borderRadius: "16px",
-        background: "rgba(249,115,22,0.06)",
-        border: "1px solid rgba(249,115,22,0.22)",
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.78rem" }}>
@@ -109,12 +116,20 @@ export default function GoalProjection({
           directly underneath — practice explains only ~40% of rating variance,
           so the date is a target to aim at, not a prediction. */}
       <Typography
-        sx={{ color: "#fff", fontWeight: 800, fontSize: "1.45rem", lineHeight: 1.2, mt: 0.25 }}
+        sx={{
+          color: "#fff",
+          fontWeight: 800,
+          fontSize: "1.45rem",
+          lineHeight: 1.2,
+          mt: 0.25,
+        }}
       >
         {goalRating} by {formatTargetDate(p.targetDate!)}
       </Typography>
 
-      <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.8rem", mt: 0.35 }}>
+      <Typography
+        sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.8rem", mt: 0.35 }}
+      >
         That&apos;s {formatMonths(p.months!)} of guided practice — about{" "}
         {Math.round(p.totalHours)} hours. Keep it up and you could get there by{" "}
         {formatTargetDate(p.earliestDate!)}; miss sessions and it slips towards{" "}
@@ -123,25 +138,24 @@ export default function GoalProjection({
 
       <Box sx={{ height: 132, mt: 1.5, mx: -0.5 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
-            <defs>
-              <linearGradient id="goalProjGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={EMBER} stopOpacity={0.4} />
-                <stop offset="100%" stopColor={EMBER} stopOpacity={0} />
-              </linearGradient>
-            </defs>
+          <AreaChart
+            data={data}
+            margin={{ top: 6, right: 8, bottom: 0, left: 0 }}
+          >
             <XAxis
               dataKey="w"
-              tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }}
+              tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 12 }}
               tickLine={false}
               axisLine={{ stroke: TRACK }}
-              tickFormatter={(w: number) => (w === 0 ? "now" : `${Math.round(w / 4.33)}mo`)}
+              tickFormatter={(w: number) =>
+                w === 0 ? "now" : `${Math.round(w / 4.33)}mo`
+              }
               interval="preserveStartEnd"
               minTickGap={40}
             />
             <YAxis
               domain={[lo - pad, hi + pad]}
-              tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }}
+              tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 12 }}
               tickLine={false}
               axisLine={false}
               width={34}
@@ -156,7 +170,8 @@ export default function GoalProjection({
               dataKey="rating"
               stroke={EMBER}
               strokeWidth={2.5}
-              fill="url(#goalProjGrad)"
+              fill={EMBER}
+              fillOpacity={0.12}
               dot={false}
               isAnimationActive={false}
             />
@@ -164,7 +179,9 @@ export default function GoalProjection({
         </ResponsiveContainer>
       </Box>
 
-      <Typography sx={{ color: "rgba(255,255,255,0.38)", fontSize: "0.72rem", mt: 0.5 }}>
+      <Typography
+        sx={{ color: "rgba(255,255,255,0.38)", fontSize: "0.75rem", mt: 0.5 }}
+      >
         An estimate from typical improvement rates with guided practice, not a
         promise — how fast you actually move depends on you.
       </Typography>

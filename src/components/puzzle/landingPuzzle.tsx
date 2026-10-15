@@ -303,13 +303,13 @@ export function InteractivePuzzleBoard({ puzzle }: { puzzle: LandingPuzzle }) {
 
   const turn = board.game.turn();
   const statusText = board.puzzleError
-    ? "Puzzle data error — try another one."
+    ? "Puzzle data error. Try another one."
     : board.status === "loading"
       ? "Loading…"
       : board.status === "solved"
         ? "Solved!"
         : board.status === "wrong"
-          ? "Not quite — try again."
+          ? "Not quite. Try again."
           : turn === "w"
             ? "White to move"
             : "Black to move";

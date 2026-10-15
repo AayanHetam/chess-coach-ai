@@ -12,12 +12,10 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import TargetIcon from "@mui/icons-material/GpsFixed";
 import { PageTitle } from "@/components/pageTitle";
 import { chessMastiDarkTheme } from "@/theme/chessMasti";
 import { SERIF_DISPLAY } from "@/theme/fonts";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import ProfileDialog from "@/components/auth/ProfileDialog";
 import HandleCard from "@/components/profile/HandleCard";
@@ -41,6 +39,7 @@ import {
 } from "@/lib/curriculum/goalPatch";
 import { PERF_LABEL } from "@/lib/curriculum/perfGoalDrafts";
 import type { TimeCommitment } from "@/lib/curriculum/timeCommitment";
+import { LINE, SURFACE, TEXT } from "@/theme/tokens";
 
 /** One line describing a goal that is already set — per control where the
  *  user set them that way, and the single overall target otherwise. */
@@ -167,10 +166,7 @@ export default function Profile() {
       <Head>
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content="#08090C" />
-        <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:rgba(249,115,22,0.18);border-radius:5px;}`}</style>
       </Head>
-
-      <GradientBackdrop />
 
       <Box
         sx={{
@@ -244,8 +240,8 @@ export default function Profile() {
                     fontSize: "0.78rem",
                     color: "rgba(255,255,255,0.55)",
                     "&:hover": {
-                      color: "#FB923C",
-                      background: "rgba(249,115,22,0.06)",
+                      color: TEXT.primary,
+                      background: "rgba(255,255,255,0.06)",
                     },
                   }}
                 >
@@ -263,7 +259,13 @@ export default function Profile() {
                     background: "rgba(255,255,255,0.02)",
                   }}
                 >
-                  <Masti mood="idea" size={72} loops={2} decorative style={{ marginBottom: 8 }} />
+                  <Masti
+                    mood="idea"
+                    size={72}
+                    loops={2}
+                    decorative
+                    style={{ marginBottom: 8 }}
+                  />
                   <Typography
                     sx={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.5)" }}
                   >
@@ -381,14 +383,12 @@ export default function Profile() {
                             textTransform: "none",
                             fontSize: "0.76rem",
                             fontWeight: 600,
-                            borderRadius: "0.6rem",
                             px: 1.25,
-                            color: "#FB923C",
-                            border: "1px solid rgba(249,115,22,0.32)",
-                            background: "rgba(249,115,22,0.06)",
+                            color: TEXT.primary,
+                            border: `1px solid ${LINE.strong}`,
                             "&:hover": {
-                              background: "rgba(249,115,22,0.14)",
-                              borderColor: "rgba(249,115,22,0.5)",
+                              background: "rgba(255,255,255,0.06)",
+                              borderColor: TEXT.secondary,
                             },
                           }}
                         >
@@ -520,12 +520,11 @@ export default function Profile() {
                         textTransform: "none",
                         fontWeight: 600,
                         fontSize: "0.8rem",
-                        borderRadius: "0.6rem",
                         px: 2,
                         whiteSpace: "nowrap",
-                        color: "#FB923C",
-                        border: "1px solid rgba(249,115,22,0.4)",
-                        "&:hover": { background: "rgba(249,115,22,0.1)" },
+                        color: TEXT.primary,
+                        border: `1px solid ${LINE.strong}`,
+                        "&:hover": { background: "rgba(255,255,255,0.06)" },
                       }}
                     >
                       Change goal
@@ -562,7 +561,6 @@ export default function Profile() {
                   flexWrap: "wrap",
                 }}
               >
-                <AutoAwesomeIcon sx={{ color: "#FB923C", fontSize: 20 }} />
                 <Box sx={{ flex: 1, minWidth: 220 }}>
                   <Typography
                     sx={{
@@ -606,9 +604,9 @@ export default function Profile() {
                           }
                           sx={{
                             height: 22,
-                            bgcolor: "rgba(249,115,22,0.12)",
-                            color: "#FDBA74",
-                            fontSize: "0.7rem",
+                            bgcolor: SURFACE.raisedSecondary,
+                            color: TEXT.primary,
+                            fontSize: "0.8125rem",
                           }}
                         />
                       ))}
@@ -626,12 +624,11 @@ export default function Profile() {
                       textTransform: "none",
                       fontWeight: 600,
                       fontSize: "0.8rem",
-                      borderRadius: "0.6rem",
                       px: 2,
                       whiteSpace: "nowrap",
-                      color: "#FB923C",
-                      border: "1px solid rgba(249,115,22,0.4)",
-                      "&:hover": { background: "rgba(249,115,22,0.1)" },
+                      color: TEXT.primary,
+                      border: `1px solid ${LINE.strong}`,
+                      "&:hover": { background: "rgba(255,255,255,0.06)" },
                     }}
                   >
                     Start quiz

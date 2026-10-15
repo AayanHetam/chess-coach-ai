@@ -18,7 +18,7 @@
  *
  * Route registration: this path is listed in SELF_CHROMED_ROUTES in
  * src/sections/layout/index.tsx, so Layout hands over the tree and does not
- * stack a second NavPill and GradientBackdrop on top of the ones here.
+ * stack a second NavPill on top of the one here.
  */
 
 import type { GetServerSideProps } from "next";
@@ -27,7 +27,6 @@ import dynamic from "next/dynamic";
 import { Box, Stack, Typography } from "@mui/material";
 import { ThemeProvider } from "@mui/material/styles";
 
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import { PartnerBanner } from "@/components/ads/PartnerBanner";
 import { FOLD_SLACK_ATTR } from "@/components/ads/PartnerSlot";
@@ -46,7 +45,13 @@ import {
 // The real homepage sections, imported rather than copied. A copy would drift
 // from the live page invisibly, and a sales asset that quietly stops being
 // true is worse than no asset.
-import { Hero, MarqueeStrip, launchTheme } from "@/pages/index";
+import { Hero } from "@/components/landing/Hero";
+import {
+  HOME_BANNER_VARS,
+  homeColumnSx,
+  homeRootSx,
+  launchTheme,
+} from "@/components/landing/launchTheme";
 import LearnPage from "@/pages/learn";
 import { ChessgroundBoardPlaceholder } from "@/components/ui/ChessgroundBoardPlaceholder";
 
@@ -70,29 +75,23 @@ interface LiveProps {
    home — real components throughout.
 
    Mirrors the shape of LandingPage in src/pages/index.tsx: same launchTheme,
-   same GradientBackdrop, same NavPill active="launch", same 1200px content
-   column. The banner goes where it would go live, directly under the nav.
+   same one-screen frame (homeRootSx / homeColumnSx; the home page has had
+   no backdrop and no scroll since the 2026-09-23 simplification), same
+   NavPill active="launch". The banner goes where it would go live, directly
+   under the nav, and the hero budgets for it the way the live page does.
    ───────────────────────────────────────────────────────────────────────── */
 function HomeSurface({ banner }: { banner: React.ReactNode }) {
   return (
     <ThemeProvider theme={launchTheme}>
-      <GradientBackdrop />
-      <Box
-        sx={{
-          minHeight: "100vh",
-          width: "100%",
-          color: "rgba(255,255,255,0.94)",
-          pt: 3,
-          pb: 0,
-          px: { xs: 2, md: 4 },
-        }}
-      >
+      {/* The live home takes the slot's height off Masti's whenever <html>
+          carries the partner attribute. This route never carries it, so it
+          sets the same values itself to stay a faithful render. */}
+      <Box sx={{ ...homeRootSx, ...HOME_BANNER_VARS }}>
         <NavPill active="launch" />
         {banner}
         <Box
           sx={{
-            maxWidth: 1200,
-            mx: "auto",
+            ...homeColumnSx,
             // The live site spends the hero's fold slack whenever a banner
             // is on the page (FOLD_SLACK_ATTR). This route is excluded from
             // the live placement and never carries the html attribute, so
@@ -101,7 +100,6 @@ function HomeSurface({ banner }: { banner: React.ReactNode }) {
           }}
         >
           <Hero />
-          <MarqueeStrip />
         </Box>
       </Box>
     </ThemeProvider>
@@ -118,7 +116,6 @@ function HomeSurface({ banner }: { banner: React.ReactNode }) {
 function LearnSurface({ banner }: { banner: React.ReactNode }) {
   return (
     <>
-      <GradientBackdrop />
       <Box
         sx={{
           minHeight: "100vh",
@@ -195,7 +192,6 @@ function SnapshotContext() {
 function AnalyzeSurface({ banner }: { banner: React.ReactNode }) {
   return (
     <>
-      <GradientBackdrop />
       <Box
         sx={{
           minHeight: "100vh",
@@ -242,11 +238,9 @@ function AnalyzeSurface({ banner }: { banner: React.ReactNode }) {
           >
             <Typography
               sx={{
-                fontSize: "0.68rem",
-                fontWeight: 700,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-                color: "rgba(255,255,255,0.45)",
+                fontSize: "0.8125rem",
+                fontWeight: 600,
+                color: "rgba(235,235,245,0.6)",
               }}
             >
               Moves
@@ -270,11 +264,9 @@ function AnalyzeSurface({ banner }: { banner: React.ReactNode }) {
 
             <Typography
               sx={{
-                fontSize: "0.68rem",
-                fontWeight: 700,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-                color: "rgba(255,255,255,0.45)",
+                fontSize: "0.8125rem",
+                fontWeight: 600,
+                color: "rgba(235,235,245,0.6)",
               }}
             >
               Coach

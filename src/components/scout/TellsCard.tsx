@@ -1,46 +1,49 @@
-import { Box, Stack, Tooltip, Typography } from '@mui/material';
-import { Icon } from '@iconify/react';
-import { TellsProfile, Predictability } from '@/types/scout';
+import { Box, Stack, Tooltip, Typography } from "@mui/material";
+import { Icon } from "@iconify/react";
+import { TellsProfile, Predictability } from "@/types/scout";
 import {
   DossierPanel,
   FieldLabel,
-  MONO,
   SegmentedMeter,
   VerdictPill,
   tellColor,
-} from './dossier';
+} from "./dossier";
+import { TEXT, TYPE } from "@/theme/tokens";
 
 export interface TellsCardProps {
   tells: TellsProfile;
 }
 
 const TELL_META: Record<
-  TellsProfile['factors'][number]['id'],
+  TellsProfile["factors"][number]["id"],
   { icon: string; tip: string }
 > = {
   time_trouble: {
-    icon: 'mdi:clock-alert-outline',
-    tip: 'How often they lose on time or grind into long flag-danger endgames.',
+    icon: "mdi:clock-alert-outline",
+    tip: "How often they lose on time or grind into long flag-danger endgames.",
   },
   tilts: {
-    icon: 'mdi:emoticon-confused-outline',
-    tip: 'Tendency to string losses after a loss — rapid tilt spirals.',
+    icon: "mdi:emoticon-confused-outline",
+    tip: "How often one loss turns into several in a row.",
   },
   limited_rep: {
-    icon: 'mdi:book-open-variant',
-    tip: 'How narrow their opening repertoire is — few first moves = predictable.',
+    icon: "mdi:book-open-variant",
+    tip: "How few first moves they play. Fewer moves make them easier to prepare for.",
   },
   repetitive: {
-    icon: 'mdi:repeat',
-    tip: 'Share of games concentrated in their top-3 first moves.',
+    icon: "mdi:repeat",
+    tip: "Share of games concentrated in their top-3 first moves.",
   },
 };
 
-/** The headline verdict. Phrased as how *readable* they are, not how bad they are. */
+/**
+ * The headline verdict. Phrased as how *readable* they are, not how bad they
+ * are. Coloured from the same exploitability scale as the meters below.
+ */
 function verdict(p: Predictability): { label: string; color: string } {
-  if (p === 'High') return { label: 'Highly readable', color: '#f87171' };
-  if (p === 'Medium') return { label: 'Readable', color: '#FB923C' };
-  return { label: 'Hard to read', color: '#34d399' };
+  if (p === "High") return { label: "Highly readable", color: tellColor(100) };
+  if (p === "Medium") return { label: "Readable", color: tellColor(50) };
+  return { label: "Hard to read", color: tellColor(0) };
 }
 
 export default function TellsCard({ tells }: TellsCardProps) {
@@ -57,32 +60,39 @@ export default function TellsCard({ tells }: TellsCardProps) {
     <DossierPanel
       label="Tells"
       emphasis
-      action={<VerdictPill label={`${ranked.length} found`} color="rgba(255,255,255,0.5)" />}
+      action={
+        <VerdictPill
+          label={`${ranked.length} found`}
+          color="rgba(255,255,255,0.5)"
+        />
+      }
     >
       {/* Headline: the index, the verdict, and the single biggest lever. */}
-      <Stack direction="row" spacing={2.5} alignItems="flex-start" sx={{ mb: 2.5 }}>
+      <Stack
+        direction="row"
+        spacing={2.5}
+        alignItems="flex-start"
+        sx={{ mb: 2.5 }}
+      >
         <Box sx={{ flexShrink: 0 }}>
           <Stack direction="row" alignItems="baseline" spacing={0.25}>
             <Typography
               sx={{
-                fontFamily: MONO,
-                fontSize: '3rem',
-                fontWeight: 700,
+                ...TYPE.h1,
+                fontSize: "3rem",
                 lineHeight: 0.9,
                 color: totalColor,
-                letterSpacing: '-0.04em',
-                fontVariantNumeric: 'tabular-nums',
-                textShadow: `0 0 28px ${totalColor}4d`,
+                fontVariantNumeric: "tabular-nums",
               }}
             >
               {tells.total}
             </Typography>
             <Typography
               sx={{
-                fontFamily: MONO,
-                fontSize: '0.85rem',
+                fontSize: "0.85rem",
                 fontWeight: 600,
-                color: 'rgba(255,255,255,0.34)',
+                color: TEXT.secondary,
+                fontVariantNumeric: "tabular-nums",
               }}
             >
               /100
@@ -94,7 +104,7 @@ export default function TellsCard({ tells }: TellsCardProps) {
           <Typography
             sx={{
               fontWeight: 700,
-              fontSize: '1rem',
+              fontSize: "1rem",
               color: v.color,
               lineHeight: 1.2,
               mb: 0.75,
@@ -105,13 +115,16 @@ export default function TellsCard({ tells }: TellsCardProps) {
           {headline && (
             <Typography
               sx={{
-                fontSize: '0.82rem',
-                color: 'rgba(255,255,255,0.62)',
+                fontSize: "0.82rem",
+                color: TEXT.secondary,
                 lineHeight: 1.45,
               }}
             >
-              Biggest lever:{' '}
-              <Box component="span" sx={{ color: 'rgba(255,255,255,0.92)', fontWeight: 600 }}>
+              Biggest lever:{" "}
+              <Box
+                component="span"
+                sx={{ color: TEXT.primary, fontWeight: 600 }}
+              >
                 {headline.label.toLowerCase()}
               </Box>
               .
@@ -123,39 +136,51 @@ export default function TellsCard({ tells }: TellsCardProps) {
       {/* Numbered findings — the dossier's core gesture. The list absorbs any
           extra height so the panel doesn't end in a void when the Subject card
           beside it runs taller. */}
-      <Stack spacing={1.5} sx={{ flex: 1, justifyContent: 'space-evenly' }}>
+      <Stack spacing={1.5} sx={{ flex: 1, justifyContent: "space-evenly" }}>
         {ranked.map((tell, i) => {
           const color = tellColor(tell.score);
           return (
-            <Tooltip key={tell.id} title={TELL_META[tell.id].tip} placement="left" arrow>
-              <Box sx={{ cursor: 'help' }}>
-                <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mb: 0.6 }}>
-                  <FieldLabel color="rgba(255,255,255,0.3)" size="0.6rem">
-                    {String(i + 1).padStart(2, '0')}
+            <Tooltip
+              key={tell.id}
+              title={TELL_META[tell.id].tip}
+              placement="left"
+              arrow
+            >
+              <Box sx={{ cursor: "help" }}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  spacing={1.25}
+                  sx={{ mb: 0.6 }}
+                >
+                  <FieldLabel color={TEXT.tertiary}>
+                    {String(i + 1).padStart(2, "0")}
                   </FieldLabel>
-                  <Box sx={{ color, display: 'flex', flexShrink: 0 }}>
-                    <Icon icon={TELL_META[tell.id].icon} width={13} />
+                  <Box sx={{ color, display: "flex", flexShrink: 0 }}>
+                    <Icon icon={TELL_META[tell.id].icon} width={16} />
                   </Box>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <FieldLabel color="rgba(255,255,255,0.78)" size="0.66rem">
-                      {tell.label}
-                    </FieldLabel>
+                    <FieldLabel color={TEXT.primary}>{tell.label}</FieldLabel>
                   </Box>
                   <Typography
                     sx={{
-                      fontFamily: MONO,
-                      fontSize: '0.82rem',
+                      fontSize: "0.82rem",
                       fontWeight: 700,
                       color,
-                      fontVariantNumeric: 'tabular-nums',
+                      fontVariantNumeric: "tabular-nums",
                       flexShrink: 0,
                     }}
                   >
                     {tell.score}
                   </Typography>
                 </Stack>
-                <Box sx={{ pl: '26px' }}>
-                  <SegmentedMeter value={tell.score} color={color} segments={24} height={9} />
+                <Box sx={{ pl: "26px" }}>
+                  <SegmentedMeter
+                    value={tell.score}
+                    color={color}
+                    segments={24}
+                    height={9}
+                  />
                 </Box>
               </Box>
             </Tooltip>

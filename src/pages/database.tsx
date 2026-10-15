@@ -6,7 +6,6 @@ import LoadGameButton from "@/sections/loadGame/loadGameButton";
 import { useGameDatabase } from "@/hooks/useGameDatabase";
 import { PageTitle } from "@/components/pageTitle";
 import { chessMastiDarkTheme } from "@/theme/chessMasti";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { NavPill } from "@/components/ui/NavPill";
 import {
   GAMES_TABLE_MAX_WIDTH,
@@ -42,10 +41,7 @@ export default function GameDatabase() {
       <Head>
         <meta name="color-scheme" content="dark" />
         <meta name="theme-color" content="#08090C" />
-        <style>{`html,body{background-color:#08090C;color-scheme:dark;margin:0;}::-webkit-scrollbar{width:10px;height:10px;}::-webkit-scrollbar-track{background:#08090C;}::-webkit-scrollbar-thumb{background:rgba(249,115,22,0.18);border-radius:5px;}`}</style>
       </Head>
-
-      <GradientBackdrop />
 
       <Box
         sx={{

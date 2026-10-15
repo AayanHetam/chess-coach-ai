@@ -10,8 +10,12 @@
 import { Box, Typography } from "@mui/material";
 import { RotateCcw, X } from "lucide-react";
 import type { Tally } from "@/lib/learn/chapterRound";
+import { ACCENT, FONT_MONO, LINE, MOTION, TEXT, TYPE } from "@/theme/tokens";
 
-const EMBER = "#FB923C";
+const FOCUS_RING = {
+  outline: `2px solid ${TEXT.primary}`,
+  outlineOffset: 2,
+} as const;
 
 export interface CourseRoundRailProps {
   round: number;
@@ -42,7 +46,7 @@ export function CourseRoundRail(props: CourseRoundRailProps) {
         px: 2.5,
         py: 3,
         gap: 3,
-        borderRight: "1px solid rgba(255,255,255,0.06)",
+        borderRight: `1px solid ${LINE.hairline}`,
       }}
     >
       <ExitButton onExit={props.onExit} />
@@ -67,7 +71,9 @@ export function CourseRoundRail(props: CourseRoundRailProps) {
 }
 
 /** The same thing, as a bar. Below md the rail would eat the board. */
-export function CourseRoundStrip(props: CourseRoundRailProps & { title: string }) {
+export function CourseRoundStrip(
+  props: CourseRoundRailProps & { title: string }
+) {
   return (
     <Box
       component="nav"
@@ -78,20 +84,20 @@ export function CourseRoundStrip(props: CourseRoundRailProps & { title: string }
         gap: 1.5,
         px: 2,
         minHeight: 64,
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        borderBottom: `1px solid ${LINE.hairline}`,
       }}
     >
       <ExitButton onExit={props.onExit} compact />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography
           noWrap
-          sx={{ fontFamily: "ui-monospace, monospace", fontSize: "0.85rem", color: "rgba(255,255,255,0.92)" }}
+          sx={{ ...TYPE.bodySmall, fontFamily: FONT_MONO, color: TEXT.primary }}
         >
           {props.title}
         </Typography>
         <Typography
           data-testid="round-position"
-          sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.5)" }}
+          sx={{ ...TYPE.caption, color: TEXT.secondary }}
         >
           {/* Against the TIMELINE, not the round size. A miss re-queues the
               decision at the back, so the timeline grows past `size` and the
@@ -107,7 +113,15 @@ export function CourseRoundStrip(props: CourseRoundRailProps & { title: string }
   );
 }
 
-function Dots({ progress, size, compact }: { progress: number; size: number; compact?: boolean }) {
+function Dots({
+  progress,
+  size,
+  compact,
+}: {
+  progress: number;
+  size: number;
+  compact?: boolean;
+}) {
   return (
     <Box
       role="img"
@@ -126,8 +140,8 @@ function Dots({ progress, size, compact }: { progress: number; size: number; com
               // Size AS WELL AS fill, so the state survives a monochrome render
               // and does not depend on colour alone.
               transform: done ? "scale(1)" : "scale(0.8)",
-              background: done ? EMBER : "rgba(255,255,255,0.18)",
-              transition: "background 200ms ease-out, transform 200ms ease-out",
+              background: done ? ACCENT.main : LINE.strong,
+              transition: `background-color ${MOTION.enter}, transform ${MOTION.enter}`,
             }}
           />
         );
@@ -138,10 +152,22 @@ function Dots({ progress, size, compact }: { progress: number; size: number; com
 
 function Count({ label, value }: { label: string; value: number }) {
   return (
-    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-      <Typography sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.78rem" }}>{label}</Typography>
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "baseline",
+      }}
+    >
+      <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
+        {label}
+      </Typography>
       <Typography
-        sx={{ color: "rgba(255,255,255,0.88)", fontSize: "0.95rem", fontVariantNumeric: "tabular-nums" }}
+        sx={{
+          ...TYPE.bodySmall,
+          color: TEXT.primary,
+          fontVariantNumeric: "tabular-nums",
+        }}
       >
         {value}
       </Typography>
@@ -151,20 +177,41 @@ function Count({ label, value }: { label: string; value: number }) {
 
 function RailLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Typography
-      sx={{
-        color: "rgba(255,255,255,0.4)",
-        fontSize: "0.68rem",
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-      }}
-    >
+    <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
       {children}
     </Typography>
   );
 }
 
-function ExitButton({ onExit, compact }: { onExit: () => void; compact?: boolean }) {
+/** A bare text button in the rail: 44px target, press feedback, focus ring. */
+const RAIL_BUTTON_SX = {
+  appearance: "none",
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 0.75,
+  minWidth: 44,
+  minHeight: 44,
+  p: 0,
+  fontSize: TYPE.bodySmall.fontSize,
+  color: TEXT.secondary,
+  touchAction: "manipulation",
+  WebkitTapHighlightColor: "transparent",
+  transition: `color ${MOTION.hover}, transform ${MOTION.press}`,
+  "&:hover": { color: TEXT.primary },
+  "&:active": { transform: MOTION.pressScale },
+  "&:focus-visible": FOCUS_RING,
+} as const;
+
+function ExitButton({
+  onExit,
+  compact,
+}: {
+  onExit: () => void;
+  compact?: boolean;
+}) {
   return (
     <Box
       component="button"
@@ -173,20 +220,8 @@ function ExitButton({ onExit, compact }: { onExit: () => void; compact?: boolean
       aria-label="Leave the round"
       data-testid="round-exit"
       sx={{
-        appearance: "none",
-        background: "none",
-        border: "none",
-        cursor: "pointer",
-        color: "rgba(255,255,255,0.55)",
-        display: "inline-flex",
-        alignItems: "center",
+        ...RAIL_BUTTON_SX,
         justifyContent: compact ? "center" : "flex-start",
-        gap: 0.75,
-        minWidth: 44,
-        minHeight: 44,
-        p: 0,
-        fontSize: "0.85rem",
-        "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
       }}
     >
       <X size={16} aria-hidden />
@@ -195,7 +230,13 @@ function ExitButton({ onExit, compact }: { onExit: () => void; compact?: boolean
   );
 }
 
-function RestartButton({ onRestart, compact }: { onRestart: () => void; compact?: boolean }) {
+function RestartButton({
+  onRestart,
+  compact,
+}: {
+  onRestart: () => void;
+  compact?: boolean;
+}) {
   return (
     <Box
       component="button"
@@ -204,20 +245,8 @@ function RestartButton({ onRestart, compact }: { onRestart: () => void; compact?
       aria-label="Start the round over"
       data-testid="round-restart"
       sx={{
-        appearance: "none",
-        background: "none",
-        border: "none",
-        cursor: "pointer",
-        color: "rgba(255,255,255,0.42)",
-        display: "inline-flex",
-        alignItems: "center",
+        ...RAIL_BUTTON_SX,
         justifyContent: compact ? "center" : "flex-start",
-        gap: 0.75,
-        minWidth: 44,
-        minHeight: 44,
-        p: 0,
-        fontSize: "0.8rem",
-        "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
       }}
     >
       <RotateCcw size={15} aria-hidden />

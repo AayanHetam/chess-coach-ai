@@ -23,6 +23,17 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ACCENT,
+  LINE,
+  MOTION,
+  RADIUS,
+  SHADOW,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
+import {
   buildAnalysisSnippetSvg,
   buildSnippetUrl,
   renderSnippetSvgToPng,
@@ -39,14 +50,17 @@ interface CoachShareDialogProps {
 
 type ShareKind = "single" | "transcript";
 
+// A dialog arrives with a short cross-fade and a small scale from the
+// centre, and leaves the same way.
+const DIALOG_TRANSITION = { duration: 0.18, ease: "easeOut" } as const;
+
 /**
- * Share dialog for a coach reply — preview an SVG snippet of the position +
- * Claude's explanation, then download / copy as PNG or mint a permalink via
+ * Share dialog for a coach reply: preview an SVG snippet of the position and
+ * Masti's note, then download / copy as PNG or mint a permalink via
  * /api/insights (auth-gated, gracefully falls back to a ?fen= deep link
  * when sign-in isn't available).
  *
- * Pattern + helpers ported from `src/components/AnalysisSnippetDialog.tsx`
- * but re-themed for the dark-glass design OS.
+ * Pattern + helpers ported from `src/components/AnalysisSnippetDialog.tsx`.
  */
 export function CoachShareDialog({
   open,
@@ -127,8 +141,7 @@ export function CoachShareDialog({
         const json = (await res.json()) as { id?: string };
         if (json.id) setInsightId(json.id);
       } catch (err) {
-        if (!cancelled)
-          console.warn("[share] insight mint failed:", err);
+        if (!cancelled) console.warn("[share] insight mint failed:", err);
       } finally {
         if (!cancelled) setInsightLoading(false);
       }
@@ -189,14 +202,6 @@ export function CoachShareDialog({
       open={open}
       onClose={onClose}
       closeAfterTransition
-      slotProps={{
-        backdrop: {
-          sx: {
-            backgroundColor: "rgba(8,9,12,0.78)",
-            backdropFilter: "blur(8px)",
-          },
-        },
-      }}
       sx={{
         display: "flex",
         alignItems: "center",
@@ -208,10 +213,10 @@ export function CoachShareDialog({
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: 16, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.98 }}
-            transition={{ duration: 0.28, ease: [0.22, 0.61, 0.36, 1] }}
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={DIALOG_TRANSITION}
             // Centering handled by the parent Modal's flexbox (added in its sx).
             // Must NOT set position:fixed + translate(-50%,-50%) here —
             // framer-motion animates y/scale and owns `transform`, so it would
@@ -225,15 +230,11 @@ export function CoachShareDialog({
                 maxHeight: "88vh",
                 display: "flex",
                 flexDirection: "column",
-                borderRadius: "1.5rem",
-                background:
-                  "linear-gradient(180deg, rgba(20,22,28,0.92), rgba(12,14,20,0.92))",
-                backdropFilter: "blur(20px) saturate(150%)",
-                WebkitBackdropFilter: "blur(20px) saturate(150%)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                boxShadow:
-                  "0 24px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)",
-                color: "rgba(255,255,255,0.94)",
+                borderRadius: `${RADIUS.sheet}px`,
+                background: SURFACE.overlay,
+                border: `1px solid ${LINE.hairline}`,
+                boxShadow: SHADOW.modal,
+                color: TEXT.primary,
                 overflow: "hidden",
               }}
             >
@@ -244,43 +245,20 @@ export function CoachShareDialog({
                 sx={{
                   px: 3,
                   py: 2,
-                  borderBottom: "1px solid rgba(255,255,255,0.06)",
+                  borderBottom: `1px solid ${LINE.hairline}`,
                 }}
               >
-                <Box
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: "10px",
-                    background:
-                      "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
-                    boxShadow: "0 0 16px rgba(249,115,22,0.4)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Share2 size={14} color="#0A0A0A" />
-                </Box>
+                <Share2 size={18} strokeWidth={1.75} color={TEXT.secondary} />
                 <Typography
-                  sx={{
-                    flex: 1,
-                    fontSize: "1.05rem",
-                    fontWeight: 700,
-                    color: "rgba(255,255,255,0.94)",
-                  }}
+                  component="h2"
+                  sx={{ flex: 1, ...TYPE.h4, color: TEXT.primary }}
                 >
-                  Share this insight
+                  Share this note
                 </Typography>
                 <IconButton
                   onClick={onClose}
-                  sx={{
-                    color: "rgba(255,255,255,0.6)",
-                    "&:hover": {
-                      color: "rgba(255,255,255,0.95)",
-                      background: "rgba(255,255,255,0.05)",
-                    },
-                  }}
+                  aria-label="Close"
+                  sx={{ color: TEXT.secondary }}
                 >
                   <X size={16} />
                 </IconButton>
@@ -288,13 +266,14 @@ export function CoachShareDialog({
 
               {transcriptShareable && (
                 <Box
+                  role="tablist"
+                  aria-label="What to share"
                   sx={{
                     display: "flex",
                     gap: 0.5,
                     px: 1.5,
                     py: 1,
-                    borderBottom: "1px solid rgba(255,255,255,0.06)",
-                    background: "rgba(255,255,255,0.02)",
+                    borderBottom: `1px solid ${LINE.hairline}`,
                   }}
                 >
                   {(
@@ -307,6 +286,10 @@ export function CoachShareDialog({
                     return (
                       <Box
                         key={id}
+                        component="button"
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
                         onClick={() => setShareKind(id)}
                         sx={{
                           position: "relative",
@@ -314,32 +297,31 @@ export function CoachShareDialog({
                           textAlign: "center",
                           px: 1.5,
                           py: 0.85,
-                          borderRadius: "0.55rem",
+                          border: "none",
+                          background: "transparent",
+                          font: "inherit",
+                          borderRadius: `${RADIUS.small}px`,
                           cursor: "pointer",
-                          color: isActive
-                            ? "#0A0A0A"
-                            : "rgba(255,255,255,0.62)",
-                          fontSize: "0.82rem",
-                          fontWeight: 700,
-                          transition: "color 180ms ease",
+                          color: isActive ? TEXT.primary : TEXT.secondary,
+                          fontSize: TYPE.bodySmall.fontSize,
+                          fontWeight: 600,
+                          transition: `color ${MOTION.hover}`,
+                          "&:hover": { color: TEXT.primary },
+                          "&:focus-visible": {
+                            outline: `2px solid ${TEXT.primary}`,
+                            outlineOffset: 2,
+                          },
                         }}
                       >
                         {isActive && (
                           <motion.div
                             layoutId="shareKindIndicator"
-                            transition={{
-                              type: "spring",
-                              stiffness: 420,
-                              damping: 34,
-                            }}
+                            transition={MOTION.springSheet}
                             style={{
                               position: "absolute",
                               inset: 0,
-                              borderRadius: "0.55rem",
-                              background:
-                                "linear-gradient(135deg, #F97316 0%, #FB923C 100%)",
-                              boxShadow:
-                                "0 4px 16px rgba(249,115,22,0.32)",
+                              borderRadius: RADIUS.small,
+                              background: "rgba(255,255,255,0.1)",
                             }}
                           />
                         )}
@@ -360,11 +342,6 @@ export function CoachShareDialog({
                   flex: 1,
                   overflowY: "auto",
                   p: 2.5,
-                  "&::-webkit-scrollbar": { width: 6 },
-                  "&::-webkit-scrollbar-thumb": {
-                    background: "rgba(249,115,22,0.2)",
-                    borderRadius: "3px",
-                  },
                 }}
               >
                 {/* Preview card */}
@@ -372,11 +349,10 @@ export function CoachShareDialog({
                   sx={{
                     width: "100%",
                     aspectRatio: "1200 / 675",
-                    borderRadius: "12px",
+                    borderRadius: `${RADIUS.control}px`,
                     overflow: "hidden",
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-                    background: "rgba(255,255,255,0.02)",
-                    border: "1px solid rgba(255,255,255,0.06)",
+                    background: SURFACE.raisedSecondary,
+                    border: `1px solid ${LINE.hairline}`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -394,16 +370,10 @@ export function CoachShareDialog({
 
                 {authBlocked && (
                   <Typography
-                    sx={{
-                      mt: 1.5,
-                      fontSize: "0.78rem",
-                      color: "rgba(255,255,255,0.6)",
-                      fontStyle: "italic",
-                    }}
+                    sx={{ mt: 1.5, ...TYPE.caption, color: TEXT.secondary }}
                   >
-                    Sign in on chessmasti.com for a stable permalink — for
-                    now we'll fall back to a `?fen=` deep link that loads
-                    the position but not the chat history.
+                    Sign in for a link that keeps the chat history. This link
+                    loads the position only.
                   </Typography>
                 )}
               </Box>
@@ -412,24 +382,21 @@ export function CoachShareDialog({
                 sx={{
                   px: 3,
                   py: 2,
-                  borderTop: "1px solid rgba(255,255,255,0.06)",
+                  borderTop: `1px solid ${LINE.hairline}`,
                   display: "flex",
                   flexWrap: "wrap",
                   gap: 1,
                 }}
               >
-                <Tooltip title={permalink || "Generating link…"}>
+                <Tooltip title={permalink || "Generating link"}>
                   <Button
                     onClick={handleCopyLink}
                     disabled={!permalink}
                     startIcon={
                       insightLoading ? (
-                        <CircularProgress
-                          size={12}
-                          sx={{ color: "rgba(255,255,255,0.6)" }}
-                        />
+                        <CircularProgress size={16} color="inherit" />
                       ) : (
-                        <LinkIcon size={13} />
+                        <LinkIcon size={14} strokeWidth={1.75} />
                       )
                     }
                     sx={secondaryBtn}
@@ -440,7 +407,7 @@ export function CoachShareDialog({
                 <Button
                   onClick={handleCopyImage}
                   disabled={!svg}
-                  startIcon={<Copy size={13} />}
+                  startIcon={<Copy size={14} strokeWidth={1.75} />}
                   sx={secondaryBtn}
                 >
                   Copy image
@@ -448,7 +415,7 @@ export function CoachShareDialog({
                 <Button
                   onClick={handleDownloadPng}
                   disabled={!svg}
-                  startIcon={<Download size={13} />}
+                  startIcon={<Download size={14} strokeWidth={1.75} />}
                   sx={primaryBtn}
                 >
                   Download PNG
@@ -458,9 +425,9 @@ export function CoachShareDialog({
               <AnimatePresence>
                 {toast && (
                   <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 8 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                     transition={{ duration: 0.18 }}
                     style={{
                       position: "absolute",
@@ -471,21 +438,24 @@ export function CoachShareDialog({
                     }}
                   >
                     <Stack
+                      role="status"
                       direction="row"
                       alignItems="center"
                       spacing={0.85}
                       sx={{
                         px: 1.5,
                         py: 0.85,
-                        borderRadius: "999px",
-                        background: "rgba(34,197,94,0.18)",
-                        border: "1px solid rgba(34,197,94,0.4)",
-                        color: "#86efac",
-                        fontSize: "0.78rem",
-                        fontWeight: 700,
+                        borderRadius: `${RADIUS.control}px`,
+                        background: SURFACE.raisedTertiary,
+                        border: `1px solid ${LINE.hairline}`,
+                        color: TEXT.primary,
+                        boxShadow: SHADOW.floating,
+                        fontSize: TYPE.caption.fontSize,
+                        fontWeight: 600,
+                        "& svg": { color: STATUS.success },
                       }}
                     >
-                      <Check size={12} />
+                      <Check size={14} strokeWidth={1.75} />
                       <Box component="span">{toast}</Box>
                     </Stack>
                   </motion.div>
@@ -499,38 +469,27 @@ export function CoachShareDialog({
   );
 }
 
+// The theme gives every Button its pill, size and press feedback; these
+// only pick the outlined (secondary) and ember (primary) looks.
 const secondaryBtn = {
-  px: 1.85,
-  py: 0.85,
-  borderRadius: "0.6rem",
-  fontSize: "0.82rem",
-  fontWeight: 600,
-  textTransform: "none" as const,
-  background: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(255,255,255,0.1)",
-  color: "rgba(255,255,255,0.85)",
+  border: `1px solid ${LINE.strong}`,
+  color: TEXT.primary,
   "&:hover": {
-    background: "rgba(255,255,255,0.08)",
-    borderColor: "rgba(255,255,255,0.2)",
+    background: "rgba(255,255,255,0.06)",
+    borderColor: TEXT.secondary,
   },
   "&.Mui-disabled": {
-    color: "rgba(255,255,255,0.3)",
-    borderColor: "rgba(255,255,255,0.04)",
+    color: TEXT.tertiary,
+    borderColor: LINE.hairline,
   },
 };
 
 const primaryBtn = {
-  ...secondaryBtn,
-  fontWeight: 700,
-  background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)",
-  border: "1px solid rgba(249,115,22,0.5)",
-  color: "#0A0A0A",
-  "&:hover": {
-    background: "linear-gradient(135deg, #FB923C 0%, #FCD34D 100%)",
-  },
+  background: ACCENT.main,
+  color: TEXT.onAccent,
+  "&:hover": { background: ACCENT.hover },
   "&.Mui-disabled": {
-    background: "rgba(255,255,255,0.05)",
-    color: "rgba(255,255,255,0.4)",
-    borderColor: "rgba(255,255,255,0.06)",
+    background: "rgba(255,255,255,0.08)",
+    color: TEXT.tertiary,
   },
 };

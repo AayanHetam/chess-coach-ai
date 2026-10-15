@@ -9,7 +9,7 @@
  * material the line ends on, and a Play control that steps the main board
  * through it. Under the row, one line of plain words says what the move on
  * the board does (a check, a capture, the fork it creates, what it leaves
- * hanging — computed by lineCaptions.ts from the same chess.js the engine
+ * hanging; computed by lineCaptions.ts from the same chess.js the engine
  * lines came through): the first move's fact at rest, the current move's
  * while the line plays or after a move is tapped.
  *
@@ -26,6 +26,15 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Tooltip } from "@mui/material";
 import { Pause, Play } from "lucide-react";
 import { captionLine } from "@/lib/coach/lineCaptions";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 import type { CoachLine } from "./coachLines";
 
 export interface ProofLineProps {
@@ -47,13 +56,6 @@ export interface ProofLineProps {
   "data-testid"?: string;
 }
 
-const ACCENT = {
-  engine: "#86efac",
-  played: "#FB923C",
-} as const;
-
-const MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-
 export function ProofLine({
   line,
   playerColor,
@@ -63,7 +65,6 @@ export function ProofLine({
   reserveCaption = false,
   "data-testid": testId = "proof-line",
 }: ProofLineProps) {
-  const accent = ACCENT[line.kind];
   const heading =
     label ?? (line.kind === "engine" ? "Engine line" : "In the game");
   const captions = useMemo(
@@ -158,11 +159,8 @@ export function ProofLine({
         <Box
           component="span"
           sx={{
-            fontSize: "0.62rem",
-            fontWeight: 800,
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            color: accent,
+            ...TYPE.label,
+            color: TEXT.secondary,
             whiteSpace: "nowrap",
             flexShrink: 0,
           }}
@@ -182,9 +180,11 @@ export function ProofLine({
             whiteSpace: "nowrap",
             scrollbarWidth: "none",
             "&::-webkit-scrollbar": { display: "none" },
-            fontFamily: MONO,
-            fontSize: "0.84rem",
-            color: "rgba(255,255,255,0.88)",
+            fontFamily: FONT_MONO,
+            fontSize: TYPE.bodySmall.fontSize,
+            // 15px/1.4 notation stays inside the row's 24px.
+            lineHeight: 1.4,
+            color: TEXT.primary,
           }}
         >
           {captions.plies.map((p, i) => {
@@ -212,8 +212,8 @@ export function ProofLine({
                   }
                   sx={{
                     font: "inherit",
-                    fontWeight: 700,
-                    color: active ? accent : "inherit",
+                    fontWeight: 600,
+                    color: active ? ACCENT.hover : "inherit",
                     background: "none",
                     border: 0,
                     p: 0,
@@ -222,7 +222,10 @@ export function ProofLine({
                     textDecoration: active ? "underline" : "none",
                     textUnderlineOffset: "3px",
                     borderRadius: "3px",
-                    "&:hover": interactive ? { color: accent } : {},
+                    transition: `color ${MOTION.hover}`,
+                    touchAction: "manipulation",
+                    WebkitTapHighlightColor: "transparent",
+                    "&:hover": interactive ? { color: ACCENT.hover } : {},
                   }}
                 >
                   {showNumber ? p.label : ""}
@@ -260,23 +263,34 @@ export function ProofLine({
                 flexShrink: 0,
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 0.45,
+                gap: 0.5,
                 height: 24,
-                px: 0.9,
-                borderRadius: "999px",
-                border: `1px solid ${accent}55`,
+                px: 1,
+                borderRadius: `${RADIUS.pill}px`,
+                border: `1px solid ${LINE.strong}`,
                 background: "transparent",
-                color: accent,
+                color: TEXT.primary,
                 cursor: "pointer",
                 font: "inherit",
-                fontSize: "0.68rem",
-                fontWeight: 700,
-                letterSpacing: "0.04em",
-                transition: "background 140ms ease",
-                "&:hover": { background: `${accent}1f` },
+                fontSize: TYPE.caption.fontSize,
+                fontWeight: 600,
+                lineHeight: 1,
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
+                transition: `background-color ${MOTION.hover}, transform ${MOTION.press}`,
+                "&:hover": { background: "rgba(255,255,255,0.06)" },
+                "&:active": { transform: MOTION.pressScale },
+                "&:focus-visible": {
+                  outline: "2px solid #FFFFFF",
+                  outlineOffset: 2,
+                },
               }}
             >
-              {playing ? <Pause size={11} /> : <Play size={11} />}
+              {playing ? (
+                <Pause size={16} strokeWidth={1.75} aria-hidden />
+              ) : (
+                <Play size={16} strokeWidth={1.75} aria-hidden />
+              )}
               {playing ? "Pause" : "Play"}
             </Box>
           </Tooltip>
@@ -302,7 +316,7 @@ export function ProofLine({
             sx={{
               flex: 1,
               minWidth: 0,
-              color: "rgba(255,255,255,0.55)",
+              color: TEXT.secondary,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -317,8 +331,7 @@ export function ProofLine({
               sx={{
                 flexShrink: 0,
                 fontWeight: 600,
-                color: accent,
-                opacity: 0.9,
+                color: TEXT.primary,
                 whiteSpace: "nowrap",
               }}
             >

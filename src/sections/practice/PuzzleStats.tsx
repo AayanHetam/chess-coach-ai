@@ -2,10 +2,17 @@ import { Box, Typography, Paper, Chip, Tooltip } from "@mui/material";
 import { useAtomValue } from "jotai";
 import { puzzleStatsAtom, getSolveRate, formatTime } from "@/lib/puzzleRating";
 import { themeAccent } from "@/components/ui/accents";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import TimerIcon from "@mui/icons-material/Timer";
-import WhatshotIcon from "@mui/icons-material/Whatshot";
+import {
+  ACCENT,
+  LINE,
+  RADIUS,
+  SHADOW,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
+import { CircleCheck, Flame, Timer, TrendingUp } from "lucide-react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -29,28 +36,24 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
 
   const statCards = [
     {
-      label: "Puzzle Rating",
+      label: "Puzzle rating",
       value: stats.rating,
-      icon: <TrendingUpIcon sx={{ fontSize: 18 }} />,
-      color: "primary.light",
+      icon: <TrendingUp size={18} strokeWidth={1.75} aria-hidden />,
     },
     {
-      label: "Solve Rate",
+      label: "Solve rate",
       value: `${solveRate}%`,
-      icon: <CheckCircleIcon sx={{ fontSize: 18 }} />,
-      color: "success.light",
+      icon: <CircleCheck size={18} strokeWidth={1.75} aria-hidden />,
     },
     {
-      label: "Avg Time",
+      label: "Average time",
       value: stats.totalAttempts > 0 ? formatTime(stats.averageTimeMs) : "-",
-      icon: <TimerIcon sx={{ fontSize: 18 }} />,
-      color: "info.light",
+      icon: <Timer size={18} strokeWidth={1.75} aria-hidden />,
     },
     {
-      label: "Best Streak",
+      label: "Best streak",
       value: stats.bestStreak,
-      icon: <WhatshotIcon sx={{ fontSize: 18 }} />,
-      color: "warning.light",
+      icon: <Flame size={18} strokeWidth={1.75} aria-hidden />,
     },
   ];
 
@@ -68,16 +71,11 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
             <Chip
               icon={card.icon}
               label={
-                <span style={{ fontFamily: "Monaco, monospace" }}>{`${card.value}`}</span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>
+                  {`${card.value}`}
+                </span>
               }
               size="small"
-              sx={{
-                bgcolor: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "rgba(255,255,255,0.85)",
-                borderRadius: "999px",
-                "& .MuiChip-icon": { color: card.color },
-              }}
             />
           </Tooltip>
         ))}
@@ -89,21 +87,17 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
     <Paper
       sx={{
         p: 2.5,
-        borderRadius: "1.5rem",
-        background: "rgba(20,22,28,0.55)",
-        backdropFilter: "blur(14px) saturate(140%)",
-        WebkitBackdropFilter: "blur(14px) saturate(140%)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        boxShadow:
-          "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+        borderRadius: `${RADIUS.card}px`,
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
         overflow: "hidden",
       }}
     >
-      <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, color: "rgba(255,255,255,0.94)" }}>
-        Your Puzzle Stats
+      <Typography sx={{ ...TYPE.h5, mb: 2, color: TEXT.primary }}>
+        Your puzzle stats
       </Typography>
 
-      {/* Stat cards */}
+      {/* Stat tiles */}
       <Box sx={{ display: "flex", gap: 1.5, mb: 2, flexWrap: "wrap" }}>
         {statCards.map((card) => (
           <Paper
@@ -112,27 +106,33 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
               flex: 1,
               minWidth: 100,
               p: 1.5,
-              bgcolor: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.08)",
+              background: SURFACE.raisedSecondary,
+              border: `1px solid ${LINE.hairline}`,
               textAlign: "center",
-              borderRadius: "1rem",
+              borderRadius: `${RADIUS.control}px`,
             }}
           >
-            <Box sx={{ display: "flex", justifyContent: "center", mb: 0.5, color: card.color }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                mb: 0.5,
+                color: TEXT.secondary,
+              }}
+            >
               {card.icon}
             </Box>
             <Typography
               variant="h6"
               sx={{
-                fontWeight: 700,
-                color: "rgba(255,255,255,0.94)",
+                color: TEXT.primary,
                 lineHeight: 1.2,
-                fontFamily: "Monaco, monospace",
+                fontVariantNumeric: "tabular-nums",
               }}
             >
               {card.value}
             </Typography>
-            <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>
+            <Typography variant="caption" sx={{ color: TEXT.secondary }}>
               {card.label}
             </Typography>
           </Paper>
@@ -141,50 +141,59 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
 
       {/* Summary */}
       <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
-        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>
-          Total: <strong style={{ color: "rgba(255,255,255,0.85)" }}>{stats.totalAttempts}</strong> puzzles
+        <Typography variant="caption" sx={{ color: TEXT.secondary }}>
+          Total:{" "}
+          <strong style={{ color: TEXT.primary }}>{stats.totalAttempts}</strong>{" "}
+          puzzles
         </Typography>
-        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>
-          Solved: <strong style={{ color: "#66bb6a" }}>{stats.totalSolved}</strong>
+        <Typography variant="caption" sx={{ color: TEXT.secondary }}>
+          Solved:{" "}
+          <strong style={{ color: STATUS.success }}>{stats.totalSolved}</strong>
         </Typography>
-        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>
-          Failed: <strong style={{ color: "#ef5350" }}>{stats.totalFailed}</strong>
+        <Typography variant="caption" sx={{ color: TEXT.secondary }}>
+          Failed:{" "}
+          <strong style={{ color: STATUS.error }}>{stats.totalFailed}</strong>
         </Typography>
-        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>
-          Current Streak: <strong style={{ color: "#ffa726" }}>{stats.currentStreak}</strong>
+        <Typography variant="caption" sx={{ color: TEXT.secondary }}>
+          Current streak:{" "}
+          <strong style={{ color: STATUS.warning }}>
+            {stats.currentStreak}
+          </strong>
         </Typography>
       </Box>
 
       {/* Rating chart */}
       {stats.ratingHistory.length > 2 && (
         <Box sx={{ mt: 2 }}>
-          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)", mb: 1, display: "block" }}>
-            Rating History
+          <Typography
+            variant="caption"
+            sx={{ color: TEXT.secondary, mb: 1, display: "block" }}
+          >
+            Rating history
           </Typography>
           <Box sx={{ width: "100%", height: 120 }}>
             <ResponsiveContainer>
               <LineChart data={chartData}>
                 <XAxis dataKey="time" hide />
-                <YAxis
-                  domain={["dataMin - 50", "dataMax + 50"]}
-                  hide
-                />
+                <YAxis domain={["dataMin - 50", "dataMax + 50"]} hide />
                 <RechartsTooltip
                   contentStyle={{
-                    backgroundColor: "rgba(20,22,28,0.92)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: 8,
+                    backgroundColor: SURFACE.raisedTertiary,
+                    border: `1px solid ${LINE.hairline}`,
+                    borderRadius: RADIUS.small,
+                    boxShadow: SHADOW.floating,
+                    color: TEXT.primary,
                     fontSize: 12,
                   }}
-                  labelStyle={{ color: "rgba(255,255,255,0.6)" }}
+                  labelStyle={{ color: TEXT.secondary }}
                 />
                 <Line
                   type="monotone"
                   dataKey="rating"
-                  stroke="#42a5f5"
+                  stroke={ACCENT.main}
                   strokeWidth={2}
                   dot={false}
-                  activeDot={{ r: 4, fill: "#42a5f5" }}
+                  activeDot={{ r: 4, fill: ACCENT.main }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -195,18 +204,25 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
       {/* Theme breakdown */}
       {Object.keys(stats.themeStats).length > 0 && (
         <Box sx={{ mt: 2 }}>
-          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)", mb: 1, display: "block" }}>
-            Theme Performance
+          <Typography
+            variant="caption"
+            sx={{ color: TEXT.secondary, mb: 1, display: "block" }}
+          >
+            Theme performance
           </Typography>
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
             {Object.entries(stats.themeStats)
               .sort((a, b) => b[1].attempts - a[1].attempts)
               .slice(0, 10)
               .map(([theme, data]) => {
-                const rate = data.attempts > 0 ? Math.round((data.solved / data.attempts) * 100) : 0;
+                const rate =
+                  data.attempts > 0
+                    ? Math.round((data.solved / data.attempts) * 100)
+                    : 0;
                 // Each theme keeps its one sitewide identity colour (fork is
-                // always gold, pin always cyan); the rate itself is printed in
-                // the label, so no signal rides on colour alone.
+                // always gold, pin always cyan) as a quiet tag tint; the rate
+                // itself is printed in the label, so no signal rides on
+                // colour alone.
                 const a = themeAccent(theme);
                 return (
                   <Tooltip
@@ -219,8 +235,7 @@ export default function PuzzleStats({ compact = false }: PuzzleStatsProps) {
                       sx={{
                         bgcolor: a.soft,
                         color: a.bright,
-                        border: `1px solid ${a.border}`,
-                        fontSize: "0.7rem",
+                        fontSize: TYPE.caption.fontSize,
                       }}
                     />
                   </Tooltip>

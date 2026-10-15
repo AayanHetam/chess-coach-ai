@@ -3,6 +3,7 @@
 import {
   Box,
   Button,
+  CircularProgress,
   IconButton,
   Stack,
   Tooltip,
@@ -30,6 +31,17 @@ import {
   type MasterCorpusMeta,
   type MasterSource,
 } from "@/lib/master/explorerClient";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 export type { ApiData, ApiMove, MasterCorpusMeta, MasterSource };
 
@@ -330,7 +342,7 @@ export function masterLineInsight(candidate: MasterCandidate): {
       ? `White ${pct(split.white)} · draw ${pct(split.draws)} · Black ${pct(split.black)}`
       : undefined;
   return {
-    tag: `${candidate.san} — Master line`,
+    tag: `${candidate.san}: Master line`,
     eval: evidence,
     classification,
   };
@@ -347,13 +359,13 @@ export function coachQuestionFor(
     const results = split
       ? ` (White won ${pct(split.white)}, drew ${pct(split.draws)}, Black won ${pct(split.black)})`
       : "";
-    return `Tell me about ${candidate.san} from this position — ${formatCount(candidate.count)} master games went this way${results}. What is the idea, and what does ${sideToMove} need to know before playing it?`;
+    return `Tell me about ${candidate.san} from this position: ${formatCount(candidate.count)} master games went this way${results}. What is the idea, and what does ${sideToMove} need to know before playing it?`;
   }
   if (typeof candidate.eval === "number") {
     const verdictBit = verdict
       ? `, ${VERDICT_META[verdict].label.toLowerCase()}`
       : "";
-    return `Tell me about ${candidate.san} from this position — the engine gives ${formatEval(candidate.eval)}${verdictBit}, and no master games reach here. What is the idea?`;
+    return `Tell me about ${candidate.san} from this position: the engine gives ${formatEval(candidate.eval)}${verdictBit}, and no master games reach here. What is the idea?`;
   }
   return `Tell me about ${candidate.san} from this position.`;
 }
@@ -364,37 +376,36 @@ function pct(fraction: number): string {
 
 const VERDICT_META: Record<
   Verdict,
-  { label: string; insight: string; color: string }
+  { label: string; insight: string; color: string; tint: string }
 > = {
   top: {
     label: "Top choice",
     insight: "Engine's top choice",
-    color: "#4ADE80",
+    color: STATUS.success,
+    tint: STATUS.successTint,
   },
   playable: {
     label: "Playable",
     insight: "Playable (engine)",
-    color: "#CBD5E1",
+    color: TEXT.primary,
+    tint: SURFACE.raisedSecondary,
   },
   inferior: {
     label: "Inferior",
     insight: "Inferior (engine)",
-    color: "#F87171",
+    color: STATUS.error,
+    tint: STATUS.errorTint,
   },
 };
 
 // ───────────────────────────────────────────────────────────────────────────
-// Visual tokens — Obsidian Glass, as the Lines and Coach panels wear it.
+// Visual tokens: the site's flat dark system (src/theme/tokens.ts).
 // ───────────────────────────────────────────────────────────────────────────
 
-const MONO = "Monaco, Menlo, monospace";
-const TEXT = "rgba(255,255,255,0.92)";
-const TEXT_DIM = "rgba(255,255,255,0.55)";
-const TEXT_FAINT = "rgba(255,255,255,0.38)";
-const HAIRLINE = "1px solid rgba(255,255,255,0.06)";
-const ACCENT = "#F97316";
-const DB_GREEN = "#22C55E";
-const ENGINE_PURPLE = "#A78BFA";
+const HAIRLINE = `1px solid ${LINE.hairline}`;
+const HOVER = "rgba(255,255,255,0.06)";
+const SELECTED = "rgba(255,255,255,0.10)";
+// Result-bar colours carry the data (White / draw / Black), not chrome.
 const WDL = {
   white: { bg: "#E2E8F0", fg: "#0F172A" },
   draws: { bg: "#64748B", fg: "#F8FAFC" },
@@ -404,21 +415,18 @@ const WDL = {
 const navBtnSx = {
   width: 26,
   height: 26,
-  color: "rgba(255,255,255,0.7)",
-  background: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: "7px",
+  color: TEXT.secondary,
+  background: SURFACE.raisedSecondary,
+  borderRadius: `${RADIUS.small}px`,
   flexShrink: 0,
-  transition: "all 180ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+  transition: `background-color ${MOTION.hover}, color ${MOTION.hover}`,
   "&:hover": {
-    background: "rgba(249,115,22,0.12)",
-    borderColor: "rgba(249,115,22,0.3)",
-    color: "#FB923C",
+    background: SURFACE.raisedTertiary,
+    color: TEXT.primary,
   },
   "&.Mui-disabled": {
-    color: "rgba(255,255,255,0.18)",
-    background: "rgba(255,255,255,0.02)",
-    borderColor: "rgba(255,255,255,0.04)",
+    color: TEXT.tertiary,
+    background: "transparent",
   },
 } as const;
 
@@ -427,26 +435,20 @@ const stripCellSx = (isCurrent: boolean) =>
     flexShrink: 0,
     px: 0.85,
     py: 0.45,
-    borderRadius: "6px",
+    borderRadius: `${RADIUS.small}px`,
     cursor: "pointer",
-    fontSize: "0.78rem",
-    fontFamily: MONO,
+    fontSize: TYPE.caption.fontSize,
+    fontFamily: FONT_MONO,
     fontWeight: 600,
     lineHeight: 1,
     whiteSpace: "nowrap" as const,
-    color: isCurrent ? "#FB923C" : "rgba(255,255,255,0.78)",
-    background: isCurrent
-      ? "linear-gradient(135deg, rgba(249,115,22,0.22), rgba(251,146,60,0.10))"
-      : "transparent",
-    border: isCurrent
-      ? "1px solid rgba(249,115,22,0.45)"
-      : "1px solid transparent",
-    boxShadow: isCurrent ? "0 0 12px rgba(249,115,22,0.25)" : "none",
-    transition: "all 180ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+    color: isCurrent ? TEXT.primary : TEXT.secondary,
+    background: isCurrent ? SELECTED : "transparent",
+    border: "1px solid transparent",
+    transition: `background-color ${MOTION.hover}, color ${MOTION.hover}`,
     "&:hover": {
-      background: isCurrent
-        ? "linear-gradient(135deg, rgba(249,115,22,0.3), rgba(251,146,60,0.16))"
-        : "rgba(255,255,255,0.05)",
+      background: isCurrent ? SELECTED : HOVER,
+      color: TEXT.primary,
     },
   }) as const;
 
@@ -480,10 +482,10 @@ function ResultBar({
           display: "flex",
           width: "100%",
           height,
-          borderRadius: "5px",
+          borderRadius: `${RADIUS.small}px`,
           overflow: "hidden",
-          border: "1px solid rgba(255,255,255,0.10)",
-          background: "rgba(255,255,255,0.03)",
+          border: `1px solid ${LINE.hairline}`,
+          background: SURFACE.raisedSecondary,
         }}
       >
         {segments.map((s) => {
@@ -496,9 +498,9 @@ function ResultBar({
                 width: `${value * 100}%`,
                 background: WDL[s.key].bg,
                 color: WDL[s.key].fg,
-                fontFamily: MONO,
-                fontSize: "0.62rem",
-                fontWeight: 700,
+                fontSize: TYPE.caption.fontSize,
+                fontWeight: 600,
+                fontVariantNumeric: "tabular-nums",
                 lineHeight: `${height - 2}px`,
                 textAlign: "center",
                 overflow: "hidden",
@@ -520,15 +522,13 @@ function VerdictChip({ verdict }: { verdict: Verdict }) {
     <Box
       component="span"
       sx={{
-        px: 0.85,
-        py: 0.3,
-        borderRadius: "999px",
-        fontSize: "0.66rem",
-        fontWeight: 700,
-        letterSpacing: "0.04em",
+        px: 1,
+        py: 0.25,
+        borderRadius: `${RADIUS.small}px`,
+        fontSize: TYPE.caption.fontSize,
+        fontWeight: 600,
         color: meta.color,
-        background: `${meta.color}1A`,
-        border: `1px solid ${meta.color}55`,
+        background: meta.tint,
         whiteSpace: "nowrap",
         flexShrink: 0,
       }}
@@ -553,11 +553,9 @@ function ColumnHeader({
         px: 2.25,
         pt: 1.25,
         pb: 0.5,
-        fontSize: "0.62rem",
-        fontWeight: 700,
-        letterSpacing: "0.12em",
-        textTransform: "uppercase",
-        color: TEXT_FAINT,
+        fontSize: TYPE.caption.fontSize,
+        fontWeight: 600,
+        color: TEXT.secondary,
         flexShrink: 0,
       }}
     >
@@ -763,13 +761,12 @@ export function MasterGamesPanel({
 
   const title = isEngine ? "Engine analysis" : "Master games";
   const TitleIcon = isEngine ? Cpu : BookOpen;
-  const accent = isEngine ? ENGINE_PURPLE : DB_GREEN;
 
   const subtitle = opening ? (
     <>
       {opening.name}
       {opening.eco && (
-        <Box component="span" sx={{ color: TEXT_FAINT, ml: 0.75 }}>
+        <Box component="span" sx={{ color: TEXT.secondary, ml: 0.75 }}>
           {opening.eco}
         </Box>
       )}
@@ -792,7 +789,7 @@ export function MasterGamesPanel({
           : apiData.corpus?.games
             ? `${formatCount(apiData.corpus.games)} games · ${apiData.corpus.source}`
             : `Master-games database (${apiData.indexedPositions ?? "?"} positions)`
-      : "Loading…";
+      : "Loading";
 
   return (
     <Box
@@ -802,11 +799,9 @@ export function MasterGamesPanel({
         width: "100%",
         display: "flex",
         flexDirection: "column",
-        borderRadius: "1rem",
-        background: "rgba(20,22,28,0.55)",
-        backdropFilter: "blur(16px) saturate(150%)",
-        WebkitBackdropFilter: "blur(16px) saturate(150%)",
-        border: "1px solid rgba(255,255,255,0.07)",
+        borderRadius: `${RADIUS.card}px`,
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
         overflow: "hidden",
       }}
     >
@@ -822,55 +817,33 @@ export function MasterGamesPanel({
           flexShrink: 0,
         }}
       >
-        <Box
-          sx={{
-            width: 36,
-            height: 36,
-            borderRadius: "10px",
-            background: `${accent}1F`,
-            border: `1px solid ${accent}59`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          <TitleIcon size={16} color={accent} />
-        </Box>
+        <TitleIcon
+          size={20}
+          strokeWidth={1.75}
+          color={TEXT.secondary}
+          aria-hidden
+          style={{ flexShrink: 0 }}
+        />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Typography
-              sx={{
-                fontSize: "0.94rem",
-                fontWeight: 700,
-                color: TEXT,
-                lineHeight: 1.1,
-              }}
+              sx={{ ...TYPE.h5, color: TEXT.primary, lineHeight: 1.1 }}
             >
               {title}
             </Typography>
             {loading && (
-              <Box
+              <CircularProgress
                 aria-label="Loading"
-                sx={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: ACCENT,
-                  animation: "mgpulse 1.4s ease-in-out infinite",
-                  "@keyframes mgpulse": {
-                    "0%, 100%": { opacity: 0.4, transform: "scale(0.85)" },
-                    "50%": { opacity: 1, transform: "scale(1)" },
-                  },
-                }}
+                size={14}
+                sx={{ color: TEXT.secondary }}
               />
             )}
           </Box>
           <Typography
             data-testid="master-games-subtitle"
             sx={{
-              fontSize: "0.74rem",
-              color: TEXT_DIM,
+              fontSize: TYPE.caption.fontSize,
+              color: TEXT.secondary,
               mt: 0.4,
               whiteSpace: "nowrap",
               overflow: "hidden",
@@ -893,7 +866,6 @@ export function MasterGamesPanel({
             display: "flex",
             alignItems: "center",
             gap: 0.75,
-            background: "rgba(10,10,12,0.35)",
             flexShrink: 0,
           }}
         >
@@ -947,11 +919,6 @@ export function MasterGamesPanel({
               overflowX: "auto",
               px: 0.5,
               py: 0.25,
-              "&::-webkit-scrollbar": { height: 4 },
-              "&::-webkit-scrollbar-thumb": {
-                background: "rgba(255,255,255,0.12)",
-                borderRadius: "2px",
-              },
             }}
           >
             <Box
@@ -976,7 +943,7 @@ export function MasterGamesPanel({
                     <Box
                       component="span"
                       sx={{
-                        color: "rgba(255,255,255,0.4)",
+                        color: TEXT.secondary,
                         mr: 0.4,
                         fontWeight: 600,
                       }}
@@ -1009,17 +976,21 @@ export function MasterGamesPanel({
           <Box sx={{ flexShrink: 0 }}>
             <Typography
               sx={{
-                fontFamily: MONO,
-                fontSize: "0.98rem",
-                fontWeight: 700,
-                color: TEXT,
+                fontSize: TYPE.h5.fontSize,
+                fontWeight: 600,
+                fontVariantNumeric: "tabular-nums",
+                color: TEXT.primary,
                 lineHeight: 1,
               }}
             >
               {summary.games.toLocaleString("en-US")}
             </Typography>
             <Typography
-              sx={{ fontSize: "0.66rem", color: TEXT_FAINT, mt: 0.4 }}
+              sx={{
+                fontSize: TYPE.caption.fontSize,
+                color: TEXT.secondary,
+                mt: 0.4,
+              }}
             >
               games reached this position
             </Typography>
@@ -1037,11 +1008,11 @@ export function MasterGamesPanel({
             mt: 1.25,
             px: 1.25,
             py: 0.85,
-            borderRadius: "8px",
-            background: "rgba(239,68,68,0.08)",
-            border: "1px dashed rgba(239,68,68,0.35)",
-            fontSize: "0.72rem",
-            color: TEXT_DIM,
+            borderRadius: `${RADIUS.control}px`,
+            background: STATUS.warningTint,
+            border: `1px solid ${LINE.hairline}`,
+            fontSize: TYPE.caption.fontSize,
+            color: TEXT.primary,
             lineHeight: 1.5,
             flexShrink: 0,
           }}
@@ -1060,25 +1031,23 @@ export function MasterGamesPanel({
             mt: 1.25,
             px: 1.25,
             py: 0.85,
-            borderRadius: "8px",
-            background: "rgba(167,139,250,0.08)",
-            border: "1px dashed rgba(167,139,250,0.35)",
+            borderRadius: `${RADIUS.control}px`,
+            background: STATUS.infoTint,
+            border: `1px solid ${LINE.hairline}`,
             flexShrink: 0,
           }}
         >
           <Typography
-            sx={{
-              fontSize: "0.72rem",
-              fontWeight: 700,
-              color: "#C4B5FD",
-              letterSpacing: "0.04em",
-              lineHeight: 1.5,
-            }}
+            sx={{ ...TYPE.label, color: TEXT.primary, lineHeight: 1.5 }}
           >
             Beyond the games database
           </Typography>
           <Typography
-            sx={{ fontSize: "0.72rem", color: TEXT_DIM, lineHeight: 1.5 }}
+            sx={{
+              fontSize: TYPE.caption.fontSize,
+              color: TEXT.secondary,
+              lineHeight: 1.5,
+            }}
           >
             No master games reach this position. These are engine picks from
             chessdb.cn, evaluated from White's side: how the engine rates each
@@ -1124,18 +1093,13 @@ export function MasterGamesPanel({
           px: 1.5,
           pb: 1.5,
           pt: candidates.length > 0 ? 0.25 : 1.5,
-          "&::-webkit-scrollbar": { width: 6 },
-          "&::-webkit-scrollbar-thumb": {
-            background: `${accent}2E`,
-            borderRadius: "3px",
-          },
         }}
       >
         {candidates.length === 0 ? (
           loading ? (
             <Stack
               spacing={0.75}
-              aria-label="Querying master database…"
+              aria-label="Loading master games"
               role="status"
             >
               {Array.from({ length: 6 }).map((_, i) => (
@@ -1143,56 +1107,48 @@ export function MasterGamesPanel({
                   key={i}
                   sx={{
                     height: 44,
-                    borderRadius: "10px",
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(255,255,255,0.04)",
-                    opacity: 1 - i * 0.12,
+                    borderRadius: `${RADIUS.control}px`,
+                    background: "rgba(255,255,255,0.06)",
                   }}
                 />
               ))}
               <Typography
                 sx={{
-                  fontSize: "0.78rem",
-                  color: TEXT_FAINT,
+                  fontSize: TYPE.caption.fontSize,
+                  color: TEXT.secondary,
                   textAlign: "center",
                   pt: 1,
                 }}
               >
-                Querying master database…
+                Loading master games
               </Typography>
             </Stack>
           ) : apiError ? (
             <Box sx={{ px: 1.5, py: 4, textAlign: "center" }} role="alert">
               <Typography
-                sx={{ fontSize: "0.88rem", color: TEXT, fontWeight: 700 }}
+                sx={{
+                  fontSize: TYPE.bodySmall.fontSize,
+                  color: TEXT.primary,
+                  fontWeight: 600,
+                }}
               >
                 Couldn't reach the master database
               </Typography>
               <Typography
-                sx={{ fontSize: "0.78rem", color: TEXT_DIM, mt: 0.5 }}
+                sx={{
+                  fontSize: TYPE.caption.fontSize,
+                  color: TEXT.secondary,
+                  mt: 0.5,
+                }}
               >
                 Nothing is wrong with the position. Try again in a moment.
               </Typography>
               <Button
                 onClick={() => setRetryTick((t) => t + 1)}
-                startIcon={<RefreshCw size={13} />}
-                sx={{
-                  mt: 1.5,
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: "8px",
-                  fontSize: "0.78rem",
-                  fontWeight: 700,
-                  textTransform: "none",
-                  color: TEXT,
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.14)",
-                  "&:hover": {
-                    background: "rgba(249,115,22,0.16)",
-                    borderColor: "rgba(249,115,22,0.45)",
-                    color: "#FB923C",
-                  },
-                }}
+                startIcon={<RefreshCw size={14} strokeWidth={1.75} />}
+                variant="outlined"
+                size="small"
+                sx={{ mt: 1.5 }}
               >
                 Try again
               </Button>
@@ -1201,25 +1157,31 @@ export function MasterGamesPanel({
             <Box sx={{ px: 1.5, py: 4, textAlign: "center" }}>
               <Search
                 size={18}
-                color="rgba(255,255,255,0.3)"
+                strokeWidth={1.75}
+                color={TEXT.secondary}
+                aria-hidden
                 style={{ marginBottom: 8 }}
               />
               <Typography
-                sx={{ fontSize: "0.88rem", color: TEXT, fontWeight: 700 }}
+                sx={{
+                  fontSize: TYPE.bodySmall.fontSize,
+                  color: TEXT.primary,
+                  fontWeight: 600,
+                }}
               >
                 Out of master-game book
               </Typography>
               <Typography
                 sx={{
-                  fontSize: "0.78rem",
-                  color: TEXT_DIM,
+                  fontSize: TYPE.caption.fontSize,
+                  color: TEXT.secondary,
                   mt: 0.5,
                   lineHeight: 1.5,
                 }}
               >
                 No master games in the database reach this position, and the
                 engine database has no analysis for it either. You're in
-                original territory — the Lines tab has Stockfish for that.
+                original territory: the Lines tab has Stockfish for that.
               </Typography>
             </Box>
           )
@@ -1255,26 +1217,22 @@ export function MasterGamesPanel({
                     position: "relative",
                     px: 0.75,
                     py: 0.85,
-                    borderRadius: "10px",
+                    borderRadius: `${RADIUS.control}px`,
                     cursor: "pointer",
-                    background: isPlayed
-                      ? "linear-gradient(90deg, rgba(249,115,22,0.10), rgba(20,22,28,0.4))"
-                      : isSelected
-                        ? "rgba(255,255,255,0.045)"
-                        : "rgba(255,255,255,0.02)",
-                    border: isPlayed
-                      ? "1px solid rgba(249,115,22,0.3)"
-                      : isSelected
-                        ? "1px solid rgba(249,115,22,0.5)"
-                        : "1px solid rgba(255,255,255,0.05)",
-                    boxShadow: isSelected
-                      ? "0 0 16px rgba(249,115,22,0.22)"
-                      : "none",
-                    transition: "all 160ms ease",
+                    // The keyboard selection (the row → plays) is the only
+                    // filled row, so it outranks every marker. The played
+                    // move is marked by its "Played" word alone, and keeps
+                    // that word when it is also the selection.
+                    background: isSelected ? SELECTED : "transparent",
+                    border: isSelected
+                      ? `1px solid ${LINE.strong}`
+                      : "1px solid transparent",
+                    transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
                     "&:hover": {
-                      background: `${accent}0F`,
-                      borderColor: `${accent}52`,
-                      transform: "translateX(2px)",
+                      background: isSelected ? SELECTED : HOVER,
+                    },
+                    "&:active": {
+                      background: SURFACE.raisedTertiary,
                     },
                   }}
                 >
@@ -1287,8 +1245,8 @@ export function MasterGamesPanel({
                         top: 0,
                         bottom: 0,
                         width: `${share * 100}%`,
-                        background: `linear-gradient(90deg, ${DB_GREEN}14, transparent)`,
-                        borderRadius: "10px",
+                        background: "rgba(255,255,255,0.04)",
+                        borderRadius: `${RADIUS.control}px`,
                         pointerEvents: "none",
                       }}
                     />
@@ -1302,10 +1260,10 @@ export function MasterGamesPanel({
                     <Box sx={{ width: 64, flexShrink: 0 }}>
                       <Typography
                         sx={{
-                          fontSize: "0.98rem",
-                          fontWeight: 700,
-                          color: isPlayed ? "#FB923C" : TEXT,
-                          fontFamily: MONO,
+                          fontSize: TYPE.bodySmall.fontSize,
+                          fontWeight: 600,
+                          color: TEXT.primary,
+                          fontFamily: FONT_MONO,
                           lineHeight: 1.1,
                         }}
                       >
@@ -1314,14 +1272,13 @@ export function MasterGamesPanel({
                       {isPlayed && (
                         <Typography
                           sx={{
-                            fontSize: "0.58rem",
-                            color: ACCENT,
-                            fontWeight: 700,
-                            letterSpacing: "0.12em",
+                            fontSize: TYPE.caption.fontSize,
+                            color: ACCENT.hover,
+                            fontWeight: 600,
                             mt: 0.2,
                           }}
                         >
-                          PLAYED
+                          Played
                         </Typography>
                       )}
                     </Box>
@@ -1333,27 +1290,27 @@ export function MasterGamesPanel({
                             width: 60,
                             flexShrink: 0,
                             textAlign: "right",
-                            fontFamily: MONO,
-                            fontSize: "0.86rem",
-                            fontWeight: 700,
+                            fontVariantNumeric: "tabular-nums",
+                            fontSize: TYPE.bodySmall.fontSize,
+                            fontWeight: 600,
                             // Neutral on purpose: the eval is White's, the
                             // verdict is the mover's, and a green "+0.27" next
                             // to "Inferior" with Black to move said two things.
-                            color: TEXT,
+                            color: TEXT.primary,
                           }}
                         >
                           {typeof c.eval === "number"
                             ? formatEval(c.eval)
-                            : "—"}
+                            : "–"}
                         </Typography>
                         <Typography
                           sx={{
                             width: 58,
                             flexShrink: 0,
                             textAlign: "right",
-                            fontFamily: MONO,
-                            fontSize: "0.74rem",
-                            color: loss && loss > 0 ? TEXT_DIM : TEXT_FAINT,
+                            fontVariantNumeric: "tabular-nums",
+                            fontSize: TYPE.caption.fontSize,
+                            color: TEXT.secondary,
                           }}
                         >
                           {loss === null
@@ -1385,13 +1342,13 @@ export function MasterGamesPanel({
                               width: 56,
                               flexShrink: 0,
                               textAlign: "right",
-                              fontFamily: MONO,
-                              fontSize: "0.86rem",
-                              fontWeight: 700,
-                              color: TEXT,
+                              fontVariantNumeric: "tabular-nums",
+                              fontSize: TYPE.bodySmall.fontSize,
+                              fontWeight: 600,
+                              color: TEXT.primary,
                             }}
                           >
-                            {c.count > 0 ? formatCount(c.count) : "—"}
+                            {c.count > 0 ? formatCount(c.count) : "–"}
                           </Typography>
                         </Tooltip>
                         <Typography
@@ -1399,16 +1356,19 @@ export function MasterGamesPanel({
                             width: 46,
                             flexShrink: 0,
                             textAlign: "right",
-                            fontFamily: MONO,
-                            fontSize: "0.74rem",
-                            color: TEXT_DIM,
+                            fontVariantNumeric: "tabular-nums",
+                            fontSize: TYPE.caption.fontSize,
+                            color: TEXT.secondary,
                             display: { xs: "none", sm: "block" },
                           }}
                         >
                           {share > 0 ? pct(share) : ""}
                         </Typography>
                         <Box sx={{ flex: 1, minWidth: 0, pl: 0.5 }}>
-                          {split && <ResultBar split={split} />}
+                          {/* A row's bar is too narrow for its labels; the
+                              tooltip and the accessible name carry all three
+                              numbers. The wider summary bar keeps them. */}
+                          {split && <ResultBar split={split} labels={false} />}
                         </Box>
                       </>
                     )}
@@ -1428,18 +1388,15 @@ export function MasterGamesPanel({
                           width: 28,
                           height: 28,
                           flexShrink: 0,
-                          color: "rgba(255,255,255,0.55)",
-                          background: "rgba(255,255,255,0.04)",
-                          border: "1px solid rgba(255,255,255,0.08)",
-                          borderRadius: "8px",
+                          color: TEXT.secondary,
+                          borderRadius: `${RADIUS.small}px`,
                           "&:hover": {
-                            background: "rgba(249,115,22,0.12)",
-                            borderColor: "rgba(249,115,22,0.3)",
-                            color: "#FB923C",
+                            background: HOVER,
+                            color: TEXT.primary,
                           },
                         }}
                       >
-                        <MessageSquare size={12} />
+                        <MessageSquare size={14} strokeWidth={1.75} />
                       </IconButton>
                     </Tooltip>
                   </Stack>
@@ -1460,8 +1417,8 @@ export function MasterGamesPanel({
           display: "flex",
           alignItems: "center",
           gap: 1.5,
-          fontSize: "0.7rem",
-          color: "rgba(255,255,255,0.42)",
+          fontSize: TYPE.caption.fontSize,
+          color: TEXT.secondary,
           flexShrink: 0,
         }}
       >
@@ -1469,15 +1426,13 @@ export function MasterGamesPanel({
           sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0 }}
         >
           <Box
+            aria-hidden
             sx={{
-              width: 7,
-              height: 7,
+              width: 8,
+              height: 8,
               borderRadius: "50%",
               flexShrink: 0,
-              background: apiError ? "#EF4444" : accent,
-              boxShadow: apiError
-                ? "0 0 6px rgba(239,68,68,0.5)"
-                : `0 0 6px ${accent}99`,
+              background: apiError ? STATUS.error : STATUS.success,
             }}
           />
           <Box

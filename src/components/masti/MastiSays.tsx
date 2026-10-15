@@ -3,6 +3,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Masti } from "./Masti";
 import type { MastiMood } from "./manifest";
+import { LINE, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 
 export interface MastiSaysProps {
   mood: MastiMood;
@@ -10,7 +11,10 @@ export interface MastiSaysProps {
   size?: number;
   /** Which side the figure stands on. The bubble's tail points at him. */
   side?: "left" | "right";
-  /** Bubble surface: glass on dark chrome, ember for a celebration. */
+  /**
+   * Historical: every tone is now the same solid surface (the bubble carries
+   * no tint; Masti's mood carries the feeling). Kept so callers compile.
+   */
   tone?: "glass" | "ember" | "jade" | "rose";
   children?: ReactNode;
   animated?: boolean;
@@ -26,36 +30,26 @@ export interface MastiSaysProps {
   "data-testid"?: string;
 }
 
-const TONES: Record<
-  NonNullable<MastiSaysProps["tone"]>,
-  { background: string; border: string; color: string }
-> = {
-  glass: {
-    background: "rgba(20,22,28,0.72)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    color: "rgba(255,255,255,0.92)",
-  },
-  ember: {
-    background: "rgba(249,115,22,0.14)",
-    border: "1px solid rgba(249,115,22,0.38)",
-    color: "rgba(255,240,224,0.95)",
-  },
-  jade: {
-    background: "rgba(52,211,153,0.12)",
-    border: "1px solid rgba(52,211,153,0.36)",
-    color: "rgba(236,253,245,0.95)",
-  },
-  rose: {
-    background: "rgba(251,113,133,0.12)",
-    border: "1px solid rgba(251,113,133,0.36)",
-    color: "rgba(255,241,242,0.95)",
-  },
+// The one bubble: a nested block on whatever surface Masti stands on, a
+// hairline, no blur, no shadow, no tone tint (design rules, recipe 16). The
+// hero's white bubble is drawn by HeroMasti, not here.
+const BUBBLE = {
+  background: SURFACE.raisedSecondary,
+  border: `1px solid ${LINE.hairline}`,
+  color: TEXT.primary,
+} as const;
+
+const TONES: Record<NonNullable<MastiSaysProps["tone"]>, typeof BUBBLE> = {
+  glass: BUBBLE,
+  ember: BUBBLE,
+  jade: BUBBLE,
+  rose: BUBBLE,
 };
 
 /**
- * Masti with a speech bubble. The bubble is a plain glass box with a tail
- * drawn as a rotated square, all inline styles, so it renders identically on
- * the server and inside MUI-free pages. Without children only the figure
+ * Masti with a speech bubble. The bubble is a plain box with a tail drawn
+ * as a rotated square, all inline styles, so it renders identically on the
+ * server and inside MUI-free pages. Without children only the figure
  * renders, which is what the `thinking` mood wants: a chin-stroking Masti
  * says "give me a minute" on his own.
  */
@@ -113,11 +107,8 @@ export function MastiSays({
             background: t.background,
             border: t.border,
             color: t.color,
-            backdropFilter: "blur(12px) saturate(140%)",
-            WebkitBackdropFilter: "blur(12px) saturate(140%)",
-            boxShadow: "0 8px 28px rgba(0,0,0,0.32)",
-            fontSize: "0.94rem",
-            lineHeight: 1.5,
+            fontSize: TYPE.body.fontSize,
+            lineHeight: TYPE.body.lineHeight,
             marginBottom: align === "flex-end" ? Math.round(size * 0.18) : 0,
           }}
         >

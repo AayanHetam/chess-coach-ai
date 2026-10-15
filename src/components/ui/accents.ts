@@ -1,14 +1,12 @@
 /**
- * Jewel accent system for the dark-glass chrome.
+ * Category colours.
  *
- * The base surface stays obsidian; these are the colours that sit ON it.
- * Ember remains the action colour everywhere — the rest exist so that
- * different kinds of content stop all wearing the same orange: each training
- * theme keeps one colour for good (a fork is always gold, a pin always cyan),
- * and each product area on /plan gets an identity tint.
- *
- * Every accent is used as glow/tint on glass, never as a fill — solid fills
- * stay reserved for the ember primary button and the green "done" state.
+ * Ember is the one accent (the primary action, links). These exist so that
+ * categories of content can be told apart: each training theme keeps one
+ * colour for good (a fork is always gold, a pin always cyan). They are used
+ * as quiet tints on tags and chips, and as a text or icon colour, never as a
+ * glow, a gradient or the fill of a large area. Chrome (the nav, the drawer)
+ * does not wear them.
  */
 
 export interface Accent {
@@ -31,10 +29,12 @@ function accent(r: number, g: number, b: number, bright: string): Accent {
   return {
     base: `rgb(${rgb})`,
     bright,
-    soft: `rgba(${rgb},0.14)`,
-    border: `rgba(${rgb},0.38)`,
-    tint: `rgba(${rgb},0.09)`,
-    glow: `0 20px 48px -28px rgba(${rgb},0.45)`,
+    soft: `rgba(${rgb},0.12)`,
+    border: `rgba(${rgb},0.3)`,
+    tint: `rgba(${rgb},0.06)`,
+    // Nothing on the site glows any more; kept so callers compile until the
+    // sweep removes them.
+    glow: "none",
   };
 }
 
@@ -82,24 +82,4 @@ export function themeAccent(themeId: string): Accent {
     h = (h * 31 + themeId.charCodeAt(i)) >>> 0;
   }
   return ACCENTS[CYCLE[h % CYCLE.length]];
-}
-
-/**
- * Identity colour per top-level product surface — the same identities the
- * /plan cards wear (analysis is cyan wherever it appears, lessons gold, …),
- * so the nav itself teaches the colour language. Ember stays with Plan, the
- * surface you come back to; everything else is a tool with its own colour.
- */
-export const SURFACE_ACCENTS: Record<string, AccentName> = {
-  plan: "ember",
-  play: "jade",
-  analysis: "cyan",
-  practice: "violet",
-  learn: "gold",
-  scout: "rose",
-};
-
-/** Accent for a nav surface id; anything unmapped (home, misc) reads ember. */
-export function surfaceAccent(id: string | undefined): Accent {
-  return ACCENTS[(id && SURFACE_ACCENTS[id]) || "ember"];
 }

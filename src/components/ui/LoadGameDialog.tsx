@@ -19,13 +19,36 @@ import {
 } from "@/lib/pgn/describePgnError";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  AlertTriangle,
   Bookmark,
   ClipboardPaste,
   Globe,
   Search,
   X,
 } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  SHADOW,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
+
+// A dialog arrives with a short cross-fade and a small scale from the
+// centre, and leaves the same way.
+const DIALOG_TRANSITION = { duration: 0.18, ease: "easeOut" } as const;
 
 // MUI Modal does cloneElement(child, { ref }) on its direct child. When
 // that child is <AnimatePresence> (a fragment-shaped framer-motion
@@ -35,11 +58,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 // Wrapping AnimatePresence in a forwardRef'd div absorbs the ref
 // cleanly. No visual change — the div is a positioning-neutral
 // container Modal already accounts for.
-const ModalChild = React.forwardRef<HTMLDivElement, { children: React.ReactNode }>(
-  function ModalChild({ children }, ref) {
-    return <div ref={ref}>{children}</div>;
-  }
-);
+const ModalChild = React.forwardRef<
+  HTMLDivElement,
+  { children: React.ReactNode }
+>(function ModalChild({ children }, ref) {
+  return <div ref={ref}>{children}</div>;
+});
 import type { LichessGame } from "@/types/lichess";
 import type { ChessComGame } from "@/types/chessCom";
 import { getLichessUserRecentGames } from "@/lib/lichess";
@@ -68,14 +92,6 @@ export function LoadGameDialog({ open, onClose, onLoad }: LoadGameDialogProps) {
       open={open}
       onClose={onClose}
       closeAfterTransition
-      slotProps={{
-        backdrop: {
-          sx: {
-            backgroundColor: "rgba(8,9,12,0.78)",
-            backdropFilter: "blur(8px)",
-          },
-        },
-      }}
       sx={{
         display: "flex",
         alignItems: "center",
@@ -85,243 +101,214 @@ export function LoadGameDialog({ open, onClose, onLoad }: LoadGameDialogProps) {
       }}
     >
       <ModalChild>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: 16, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.98 }}
-            transition={{
-              duration: 0.28,
-              ease: [0.22, 0.61, 0.36, 1],
-            }}
-            // Centering handled by the parent Modal's flexbox (added in its sx).
-            // Must NOT set position:fixed + translate(-50%,-50%) here —
-            // framer-motion animates y/scale and owns `transform`, so it would
-            // overwrite the centering and drop the dialog off-center.
-            style={{ outline: "none" }}
-          >
-            <Box
-              role="dialog"
-              aria-modal="true"
-              aria-label="Load game"
-              sx={{
-                width: { xs: "92vw", sm: 560 },
-                maxWidth: "92vw",
-                // Round-2 smoke (2026-05-29): submit button rendered at
-                // y=771 in a 724px viewport. Root cause was that the body
-                // flex child couldn't shrink below its intrinsic
-                // content-min-height (TextField multiline minRows=8 has a
-                // hefty min-content), so the dialog overflowed
-                // maxHeight:84vh even with overflow:hidden on the outer.
-                // Drop to 80vh and let the body section's min-height:0
-                // (below) let flex shrink work correctly. Net: dialog
-                // never extends past the viewport; if the body content
-                // is too tall, it scrolls internally.
-                maxHeight: "80vh",
-                display: "flex",
-                flexDirection: "column",
-                borderRadius: "1.5rem",
-                background:
-                  "linear-gradient(180deg, rgba(20,22,28,0.92), rgba(12,14,20,0.92))",
-                backdropFilter: "blur(20px) saturate(150%)",
-                WebkitBackdropFilter: "blur(20px) saturate(150%)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                boxShadow:
-                  "0 24px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)",
-                color: "rgba(255,255,255,0.94)",
-                overflow: "hidden",
-              }}
+        <AnimatePresence>
+          {open && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={DIALOG_TRANSITION}
+              // Centering handled by the parent Modal's flexbox (added in its sx).
+              // Must NOT set position:fixed + translate(-50%,-50%) here —
+              // framer-motion animates y/scale and owns `transform`, so it would
+              // overwrite the centering and drop the dialog off-center.
+              style={{ outline: "none" }}
             >
-              {/* Header */}
-              <Stack
-                direction="row"
-                alignItems="center"
-                spacing={1.5}
+              <Box
+                role="dialog"
+                aria-modal="true"
+                aria-label="Load game"
                 sx={{
-                  px: 3,
-                  py: 2,
-                  borderBottom: "1px solid rgba(255,255,255,0.06)",
+                  width: { xs: "92vw", sm: 560 },
+                  maxWidth: "92vw",
+                  // Round-2 smoke (2026-05-29): submit button rendered at
+                  // y=771 in a 724px viewport. Root cause was that the body
+                  // flex child couldn't shrink below its intrinsic
+                  // content-min-height (TextField multiline minRows=8 has a
+                  // hefty min-content), so the dialog overflowed
+                  // maxHeight:84vh even with overflow:hidden on the outer.
+                  // Drop to 80vh and let the body section's min-height:0
+                  // (below) let flex shrink work correctly. Net: dialog
+                  // never extends past the viewport; if the body content
+                  // is too tall, it scrolls internally.
+                  maxHeight: "80vh",
+                  display: "flex",
+                  flexDirection: "column",
+                  borderRadius: `${RADIUS.sheet}px`,
+                  background: SURFACE.overlay,
+                  border: `1px solid ${LINE.hairline}`,
+                  boxShadow: SHADOW.modal,
+                  color: TEXT.primary,
+                  overflow: "hidden",
                 }}
               >
-                <Box
+                {/* Header */}
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  spacing={1.5}
                   sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: "10px",
-                    background:
-                      "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
-                    boxShadow: "0 0 16px rgba(249,115,22,0.4)",
+                    px: 3,
+                    py: 2,
+                    borderBottom: `1px solid ${LINE.hairline}`,
+                  }}
+                >
+                  <ClipboardPaste
+                    size={18}
+                    strokeWidth={1.75}
+                    color={TEXT.secondary}
+                  />
+                  <Typography
+                    component="h2"
+                    sx={{ flex: 1, ...TYPE.h4, color: TEXT.primary }}
+                  >
+                    Load a game
+                  </Typography>
+                  <IconButton
+                    onClick={onClose}
+                    aria-label="Close"
+                    sx={{ color: TEXT.secondary }}
+                  >
+                    <X size={16} />
+                  </IconButton>
+                </Stack>
+
+                {/* Tab strip */}
+                <Box
+                  role="tablist"
+                  aria-label="Game source"
+                  sx={{
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
+                    gap: 0.5,
+                    px: 1.5,
+                    py: 1,
+                    borderBottom: `1px solid ${LINE.hairline}`,
                   }}
                 >
-                  <ClipboardPaste size={14} color="#0A0A0A" />
-                </Box>
-                <Typography
-                  sx={{
-                    flex: 1,
-                    fontSize: "1.05rem",
-                    fontWeight: 700,
-                    color: "rgba(255,255,255,0.94)",
-                  }}
-                >
-                  Load a game
-                </Typography>
-                <IconButton
-                  onClick={onClose}
-                  sx={{
-                    color: "rgba(255,255,255,0.6)",
-                    "&:hover": {
-                      color: "rgba(255,255,255,0.95)",
-                      background: "rgba(255,255,255,0.05)",
-                    },
-                  }}
-                >
-                  <X size={16} />
-                </IconButton>
-              </Stack>
-
-              {/* Tab strip */}
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.5,
-                  px: 1.5,
-                  py: 1,
-                  borderBottom: "1px solid rgba(255,255,255,0.06)",
-                  background: "rgba(255,255,255,0.02)",
-                }}
-              >
-                {(
-                  [
-                    { id: "paste", label: "Paste PGN", icon: ClipboardPaste },
-                    { id: "saved", label: "Saved", icon: Bookmark },
-                    { id: "lichess", label: "Lichess", icon: Globe },
-                    { id: "chesscom", label: "Chess.com", icon: Globe },
-                  ] as { id: Tab; label: string; icon: typeof Globe }[]
-                ).map(({ id, label, icon: Icon }) => {
-                  const isActive = tab === id;
-                  return (
-                    <Box
-                      key={id}
-                      onClick={() => setTab(id)}
-                      sx={{
-                        position: "relative",
-                        flex: 1,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 0.85,
-                        px: 1.5,
-                        py: 0.85,
-                        borderRadius: "0.55rem",
-                        cursor: "pointer",
-                        color: isActive ? "#0A0A0A" : "rgba(255,255,255,0.62)",
-                        fontSize: "0.82rem",
-                        fontWeight: 700,
-                        transition: "color 180ms ease",
-                        "&:hover": {
-                          color: isActive
-                            ? "#0A0A0A"
-                            : "rgba(255,255,255,0.92)",
-                        },
-                      }}
-                    >
-                      {isActive && (
-                        <motion.div
-                          layoutId="loadGameTabIndicator"
-                          transition={{
-                            type: "spring",
-                            stiffness: 420,
-                            damping: 34,
-                          }}
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            borderRadius: "0.55rem",
-                            background:
-                              "linear-gradient(135deg, #F97316 0%, #FB923C 100%)",
-                            boxShadow: "0 4px 16px rgba(249,115,22,0.32)",
-                          }}
-                        />
-                      )}
+                  {(
+                    [
+                      { id: "paste", label: "Paste PGN", icon: ClipboardPaste },
+                      { id: "saved", label: "Saved", icon: Bookmark },
+                      { id: "lichess", label: "Lichess", icon: Globe },
+                      { id: "chesscom", label: "Chess.com", icon: Globe },
+                    ] as { id: Tab; label: string; icon: typeof Globe }[]
+                  ).map(({ id, label, icon: Icon }) => {
+                    const isActive = tab === id;
+                    return (
                       <Box
+                        key={id}
+                        component="button"
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        onClick={() => setTab(id)}
                         sx={{
                           position: "relative",
+                          flex: 1,
                           display: "flex",
                           alignItems: "center",
+                          justifyContent: "center",
                           gap: 0.85,
-                          zIndex: 1,
+                          px: 1.5,
+                          py: 0.85,
+                          border: "none",
+                          background: "transparent",
+                          font: "inherit",
+                          borderRadius: `${RADIUS.small}px`,
+                          cursor: "pointer",
+                          color: isActive ? TEXT.primary : TEXT.secondary,
+                          fontSize: TYPE.bodySmall.fontSize,
+                          fontWeight: 600,
+                          transition: `color ${MOTION.hover}`,
+                          "&:hover": { color: TEXT.primary },
+                          "&:focus-visible": {
+                            outline: `2px solid ${TEXT.primary}`,
+                            outlineOffset: 2,
+                          },
                         }}
                       >
-                        <Icon size={13} />
-                        <Box component="span">{label}</Box>
+                        {isActive && (
+                          <motion.div
+                            layoutId="loadGameTabIndicator"
+                            transition={MOTION.springSheet}
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              borderRadius: RADIUS.small,
+                              background: "rgba(255,255,255,0.1)",
+                            }}
+                          />
+                        )}
+                        <Box
+                          sx={{
+                            position: "relative",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.85,
+                            zIndex: 1,
+                          }}
+                        >
+                          <Icon size={13} />
+                          <Box component="span">{label}</Box>
+                        </Box>
                       </Box>
-                    </Box>
-                  );
-                })}
-              </Box>
+                    );
+                  })}
+                </Box>
 
-              {/* Tab body */}
-              <Box
-                sx={{
-                  flex: 1,
-                  // CRITICAL flexbox gotcha: without min-height: 0 the
-                  // body can't shrink below its content's min-content
-                  // height, so overflowY:auto becomes a no-op and the
-                  // whole dialog overflows the viewport. The submit
-                  // button at the bottom of the body then renders at
-                  // y > viewport-height and clicks miss.
-                  minHeight: 0,
-                  overflowY: "auto",
-                  p: 3,
-                  "&::-webkit-scrollbar": { width: 6 },
-                  "&::-webkit-scrollbar-thumb": {
-                    background: "rgba(249,115,22,0.2)",
-                    borderRadius: "3px",
-                  },
-                }}
-              >
-                {tab === "paste" && (
-                  <PastePgnTab
-                    onLoad={(g) => {
-                      onLoad(g);
-                      onClose();
-                    }}
-                  />
-                )}
-                {tab === "saved" && (
-                  <SavedGamesTab
-                    onLoad={(g) => {
-                      onLoad(g);
-                      onClose();
-                    }}
-                  />
-                )}
-                {tab === "lichess" && (
-                  <LichessTab
-                    onLoad={(g) => {
-                      onLoad(g);
-                      onClose();
-                    }}
-                  />
-                )}
-                {tab === "chesscom" && (
-                  <ChessComTab
-                    onLoad={(g) => {
-                      onLoad(g);
-                      onClose();
-                    }}
-                  />
-                )}
+                {/* Tab body */}
+                <Box
+                  sx={{
+                    flex: 1,
+                    // CRITICAL flexbox gotcha: without min-height: 0 the
+                    // body can't shrink below its content's min-content
+                    // height, so overflowY:auto becomes a no-op and the
+                    // whole dialog overflows the viewport. The submit
+                    // button at the bottom of the body then renders at
+                    // y > viewport-height and clicks miss.
+                    minHeight: 0,
+                    overflowY: "auto",
+                    p: 3,
+                  }}
+                >
+                  {tab === "paste" && (
+                    <PastePgnTab
+                      onLoad={(g) => {
+                        onLoad(g);
+                        onClose();
+                      }}
+                    />
+                  )}
+                  {tab === "saved" && (
+                    <SavedGamesTab
+                      onLoad={(g) => {
+                        onLoad(g);
+                        onClose();
+                      }}
+                    />
+                  )}
+                  {tab === "lichess" && (
+                    <LichessTab
+                      onLoad={(g) => {
+                        onLoad(g);
+                        onClose();
+                      }}
+                    />
+                  )}
+                  {tab === "chesscom" && (
+                    <ChessComTab
+                      onLoad={(g) => {
+                        onLoad(g);
+                        onClose();
+                      }}
+                    />
+                  )}
+                </Box>
               </Box>
-            </Box>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </ModalChild>
     </Modal>
   );
@@ -349,7 +336,7 @@ function PastePgnTab({ onLoad }: { onLoad: (game: Chess) => void }) {
         setError({
           headline: "Couldn't find any moves in that PGN.",
           detail:
-            "A PGN is numbered moves like 1. e4 e5 2. Nf3 — headers in [brackets] are optional.",
+            "A PGN is numbered moves like 1. e4 e5 2. Nf3. Headers in [brackets] are optional.",
         });
         return;
       }
@@ -369,8 +356,8 @@ function PastePgnTab({ onLoad }: { onLoad: (game: Chess) => void }) {
 
   return (
     <Stack spacing={1.5}>
-      <Typography sx={{ fontSize: "0.86rem", color: "rgba(255,255,255,0.65)" }}>
-        Paste a PGN from any source — Lichess, Chess.com, a database, your
+      <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
+        Paste a PGN from any source: Lichess, Chess.com, a database, your
         clipboard. Headers (Event, White, Black, Date) are optional.
       </Typography>
       <TextField
@@ -384,72 +371,46 @@ function PastePgnTab({ onLoad }: { onLoad: (game: Chess) => void }) {
         minRows={6}
         maxRows={14}
         fullWidth
-        sx={{
-          "& .MuiOutlinedInput-root": {
-            backgroundColor: "rgba(255,255,255,0.03)",
-            borderRadius: "12px",
-            fontFamily: "Monaco, Menlo, monospace",
-            fontSize: "0.82rem",
-            "& fieldset": { borderColor: "rgba(255,255,255,0.1)" },
-            "&:hover fieldset": { borderColor: "rgba(255,255,255,0.2)" },
-            "&.Mui-focused fieldset": {
-              borderColor: "rgba(249,115,22,0.5)",
-              borderWidth: "1px",
-            },
-          },
-          "& .MuiOutlinedInput-input": {
-            color: "rgba(255,255,255,0.95)",
-            "&::placeholder": {
-              color: "rgba(255,255,255,0.3)",
-              opacity: 1,
-            },
-          },
+        // Notation is the one place monospace belongs.
+        InputProps={{
+          sx: { fontFamily: FONT_MONO, fontSize: TYPE.bodySmall.fontSize },
         }}
       />
       {error && (
-        <Typography
+        <Box
+          role="alert"
           sx={{
-            fontSize: "0.8rem",
-            color: "#fca5a5",
-            background: "rgba(239,68,68,0.06)",
-            border: "1px solid rgba(239,68,68,0.2)",
-            borderRadius: "0.55rem",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 1,
             px: 1.25,
-            py: 0.85,
+            py: 1,
+            borderRadius: `${RADIUS.control}px`,
+            background: STATUS.errorTint,
+            border: `1px solid ${LINE.hairline}`,
           }}
         >
-          {error.headline}
-          {error.detail && (
-            <Box
-              component="span"
-              sx={{
-                display: "block",
-                mt: 0.5,
-                fontSize: "0.76rem",
-                color: "rgba(252,165,165,0.72)",
-              }}
-            >
-              {error.detail}
-            </Box>
-          )}
-        </Typography>
+          <AlertTriangle
+            size={16}
+            strokeWidth={1.75}
+            color={STATUS.error}
+            style={{ marginTop: 1, flexShrink: 0 }}
+          />
+          <Typography sx={{ ...TYPE.caption, color: TEXT.primary }}>
+            {error.headline}
+            {error.detail && (
+              <Box
+                component="span"
+                sx={{ display: "block", mt: 0.5, color: TEXT.secondary }}
+              >
+                {error.detail}
+              </Box>
+            )}
+          </Typography>
+        </Box>
       )}
       <Stack direction="row" justifyContent="flex-end" spacing={1}>
-        <Button
-          onClick={handleLoad}
-          sx={{
-            px: 2,
-            py: 0.85,
-            borderRadius: "0.65rem",
-            fontSize: "0.82rem",
-            fontWeight: 700,
-            background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)",
-            color: "#0A0A0A",
-            "&:hover": {
-              background: "linear-gradient(135deg, #FB923C 0%, #FCD34D 100%)",
-            },
-          }}
-        >
+        <Button onClick={handleLoad} variant="contained" sx={primaryButtonSx}>
           Analyze
         </Button>
       </Stack>
@@ -487,9 +448,10 @@ function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
       <Stack alignItems="center" spacing={1.5} sx={{ py: 4 }}>
         <Masti mood="thinking" size={72} loops={0} decorative />
         <Typography
-          sx={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.5)" }}
+          role="status"
+          sx={{ ...TYPE.caption, color: TEXT.secondary }}
         >
-          Loading your saved games…
+          Loading your saved games
         </Typography>
       </Stack>
     );
@@ -499,28 +461,19 @@ function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
     return (
       <Stack alignItems="center" spacing={1.5} sx={{ py: 5, px: 2 }}>
         <Masti mood="idea" size={80} loops={2} decorative />
-        <Typography
-          sx={{
-            fontSize: "0.92rem",
-            fontWeight: 700,
-            color: "rgba(255,255,255,0.88)",
-          }}
-        >
+        <Typography sx={{ ...TYPE.h5, color: TEXT.primary }}>
           No saved games yet
         </Typography>
         <Typography
           sx={{
-            fontSize: "0.82rem",
-            color: "rgba(255,255,255,0.5)",
+            ...TYPE.bodySmall,
+            color: TEXT.secondary,
             textAlign: "center",
             maxWidth: 320,
           }}
         >
           Hit{" "}
-          <Box
-            component="span"
-            sx={{ color: "#FB923C", fontWeight: 700 }}
-          >
+          <Box component="span" sx={{ color: TEXT.primary, fontWeight: 600 }}>
             Save game
           </Box>{" "}
           in the analysis header once you&apos;ve loaded a game, and it&apos;ll
@@ -531,16 +484,16 @@ function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
   }
 
   return (
-    <Stack spacing={0.85}>
-      <Typography
-        sx={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.6)", mb: 0.5 }}
-      >
-        {sortedGames.length} saved game{sortedGames.length === 1 ? "" : "s"} —
-        click any row to load.
+    <Stack spacing={0.5}>
+      <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mb: 0.5 }}>
+        {sortedGames.length} saved game{sortedGames.length === 1 ? "" : "s"}.
+        Click any row to load.
       </Typography>
       {sortedGames.map((g) => (
         <Box
           key={g.id}
+          component="button"
+          type="button"
           onClick={() => {
             try {
               const chess = new Chess();
@@ -550,32 +503,21 @@ function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
               console.warn("[saved games] PGN load failed:", err);
             }
           }}
-          sx={{
-            cursor: "pointer",
-            p: 1.5,
-            borderRadius: "0.7rem",
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            transition: "all 180ms ease",
-            "&:hover": {
-              background: "rgba(249,115,22,0.08)",
-              borderColor: "rgba(249,115,22,0.32)",
-              transform: "translateY(-1px)",
-            },
-          }}
+          sx={listRowSx}
         >
           <Stack
             direction="row"
             alignItems="center"
             justifyContent="space-between"
             spacing={1}
+            sx={{ flex: 1, minWidth: 0 }}
           >
-            <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Box sx={{ minWidth: 0, flex: 1, textAlign: "left" }}>
               <Typography
                 sx={{
-                  fontSize: "0.92rem",
-                  fontWeight: 700,
-                  color: "rgba(255,255,255,0.94)",
+                  ...TYPE.bodySmall,
+                  fontWeight: 600,
+                  color: TEXT.primary,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -585,15 +527,15 @@ function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
               </Typography>
               <Typography
                 sx={{
-                  fontSize: "0.74rem",
-                  color: "rgba(255,255,255,0.45)",
+                  ...TYPE.caption,
+                  color: TEXT.secondary,
                   mt: 0.15,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
                 }}
               >
-                {[g.event, g.date].filter(Boolean).join(" · ") || "—"}
+                {[g.event, g.date].filter(Boolean).join(" · ") || "No details"}
               </Typography>
             </Box>
             {g.result && (
@@ -602,14 +544,15 @@ function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
                   flexShrink: 0,
                   px: 1,
                   py: 0.25,
-                  borderRadius: "999px",
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  fontSize: "0.72rem",
-                  fontWeight: 700,
-                  color: "rgba(255,255,255,0.7)",
-                  fontFamily:
-                    "ui-monospace, SFMono-Regular, monospace",
+                  minHeight: 24,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  borderRadius: `${RADIUS.small}px`,
+                  background: SURFACE.raisedTertiary,
+                  fontSize: TYPE.caption.fontSize,
+                  fontWeight: 500,
+                  color: TEXT.primary,
+                  fontVariantNumeric: "tabular-nums",
                 }}
               >
                 {g.result}
@@ -655,9 +598,7 @@ function LichessTab({ onLoad }: { onLoad: (game: Chess) => void }) {
       }
     } catch (err) {
       if (ac.signal.aborted) return;
-      setError(
-        err instanceof Error ? err.message : "Couldn't reach Lichess."
-      );
+      setError(err instanceof Error ? err.message : "Couldn't reach Lichess.");
     } finally {
       if (!ac.signal.aborted) setLoading(false);
     }
@@ -665,9 +606,9 @@ function LichessTab({ onLoad }: { onLoad: (game: Chess) => void }) {
 
   return (
     <Stack spacing={1.5}>
-      <Typography sx={{ fontSize: "0.86rem", color: "rgba(255,255,255,0.65)" }}>
-        Search any Lichess username. We'll fetch their 50 most recent games —
-        click any one to analyze.
+      <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
+        Search any Lichess username. We'll fetch their 50 most recent games.
+        Click any one to analyze.
       </Typography>
       <Stack direction="row" spacing={1}>
         <TextField
@@ -681,16 +622,15 @@ function LichessTab({ onLoad }: { onLoad: (game: Chess) => void }) {
           }}
           placeholder="e.g. DrNykterstein"
           fullWidth
-          sx={textFieldSx}
         />
         <Button
           onClick={handleFetch}
           disabled={loading || !username.trim()}
           startIcon={
             loading ? (
-              <CircularProgress size={12} sx={{ color: "#0A0A0A" }} />
+              <CircularProgress size={16} color="inherit" />
             ) : (
-              <Search size={13} />
+              <Search size={14} strokeWidth={1.75} />
             )
           }
           sx={primaryButtonSx}
@@ -747,7 +687,7 @@ function ChessComTab({ onLoad }: { onLoad: (game: Chess) => void }) {
 
   return (
     <Stack spacing={1.5}>
-      <Typography sx={{ fontSize: "0.86rem", color: "rgba(255,255,255,0.65)" }}>
+      <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
         Search any Chess.com username. We fetch the current month's archive
         first, then last month if needed.
       </Typography>
@@ -763,16 +703,15 @@ function ChessComTab({ onLoad }: { onLoad: (game: Chess) => void }) {
           }}
           placeholder="e.g. Hikaru"
           fullWidth
-          sx={textFieldSx}
         />
         <Button
           onClick={handleFetch}
           disabled={loading || !username.trim()}
           startIcon={
             loading ? (
-              <CircularProgress size={12} sx={{ color: "#0A0A0A" }} />
+              <CircularProgress size={16} color="inherit" />
             ) : (
-              <Search size={13} />
+              <Search size={14} strokeWidth={1.75} />
             )
           }
           sx={primaryButtonSx}
@@ -801,24 +740,17 @@ function GameList({
 }) {
   if (games.length === 0) return null;
   return (
-    <Stack
-      spacing={0.5}
-      sx={{
-        maxHeight: 360,
-        overflowY: "auto",
-        pr: 0.5,
-        "&::-webkit-scrollbar": { width: 4 },
-        "&::-webkit-scrollbar-thumb": {
-          background: "rgba(249,115,22,0.18)",
-          borderRadius: "2px",
-        },
-      }}
-    >
+    <Stack spacing={0.5} sx={{ maxHeight: 360, overflowY: "auto", pr: 0.5 }}>
       {games.map((g) => {
-        const meta = kind === "lichess" ? lichessMeta(g as LichessGame) : chessComMeta(g as ChessComGame);
+        const meta =
+          kind === "lichess"
+            ? lichessMeta(g as LichessGame)
+            : chessComMeta(g as ChessComGame);
         return (
           <Box
             key={meta.id}
+            component="button"
+            type="button"
             onClick={() => {
               try {
                 const chess = new Chess();
@@ -828,45 +760,34 @@ function GameList({
                 console.warn("Couldn't load selected game:", err);
               }
             }}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              px: 1.25,
-              py: 0.85,
-              borderRadius: "0.55rem",
-              cursor: "pointer",
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.05)",
-              transition: "all 160ms ease",
-              "&:hover": {
-                background: "rgba(249,115,22,0.06)",
-                borderColor: "rgba(249,115,22,0.3)",
-              },
-            }}
+            sx={listRowSx}
           >
-            <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Box sx={{ flex: 1, minWidth: 0, textAlign: "left" }}>
               <Typography
                 sx={{
-                  fontSize: "0.85rem",
+                  ...TYPE.bodySmall,
                   fontWeight: 600,
-                  color: "rgba(255,255,255,0.94)",
+                  color: TEXT.primary,
                   lineHeight: 1.2,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                 }}
               >
-                {meta.white} <Box component="span" sx={{ color: "rgba(255,255,255,0.4)" }}>vs</Box> {meta.black}
+                {meta.white}{" "}
+                <Box component="span" sx={{ color: TEXT.secondary }}>
+                  vs
+                </Box>{" "}
+                {meta.black}
               </Typography>
               <Stack
                 direction="row"
                 spacing={1.5}
                 sx={{
                   mt: 0.25,
-                  fontSize: "0.72rem",
-                  color: "rgba(255,255,255,0.5)",
-                  fontFamily: "Monaco, Menlo, monospace",
+                  ...TYPE.caption,
+                  color: TEXT.secondary,
+                  fontVariantNumeric: "tabular-nums",
                 }}
               >
                 <Box>{meta.dateLabel}</Box>
@@ -908,58 +829,71 @@ function chessComMeta(g: ChessComGame) {
 
 function ErrorPill({ text }: { text: string }) {
   return (
-    <Typography
+    <Box
+      role="alert"
       sx={{
-        fontSize: "0.8rem",
-        color: "#fca5a5",
-        background: "rgba(239,68,68,0.06)",
-        border: "1px solid rgba(239,68,68,0.2)",
-        borderRadius: "0.55rem",
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 1,
         px: 1.25,
-        py: 0.85,
+        py: 1,
+        borderRadius: `${RADIUS.control}px`,
+        background: STATUS.errorTint,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
-      {text}
-    </Typography>
+      <AlertTriangle
+        size={16}
+        strokeWidth={1.75}
+        color={STATUS.error}
+        style={{ marginTop: 1, flexShrink: 0 }}
+      />
+      <Typography sx={{ ...TYPE.caption, color: TEXT.primary }}>
+        {text}
+      </Typography>
+    </Box>
   );
 }
 
-const textFieldSx = {
-  "& .MuiOutlinedInput-root": {
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: "12px",
-    fontSize: "0.88rem",
-    "& fieldset": { borderColor: "rgba(255,255,255,0.1)" },
-    "&:hover fieldset": { borderColor: "rgba(255,255,255,0.2)" },
-    "&.Mui-focused fieldset": {
-      borderColor: "rgba(249,115,22,0.5)",
-      borderWidth: "1px",
-    },
+// A game row: a real button, the list-row recipe (hover one step lighter,
+// press darkens, no lift). The theme styles the inputs, so the username and
+// PGN fields carry no sx of their own.
+const listRowSx = {
+  display: "flex",
+  alignItems: "center",
+  gap: 1,
+  width: "100%",
+  px: 1.5,
+  py: 1.25,
+  minHeight: 44,
+  border: `1px solid ${LINE.hairline}`,
+  background: SURFACE.raisedSecondary,
+  color: TEXT.primary,
+  font: "inherit",
+  textAlign: "left",
+  cursor: "pointer",
+  borderRadius: `${RADIUS.small}px`,
+  transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
+  "&:hover": {
+    background: SURFACE.raisedTertiary,
+    borderColor: LINE.strong,
   },
-  "& .MuiOutlinedInput-input": {
-    color: "rgba(255,255,255,0.95)",
-    "&::placeholder": {
-      color: "rgba(255,255,255,0.3)",
-      opacity: 1,
-    },
+  "&:active": { background: SURFACE.raisedTertiary },
+  "&:focus-visible": {
+    outline: `2px solid ${TEXT.primary}`,
+    outlineOffset: 2,
   },
-};
+} as const;
 
+// The theme gives the Button its pill, size and press feedback; this only
+// picks the ember look of the one primary action.
 const primaryButtonSx = {
   flexShrink: 0,
-  px: 2,
-  py: 0.85,
-  borderRadius: "0.65rem",
-  fontSize: "0.82rem",
-  fontWeight: 700,
-  background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)",
-  color: "#0A0A0A",
-  textTransform: "none" as const,
-  "&:hover": {
-    background: "linear-gradient(135deg, #FB923C 0%, #FCD34D 100%)",
-  },
+  background: ACCENT.main,
+  color: TEXT.onAccent,
+  "&:hover": { background: ACCENT.hover },
   "&.Mui-disabled": {
-    background: "rgba(255,255,255,0.05)",
-    color: "rgba(255,255,255,0.4)",
+    background: "rgba(255,255,255,0.08)",
+    color: TEXT.tertiary,
   },
 };

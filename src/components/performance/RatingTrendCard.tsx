@@ -76,12 +76,6 @@ export function RatingTrendCard() {
               data={data}
               margin={{ top: 4, right: 4, bottom: 0, left: 0 }}
             >
-              <defs>
-                <linearGradient id="ratingFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#F97316" stopOpacity={0.32} />
-                  <stop offset="100%" stopColor="#F97316" stopOpacity={0} />
-                </linearGradient>
-              </defs>
               <YAxis hide domain={["dataMin - 40", "dataMax + 40"]} />
               <Tooltip
                 cursor={{ stroke: "rgba(255,255,255,0.18)" }}
@@ -100,7 +94,8 @@ export function RatingTrendCard() {
                 dataKey="rating"
                 stroke="#FB923C"
                 strokeWidth={2}
-                fill="url(#ratingFill)"
+                fill="#F97316"
+                fillOpacity={0.12}
                 dot={false}
                 activeDot={{ r: 3, fill: "#FB923C", stroke: "none" }}
               />

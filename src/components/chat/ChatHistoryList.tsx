@@ -16,6 +16,7 @@ import { Loader } from "@/components/ui/Loader";
 import { Icon } from "@iconify/react";
 import { useRouter } from "next/router";
 import { useAuth } from "@/contexts/AuthContext";
+import { TYPE } from "@/theme/tokens";
 import {
   listChats,
   renameChat,
@@ -99,7 +100,9 @@ export default function ChatHistoryList({ onNavigate }: Props) {
       setChats((prev) =>
         prev
           ? prev.map((c) =>
-              c.firestoreId === chatId ? { ...c, title: next, titleSource: "manual" as const } : c
+              c.firestoreId === chatId
+                ? { ...c, title: next, titleSource: "manual" as const }
+                : c
             )
           : prev
       );
@@ -128,13 +131,34 @@ export default function ChatHistoryList({ onNavigate }: Props) {
   if (!user) return null;
 
   return (
-    <Box sx={{ px: 1, py: 0.5, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 1, mt: 1, mb: 0.5 }}>
-        <Typography variant="overline" color="text.secondary">
+    <Box
+      sx={{
+        px: 1,
+        py: 0.5,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          px: 1,
+          mt: 1,
+          mb: 0.5,
+        }}
+      >
+        <Typography sx={{ ...TYPE.label }} color="text.secondary">
           Chat history
         </Typography>
         <Tooltip title="Refresh">
-          <IconButton size="small" onClick={() => void refresh()} disabled={loading}>
+          <IconButton
+            size="small"
+            onClick={() => void refresh()}
+            disabled={loading}
+          >
             <Icon icon="mdi:refresh" height="1em" />
           </IconButton>
         </Tooltip>
@@ -169,7 +193,10 @@ export default function ChatHistoryList({ onNavigate }: Props) {
                 key={chat.firestoreId}
                 disablePadding
                 sx={{
-                  "& .chat-actions": { opacity: 0, transition: "opacity 100ms" },
+                  "& .chat-actions": {
+                    opacity: 0,
+                    transition: "opacity 100ms",
+                  },
                   "&:hover .chat-actions": { opacity: 1 },
                 }}
                 secondaryAction={
@@ -233,20 +260,36 @@ export default function ChatHistoryList({ onNavigate }: Props) {
                       primary={chat.title || "Untitled"}
                       primaryTypographyProps={{
                         noWrap: true,
-                        fontSize: "0.875rem",
+                        fontSize: TYPE.bodySmall.fontSize,
                         fontWeight: isActive ? 600 : 500,
                       }}
                       secondary={
-                        <Box component="span" sx={{ display: "flex", justifyContent: "space-between" }}>
+                        <Box
+                          component="span"
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                          }}
+                        >
                           <Typography
                             component="span"
                             variant="caption"
                             color="text.secondary"
-                            sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}
+                            sx={{
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              maxWidth: "70%",
+                            }}
                           >
-                            {chat.preview || `${chat.messageCount} message${chat.messageCount === 1 ? "" : "s"}`}
+                            {chat.preview ||
+                              `${chat.messageCount} message${chat.messageCount === 1 ? "" : "s"}`}
                           </Typography>
-                          <Typography component="span" variant="caption" color="text.secondary">
+                          <Typography
+                            component="span"
+                            variant="caption"
+                            color="text.secondary"
+                          >
                             {relativeTime(ts)}
                           </Typography>
                         </Box>

@@ -23,6 +23,16 @@ import {
   type ProjectedPoint,
 } from "@/lib/curriculum/forwardProjection";
 import { formatTargetDate } from "@/lib/curriculum/improvementModel";
+import {
+  ACCENT,
+  LINE,
+  RADIUS,
+  SHADOW,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 /**
  * Bullet / blitz / rapid rating trends for /plan.
@@ -37,8 +47,8 @@ import { formatTargetDate } from "@/lib/curriculum/improvementModel";
  * your data" rather than encoding a category that the headings already state.
  */
 
-const EMBER = "#F97316";
-const EMBER_SOFT = "rgba(249,115,22,0.28)";
+const EMBER = ACCENT.main;
+const EMBER_SOFT = ACCENT.border;
 
 const PERF_LABEL: Record<ChartedPerf, string> = {
   bullet: "Bullet",
@@ -77,18 +87,23 @@ function DeltaBadge({ delta }: { delta?: number }) {
   if (delta === undefined) return null;
   const up = delta > 0;
   const flat = delta === 0;
-  const color = flat ? "rgba(255,255,255,0.5)" : up ? "#4ADE80" : "#F87171";
+  const color = flat ? TEXT.secondary : up ? STATUS.success : STATUS.error;
   return (
     <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.4, color }}>
       {!flat &&
         (up ? (
-          <TrendingUp size={13} strokeWidth={2.5} />
+          <TrendingUp size={14} strokeWidth={1.75} />
         ) : (
-          <TrendingDown size={13} strokeWidth={2.5} />
+          <TrendingDown size={14} strokeWidth={1.75} />
         ))}
       <Typography
         component="span"
-        sx={{ fontSize: "0.78rem", fontWeight: 700, color: "inherit" }}
+        sx={{
+          fontSize: "0.78rem",
+          fontWeight: 600,
+          color: "inherit",
+          fontVariantNumeric: "tabular-nums",
+        }}
       >
         {up ? "+" : ""}
         {delta}
@@ -181,21 +196,13 @@ function TrendPanel({
         flex: 1,
         minWidth: 0,
         p: 2,
-        borderRadius: "16px",
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(255,255,255,0.07)",
+        borderRadius: `${RADIUS.card}px`,
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, mb: 0.25 }}>
-        <Typography
-          sx={{
-            color: "rgba(255,255,255,0.55)",
-            fontSize: "0.72rem",
-            fontWeight: 700,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-          }}
-        >
+        <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
           {PERF_LABEL[trend.perf]}
         </Typography>
         <Box sx={{ flex: 1 }} />
@@ -204,13 +211,14 @@ function TrendPanel({
 
       <Typography
         sx={{
-          color: "#fff",
-          fontWeight: 800,
+          color: TEXT.primary,
+          fontWeight: 700,
           fontSize: "1.6rem",
           lineHeight: 1.15,
+          fontVariantNumeric: "tabular-nums",
         }}
       >
-        {trend.current ?? "—"}
+        {trend.current ?? "–"}
       </Typography>
 
       <Box sx={{ height: 72, mt: 1, mx: -0.5 }}>
@@ -218,18 +226,14 @@ function TrendPanel({
           // An empty panel says so in words. Padding it with a flat line at some
           // default would draw a trend the user never played.
           <Box sx={{ height: "100%", display: "flex", alignItems: "center" }}>
-            <Typography
-              sx={{ color: "rgba(255,255,255,0.35)", fontSize: "0.78rem" }}
-            >
+            <Typography sx={{ color: TEXT.secondary, fontSize: "0.78rem" }}>
               No rated {PERF_LABEL[trend.perf].toLowerCase()} games this year.
             </Typography>
           </Box>
         ) : single ? (
           <Box sx={{ height: "100%", display: "flex", alignItems: "center" }}>
-            <Typography
-              sx={{ color: "rgba(255,255,255,0.35)", fontSize: "0.78rem" }}
-            >
-              One data point so far — play again to see a trend.
+            <Typography sx={{ color: TEXT.secondary, fontSize: "0.78rem" }}>
+              One data point so far. Play again to see a trend.
             </Typography>
           </Box>
         ) : (
@@ -238,18 +242,6 @@ function TrendPanel({
               data={data}
               margin={{ top: 4, right: 4, bottom: 0, left: 4 }}
             >
-              <defs>
-                <linearGradient
-                  id={`grad-${trend.perf}`}
-                  x1="0"
-                  y1="0"
-                  x2="0"
-                  y2="1"
-                >
-                  <stop offset="0%" stopColor={EMBER} stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={EMBER} stopOpacity={0} />
-                </linearGradient>
-              </defs>
               {/* Axes are present for scale but recessive — the shape is the
                   message. The x axis MUST be a time scale: recharts defaults
                   `dataKey` to a CATEGORY axis, which spaces points evenly by
@@ -270,9 +262,11 @@ function TrendPanel({
               <Tooltip
                 cursor={{ stroke: EMBER_SOFT, strokeWidth: 1 }}
                 contentStyle={{
-                  background: "rgba(12,14,20,0.96)",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  borderRadius: 10,
+                  background: SURFACE.raisedTertiary,
+                  border: `1px solid ${LINE.hairline}`,
+                  borderRadius: RADIUS.small,
+                  boxShadow: SHADOW.floating,
+                  color: TEXT.primary,
                   fontSize: 12,
                 }}
                 labelFormatter={(t) => new Date(Number(t)).toLocaleDateString()}
@@ -288,12 +282,13 @@ function TrendPanel({
                 dataKey="rating"
                 stroke={EMBER}
                 strokeWidth={2}
-                fill={`url(#grad-${trend.perf})`}
+                fill={EMBER}
+                fillOpacity={0.12}
                 dot={false}
                 activeDot={{
                   r: 4,
                   fill: EMBER,
-                  stroke: "#0C0E14",
+                  stroke: SURFACE.raised,
                   strokeWidth: 2,
                 }}
                 isAnimationActive={false}
@@ -314,7 +309,7 @@ function TrendPanel({
                   dot={false}
                   activeDot={{
                     r: 3,
-                    fill: "#0C0E14",
+                    fill: SURFACE.raised,
                     stroke: EMBER,
                     strokeWidth: 2,
                   }}
@@ -327,13 +322,13 @@ function TrendPanel({
               {goalOnThisPanel !== undefined && (
                 <ReferenceLine
                   y={goalOnThisPanel}
-                  stroke="rgba(255,255,255,0.28)"
+                  stroke={LINE.strong}
                   strokeDasharray="2 4"
                   label={{
                     value: `goal ${goalOnThisPanel}`,
                     position: "insideTopLeft",
-                    fill: "rgba(255,255,255,0.45)",
-                    fontSize: 10,
+                    fill: TEXT.secondary,
+                    fontSize: 12,
                   }}
                 />
               )}
@@ -369,11 +364,7 @@ export default function RatingTrends({
             key={i}
             variant="rounded"
             height={148}
-            sx={{
-              flex: 1,
-              bgcolor: "rgba(255,255,255,0.04)",
-              borderRadius: "16px",
-            }}
+            sx={{ flex: 1, borderRadius: `${RADIUS.card}px` }}
           />
         ))}
       </Box>
@@ -386,22 +377,18 @@ export default function RatingTrends({
       <Box
         sx={{
           p: 2,
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.03)",
-          border: "1px dashed rgba(255,255,255,0.12)",
+          borderRadius: `${RADIUS.card}px`,
+          background: SURFACE.raised,
+          border: `1px solid ${LINE.hairline}`,
         }}
       >
         <Typography
-          sx={{
-            color: "rgba(255,255,255,0.7)",
-            fontSize: "0.9rem",
-            fontWeight: 600,
-          }}
+          sx={{ color: TEXT.primary, fontSize: "0.9rem", fontWeight: 600 }}
         >
           Track your rating over time
         </Typography>
         <Typography
-          sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.82rem", mt: 0.5 }}
+          sx={{ color: TEXT.secondary, fontSize: "0.82rem", mt: 0.5 }}
         >
           Add your Lichess or Chess.com username in Profile → Chess and your
           bullet, blitz and rapid trends appear here.
@@ -412,7 +399,7 @@ export default function RatingTrends({
 
   if (data.status === "unavailable") {
     return (
-      <Typography sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.82rem" }}>
+      <Typography sx={{ color: TEXT.secondary, fontSize: "0.82rem" }}>
         {data.message}
       </Typography>
     );
@@ -421,12 +408,10 @@ export default function RatingTrends({
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, mb: 1.25 }}>
-        <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: "1rem" }}>
+        <Typography sx={{ ...TYPE.h5, color: TEXT.primary }}>
           Your rating trend
         </Typography>
-        <Typography
-          sx={{ color: "rgba(255,255,255,0.4)", fontSize: "0.78rem" }}
-        >
+        <Typography sx={{ color: TEXT.secondary, fontSize: "0.78rem" }}>
           last {Math.round(data.windowDays / 30)} months ·{" "}
           {data.platform === "lichess" ? "Lichess" : "Chess.com"}
         </Typography>
@@ -438,7 +423,7 @@ export default function RatingTrends({
       {projection && (
         <Typography
           sx={{
-            color: "rgba(255,255,255,0.4)",
+            color: TEXT.secondary,
             fontSize: "0.76rem",
             mt: -0.5,
             mb: 1.25,
@@ -460,7 +445,7 @@ export default function RatingTrends({
       {!projection && (
         <Typography
           sx={{
-            color: "rgba(255,255,255,0.4)",
+            color: TEXT.secondary,
             fontSize: "0.76rem",
             mt: -0.5,
             mb: 1.25,

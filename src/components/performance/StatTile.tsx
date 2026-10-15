@@ -2,6 +2,7 @@
 
 import { Box, Typography } from "@mui/material";
 import { PANEL_SURFACE } from "./PanelCard";
+import { ACCENT, STATUS, TEXT, TYPE } from "@/theme/tokens";
 
 /**
  * One KPI. Value large, label small, optional hint smaller still.
@@ -22,10 +23,10 @@ interface StatTileProps {
 }
 
 const TONE_COLORS: Record<NonNullable<StatTileProps["tone"]>, string> = {
-  default: "rgba(255,255,255,0.94)",
-  ember: "#FB923C",
-  positive: "#4ADE80",
-  negative: "#FCA5A5",
+  default: TEXT.primary,
+  ember: ACCENT.hover,
+  positive: STATUS.success,
+  negative: STATUS.error,
 };
 
 export function StatTile({
@@ -47,33 +48,20 @@ export function StatTile({
         minWidth: 0,
       }}
     >
-      <Typography
-        sx={{
-          fontSize: "0.7rem",
-          fontWeight: 600,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-          color: "rgba(255,255,255,0.42)",
-        }}
-      >
+      <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
         {label}
       </Typography>
       <Typography
         sx={{
-          fontSize: "1.75rem",
-          fontWeight: 750,
-          lineHeight: 1.15,
-          letterSpacing: "-0.02em",
+          ...TYPE.h2,
           fontVariantNumeric: "tabular-nums",
-          color: empty ? "rgba(255,255,255,0.3)" : TONE_COLORS[tone],
+          color: empty ? TEXT.tertiary : TONE_COLORS[tone],
         }}
       >
         {value ?? "—"}
       </Typography>
       {hint && (
-        <Typography
-          sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.4)" }}
-        >
+        <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
           {hint}
         </Typography>
       )}

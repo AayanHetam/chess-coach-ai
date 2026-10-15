@@ -43,6 +43,14 @@ export default function Document() {
         <style dangerouslySetInnerHTML={{ __html: partnerSlotCss }} />
         <script dangerouslySetInnerHTML={{ __html: partnerBootScript }} />
 
+        {/* Dark from the first byte: the Pages Router has no Emotion SSR,
+         * so the theme's body colour only lands at hydration. */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html:
+              "html{color-scheme:dark}body{background-color:#000;color:#F5F5F7;margin:0}",
+          }}
+        />
         <meta name="author" content="Chess Masti AI" />
         <meta
           name="keywords"

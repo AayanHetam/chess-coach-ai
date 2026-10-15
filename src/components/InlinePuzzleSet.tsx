@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Box,
   Button,
@@ -16,6 +22,7 @@ import { usePuzzleBoardState } from "@/hooks/usePuzzleBoardState";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
 import InlinePuzzleCoach from "./InlinePuzzleCoach";
 import { MastiAvatar } from "@/components/masti";
+import { LINE, RADIUS, STATUS, TEXT, TYPE } from "@/theme/tokens";
 
 /**
  * InlinePuzzleSet — 3 puzzles solved inside the chat bubble (no /practice nav).
@@ -30,15 +37,16 @@ import { MastiAvatar } from "@/components/masti";
  * same puzzle OR any puzzle-data error, show "Skip" link.
  */
 
+// A nested block inside the coach's message bubble, not a second card: no
+// fill of its own, a hairline and the control radius.
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(2),
   marginTop: theme.spacing(1.5),
   maxWidth: 480,
-  background:
-    "linear-gradient(145deg, rgba(76, 175, 80, 0.10) 0%, rgba(46, 125, 50, 0.14) 100%)",
-  border: "1px solid rgba(76, 175, 80, 0.35)",
-  borderRadius: "12px",
-  boxShadow: "0 4px 12px rgba(76, 175, 80, 0.18)",
+  background: "transparent",
+  border: `1px solid ${LINE.hairline}`,
+  borderRadius: RADIUS.control,
+  boxShadow: "none",
 }));
 
 const BOARD_MAX_WIDTH = 360;
@@ -94,8 +102,8 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
 
   if (done) {
     return (
-      <StyledPaper ref={containerRef} elevation={2}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
+      <StyledPaper ref={containerRef} elevation={0}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
           <MastiAvatar
             mood="excited"
             size={24}
@@ -104,7 +112,7 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
             loops={2}
             style={{ verticalAlign: "middle", marginRight: 6 }}
           />
-          Nice work — 3 puzzles done
+          Nice work: 3 puzzles done
         </Typography>
         {displayTheme && (
           <Typography variant="caption" color="text.secondary">
@@ -116,21 +124,21 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
   }
 
   const turn = board.game.turn();
-  const statusText =
-    board.puzzleError
-      ? "Puzzle data error"
-      : board.status === "loading"
-        ? "Loading…"
-        : board.status === "wrong"
-          ? "Not quite — try again."
-          : board.status === "solved"
-            ? "Correct!"
-            : turn === "w"
-              ? "White to move"
-              : "Black to move";
+  const statusText = board.puzzleError
+    ? "Puzzle data error"
+    : board.status === "loading"
+      ? "Loading"
+      : board.status === "wrong"
+        ? "Not quite. Try again."
+        : board.status === "solved"
+          ? "Correct."
+          : turn === "w"
+            ? "White to move"
+            : "Black to move";
 
   const showSkip =
-    (board.wrongAttempts >= WRONG_ATTEMPTS_BEFORE_SKIP || !!board.puzzleError) &&
+    (board.wrongAttempts >= WRONG_ATTEMPTS_BEFORE_SKIP ||
+      !!board.puzzleError) &&
     board.status !== "solved" &&
     !done;
   const showCoach =
@@ -139,7 +147,7 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
     board.status === "solved" ? "solved" : "wrong";
 
   return (
-    <StyledPaper ref={containerRef} elevation={2}>
+    <StyledPaper ref={containerRef} elevation={0}>
       <Box
         sx={{
           display: "flex",
@@ -150,8 +158,11 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
           gap: 1,
         }}
       >
-        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-          🧩 Puzzle {currentIndex + 1} of {trimmed.length}
+        <Typography
+          variant="subtitle2"
+          sx={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}
+        >
+          Puzzle {currentIndex + 1} of {trimmed.length}
           {currentPuzzle?.rating ? ` · ${currentPuzzle.rating}` : ""}
         </Typography>
         <Chip
@@ -167,28 +178,23 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
                   : "default"
           }
           variant="outlined"
-          // Force high-contrast text on the light-green StyledPaper background.
-          // The orange MessageBubble parent globally cascades color: #fff into
-          // its children, which made the default Chip label invisible against
-          // the light green. Slate-800 (#1f2937) matches the neutral text used
-          // in AICoachInsights for the same kind of dark-on-light context.
-          sx={{ "& .MuiChip-label": { color: "#1f2937" } }}
         />
       </Box>
 
       {board.puzzleError && (
         <Box
+          role="alert"
           sx={{
             mb: 1,
-            p: 1,
-            borderRadius: 1,
-            backgroundColor: "rgba(237, 108, 2, 0.10)",
-            border: "1px solid rgba(237, 108, 2, 0.35)",
+            px: 1.25,
+            py: 1,
+            borderRadius: `${RADIUS.control}px`,
+            backgroundColor: STATUS.warningTint,
+            border: `1px solid ${LINE.hairline}`,
           }}
         >
           <Typography
-            variant="caption"
-            sx={{ color: "#7a3a00", display: "block" }}
+            sx={{ ...TYPE.caption, color: TEXT.primary, display: "block" }}
           >
             {board.puzzleError} Use Skip to move on.
           </Typography>
@@ -202,9 +208,7 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
           boardId={`InlinePuzzle-${currentPuzzle?.id ?? currentIndex}`}
           fen={board.game.fen()}
           orientation={board.boardOrientation}
-          interactive={
-            board.status === "playing" || board.status === "wrong"
-          }
+          interactive={board.status === "playing" || board.status === "wrong"}
           onPieceDrop={board.onPieceDrop}
           lastMove={board.lastMoveSquares}
           wrongSquare={board.wrongSquare}
@@ -229,20 +233,8 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
         sx={{ mt: 1.5, alignItems: "center", justifyContent: "space-between" }}
       >
         {board.status === "solved" ? (
-          <Button
-            variant="contained"
-            size="small"
-            onClick={advanceToNext}
-            sx={{
-              bgcolor: "#4CAF50",
-              textTransform: "none",
-              fontWeight: 700,
-              "&:hover": { bgcolor: "#43A047" },
-            }}
-          >
-            {currentIndex + 1 < trimmed.length
-              ? "Next puzzle →"
-              : "Finish set →"}
+          <Button variant="contained" size="small" onClick={advanceToNext}>
+            {currentIndex + 1 < trimmed.length ? "Next puzzle" : "Finish set"}
           </Button>
         ) : (
           <Box />
@@ -255,7 +247,7 @@ export const InlinePuzzleSet: React.FC<InlinePuzzleSetProps> = ({
             onClick={advanceToNext}
             sx={{ color: "text.secondary", textDecoration: "underline" }}
           >
-            Skip this one →
+            Skip this one
           </Link>
         )}
       </Stack>

@@ -10,20 +10,37 @@ import Link from "next/link";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import { Box, Container, Typography, Button, IconButton } from "@mui/material";
-import { Icon } from "@iconify/react";
+import { ChevronLeft, ChevronRight, SkipBack, SkipForward } from "lucide-react";
 import { getGameShare } from "@/lib/gameShares";
-import { Masti, MastiAvatar, MastiSays, resultMood, type MastiMood } from "@/components/masti";
+import {
+  Masti,
+  MastiAvatar,
+  MastiSays,
+  resultMood,
+  type MastiMood,
+} from "@/components/masti";
 import type { GameShareRecord } from "@/types/gameShare";
 import type { SavedCoachMessage } from "@/types/game";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 interface ShareGameProps {
   share: GameShareRecord | null;
 }
 
-const BG = "#08080f";
-const SURFACE = "rgba(255,255,255,0.04)";
-const BORDER = "rgba(255,255,255,0.08)";
-const EMBER = "#FF6B2B";
+const CARD_SX = {
+  background: SURFACE.raised,
+  border: `1px solid ${LINE.hairline}`,
+  borderRadius: `${RADIUS.card}px`,
+} as const;
 
 // Parse the PGN once at module level for the page's render lifetime.
 function buildMoveList(pgn: string): { sans: string[]; fens: string[] } {
@@ -41,7 +58,10 @@ function buildMoveList(pgn: string): { sans: string[]; fens: string[] } {
     }
     return { sans, fens };
   } catch {
-    return { sans: [], fens: ["rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"] };
+    return {
+      sans: [],
+      fens: ["rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"],
+    };
   }
 }
 
@@ -62,26 +82,31 @@ export default function ShareGamePage({ share }: ShareGameProps) {
   const [ply, setPly] = useState<number>(0);
   const fen = fens[ply] ?? fens[0] ?? "";
   const canPrev = ply > 0;
-  const canNext = ply < (fens.length - 1);
+  const canNext = ply < fens.length - 1;
 
   if (!share) {
     return (
-      <Box sx={{ background: BG, minHeight: "100vh", color: "#fff", py: 8 }}>
+      <Box sx={{ minHeight: "100vh", color: TEXT.primary, py: 8 }}>
         <Container maxWidth="md">
-          <Masti mood="defeated" size={140} loops={2} decorative style={{ marginBottom: 16 }} />
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
+          <Masti
+            mood="defeated"
+            size={140}
+            loops={2}
+            decorative
+            style={{ marginBottom: 16 }}
+          />
+          <Typography sx={{ ...TYPE.h2, color: TEXT.primary, mb: 2 }}>
             Game share not found
           </Typography>
-          <Typography sx={{ color: "rgba(255,255,255,0.6)", mb: 4 }}>
+          <Typography sx={{ ...TYPE.body, color: TEXT.secondary, mb: 4 }}>
             This share may have been deleted or the link is incorrect.
           </Typography>
           <Button
             component={Link}
             href="/free-ai-chess-coach"
             variant="contained"
-            sx={{ background: EMBER, "&:hover": { background: "#ff8050" } }}
           >
-            Meet Masti, the free AI chess coach
+            Meet Masti, your chess coach
           </Button>
         </Container>
       </Box>
@@ -98,7 +123,8 @@ export default function ShareGamePage({ share }: ShareGameProps) {
     .filter(Boolean)
     .join(" · ");
   const mood = shareMood(share.result);
-  const hasTranscript = !!share.coachTranscript && share.coachTranscript.length > 0;
+  const hasTranscript =
+    !!share.coachTranscript && share.coachTranscript.length > 0;
   const mastiLine =
     (mood === "idea" ? "Half a point each. " : "") +
     (hasTranscript
@@ -108,49 +134,79 @@ export default function ShareGamePage({ share }: ShareGameProps) {
   return (
     <>
       <Head>
-        <title>{`${whiteLabel} vs ${blackLabel} — Chess Masti AI`}</title>
-        <meta name="description" content={`Coached chess game review: ${whiteLabel} vs ${blackLabel}${share.result ? `, ${share.result}` : ""}.`} />
-        <meta property="og:title" content={`${whiteLabel} vs ${blackLabel} — Coached on Chess Masti AI`} />
-        <meta property="og:description" content={`Game review with engine analysis and AI coaching. Try the free AI chess coach.`} />
+        <title>{`${whiteLabel} vs ${blackLabel} · Chess Masti AI`}</title>
+        <meta
+          name="description"
+          content={`Coached chess game review: ${whiteLabel} vs ${blackLabel}${share.result ? `, ${share.result}` : ""}.`}
+        />
+        <meta
+          property="og:title"
+          content={`${whiteLabel} vs ${blackLabel} · Coached on Chess Masti AI`}
+        />
+        <meta
+          property="og:description"
+          content="A game reviewed move by move with Masti and the engine. Free for everyone."
+        />
         <meta property="og:type" content="article" />
-        <meta property="og:url" content={`https://chessmasti.com/share/game/${share.id}`} />
-        <meta property="og:image" content={`https://chessmasti.com/api/og/game-share/${share.id}`} />
+        <meta
+          property="og:url"
+          content={`https://chessmasti.com/share/game/${share.id}`}
+        />
+        <meta
+          property="og:image"
+          content={`https://chessmasti.com/api/og/game-share/${share.id}`}
+        />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={`${whiteLabel} vs ${blackLabel} — Coached on Chess Masti AI`} />
-        <meta name="twitter:description" content={`Game review with engine analysis and AI coaching.`} />
-        <meta name="twitter:image" content={`https://chessmasti.com/api/og/game-share/${share.id}`} />
-        <link rel="canonical" href={`https://chessmasti.com/share/game/${share.id}`} />
+        <meta
+          name="twitter:title"
+          content={`${whiteLabel} vs ${blackLabel} · Coached on Chess Masti AI`}
+        />
+        <meta
+          name="twitter:description"
+          content="A game reviewed move by move with Masti and the engine."
+        />
+        <meta
+          name="twitter:image"
+          content={`https://chessmasti.com/api/og/game-share/${share.id}`}
+        />
+        <link
+          rel="canonical"
+          href={`https://chessmasti.com/share/game/${share.id}`}
+        />
       </Head>
 
-      <Box sx={{ background: BG, minHeight: "100vh", color: "rgba(255,255,255,0.85)", py: { xs: 3, md: 6 } }}>
+      <Box
+        sx={{ minHeight: "100vh", color: TEXT.primary, py: { xs: 3, md: 6 } }}
+      >
         <Container maxWidth="lg">
           {/* Header */}
           <Box sx={{ mb: 4, textAlign: "center" }}>
             <Typography
               component="h1"
               sx={{
-                fontSize: { xs: "1.5rem", md: "2.25rem" },
-                fontWeight: 800,
-                color: "#fff",
+                ...TYPE.h1,
+                fontSize: { xs: "1.75rem", md: TYPE.h1.fontSize },
+                color: TEXT.primary,
                 mb: 1,
               }}
             >
-              {whiteLabel} <span style={{ color: "rgba(255,255,255,0.4)" }}>vs</span> {blackLabel}
+              {whiteLabel} <span style={{ color: TEXT.secondary }}>vs</span>{" "}
+              {blackLabel}
             </Typography>
             {share.result && (
               <Box
                 sx={{
                   display: "inline-block",
-                  px: 2,
+                  px: 1.5,
                   py: 0.5,
-                  borderRadius: 1,
-                  background: `${EMBER}22`,
-                  border: `1px solid ${EMBER}44`,
-                  color: EMBER,
-                  fontWeight: 700,
-                  fontSize: "1.1rem",
+                  borderRadius: `${RADIUS.small}px`,
+                  background: SURFACE.raisedSecondary,
+                  color: TEXT.primary,
+                  fontWeight: 600,
+                  fontSize: TYPE.h5.fontSize,
+                  fontVariantNumeric: "tabular-nums",
                   mb: 1.5,
                 }}
               >
@@ -158,21 +214,19 @@ export default function ShareGamePage({ share }: ShareGameProps) {
               </Box>
             )}
             {headerLine && (
-              <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.9rem" }}>
+              <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
                 {headerLine}
               </Typography>
             )}
             {share.note && (
               <Box
                 sx={{
+                  ...CARD_SX,
                   mt: 3,
                   mx: "auto",
                   maxWidth: 600,
-                  background: SURFACE,
-                  border: `1px solid ${BORDER}`,
-                  borderRadius: "1rem",
                   p: 2,
-                  color: "rgba(255,255,255,0.75)",
+                  color: TEXT.primary,
                   fontStyle: "italic",
                 }}
               >
@@ -181,8 +235,21 @@ export default function ShareGamePage({ share }: ShareGameProps) {
             )}
             {/* Masti greets above the board, never on it. Still on the
                 server, one bounded burst after mount. */}
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 3, textAlign: "left" }}>
-              <MastiSays mood={mood} size={88} priority maxWidth={440} data-testid="share-game-masti">
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                mt: 3,
+                textAlign: "left",
+              }}
+            >
+              <MastiSays
+                mood={mood}
+                size={88}
+                priority
+                maxWidth={440}
+                data-testid="share-game-masti"
+              >
                 {mastiLine}
               </MastiSays>
             </Box>
@@ -192,7 +259,10 @@ export default function ShareGamePage({ share }: ShareGameProps) {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "minmax(0, 480px) minmax(0, 1fr)" },
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "minmax(0, 480px) minmax(0, 1fr)",
+              },
               gap: 4,
               alignItems: "flex-start",
             }}
@@ -201,10 +271,9 @@ export default function ShareGamePage({ share }: ShareGameProps) {
             <Box>
               <Box
                 sx={{
-                  borderRadius: "1rem",
+                  borderRadius: `${RADIUS.card}px`,
                   overflow: "hidden",
-                  border: `1px solid ${BORDER}`,
-                  boxShadow: "0 12px 32px rgba(0,0,0,0.4)",
+                  border: `1px solid ${LINE.hairline}`,
                 }}
               >
                 <Chessboard
@@ -228,37 +297,48 @@ export default function ShareGamePage({ share }: ShareGameProps) {
                 <IconButton
                   onClick={() => setPly(0)}
                   disabled={!canPrev}
-                  sx={{ color: "rgba(255,255,255,0.7)" }}
+                  sx={{ color: TEXT.secondary }}
                   aria-label="Start of game"
                 >
-                  <Icon icon="mdi:skip-previous" width={20} />
+                  <SkipBack size={20} strokeWidth={1.75} aria-hidden />
                 </IconButton>
                 <IconButton
                   onClick={() => setPly((p) => Math.max(0, p - 1))}
                   disabled={!canPrev}
-                  sx={{ color: "rgba(255,255,255,0.7)" }}
+                  sx={{ color: TEXT.secondary }}
                   aria-label="Previous move"
                 >
-                  <Icon icon="mdi:chevron-left" width={20} />
+                  <ChevronLeft size={20} strokeWidth={1.75} aria-hidden />
                 </IconButton>
-                <Typography sx={{ color: "rgba(255,255,255,0.6)", minWidth: 80, textAlign: "center" }}>
-                  {ply === 0 ? "Start" : `Move ${Math.floor((ply + 1) / 2)}${ply % 2 === 1 ? "w" : "b"}`}
+                <Typography
+                  sx={{
+                    color: TEXT.secondary,
+                    minWidth: 80,
+                    textAlign: "center",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {ply === 0
+                    ? "Start"
+                    : `Move ${Math.floor((ply + 1) / 2)}${ply % 2 === 1 ? "w" : "b"}`}
                 </Typography>
                 <IconButton
-                  onClick={() => setPly((p) => Math.min(fens.length - 1, p + 1))}
+                  onClick={() =>
+                    setPly((p) => Math.min(fens.length - 1, p + 1))
+                  }
                   disabled={!canNext}
-                  sx={{ color: "rgba(255,255,255,0.7)" }}
+                  sx={{ color: TEXT.secondary }}
                   aria-label="Next move"
                 >
-                  <Icon icon="mdi:chevron-right" width={20} />
+                  <ChevronRight size={20} strokeWidth={1.75} aria-hidden />
                 </IconButton>
                 <IconButton
                   onClick={() => setPly(fens.length - 1)}
                   disabled={!canNext}
-                  sx={{ color: "rgba(255,255,255,0.7)" }}
+                  sx={{ color: TEXT.secondary }}
                   aria-label="End of game"
                 >
-                  <Icon icon="mdi:skip-next" width={20} />
+                  <SkipForward size={20} strokeWidth={1.75} aria-hidden />
                 </IconButton>
               </Box>
             </Box>
@@ -268,20 +348,18 @@ export default function ShareGamePage({ share }: ShareGameProps) {
               {/* Moves */}
               <Box
                 sx={{
-                  background: SURFACE,
-                  border: `1px solid ${BORDER}`,
-                  borderRadius: "1rem",
+                  ...CARD_SX,
                   p: 3,
                   mb: 3,
                   maxHeight: 320,
                   overflowY: "auto",
                 }}
               >
-                <Typography sx={{ fontWeight: 700, color: "#fff", mb: 2, fontSize: "0.95rem" }}>
+                <Typography sx={{ ...TYPE.h4, color: TEXT.primary, mb: 2 }}>
                   Moves
                 </Typography>
                 {sans.length === 0 ? (
-                  <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>
+                  <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
                     Could not parse the PGN.
                   </Typography>
                 ) : (
@@ -300,19 +378,30 @@ export default function ShareGamePage({ share }: ShareGameProps) {
                             alignItems: "center",
                             gap: 0.5,
                             border: "none",
-                            background: isActive ? `${EMBER}22` : "transparent",
-                            borderRadius: 1,
+                            background: isActive ? ACCENT.tint : "transparent",
+                            borderRadius: `${RADIUS.small}px`,
                             px: 1,
                             py: 0.5,
                             cursor: "pointer",
-                            color: isActive ? EMBER : "rgba(255,255,255,0.8)",
-                            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                            fontSize: "0.85rem",
-                            "&:hover": { background: `${EMBER}11` },
+                            color: isActive ? ACCENT.hover : TEXT.primary,
+                            fontWeight: isActive ? 600 : 400,
+                            fontFamily: FONT_MONO,
+                            fontSize: TYPE.bodySmall.fontSize,
+                            touchAction: "manipulation",
+                            WebkitTapHighlightColor: "transparent",
+                            transition: `background-color ${MOTION.hover}, transform ${MOTION.press}`,
+                            "&:hover": { background: "rgba(255,255,255,0.06)" },
+                            "&:active": { transform: MOTION.pressScale },
+                            "&:focus-visible": {
+                              outline: `2px solid ${TEXT.primary}`,
+                              outlineOffset: 2,
+                            },
                           }}
                         >
                           {isWhite && (
-                            <span style={{ color: "rgba(255,255,255,0.4)" }}>{moveNumber}.</span>
+                            <span style={{ color: TEXT.secondary }}>
+                              {moveNumber}.
+                            </span>
                           )}
                           <span>{san}</span>
                         </Box>
@@ -332,54 +421,50 @@ export default function ShareGamePage({ share }: ShareGameProps) {
           {/* CTA */}
           <Box
             sx={{
+              ...CARD_SX,
               mt: 6,
-              background: SURFACE,
-              border: `1px solid ${EMBER}33`,
-              borderRadius: "1rem",
               p: 4,
               textAlign: "center",
             }}
           >
-            <Typography sx={{ fontWeight: 700, color: "#fff", fontSize: "1.5rem", mb: 1 }}>
+            <Typography sx={{ ...TYPE.h2, color: TEXT.primary, mb: 1 }}>
               Want this for your own games?
             </Typography>
-            <Typography sx={{ color: "rgba(255,255,255,0.65)", mb: 3 }}>
-              Paste a PGN. Masti, the free AI chess coach, explains every critical move and turns
-              your mistakes into puzzles.
+            <Typography
+              sx={{
+                ...TYPE.body,
+                color: TEXT.secondary,
+                mb: 3,
+                maxWidth: "65ch",
+                mx: "auto",
+              }}
+            >
+              Paste a PGN. Masti explains every critical move and turns your
+              mistakes into puzzles. Free for everyone.
             </Typography>
-            <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
+            <Box
+              sx={{
+                display: "flex",
+                gap: 2,
+                justifyContent: "center",
+                flexWrap: "wrap",
+              }}
+            >
               <Button
                 component={Link}
                 href="/analysis"
                 variant="contained"
-                sx={{
-                  background: EMBER,
-                  fontWeight: 700,
-                  px: 3,
-                  py: 1.25,
-                  textTransform: "none",
-                  fontSize: "1rem",
-                  "&:hover": { background: "#ff8050" },
-                }}
+                size="large"
               >
                 Try Masti for free
               </Button>
               <Button
                 component={Link}
-                href="/free-ai-chess-coach"
+                href="/how-it-works"
                 variant="outlined"
-                sx={{
-                  borderColor: BORDER,
-                  color: "rgba(255,255,255,0.75)",
-                  fontWeight: 600,
-                  px: 3,
-                  py: 1.25,
-                  textTransform: "none",
-                  fontSize: "1rem",
-                  "&:hover": { borderColor: "rgba(255,255,255,0.25)", color: "#fff" },
-                }}
+                size="large"
               >
-                Learn more
+                See how Masti works
               </Button>
             </Box>
           </Box>
@@ -391,15 +476,8 @@ export default function ShareGamePage({ share }: ShareGameProps) {
 
 function CoachTranscript({ transcript }: { transcript: SavedCoachMessage[] }) {
   return (
-    <Box
-      sx={{
-        background: SURFACE,
-        border: `1px solid ${BORDER}`,
-        borderRadius: "1rem",
-        p: 3,
-      }}
-    >
-      <Typography sx={{ fontWeight: 700, color: "#fff", mb: 2, fontSize: "0.95rem" }}>
+    <Box sx={{ ...CARD_SX, p: 3 }}>
+      <Typography sx={{ ...TYPE.h4, color: TEXT.primary, mb: 2 }}>
         Coach transcript
       </Typography>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -408,20 +486,26 @@ function CoachTranscript({ transcript }: { transcript: SavedCoachMessage[] }) {
             key={i}
             sx={{
               p: 1.5,
-              borderRadius: 1,
-              background: msg.role === "user" ? "rgba(255,255,255,0.03)" : `${EMBER}11`,
-              border: `1px solid ${msg.role === "user" ? BORDER : `${EMBER}22`}`,
+              borderRadius: `${RADIUS.control}px`,
+              background: SURFACE.raisedSecondary,
+              border: `1px solid ${LINE.hairline}`,
             }}
           >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.75 }}>
-              {msg.role !== "user" && <MastiAvatar mood="idea" size={18} ring={false} />}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.75,
+                mb: 0.75,
+              }}
+            >
+              {msg.role !== "user" && (
+                <MastiAvatar mood="idea" size={18} ring={false} />
+              )}
               <Typography
                 sx={{
-                  fontSize: "0.7rem",
-                  fontWeight: 700,
-                  letterSpacing: 1.2,
-                  color: msg.role === "user" ? "rgba(255,255,255,0.5)" : EMBER,
-                  textTransform: "uppercase",
+                  ...TYPE.label,
+                  color: msg.role === "user" ? TEXT.secondary : TEXT.primary,
                 }}
               >
                 {msg.role === "user" ? "You" : "Masti"}
@@ -429,9 +513,8 @@ function CoachTranscript({ transcript }: { transcript: SavedCoachMessage[] }) {
             </Box>
             <Typography
               sx={{
-                color: "rgba(255,255,255,0.8)",
-                fontSize: "0.9rem",
-                lineHeight: 1.7,
+                ...TYPE.bodySmall,
+                color: TEXT.primary,
                 whiteSpace: "pre-wrap",
               }}
             >
@@ -444,7 +527,9 @@ function CoachTranscript({ transcript }: { transcript: SavedCoachMessage[] }) {
   );
 }
 
-export const getServerSideProps: GetServerSideProps<ShareGameProps> = async (ctx) => {
+export const getServerSideProps: GetServerSideProps<ShareGameProps> = async (
+  ctx
+) => {
   const rawId = ctx.params?.id;
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
   if (!id || typeof id !== "string" || id.length > 64) {

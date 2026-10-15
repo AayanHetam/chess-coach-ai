@@ -7,6 +7,17 @@ import { X } from "lucide-react";
 import { Masti } from "@/components/masti";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasFreshPendingFlush } from "@/components/onboarding/quizStorage";
+import {
+  ACCENT,
+  LINE,
+  MATERIAL,
+  MOTION,
+  RADIUS,
+  SHADOW,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 // Exported so WelcomeTour can defer to this dialog instead of stacking on it.
 export const NUDGE_DISMISS_KEY = "cm_onboarding_nudge_dismissed";
@@ -15,9 +26,6 @@ const DISMISS_KEY = NUDGE_DISMISS_KEY;
 // Surfaces where the nudge would be redundant or in the way: the quiz itself,
 // and /profile (which is exactly where we'd be sending them).
 const SUPPRESSED_PREFIXES = ["/onboarding", "/profile"];
-
-const orangeGradient = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
-const orangeHover = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
 
 /**
  * Gentle, one-time welcome nudge for a signed-in user who hasn't completed the
@@ -59,7 +67,7 @@ export default function OnboardingNudge() {
   };
 
   const onSuppressedSurface = SUPPRESSED_PREFIXES.some(
-    (p) => router.pathname === p || router.pathname.startsWith(`${p}/`),
+    (p) => router.pathname === p || router.pathname.startsWith(`${p}/`)
   );
 
   const shouldShow =
@@ -78,13 +86,7 @@ export default function OnboardingNudge() {
       onClose={dismiss}
       closeAfterTransition
       slotProps={{
-        backdrop: {
-          sx: {
-            backgroundColor: "rgba(8,9,12,0.72)",
-            backdropFilter: "blur(8px)",
-            WebkitBackdropFilter: "blur(8px)",
-          },
-        },
+        backdrop: { sx: { backgroundColor: MATERIAL.scrim } },
       }}
       sx={{
         display: "flex",
@@ -94,6 +96,10 @@ export default function OnboardingNudge() {
         p: 2,
       }}
     >
+      {/* Mounted in _app.tsx outside Layout's ThemeProvider, so MUI
+          Typography here would take the default theme's Roboto stack. Text
+          and buttons take `font: "inherit"` (the baseline's system stack on
+          body) until the mount moves inside Layout. */}
       <Box
         role="dialog"
         aria-modal="true"
@@ -103,19 +109,17 @@ export default function OnboardingNudge() {
           width: { xs: "92vw", sm: 420 },
           maxWidth: "92vw",
           p: 3,
-          borderRadius: "1.5rem",
-          background:
-            "linear-gradient(180deg, rgba(20,22,28,0.94), rgba(12,14,20,0.94))",
-          backdropFilter: "blur(20px) saturate(150%)",
-          WebkitBackdropFilter: "blur(20px) saturate(150%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow:
-            "0 24px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)",
-          color: "rgba(255,255,255,0.94)",
+          borderRadius: `${RADIUS.sheet}px`,
+          background: SURFACE.overlay,
+          border: `1px solid ${LINE.hairline}`,
+          boxShadow: SHADOW.modal,
+          color: TEXT.primary,
           outline: "none",
         }}
       >
         <Box
+          component="button"
+          type="button"
           onClick={dismiss}
           aria-label="Dismiss"
           sx={{
@@ -125,15 +129,24 @@ export default function OnboardingNudge() {
             cursor: "pointer",
             width: 28,
             height: 28,
-            borderRadius: "8px",
+            p: 0,
+            border: "none",
+            background: "transparent",
+            font: "inherit",
+            borderRadius: `${RADIUS.small}px`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: "rgba(255,255,255,0.55)",
-            transition: "all 180ms ease",
+            color: TEXT.secondary,
+            transition: `background-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
             "&:hover": {
               background: "rgba(255,255,255,0.06)",
-              color: "rgba(255,255,255,0.92)",
+              color: TEXT.primary,
+            },
+            "&:active": { transform: MOTION.pressScale },
+            "&:focus-visible": {
+              outline: `2px solid ${TEXT.primary}`,
+              outlineOffset: 2,
             },
           }}
         >
@@ -149,26 +162,22 @@ export default function OnboardingNudge() {
         />
 
         <Typography
-          sx={{
-            fontSize: "1.15rem",
-            fontWeight: 800,
-            letterSpacing: "-0.02em",
-            lineHeight: 1.2,
-          }}
+          component="h2"
+          sx={{ font: "inherit", ...TYPE.h4, color: TEXT.primary }}
         >
-          Welcome to Chess Masti 🎉
+          Welcome to Chess Masti
         </Typography>
         <Typography
           sx={{
+            font: "inherit",
             mt: 0.75,
-            fontSize: "0.88rem",
-            lineHeight: 1.5,
-            color: "rgba(255,255,255,0.6)",
+            ...TYPE.bodySmall,
+            color: TEXT.secondary,
           }}
         >
-          Take a quick personalization quiz so your coach knows your level,
-          goals, and weak spots — it tailors your analysis, puzzles, and plan.
-          It lives in your Profile, and you can do it whenever you like.
+          Take a short quiz so Masti knows your level, goals and weak spots. He
+          uses it for your analysis, puzzles and plan. It lives in your profile,
+          and you can do it whenever you like.
         </Typography>
 
         <Stack direction="row" spacing={1.25} sx={{ mt: 2.5 }}>
@@ -179,20 +188,21 @@ export default function OnboardingNudge() {
             sx={{
               flex: 1,
               cursor: "pointer",
+              font: "inherit",
               border: "none",
               outline: "none",
               py: 1.15,
-              borderRadius: "12px",
-              fontWeight: 700,
-              fontSize: "0.9rem",
-              color: "#0A0A0A",
-              background: orangeGradient,
-              boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
-              transition: "all 180ms ease",
-              "&:hover": {
-                background: orangeHover,
-                transform: "translateY(-1px)",
-                boxShadow: "0 8px 22px rgba(249,115,22,0.42)",
+              borderRadius: `${RADIUS.pill}px`,
+              fontWeight: 600,
+              fontSize: TYPE.bodySmall.fontSize,
+              color: TEXT.onAccent,
+              background: ACCENT.main,
+              transition: `background-color ${MOTION.hover}, transform ${MOTION.press}`,
+              "&:hover": { background: ACCENT.hover },
+              "&:active": { transform: MOTION.pressScale },
+              "&:focus-visible": {
+                outline: `2px solid ${TEXT.primary}`,
+                outlineOffset: 2,
               },
             }}
           >
@@ -204,19 +214,25 @@ export default function OnboardingNudge() {
             onClick={dismiss}
             sx={{
               cursor: "pointer",
-              border: "1px solid rgba(255,255,255,0.1)",
+              font: "inherit",
+              border: `1px solid ${LINE.strong}`,
               outline: "none",
               px: 2,
               py: 1.15,
-              borderRadius: "12px",
-              fontWeight: 700,
-              fontSize: "0.9rem",
-              color: "rgba(255,255,255,0.7)",
+              borderRadius: `${RADIUS.pill}px`,
+              fontWeight: 600,
+              fontSize: TYPE.bodySmall.fontSize,
+              color: TEXT.primary,
               background: "transparent",
-              transition: "all 180ms ease",
+              transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
               "&:hover": {
-                background: "rgba(255,255,255,0.04)",
-                color: "rgba(255,255,255,0.92)",
+                background: "rgba(255,255,255,0.06)",
+                borderColor: TEXT.secondary,
+              },
+              "&:active": { transform: MOTION.pressScale },
+              "&:focus-visible": {
+                outline: `2px solid ${TEXT.primary}`,
+                outlineOffset: 2,
               },
             }}
           >

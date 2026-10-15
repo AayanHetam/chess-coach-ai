@@ -29,7 +29,7 @@ test("prod landing is dark with hero visible (light-preference)", async ({
   page,
 }) => {
   await page.goto("/");
-  await expect(page.locator("h1")).toContainText(/chess coaching/i, {
+  await expect(page.locator("h1")).toContainText(/chess coach/i, {
     timeout: 20_000,
   });
   expect(await bodyLuminance(page)).toBeLessThan(0.2);

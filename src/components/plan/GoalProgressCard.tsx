@@ -17,6 +17,15 @@ import {
 } from "@/lib/curriculum/goalPatch";
 import { useRatingHistory } from "@/lib/rating/useRatingHistory";
 import type { TimeCommitment } from "@/components/onboarding/quizConfig";
+import {
+  ACCENT,
+  LINE,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 /**
  * "1600 by January — you're 3 weeks ahead."
@@ -32,34 +41,20 @@ import type { TimeCommitment } from "@/components/onboarding/quizConfig";
  * only ever be good is decoration, not feedback.
  */
 
-const TONE: Record<GoalPace, { color: string; bg: string; border: string }> = {
-  ahead: {
-    color: "#4ADE80",
-    bg: "rgba(74,222,128,0.10)",
-    border: "rgba(74,222,128,0.35)",
-  },
-  on_track: {
-    color: "#FB923C",
-    bg: "rgba(249,115,22,0.08)",
-    border: "rgba(249,115,22,0.28)",
-  },
-  behind: {
-    color: "#FBBF24",
-    bg: "rgba(251,191,36,0.08)",
-    border: "rgba(251,191,36,0.30)",
-  },
-  reached: {
-    color: "#4ADE80",
-    bg: "rgba(74,222,128,0.12)",
-    border: "rgba(74,222,128,0.4)",
-  },
+// A status banner: the tint on the surface, the status colour on the icon.
+// On track is not a status, so it sits on the plain card surface.
+const TONE: Record<GoalPace, { color: string; bg: string }> = {
+  ahead: { color: STATUS.success, bg: STATUS.successTint },
+  on_track: { color: TEXT.secondary, bg: SURFACE.raised },
+  behind: { color: STATUS.warning, bg: STATUS.warningTint },
+  reached: { color: STATUS.success, bg: STATUS.successTint },
 };
 
 function paceLabel(pace: GoalPace, weeks: number): string {
   const w = Math.round(Math.abs(weeks));
   switch (pace) {
     case "reached":
-      return "Goal reached 🎉";
+      return "Goal reached";
     case "ahead":
       return w <= 1 ? "Slightly ahead of plan" : `${w} weeks ahead of plan`;
     case "behind":
@@ -146,9 +141,9 @@ export default function GoalProgressCard({
       sx={{
         p: 2,
         mb: 2.5,
-        borderRadius: "16px",
+        borderRadius: `${RADIUS.card}px`,
         background: tone.bg,
-        border: `1px solid ${tone.border}`,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       <Box
@@ -159,7 +154,7 @@ export default function GoalProgressCard({
           flexWrap: "wrap",
         }}
       >
-        <Typography sx={{ color: "#fff", fontWeight: 800, fontSize: "1.1rem" }}>
+        <Typography sx={{ ...TYPE.h5, color: TEXT.primary }}>
           {goalRating}
           {goalTargetDate ? ` by ${formatTargetDate(goalTargetDate)}` : ""}
         </Typography>
@@ -169,14 +164,11 @@ export default function GoalProgressCard({
             display: "inline-flex",
             alignItems: "center",
             gap: 0.5,
-            color: tone.color,
+            color: TEXT.primary,
           }}
         >
-          <Icon size={14} strokeWidth={2.5} />
-          <Typography
-            component="span"
-            sx={{ fontSize: "0.8rem", fontWeight: 700, color: "inherit" }}
-          >
+          <Icon size={16} strokeWidth={1.75} color={tone.color} />
+          <Typography component="span" sx={{ ...TYPE.label, color: "inherit" }}>
             {paceLabel(progress.pace, progress.weeksVsPlan)}
           </Typography>
         </Box>
@@ -189,7 +181,7 @@ export default function GoalProgressCard({
           position: "relative",
           height: 6,
           borderRadius: 3,
-          background: "rgba(255,255,255,0.08)",
+          background: LINE.hairline,
         }}
       >
         <Box
@@ -198,7 +190,7 @@ export default function GoalProgressCard({
             inset: 0,
             width: `${progress.fractionComplete * 100}%`,
             borderRadius: 3,
-            background: `linear-gradient(90deg, rgba(249,115,22,0.7), ${tone.color})`,
+            background: tone.color,
             transition: "width 400ms ease-out",
           }}
         />
@@ -206,34 +198,37 @@ export default function GoalProgressCard({
 
       <Box sx={{ display: "flex", justifyContent: "space-between", mt: 0.75 }}>
         <Typography
-          sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.75rem" }}
+          sx={{
+            ...TYPE.caption,
+            color: TEXT.secondary,
+            fontVariantNumeric: "tabular-nums",
+          }}
         >
           {goalStartRating} at the start
         </Typography>
         <Typography
           sx={{
-            color: "rgba(255,255,255,0.75)",
-            fontSize: "0.75rem",
-            fontWeight: 700,
+            ...TYPE.caption,
+            color: TEXT.primary,
+            fontWeight: 600,
+            fontVariantNumeric: "tabular-nums",
           }}
         >
           now {currentRating}
         </Typography>
         <Typography
-          sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.75rem" }}
+          sx={{
+            ...TYPE.caption,
+            color: TEXT.secondary,
+            fontVariantNumeric: "tabular-nums",
+          }}
         >
           {goalRating}
         </Typography>
       </Box>
 
       {progress.pace !== "reached" && (
-        <Typography
-          sx={{
-            color: "rgba(255,255,255,0.45)",
-            fontSize: "0.75rem",
-            mt: 0.75,
-          }}
-        >
+        <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 0.75 }}>
           The plan expected {progress.expectedRating} by now.
         </Typography>
       )}
@@ -247,7 +242,7 @@ export default function GoalProgressCard({
           sx={{
             mt: 1.5,
             pt: 1.25,
-            borderTop: "1px solid rgba(255,255,255,0.08)",
+            borderTop: `1px solid ${LINE.hairline}`,
             display: "flex",
             flexDirection: "column",
             gap: 0.75,
@@ -303,13 +298,10 @@ function PerfProgressRow({
     <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
       <Typography
         sx={{
+          ...TYPE.label,
           width: 52,
           flexShrink: 0,
-          color: "rgba(255,255,255,0.55)",
-          fontSize: "0.68rem",
-          fontWeight: 700,
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
+          color: TEXT.secondary,
         }}
       >
         {PERF_LABEL[perf]}
@@ -321,7 +313,7 @@ function PerfProgressRow({
           position: "relative",
           height: 4,
           borderRadius: 2,
-          background: "rgba(255,255,255,0.08)",
+          background: LINE.hairline,
         }}
       >
         {fraction !== undefined && (
@@ -331,9 +323,7 @@ function PerfProgressRow({
               inset: 0,
               width: `${fraction * 100}%`,
               borderRadius: 2,
-              background: reached
-                ? "#4ADE80"
-                : "linear-gradient(90deg, rgba(249,115,22,0.6), #FB923C)",
+              background: reached ? STATUS.success : ACCENT.main,
               transition: "width 400ms ease-out",
             }}
           />
@@ -343,9 +333,10 @@ function PerfProgressRow({
       <Typography
         sx={{
           flexShrink: 0,
-          color: reached ? "#4ADE80" : "rgba(255,255,255,0.6)",
-          fontSize: "0.72rem",
+          ...TYPE.caption,
+          color: reached ? STATUS.success : TEXT.secondary,
           fontWeight: 600,
+          fontVariantNumeric: "tabular-nums",
           minWidth: 96,
           textAlign: "right",
         }}

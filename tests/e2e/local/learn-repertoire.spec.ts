@@ -592,8 +592,8 @@ test.describe("deciding, and stopping", () => {
     await lockWhite.click();
     await expect(page.getByRole("button", { name: /White is locked/i })).toBeVisible();
 
-    // Half a repertoire is the state everybody is already in. No Continue yet.
-    await expect(page.getByRole("link", { name: /Continue — start learning/i })).toHaveCount(0);
+    // Half a repertoire is the state everybody is already in. No "Start learning" yet.
+    await expect(page.getByRole("link", { name: /^Start learning$/i })).toHaveCount(0);
     await expect(page.getByText(/Lock this one too and you are done/i)).toHaveCount(0);
 
     await page.getByRole("tab", { name: /As Black/i }).click();
@@ -607,7 +607,7 @@ test.describe("deciding, and stopping", () => {
     await expect(page.getByText(/Lock this one too and you are done/i)).toBeVisible();
     await page.getByRole("button", { name: /Lock Black/i }).click();
 
-    const go = page.getByRole("link", { name: /Continue — start learning/i });
+    const go = page.getByRole("link", { name: /^Start learning$/i });
     await expect(go).toBeVisible();
     await go.click();
     await expect(page).toHaveURL(/\/learn\/[^/]+$/, { timeout: 15_000 });

@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
  * mount it turns true unless the visitor prefers reduced motion or the tab is
  * hidden, and it tracks visibility from then on: an animated WebP cannot be
  * paused, so the way to stop twelve monkeys looping in a background tab is to
- * swap them for stills. Same shape as NumberTicker's guard.
+ * swap them for stills.
  */
 export function useMastiMotion(enabled = true): boolean {
   const reduceMotion = useReducedMotion();

@@ -17,7 +17,8 @@ import { stubSignedIn } from "../helpers";
  */
 
 /** Minimal SSE body the panel's reader accepts without erroring. */
-const STUB_SSE = 'data: {"type":"text","delta":"ok"}\n\ndata: {"type":"done"}\n\n';
+const STUB_SSE =
+  'data: {"type":"text","delta":"ok"}\n\ndata: {"type":"done"}\n\n';
 
 async function fulfillStub(route: Route) {
   await route.fulfill({
@@ -26,7 +27,6 @@ async function fulfillStub(route: Route) {
     body: STUB_SSE,
   });
 }
-
 
 /**
  * Keep the coach composer in ONE state for the whole test.
@@ -53,7 +53,7 @@ async function pinComposerOpen(page: Page) {
 }
 
 /** The T7 placeholder: input open, and honest about what is missing. */
-const COMPOSER = "Ask anything — answering without engine analysis.";
+const COMPOSER = "Ask anything. The answer comes without engine analysis.";
 
 /**
  * A game for specs that need a board with history to navigate.
@@ -110,12 +110,16 @@ test.describe("A2 — the puzzle coach is told the student's rating", () => {
     await page.goto("/puzzles");
     await waitForPuzzle(page);
 
-    const composer = page.getByPlaceholder(/Ask (for a hint|about this puzzle)…/);
+    const composer = page.getByPlaceholder(
+      /Ask (for a hint|about this puzzle)…/
+    );
     await expect(composer).toBeVisible({ timeout: 30_000 });
     await composer.fill("what is the idea here?");
     await composer.press("Enter");
 
-    await expect.poll(() => bodies.length, { timeout: 30_000 }).toBeGreaterThan(0);
+    await expect
+      .poll(() => bodies.length, { timeout: 30_000 })
+      .toBeGreaterThan(0);
 
     const { url, json } = bodies[0];
     const rating = json.userRating;
@@ -176,7 +180,9 @@ test.describe("A1 — the analysis coach never invents a rating", () => {
     await composer.fill("what happened in this game?");
     await composer.press("Enter");
 
-    await expect.poll(() => bodies.length, { timeout: 30_000 }).toBeGreaterThan(0);
+    await expect
+      .poll(() => bodies.length, { timeout: 30_000 })
+      .toBeGreaterThan(0);
 
     const body = bodies[0];
     expect(
@@ -211,7 +217,7 @@ test.describe("signed-out visitors are gated, not 401'd", () => {
     await page.goto("/analysis");
 
     const composer = page.getByPlaceholder(
-      "Sign in to ask the coach — free account, no card."
+      "Sign in to ask the coach: free account, no card."
     );
     await expect(composer).toBeVisible({ timeout: 60_000 });
     await expect(
@@ -262,7 +268,9 @@ test.describe("T7 — an engine that never loads is declared, not hidden", () =>
 
     await composer.fill("what should I study from this?");
     await composer.press("Enter");
-    await expect.poll(() => bodies.length, { timeout: 30_000 }).toBeGreaterThan(0);
+    await expect
+      .poll(() => bodies.length, { timeout: 30_000 })
+      .toBeGreaterThan(0);
 
     // 3. The server is told, so the prompt can forbid the claims it cannot
     //    support instead of quietly omitting the sections behind them.

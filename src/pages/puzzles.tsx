@@ -16,8 +16,7 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
-import { ThemeProvider, createTheme, useTheme } from "@mui/material/styles";
-import { motion } from "framer-motion";
+import { ThemeProvider, alpha, useTheme } from "@mui/material/styles";
 import Head from "next/head";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
@@ -28,12 +27,23 @@ import {
   Lightbulb,
   Network,
   RotateCcw,
-  Sparkles,
 } from "lucide-react";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import { VIEWPORT_LOCK_PROPS } from "@/components/ads/PartnerSlot";
 import { NavPill } from "@/components/ui/NavPill";
-import { ACCENTS, themeAccent, type Accent } from "@/components/ui/accents";
+import { themeAccent, type Accent } from "@/components/ui/accents";
+import { chessMastiDarkTheme } from "@/theme/chessMasti";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  SHADOW,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 import { PuzzleCoachPanel } from "@/components/puzzle/PuzzleCoachPanel";
 import {
   Masti,
@@ -154,30 +164,19 @@ interface ActiveDemo {
  * this page is just the board + filter UI + coach mount.
  */
 
-const puzzleTheme = createTheme({
-  palette: {
-    mode: "dark",
-    primary: { main: "#FF7A1A" },
-    secondary: { main: "#FB923C" },
-    background: { default: "#0A0907", paper: "rgba(22,18,14,0.55)" },
-    text: {
-      primary: "rgba(255,240,224,0.94)",
-      secondary: "rgba(255,240,224,0.55)",
-    },
-    divider: "rgba(255,255,255,0.06)",
-  },
-  typography: {
-    fontFamily: "Inter, sans-serif",
-    h1: { fontWeight: 800, letterSpacing: "-0.035em" },
-    h2: { fontWeight: 700, letterSpacing: "-0.025em" },
-    button: { textTransform: "none", fontWeight: 600 },
-  },
-});
+/** The board card's verdict hairlines: the status colour at the strength of
+ *  a selected control's border. The card changes its border, never a shadow. */
+const SOLVED_BORDER = "rgba(48,209,88,0.45)";
+const WRONG_BORDER = "rgba(255,69,58,0.45)";
 
-const EASE_OUT_STRONG: [number, number, number, number] = [0.23, 1, 0.32, 1];
-
-/** Practice/training surface identity — the violet the NavPill pill wears. */
-const VIOLET = ACCENTS.violet;
+/** A snackbar floats over the locked bottom row (Show solution, New puzzle),
+ *  so its Alert is the opaque floating layer, not the 14% status tint the
+ *  theme gives an in-flow Alert. The status colour stays on the icon. */
+const SNACKBAR_ALERT_SX = {
+  bgcolor: SURFACE.overlay,
+  border: `1px solid ${LINE.hairline}`,
+  boxShadow: SHADOW.floating,
+} as const;
 
 /**
  * A compact set of the most-pedagogically-useful Lichess themes for
@@ -423,7 +422,7 @@ export default function PreviewPuzzlesPage() {
       }
       setCoachWidth(w);
     },
-    [setCoachWidth],
+    [setCoachWidth]
   );
 
   const beginSplitDrag = useCallback((e: React.PointerEvent<HTMLElement>) => {
@@ -446,7 +445,9 @@ export default function PreviewPuzzlesPage() {
     if (!drag || !grid) return;
     grid.style.setProperty(
       "--cm-coach-track",
-      coachTrack(dragCoachWidth(drag.startWidth, drag.startX, e.clientX, drag.gridWidth)),
+      coachTrack(
+        dragCoachWidth(drag.startWidth, drag.startX, e.clientX, drag.gridWidth)
+      )
     );
   }, []);
 
@@ -456,10 +457,10 @@ export default function PreviewPuzzlesPage() {
       if (!drag) return;
       splitDragRef.current = null;
       commitCoachWidth(
-        dragCoachWidth(drag.startWidth, drag.startX, e.clientX, drag.gridWidth),
+        dragCoachWidth(drag.startWidth, drag.startX, e.clientX, drag.gridWidth)
       );
     },
-    [commitCoachWidth],
+    [commitCoachWidth]
   );
 
   const cancelSplitDrag = useCallback(() => {
@@ -482,11 +483,11 @@ export default function PreviewPuzzlesPage() {
           // The coach is the RIGHT column, so ArrowLeft moves the divider
           // left and widens it — same direction the drag reads.
           e.key === "ArrowLeft" ? "wider" : "narrower",
-          grid.getBoundingClientRect().width,
-        ),
+          grid.getBoundingClientRect().width
+        )
       );
     },
-    [commitCoachWidth],
+    [commitCoachWidth]
   );
   const [referenceOpen, setReferenceOpen] = useState(false);
   const [eliminateMode, setEliminateMode] = useState(false);
@@ -1212,29 +1213,30 @@ export default function PreviewPuzzlesPage() {
           gap: 0.5,
           px: 1.5,
           py: 0.55,
-          borderRadius: "999px",
-          background: "rgba(10,9,7,0.6)",
-          border: "1px solid rgba(255,255,255,0.1)",
-          fontFamily: "Monaco, Menlo, monospace",
+          borderRadius: `${RADIUS.control}px`,
+          background: SURFACE.raisedSecondary,
+          border: `1px solid ${LINE.hairline}`,
+          fontFamily: FONT_MONO,
+          fontVariantNumeric: "tabular-nums",
           fontSize: "0.86rem",
-          fontWeight: 800,
+          fontWeight: 700,
           lineHeight: 1,
         }}
         aria-label={`${sessionSolved} correct, ${sessionWrong} wrong, ${sessionTotal} total`}
       >
-        <Box component="span" sx={{ color: "#4ade80" }}>
+        <Box component="span" sx={{ color: STATUS.success }}>
           {sessionSolved}
         </Box>
-        <Box component="span" sx={{ color: "rgba(255,240,224,0.3)" }}>
+        <Box component="span" sx={{ color: TEXT.tertiary }}>
           /
         </Box>
-        <Box component="span" sx={{ color: "#f87171" }}>
+        <Box component="span" sx={{ color: STATUS.error }}>
           {sessionWrong}
         </Box>
-        <Box component="span" sx={{ color: "rgba(255,240,224,0.3)" }}>
+        <Box component="span" sx={{ color: TEXT.tertiary }}>
           /
         </Box>
-        <Box component="span" sx={{ color: "rgba(255,240,224,0.55)" }}>
+        <Box component="span" sx={{ color: TEXT.secondary }}>
           {sessionTotal}
         </Box>
       </Box>
@@ -1242,25 +1244,13 @@ export default function PreviewPuzzlesPage() {
         onClick={handleFinishSession}
         disabled={sessionTotal === 0}
         startIcon={<Flag size={13} />}
+        variant="outlined"
+        size="small"
         sx={{
           px: 1.75,
           py: 0.5,
           minHeight: 0,
-          borderRadius: "999px",
-          background: "linear-gradient(135deg, #FF7A1A, #EF4444)",
-          color: "#fff",
           fontSize: "0.8rem",
-          fontWeight: 800,
-          textTransform: "none",
-          boxShadow: "0 8px 24px -10px rgba(239,68,68,0.6)",
-          "&:hover": {
-            background: "linear-gradient(135deg, #FB923C, #DC2626)",
-          },
-          "&.Mui-disabled": {
-            background: "rgba(22,18,14,0.7)",
-            color: "rgba(255,240,224,0.35)",
-            boxShadow: "none",
-          },
         }}
       >
         Finish
@@ -1534,7 +1524,7 @@ export default function PreviewPuzzlesPage() {
     const themes = puzzle.themes.filter((t) => !NON_GRAPH_THEMES.has(t));
     if (themes.length === 0) {
       setSimilarNote(
-        "This puzzle has no tactical motif tagged, so the graph has nothing to match. Served a same-difficulty puzzle instead."
+        "This puzzle has no motif to match, so here's another one at the same difficulty."
       );
       handleNextPuzzle();
       return;
@@ -1558,7 +1548,7 @@ export default function PreviewPuzzlesPage() {
       });
       if (res.status === 503) {
         setSimilarNote(
-          "Puzzle graph is unavailable right now. Served a same-difficulty puzzle instead."
+          "Similar puzzles aren't available right now, so here's another one at the same difficulty."
         );
         handleNextPuzzle();
         return;
@@ -1568,7 +1558,7 @@ export default function PreviewPuzzlesPage() {
       const hit = data?.puzzles?.[0];
       if (!hit?.puzzleId || !hit?.fen || !hit?.moves) {
         setSimilarNote(
-          "No close match in the graph for this motif. Served a same-difficulty puzzle instead."
+          "No close match for this motif, so here's another one at the same difficulty."
         );
         handleNextPuzzle();
         return;
@@ -1584,7 +1574,7 @@ export default function PreviewPuzzlesPage() {
       setPracticeList(null);
     } catch {
       setSimilarNote(
-        "Couldn't reach the puzzle graph. Served a same-difficulty puzzle instead."
+        "Couldn't find a similar puzzle. Here's another one at the same difficulty."
       );
       handleNextPuzzle();
     } finally {
@@ -1751,27 +1741,18 @@ export default function PreviewPuzzlesPage() {
   );
 
   return (
-    <ThemeProvider theme={puzzleTheme}>
+    <ThemeProvider theme={chessMastiDarkTheme}>
       <Head>
         <title>Puzzles with Masti · Chess Masti</title>
         <meta name="color-scheme" content="dark" />
-        <meta name="theme-color" content="#0A0907" />
+        <meta name="theme-color" content={SURFACE.page} />
         <style>{`
           /* body-only on purpose — see src/pages/index.tsx: an <html>
-             background blocks body→canvas propagation and paints over
-             fixed zIndex:-1 backdrops. */
+             background blocks body→canvas propagation. */
           html { color-scheme: dark; }
-          body { background-color: #0A0907; color-scheme: dark; margin: 0; }
-          ::-webkit-scrollbar { width: 8px; height: 8px; }
-          ::-webkit-scrollbar-track { background: transparent; }
-          ::-webkit-scrollbar-thumb {
-            background: ${VIOLET.soft};
-            border-radius: 4px;
-          }
+          body { background-color: ${SURFACE.page}; color-scheme: dark; margin: 0; }
         `}</style>
       </Head>
-
-      <GradientBackdrop />
 
       {/*
         Viewport-locked at lg and up: exactly one screen, never scrolls. This is
@@ -1804,7 +1785,7 @@ export default function PreviewPuzzlesPage() {
             ? "calc(100dvh - var(--cm-consent-h, 0px))"
             : undefined,
           minHeight: heightLocked ? 0 : "100vh",
-          color: "rgba(255,240,224,0.94)",
+          color: TEXT.primary,
           display: "flex",
           flexDirection: "column",
           overflow: heightLocked ? "hidden" : undefined,
@@ -1862,49 +1843,11 @@ export default function PreviewPuzzlesPage() {
               },
             }}
           >
-            <Stack direction="row" alignItems="center" spacing={1.5} mb={1.25}>
-              <Box
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 1,
-                  px: 1.5,
-                  py: 0.6,
-                  borderRadius: "999px",
-                  background: VIOLET.tint,
-                  border: `1px solid ${VIOLET.border}`,
-                }}
-              >
-                <Sparkles size={12} color={VIOLET.bright} />
-                <Typography
-                  sx={{
-                    fontSize: "0.68rem",
-                    fontWeight: 700,
-                    letterSpacing: "0.18em",
-                    color: VIOLET.bright,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Masti&apos;s puzzle coach
-                </Typography>
-              </Box>
-              {feed.totalAvailable !== null && (
-                <Typography
-                  sx={{
-                    fontSize: "0.74rem",
-                    color: "rgba(255,240,224,0.45)",
-                    fontFamily: "Monaco, Menlo, monospace",
-                  }}
-                >
-                  {feed.totalAvailable.toLocaleString()} matching
-                </Typography>
-              )}
-            </Stack>
             <Typography
               variant="h1"
               sx={{
                 fontSize: { xs: "1.8rem", md: "2.4rem", lg: "1.75rem" },
-                color: "rgba(255,240,224,0.96)",
+                color: TEXT.primary,
                 lineHeight: 1.05,
                 maxWidth: 760,
                 // Wide but short — the common laptop — is where the one-screen
@@ -1917,18 +1860,22 @@ export default function PreviewPuzzlesPage() {
                 },
               }}
             >
-              Solve. Then{" "}
-              <Box
-                component="span"
-                sx={{
-                  background: `linear-gradient(135deg, ${VIOLET.base}, ${VIOLET.bright})`,
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                }}
-              >
-                understand why.
-              </Box>
+              Solve. Then understand why.
+            </Typography>
+            {/* The count lives on the line under the heading, not as an
+                eyebrow above it. The line box is held while the count is
+                still loading so nothing moves when it arrives. */}
+            <Typography
+              sx={{
+                ...TYPE.caption,
+                color: TEXT.secondary,
+                fontVariantNumeric: "tabular-nums",
+                mt: 0.75,
+              }}
+            >
+              {feed.totalAvailable !== null
+                ? `${feed.totalAvailable.toLocaleString()} matching`
+                : "\u00A0"}
             </Typography>
           </Box>
 
@@ -1951,10 +1898,11 @@ export default function PreviewPuzzlesPage() {
                 label: t.label,
                 active: activeTheme === t.id,
                 // Each motif keeps its one sitewide colour (fork gold, pin
-                // cyan…) via the curriculum id; "All" wears the surface violet.
+                // cyan…) via the curriculum id, as a quiet tint while it is
+                // selected; "All" is a plain selected chip.
                 accent:
                   t.id === null
-                    ? VIOLET
+                    ? undefined
                     : themeAccent(FEED_TO_CURRICULUM_THEME[t.id] ?? t.id),
               }))}
               onClick={(id) => handleThemeClick(id === "__all__" ? null : id)}
@@ -1966,8 +1914,8 @@ export default function PreviewPuzzlesPage() {
                 id: b.id,
                 label: b.label,
                 active: activeBand === b.id,
-                // Difficulty is surface chrome, not a motif — plain violet.
-                accent: VIOLET,
+                // Difficulty is chrome, not a motif: a plain selected chip.
+                accent: undefined,
               }))}
               onClick={handleBandClick}
             />
@@ -1984,17 +1932,18 @@ export default function PreviewPuzzlesPage() {
                 mb: { xs: 2, lg: 1 },
                 px: 2,
                 py: 1,
-                borderRadius: "999px",
-                background: `linear-gradient(135deg, ${VIOLET.soft}, ${VIOLET.tint})`,
-                border: `1px solid ${VIOLET.border}`,
+                borderRadius: `${RADIUS.control}px`,
+                // A status banner, not a selected control: the info tint.
+                background: STATUS.infoTint,
+                border: `1px solid ${LINE.hairline}`,
               }}
             >
-              <RotateCcw size={15} color={VIOLET.bright} />
+              <RotateCcw size={15} strokeWidth={1.75} color={STATUS.info} />
               <Typography
                 sx={{
                   fontSize: "0.85rem",
                   fontWeight: 600,
-                  color: VIOLET.bright,
+                  color: TEXT.primary,
                 }}
               >
                 {practiceLabel ?? "Re-practicing missed puzzles"} ·{" "}
@@ -2008,16 +1957,14 @@ export default function PreviewPuzzlesPage() {
                   setPracticeIdx(0);
                 }}
                 size="small"
+                variant="text"
                 sx={{
                   px: 1.5,
                   py: 0.3,
                   minHeight: 0,
-                  borderRadius: "999px",
-                  color: "rgba(255,240,224,0.7)",
+                  color: TEXT.secondary,
                   fontSize: "0.78rem",
-                  fontWeight: 600,
-                  textTransform: "none",
-                  "&:hover": { color: VIOLET.bright },
+                  "&:hover": { color: TEXT.primary },
                 }}
               >
                 Exit
@@ -2072,49 +2019,31 @@ export default function PreviewPuzzlesPage() {
                 gap: 2,
                 minHeight: heightLocked ? 0 : undefined,
                 overflowY: heightLocked ? "auto" : undefined,
-                // Hairline scrollbar so the board card doesn't get a heavy
-                // gutter on the one screen the whole design is about.
+                // Narrow scrollbar so the board card doesn't get a heavy
+                // gutter on the one screen the whole design is about. The
+                // thumb colour comes from the baseline.
                 "&::-webkit-scrollbar": { width: 6 },
-                "&::-webkit-scrollbar-thumb": {
-                  background: "rgba(255,255,255,0.12)",
-                  borderRadius: 3,
-                },
               }}
             >
               <Box
                 sx={{
                   position: "relative",
-                  borderRadius: "1.5rem",
-                  // Surface-identity treatment (see plan.tsx GlassCard):
-                  // violet radial tint at the card top over the dark glass.
-                  // Solved/wrong verdict rings below stay green/red.
-                  background: `radial-gradient(120% 55% at 50% 0%, ${VIOLET.tint}, transparent 70%), linear-gradient(135deg, rgba(22,18,14,0.6), rgba(22,18,14,0.6))`,
-                  backdropFilter: "blur(16px) saturate(150%)",
-                  WebkitBackdropFilter: "blur(16px) saturate(150%)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  boxShadow:
+                  borderRadius: `${RADIUS.card}px`,
+                  // A raised surface with a hairline. The verdict changes the
+                  // hairline's colour (green solved, red wrong); the card
+                  // never casts a shadow.
+                  background: SURFACE.raised,
+                  border: `1px solid ${
                     status === "solved"
-                      ? "0 24px 64px -16px rgba(34,197,94,0.25), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(34,197,94,0.32)"
+                      ? SOLVED_BORDER
                       : status === "wrong"
-                        ? "0 24px 64px -16px rgba(239,68,68,0.2), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(239,68,68,0.32)"
-                        : `0 24px 64px -20px rgba(0,0,0,0.6), ${VIOLET.glow}, inset 0 1px 0 rgba(255,255,255,0.05)`,
-                  transition: "box-shadow 320ms cubic-bezier(0.23, 1, 0.32, 1)",
-                  // Accent top hairline, same recipe as plan.tsx's cards.
-                  "&::before": {
-                    content: '""',
-                    position: "absolute",
-                    top: 0,
-                    left: "8%",
-                    right: "8%",
-                    height: "1.5px",
-                    background: `linear-gradient(90deg, transparent, ${VIOLET.base}, transparent)`,
-                    opacity: 0.65,
-                    pointerEvents: "none",
-                  },
+                        ? WRONG_BORDER
+                        : LINE.hairline
+                  }`,
+                  transition: `border-color ${MOTION.hover}`,
                   // 16px at lg (was 24): the board wrapper has its own
-                  // 0.85rem radius inside the 1.5rem card, so the nested-glass
-                  // read survives, and the 16px of width is what stops the
-                  // toolbar wrapping to two rows at 1280 wide.
+                  // radius inside the card, and the 16px of width is what
+                  // stops the toolbar wrapping to two rows at 1280 wide.
                   p: { xs: 2, md: 3, lg: 2 },
                   // At lg the card takes the column's height and the board
                   // sizes itself from what's left. A fixed 540 min-height here
@@ -2224,14 +2153,12 @@ export default function PreviewPuzzlesPage() {
                             boardSquarePx ??
                             (isDesktopWidth ? UNLOCKED_BOARD_WIDTH : "100%"),
                           height:
-                            boardSquarePx ??
-                            (isDesktopWidth ? "auto" : "100%"),
+                            boardSquarePx ?? (isDesktopWidth ? "auto" : "100%"),
                           maxWidth: "100%",
                           flexShrink: 0,
                           mx: "auto",
                           borderRadius: "0.85rem",
                           overflow: "hidden",
-                          boxShadow: "0 0 0 1px rgba(255,255,255,0.06)",
                         }}
                       >
                         <PuzzleBoardSurface
@@ -2271,25 +2198,26 @@ export default function PreviewPuzzlesPage() {
                               gap: 1,
                               px: 1.5,
                               py: 0.75,
-                              borderRadius: "999px",
-                              background: "rgba(22,18,14,0.92)",
-                              backdropFilter: "blur(10px)",
-                              border: `1px solid ${VIOLET.border}`,
-                              boxShadow: "0 12px 32px -10px rgba(0,0,0,0.5)",
+                              borderRadius: `${RADIUS.control}px`,
+                              background: SURFACE.raisedTertiary,
+                              border: `1px solid ${LINE.hairline}`,
+                              boxShadow: SHADOW.floating,
                               zIndex: 5,
                             }}
                           >
-                            <Sparkles size={12} color={VIOLET.bright} />
                             <Typography
                               sx={{
-                                fontSize: "0.74rem",
+                                fontSize: TYPE.caption.fontSize,
                                 fontWeight: 600,
-                                color: "rgba(255,240,224,0.92)",
+                                color: TEXT.primary,
+                                fontVariantNumeric: "tabular-nums",
                               }}
                             >
                               {activeDemo.finished
                                 ? "Demo finished"
-                                : `Coach is showing • ${activeDemo.idx}/${activeDemo.moves.length}`}
+                                : activeDemo.idx === 0
+                                  ? "Masti is showing the line"
+                                  : `Masti is showing move ${activeDemo.idx} of ${activeDemo.moves.length}`}
                             </Typography>
                             <Button
                               onClick={handleDemoEnd}
@@ -2299,15 +2227,12 @@ export default function PreviewPuzzlesPage() {
                                 px: 1.25,
                                 py: 0.2,
                                 minHeight: 0,
-                                fontSize: "0.72rem",
+                                fontSize: TYPE.caption.fontSize,
                                 fontWeight: 700,
-                                borderRadius: "999px",
-                                color: VIOLET.bright,
-                                background: VIOLET.soft,
-                                border: `1px solid ${VIOLET.border}`,
-                                textTransform: "none",
+                                color: ACCENT.hover,
+                                background: ACCENT.tint,
                                 "&:hover": {
-                                  background: VIOLET.border,
+                                  background: alpha(ACCENT.main, 0.22),
                                 },
                               }}
                             >
@@ -2355,169 +2280,161 @@ export default function PreviewPuzzlesPage() {
                         pt: { lg: 1.5 },
                         borderTop: {
                           xs: "none",
-                          lg: "1px solid rgba(255,255,255,0.07)",
+                          lg: `1px solid ${LINE.hairline}`,
                         },
                       }}
                     >
-                    {/* Status row */}
-                    <Stack
-                      direction="row"
-                      alignItems="center"
-                      spacing={1.5}
-                      sx={{
-                        mt: { xs: 2, lg: 0 },
-                        // Basis auto so the wrapper wraps the ACTION box to a
-                        // second line when confirm-move's Submit/Change move
-                        // don't fit, rather than wrapping Reset/Show solution
-                        // inside this row.
-                        flex: { lg: "1 1 auto" },
-                        minWidth: 0,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <Box
+                      {/* Status row */}
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        spacing={1.5}
                         sx={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 0.75,
-                          px: 1.5,
-                          py: 0.6,
-                          borderRadius: "999px",
-                          background:
-                            status === "solved"
-                              ? "rgba(34,197,94,0.14)"
-                              : status === "wrong"
-                                ? "rgba(239,68,68,0.14)"
-                                : VIOLET.tint,
-                          border:
-                            status === "solved"
-                              ? "1px solid rgba(34,197,94,0.35)"
-                              : status === "wrong"
-                                ? "1px solid rgba(239,68,68,0.35)"
-                                : `1px solid ${VIOLET.border}`,
+                          mt: { xs: 2, lg: 0 },
+                          // Basis auto so the wrapper wraps the ACTION box to a
+                          // second line when confirm-move's Submit/Change move
+                          // don't fit, rather than wrapping Reset/Show solution
+                          // inside this row.
+                          flex: { lg: "1 1 auto" },
+                          minWidth: 0,
+                          flexWrap: "wrap",
                         }}
                       >
-                        {status === "solved" ? (
-                          <MastiAvatar
-                            // The page's reducer, so a solve after a miss or a
-                            // revealed answer is an idea here too, not a cheer.
-                            mood={masti.mood === "excited" ? "excited" : "idea"}
-                            size={18}
-                            ring={false}
-                            animated
-                            loops={1}
-                            replayKey={flashKey}
-                          />
-                        ) : status === "wrong" ? (
-                          <MastiAvatar
-                            mood="nervous"
-                            size={18}
-                            ring={false}
-                            animated
-                            loops={1}
-                            replayKey={flashKey}
-                          />
-                        ) : (
-                          <Lightbulb size={13} color={VIOLET.bright} />
-                        )}
-                        {/* One element, two kinds of text, so the face has to
+                        <Box
+                          sx={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 0.75,
+                            px: 1.5,
+                            py: 0.6,
+                            borderRadius: `${RADIUS.control}px`,
+                            background:
+                              status === "solved"
+                                ? STATUS.successTint
+                                : status === "wrong"
+                                  ? STATUS.errorTint
+                                  : SURFACE.raisedSecondary,
+                            border: `1px solid ${
+                              status === "solved"
+                                ? SOLVED_BORDER
+                                : status === "wrong"
+                                  ? WRONG_BORDER
+                                  : LINE.hairline
+                            }`,
+                          }}
+                        >
+                          {status === "solved" ? (
+                            <MastiAvatar
+                              // The page's reducer, so a solve after a miss or a
+                              // revealed answer is an idea here too, not a cheer.
+                              mood={
+                                masti.mood === "excited" ? "excited" : "idea"
+                              }
+                              size={18}
+                              ring={false}
+                              animated
+                              loops={1}
+                              replayKey={flashKey}
+                            />
+                          ) : status === "wrong" ? (
+                            <MastiAvatar
+                              mood="nervous"
+                              size={18}
+                              ring={false}
+                              animated
+                              loops={1}
+                              replayKey={flashKey}
+                            />
+                          ) : (
+                            <Lightbulb
+                              size={13}
+                              strokeWidth={1.75}
+                              color={TEXT.secondary}
+                            />
+                          )}
+                          {/* One element, two kinds of text, so the face has to
                             switch with it. "White to move" is the question —
                             puzzle content, serif. "Solved" / "Try again" are
                             the app answering back — chrome, sans. Setting the
                             whole pill serif would put a verdict in the voice
                             reserved for the problem itself. */}
+                          <Typography
+                            sx={{
+                              fontFamily:
+                                status === "solved" || status === "wrong"
+                                  ? undefined
+                                  : SERIF_DISPLAY,
+                              fontSize:
+                                status === "solved" || status === "wrong"
+                                  ? "0.78rem"
+                                  : "0.86rem",
+                              fontWeight:
+                                status === "solved" || status === "wrong"
+                                  ? 600
+                                  : 500,
+                              color:
+                                status === "solved"
+                                  ? STATUS.success
+                                  : status === "wrong"
+                                    ? STATUS.error
+                                    : TEXT.primary,
+                            }}
+                          >
+                            {status === "solved"
+                              ? "Solved"
+                              : status === "wrong"
+                                ? "Try again"
+                                : `${
+                                    game.turn() === "w" ? "White" : "Black"
+                                  } to move`}
+                          </Typography>
+                        </Box>
+
                         <Typography
                           sx={{
-                            fontFamily:
-                              status === "solved" || status === "wrong"
-                                ? undefined
-                                : SERIF_DISPLAY,
-                            fontSize:
-                              status === "solved" || status === "wrong"
-                                ? "0.78rem"
-                                : "0.86rem",
-                            fontWeight:
-                              status === "solved" || status === "wrong"
-                                ? 600
-                                : 500,
-                            color:
-                              status === "solved"
-                                ? "#86efac"
-                                : status === "wrong"
-                                  ? "#fca5a5"
-                                  : VIOLET.bright,
+                            fontSize: "0.78rem",
+                            color: TEXT.secondary,
+                            fontFamily: FONT_MONO,
+                            // At lg the id is in the coach header and the rating
+                            // on the rail's current row; here it would push the
+                            // merged bottom row to two lines at 1280 wide.
+                            display: { xs: "block", lg: "none" },
                           }}
                         >
-                          {status === "solved"
-                            ? "Solved"
-                            : status === "wrong"
-                              ? "Try again"
-                              : `${
-                                  game.turn() === "w" ? "White" : "Black"
-                                } to move`}
+                          #{puzzle.id}
+                          {puzzle.rating ? ` · ${puzzle.rating}` : ""}
                         </Typography>
-                      </Box>
 
-                      <Typography
-                        sx={{
-                          fontSize: "0.78rem",
-                          color: "rgba(255,240,224,0.5)",
-                          fontFamily: "Monaco, Menlo, monospace",
-                          // At lg the id is in the coach header and the rating
-                          // on the rail's current row; here it would push the
-                          // merged bottom row to two lines at 1280 wide.
-                          display: { xs: "block", lg: "none" },
-                        }}
-                      >
-                        #{puzzle.id}
-                        {puzzle.rating ? ` · ${puzzle.rating}` : ""}
-                      </Typography>
+                        <Box sx={{ flex: 1 }} />
 
-                      <Box sx={{ flex: 1 }} />
+                        <IconButton
+                          size="small"
+                          onClick={handleReset}
+                          sx={{
+                            color: TEXT.secondary,
+                            "&:hover": { color: TEXT.primary },
+                          }}
+                          aria-label="Reset puzzle"
+                        >
+                          <RotateCcw size={15} />
+                        </IconButton>
 
-                      <IconButton
-                        size="small"
-                        onClick={handleReset}
-                        sx={{
-                          color: "rgba(255,240,224,0.55)",
-                          "&:hover": {
-                            color: VIOLET.bright,
-                            background: VIOLET.tint,
-                          },
-                        }}
-                        aria-label="Reset puzzle"
-                      >
-                        <RotateCcw size={15} />
-                      </IconButton>
+                        <Button
+                          onClick={handleShowSolution}
+                          disabled={!!activeDemo}
+                          startIcon={<Eye size={14} />}
+                          variant="outlined"
+                          sx={{
+                            px: { xs: 1.75, lg: 1.5 },
+                            py: 0.6,
+                            fontSize: "0.82rem",
+                          }}
+                        >
+                          Show solution
+                        </Button>
+                      </Stack>
 
-                      <Button
-                        onClick={handleShowSolution}
-                        disabled={!!activeDemo}
-                        startIcon={<Eye size={14} />}
-                        sx={{
-                          px: { xs: 1.75, lg: 1.5 },
-                          py: 0.6,
-                          borderRadius: "999px",
-                          background: "rgba(22,18,14,0.7)",
-                          color: "rgba(255,240,224,0.85)",
-                          border: "1px solid rgba(255,255,255,0.08)",
-                          fontSize: "0.82rem",
-                          fontWeight: 600,
-                          "&:hover": {
-                            background: "rgba(22,18,14,0.85)",
-                            borderColor: VIOLET.border,
-                            color: VIOLET.bright,
-                          },
-                          "&.Mui-disabled": {
-                            color: "rgba(255,240,224,0.3)",
-                          },
-                        }}
-                      >
-                        Show solution
-                      </Button>
-                    </Stack>
-
-                    {/* Action bar — Acely's commit/escape pair, bottom-anchored
+                      {/* Action bar — Acely's commit/escape pair, bottom-anchored
                         under a divider below lg; the right half of the merged
                         bottom row at lg. Submit exists only when confirm-move
                         is on (off by default since 2026-09-08) and is then the
@@ -2525,194 +2442,208 @@ export default function PreviewPuzzlesPage() {
                         the bar is just "New puzzle", deliberately as heavy as
                         Submit would be, because skipping shouldn't feel
                         punished. */}
-                    <Box
-                      sx={{
-                        mt: { xs: "auto", lg: 0 },
-                        pt: { xs: 2.5, lg: 0 },
-                        borderTop: {
-                          xs: "1px solid rgba(255,255,255,0.07)",
-                          lg: "none",
-                        },
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: { xs: "center", lg: "flex-end" },
-                        gap: 1.5,
-                        flexWrap: "wrap",
-                        flexShrink: 0,
-                        // Right-aligned on its own line too, when it wraps.
-                        ml: { lg: "auto" },
-                      }}
-                    >
-                      {/* Board-only. In choice mode a tap grades
+                      <Box
+                        sx={{
+                          mt: { xs: "auto", lg: 0 },
+                          pt: { xs: 2.5, lg: 0 },
+                          borderTop: {
+                            xs: `1px solid ${LINE.hairline}`,
+                            lg: "none",
+                          },
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: { xs: "center", lg: "flex-end" },
+                          gap: 1.5,
+                          flexWrap: "wrap",
+                          flexShrink: 0,
+                          // Right-aligned on its own line too, when it wraps.
+                          ml: { lg: "auto" },
+                        }}
+                      >
+                        {/* Board-only. In choice mode a tap grades
                           immediately, so a Submit button would be a dead
                           control sitting next to the real answer. */}
-                      {confirmMoves && !choiceModeActive && (
-                        <>
-                          <Button
-                            onClick={handleSubmitMove}
-                            disabled={!staged}
-                            sx={{
-                              px: 3,
-                              py: 1,
-                              borderRadius: "0.6rem",
-                              background: staged
-                                ? "linear-gradient(135deg, #FF7A1A, #FB923C)"
-                                : "rgba(255,255,255,0.05)",
-                              color: staged ? "#0A0907" : undefined,
-                              fontSize: "0.9rem",
-                              fontWeight: 700,
-                              minWidth: { xs: 172, lg: 150 },
-                              "&:hover": {
-                                background: staged
-                                  ? "linear-gradient(135deg, #FB923C, #FBBF24)"
-                                  : "rgba(255,255,255,0.05)",
-                              },
-                              "&.Mui-disabled": {
-                                color: "rgba(255,240,224,0.32)",
-                              },
-                            }}
-                          >
-                            Submit move
-                          </Button>
-                          {staged && (
+                        {confirmMoves && !choiceModeActive && (
+                          <>
                             <Button
-                              onClick={handleUnstageMove}
+                              onClick={handleSubmitMove}
+                              disabled={!staged}
                               sx={{
-                                px: { xs: 1.5, lg: 1 },
+                                px: 3,
                                 py: 1,
-                                borderRadius: "0.6rem",
-                                color: "rgba(255,240,224,0.6)",
-                                fontSize: "0.82rem",
+                                borderRadius: `${RADIUS.control}px`,
+                                background: staged
+                                  ? ACCENT.main
+                                  : SURFACE.raisedSecondary,
+                                color: staged ? TEXT.onAccent : undefined,
+                                fontSize: "0.9rem",
                                 fontWeight: 600,
+                                minWidth: { xs: 172, lg: 150 },
                                 "&:hover": {
-                                  color: VIOLET.bright,
-                                  background: VIOLET.tint,
+                                  background: staged
+                                    ? ACCENT.hover
+                                    : SURFACE.raisedSecondary,
+                                },
+                                "&.Mui-disabled": {
+                                  color: TEXT.tertiary,
                                 },
                               }}
                             >
-                              Change move
+                              Submit move
                             </Button>
-                          )}
-                        </>
-                      )}
+                            {staged && (
+                              <Button
+                                onClick={handleUnstageMove}
+                                sx={{
+                                  px: { xs: 1.5, lg: 1 },
+                                  py: 1,
+                                  borderRadius: `${RADIUS.control}px`,
+                                  color: TEXT.secondary,
+                                  fontSize: "0.82rem",
+                                  fontWeight: 600,
+                                  "&:hover": { color: TEXT.primary },
+                                }}
+                              >
+                                Change move
+                              </Button>
+                            )}
+                          </>
+                        )}
 
-                      {/* Split control, like Acely's "New Hard Question ⌄":
+                        {/* Split control, like Acely's "New Hard Question ⌄":
                           the body is the action (next puzzle, same
                           difficulty), the chevron opens the difficulty menu.
                           Keeping the body clickable preserves the one-tap
                           "Next puzzle" this replaced — burying the most common
                           action behind a menu would be a regression. */}
-                      <Box
-                        sx={{
-                          display: "inline-flex",
-                          borderRadius: "0.6rem",
-                          overflow: "hidden",
-                          border:
-                            status === "solved"
-                              ? "1px solid transparent"
-                              : "1px solid rgba(255,255,255,0.12)",
-                          background:
-                            status === "solved"
-                              ? "linear-gradient(135deg, #FF7A1A, #FB923C)"
-                              : "rgba(22,18,14,0.7)",
-                          "&:hover": {
-                            borderColor:
-                              status === "solved"
-                                ? "transparent"
-                                : VIOLET.border,
-                          },
-                        }}
-                      >
-                        <Button
-                          onClick={handleNextPuzzle}
-                          sx={{
-                            px: 2.5,
-                            py: 1,
-                            borderRadius: 0,
-                            color:
-                              status === "solved"
-                                ? "#0A0907"
-                                : "rgba(255,240,224,0.9)",
-                            fontSize: "0.9rem",
-                            fontWeight: 700,
-                            "&:hover": { background: "rgba(255,255,255,0.06)" },
-                          }}
-                        >
-                          New puzzle
-                        </Button>
                         <Box
                           sx={{
-                            width: "1px",
-                            my: 0.9,
+                            display: "inline-flex",
+                            borderRadius: `${RADIUS.control}px`,
+                            overflow: "hidden",
+                            border:
+                              status === "solved"
+                                ? "1px solid transparent"
+                                : `1px solid ${LINE.strong}`,
                             background:
                               status === "solved"
-                                ? "rgba(10,9,7,0.25)"
-                                : "rgba(255,255,255,0.12)",
-                          }}
-                        />
-                        <IconButton
-                          onClick={(e) => setDifficultyAnchor(e.currentTarget)}
-                          aria-label="Choose difficulty"
-                          sx={{
-                            borderRadius: 0,
-                            px: 1,
-                            color:
-                              status === "solved"
-                                ? "#0A0907"
-                                : "rgba(255,240,224,0.9)",
-                            "&:hover": { background: "rgba(255,255,255,0.06)" },
+                                ? ACCENT.main
+                                : SURFACE.raisedSecondary,
+                            transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
+                            "&:hover": {
+                              borderColor:
+                                status === "solved"
+                                  ? "transparent"
+                                  : TEXT.secondary,
+                              background:
+                                status === "solved"
+                                  ? ACCENT.hover
+                                  : SURFACE.raisedSecondary,
+                            },
                           }}
                         >
-                          <ChevronDown size={15} />
-                        </IconButton>
-                      </Box>
-                      <Menu
-                        anchorEl={difficultyAnchor}
-                        open={Boolean(difficultyAnchor)}
-                        onClose={() => setDifficultyAnchor(null)}
-                        anchorOrigin={{
-                          vertical: "top",
-                          horizontal: "center",
-                        }}
-                        transformOrigin={{
-                          vertical: "bottom",
-                          horizontal: "center",
-                        }}
-                      >
-                        {(
-                          [
-                            ["Easier", -1],
-                            ["Same difficulty", 0],
-                            ["Harder", 1],
-                          ] as Array<[string, -1 | 0 | 1]>
-                        ).map(([label, delta]) => (
+                          <Button
+                            onClick={handleNextPuzzle}
+                            sx={{
+                              px: 2.5,
+                              py: 1,
+                              borderRadius: 0,
+                              color:
+                                status === "solved"
+                                  ? TEXT.onAccent
+                                  : TEXT.primary,
+                              fontSize: "0.9rem",
+                              fontWeight: 600,
+                              "&:hover": {
+                                background:
+                                  status === "solved"
+                                    ? "transparent"
+                                    : "rgba(255,255,255,0.06)",
+                              },
+                            }}
+                          >
+                            New puzzle
+                          </Button>
+                          <Box
+                            sx={{
+                              width: "1px",
+                              my: 0.9,
+                              background:
+                                status === "solved"
+                                  ? "rgba(10,10,10,0.25)"
+                                  : LINE.strong,
+                            }}
+                          />
+                          <IconButton
+                            onClick={(e) =>
+                              setDifficultyAnchor(e.currentTarget)
+                            }
+                            aria-label="Choose difficulty"
+                            sx={{
+                              borderRadius: 0,
+                              px: 1,
+                              color:
+                                status === "solved"
+                                  ? TEXT.onAccent
+                                  : TEXT.primary,
+                              "&:hover": {
+                                background:
+                                  status === "solved"
+                                    ? "transparent"
+                                    : "rgba(255,255,255,0.06)",
+                              },
+                            }}
+                          >
+                            <ChevronDown size={15} />
+                          </IconButton>
+                        </Box>
+                        <Menu
+                          anchorEl={difficultyAnchor}
+                          open={Boolean(difficultyAnchor)}
+                          onClose={() => setDifficultyAnchor(null)}
+                          anchorOrigin={{
+                            vertical: "top",
+                            horizontal: "center",
+                          }}
+                          transformOrigin={{
+                            vertical: "bottom",
+                            horizontal: "center",
+                          }}
+                        >
+                          {(
+                            [
+                              ["Easier", -1],
+                              ["Same difficulty", 0],
+                              ["Harder", 1],
+                            ] as Array<[string, -1 | 0 | 1]>
+                          ).map(([label, delta]) => (
+                            <MenuItem
+                              key={label}
+                              onClick={() => {
+                                setDifficultyAnchor(null);
+                                handleNewPuzzleAtDifficulty(delta);
+                              }}
+                              sx={{ fontSize: "0.86rem", fontWeight: 600 }}
+                            >
+                              {label}
+                            </MenuItem>
+                          ))}
+                          <Divider sx={{ my: 0.5 }} />
                           <MenuItem
-                            key={label}
+                            disabled={similarLoading}
                             onClick={() => {
                               setDifficultyAnchor(null);
-                              handleNewPuzzleAtDifficulty(delta);
+                              void handleNeo4jSimilar();
                             }}
-                            sx={{ fontSize: "0.86rem", fontWeight: 600 }}
+                            sx={{ fontSize: "0.86rem", fontWeight: 700 }}
                           >
-                            {label}
+                            <Network size={14} style={{ marginRight: 8 }} />
+                            {similarLoading
+                              ? "Finding a similar puzzle…"
+                              : "Similar puzzle"}
                           </MenuItem>
-                        ))}
-                        <Divider sx={{ my: 0.5 }} />
-                        <MenuItem
-                          disabled={similarLoading}
-                          onClick={() => {
-                            setDifficultyAnchor(null);
-                            void handleNeo4jSimilar();
-                          }}
-                          sx={{ fontSize: "0.86rem", fontWeight: 700 }}
-                        >
-                          <Network size={14} style={{ marginRight: 8 }} />
-                          {similarLoading
-                            ? "Searching graph…"
-                            : "Neo4j similar puzzle"}
-                        </MenuItem>
-                      </Menu>
-                    </Box>
+                        </Menu>
+                      </Box>
                     </Box>
 
                     {/* The moment you want confirm-mode off is the moment it
@@ -2739,15 +2670,18 @@ export default function PreviewPuzzlesPage() {
                             m === "choice" ? "board" : "choice"
                           )
                         }
+                        // 13px on a 20.8px line: the old 0.74rem x 1.75 row
+                        // height, so the merged bottom row keeps its pixels.
                         sx={{
                           px: 1,
                           py: { xs: 0.25, lg: 0 },
                           minHeight: 0,
-                          color: "rgba(255,240,224,0.4)",
-                          fontSize: "0.74rem",
+                          color: TEXT.secondary,
+                          fontSize: TYPE.caption.fontSize,
+                          lineHeight: 1.6,
                           fontWeight: 600,
                           "&:hover": {
-                            color: "rgba(255,240,224,0.75)",
+                            color: TEXT.primary,
                             background: "transparent",
                           },
                         }}
@@ -2763,11 +2697,12 @@ export default function PreviewPuzzlesPage() {
                             px: 1,
                             py: { xs: 0.25, lg: 0 },
                             minHeight: 0,
-                            color: "rgba(255,240,224,0.4)",
-                            fontSize: "0.74rem",
+                            color: TEXT.secondary,
+                            fontSize: TYPE.caption.fontSize,
+                            lineHeight: 1.6,
                             fontWeight: 600,
                             "&:hover": {
-                              color: "rgba(255,240,224,0.75)",
+                              color: TEXT.primary,
                               background: "transparent",
                             },
                           }}
@@ -2788,7 +2723,7 @@ export default function PreviewPuzzlesPage() {
                       alignItems: "center",
                       justifyContent: "center",
                       gap: 2,
-                      color: "rgba(255,240,224,0.55)",
+                      color: TEXT.secondary,
                       textAlign: "center",
                       px: 2,
                     }}
@@ -2821,7 +2756,7 @@ export default function PreviewPuzzlesPage() {
                         />
                         <Typography
                           sx={{
-                            color: "#fca5a5",
+                            color: STATUS.error,
                             fontSize: "0.92rem",
                             fontWeight: 600,
                           }}
@@ -2830,26 +2765,17 @@ export default function PreviewPuzzlesPage() {
                         </Typography>
                         <Typography
                           sx={{
-                            color: "rgba(255,240,224,0.45)",
+                            color: TEXT.secondary,
                             fontSize: "0.78rem",
-                            fontFamily: "Monaco, Menlo, monospace",
+                            fontFamily: FONT_MONO,
                           }}
                         >
                           {feed.error}
                         </Typography>
                         <Button
                           onClick={feed.refresh}
-                          sx={{
-                            mt: 1,
-                            px: 2,
-                            py: 0.75,
-                            borderRadius: "999px",
-                            background: "rgba(255,122,26,0.12)",
-                            border: "1px solid rgba(255,122,26,0.35)",
-                            color: "#FFD1A8",
-                            fontSize: "0.82rem",
-                            fontWeight: 600,
-                          }}
+                          variant="outlined"
+                          sx={{ mt: 1 }}
                         >
                           Try again
                         </Button>
@@ -2863,7 +2789,7 @@ export default function PreviewPuzzlesPage() {
                         </Typography>
                         <Typography
                           sx={{
-                            color: "rgba(255,240,224,0.45)",
+                            color: TEXT.secondary,
                             fontSize: "0.82rem",
                             maxWidth: 320,
                           }}
@@ -2879,17 +2805,10 @@ export default function PreviewPuzzlesPage() {
             </Box>
 
             {/* Coach column */}
-            <motion.div
+            <Box
               ref={coachColRef}
               data-testid="coach-column"
-              initial={{ opacity: 0, transform: "translateY(8px)" }}
-              animate={{ opacity: 1, transform: "translateY(0px)" }}
-              transition={{
-                duration: 0.36,
-                delay: 0.12,
-                ease: EASE_OUT_STRONG,
-              }}
-              style={{
+              sx={{
                 minHeight: 0,
                 display: "flex",
                 flexDirection: "column",
@@ -2910,7 +2829,7 @@ export default function PreviewPuzzlesPage() {
                 aria-valuemax={COACH_MAX_PX}
                 aria-valuenow={coachWidth ?? undefined}
                 tabIndex={0}
-                title="Drag to resize — double-click to reset"
+                title="Drag to resize, double-click to reset"
                 data-testid="coach-split-grip"
                 onPointerDown={beginSplitDrag}
                 onPointerMove={moveSplitDrag}
@@ -2937,11 +2856,11 @@ export default function PreviewPuzzlesPage() {
                     width: 3,
                     height: 3,
                     borderRadius: "50%",
-                    background: "rgba(255,240,224,0.3)",
+                    background: TEXT.tertiary,
                     transition: "background 180ms ease",
                   },
                   "&:hover .cm-grip-dot, &:focus-visible .cm-grip-dot": {
-                    background: "#FFD1A8",
+                    background: TEXT.primary,
                   },
                 }}
               >
@@ -2995,20 +2914,18 @@ export default function PreviewPuzzlesPage() {
                     gap: 1.5,
                     alignItems: "center",
                     justifyContent: "center",
-                    borderRadius: "1.5rem",
-                    background: "rgba(22,18,14,0.5)",
-                    backdropFilter: "blur(16px)",
-                    WebkitBackdropFilter: "blur(16px)",
-                    border: "1px solid rgba(255,255,255,0.07)",
-                    color: "rgba(255,240,224,0.4)",
+                    borderRadius: `${RADIUS.card}px`,
+                    background: SURFACE.raised,
+                    border: `1px solid ${LINE.hairline}`,
+                    color: TEXT.secondary,
                     fontSize: "0.85rem",
                   }}
                 >
                   <Masti mood="wave" size={110} animated={false} decorative />
-                  Coach activates with the first puzzle.
+                  Masti arrives with the first puzzle.
                 </Box>
               )}
-            </motion.div>
+            </Box>
           </Box>
         </Box>
       </Box>
@@ -3042,13 +2959,7 @@ export default function PreviewPuzzlesPage() {
         <Alert
           severity="warning"
           onClose={() => setDemoNote("")}
-          sx={{
-            bgcolor: "rgba(22,18,14,0.96)",
-            color: "rgba(255,240,224,0.94)",
-            border: "1px solid rgba(255,122,26,0.35)",
-            borderRadius: "0.85rem",
-            "& .MuiAlert-icon": { color: "#FFD1A8" },
-          }}
+          sx={SNACKBAR_ALERT_SX}
         >
           {demoNote}
         </Alert>
@@ -3066,13 +2977,7 @@ export default function PreviewPuzzlesPage() {
           severity="warning"
           icon={<Network size={16} />}
           onClose={() => setSimilarNote("")}
-          sx={{
-            bgcolor: "rgba(22,18,14,0.96)",
-            color: "rgba(255,240,224,0.94)",
-            border: "1px solid rgba(255,122,26,0.35)",
-            borderRadius: "0.85rem",
-            "& .MuiAlert-icon": { color: "#FFD1A8" },
-          }}
+          sx={SNACKBAR_ALERT_SX}
         >
           {similarNote}
         </Alert>
@@ -3088,24 +2993,17 @@ export default function PreviewPuzzlesPage() {
           severity="info"
           icon={<MastiAvatar mood="wave" size={20} ring={false} />}
           onClose={() => setIdleSavedOpen(false)}
+          sx={SNACKBAR_ALERT_SX}
           action={
             <Button
               size="small"
               onClick={() => router.push("/puzzles/sessions")}
-              sx={{ color: "#FFD1A8", fontWeight: 700, textTransform: "none" }}
             >
               View
             </Button>
           }
-          sx={{
-            bgcolor: "rgba(22,18,14,0.96)",
-            color: "rgba(255,240,224,0.94)",
-            border: "1px solid rgba(255,122,26,0.35)",
-            borderRadius: "0.85rem",
-            "& .MuiAlert-icon": { color: "#FFD1A8" },
-          }}
         >
-          Session auto-saved after 15 min idle.
+          Session saved after 15 minutes idle.
         </Alert>
       </Snackbar>
     </ThemeProvider>
@@ -3122,7 +3020,13 @@ function FilterChipRow({
   onClick,
 }: {
   label: string;
-  chips: Array<{ id: string; label: string; active: boolean; accent: Accent }>;
+  chips: Array<{
+    id: string;
+    label: string;
+    active: boolean;
+    /** A motif's quiet tint for a selected theme chip; absent, the accent. */
+    accent?: Accent;
+  }>;
   onClick: (id: string) => void;
 }) {
   return (
@@ -3145,11 +3049,8 @@ function FilterChipRow({
     >
       <Typography
         sx={{
-          fontSize: "0.68rem",
-          fontWeight: 700,
-          letterSpacing: "0.18em",
-          color: "rgba(255,240,224,0.45)",
-          textTransform: "uppercase",
+          ...TYPE.label,
+          color: TEXT.secondary,
           mr: 0.5,
           display: { xs: "block", lg: "none" },
         }}
@@ -3166,21 +3067,29 @@ function FilterChipRow({
             px: { xs: 1.25, lg: 1 },
             py: 0.45,
             whiteSpace: "nowrap",
-            borderRadius: "999px",
-            border: c.active
-              ? `1px solid ${c.accent.border}`
-              : "1px solid rgba(255,255,255,0.08)",
+            borderRadius: `${RADIUS.pill}px`,
+            // Selected: the accent tint, or a motif's own quiet tint on a
+            // theme chip. At rest every chip is the same neutral control.
+            border: `1px solid ${
+              c.active ? (c.accent?.border ?? ACCENT.border) : LINE.hairline
+            }`,
             background: c.active
-              ? `linear-gradient(135deg, ${c.accent.soft}, ${c.accent.tint})`
-              : "rgba(22,18,14,0.65)",
-            color: c.active ? c.accent.bright : "rgba(255,240,224,0.7)",
+              ? (c.accent?.soft ?? ACCENT.tint)
+              : SURFACE.raisedSecondary,
+            color: c.active
+              ? (c.accent?.bright ?? ACCENT.hover)
+              : TEXT.secondary,
             fontSize: "0.78rem",
             fontWeight: 600,
             cursor: "pointer",
-            transition: "all 160ms ease",
-            "&:hover": {
-              borderColor: c.accent.border,
-              color: c.accent.bright,
+            transition: `color ${MOTION.hover}, border-color ${MOTION.hover}, background-color ${MOTION.hover}, transform ${MOTION.press}`,
+            "&:hover": c.active
+              ? undefined
+              : { borderColor: LINE.strong, color: TEXT.primary },
+            "&:active": { transform: MOTION.pressScale },
+            "&:focus-visible": {
+              outline: `2px solid ${TEXT.primary}`,
+              outlineOffset: 2,
             },
           }}
         >

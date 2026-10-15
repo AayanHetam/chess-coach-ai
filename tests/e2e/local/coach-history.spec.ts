@@ -37,7 +37,7 @@ async function openAnalysis(page: Page) {
   await stubSignedIn(page);
   await page.goto("/analysis");
   const composer = page.getByPlaceholder(
-    "Ask anything — answering without engine analysis.",
+    "Ask anything. The answer comes without engine analysis."
   );
   const ok = await composer
     .waitFor({ state: "visible", timeout: 60_000 })
@@ -80,9 +80,9 @@ test.describe("Group D — what the coach is told it previously said", () => {
 
     // Control: the greeting really is on screen, so "absent from history"
     // below means "filtered", not "was never rendered in the first place".
-    await expect(page.getByText(GREETING, { exact: false }).first()).toBeVisible(
-      { timeout: 15_000 }
-    );
+    await expect(
+      page.getByText(GREETING, { exact: false }).first()
+    ).toBeVisible({ timeout: 15_000 });
 
     await composer.fill("what can you tell me?");
     await composer.press("Enter");
@@ -146,7 +146,9 @@ test.describe("Group D — what the coach is told it previously said", () => {
     await expect.poll(() => chatBodies.length, { timeout: 30_000 }).toBe(1);
 
     const history = JSON.stringify(chatBodies[0].conversationHistory ?? []);
-    expect(history, "the corrected analysis was not replayed").toContain(CORRECTED);
+    expect(history, "the corrected analysis was not replayed").toContain(
+      CORRECTED
+    );
     expect(
       history,
       "the RAW uncorrected analysis was replayed as the model's last word"
@@ -166,7 +168,8 @@ test.describe("Group D — what the coach is told it previously said", () => {
     // reason that has nothing to do with D4. What matters is that the fragment
     // is absent from whichever request carries the history.
     const secondTurnBodies: Array<Record<string, unknown>> = [];
-    const FRAGMENT = "FRAGMENT-SENTINEL: the critical moment is move 24 where you";
+    const FRAGMENT =
+      "FRAGMENT-SENTINEL: the critical moment is move 24 where you";
     let deepCalls = 0;
     await page.route("**/api/enhanced-analysis", async (route) => {
       deepCalls += 1;

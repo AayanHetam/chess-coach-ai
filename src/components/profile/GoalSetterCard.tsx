@@ -30,6 +30,7 @@ import {
 import { formatTargetDate } from "@/lib/curriculum/improvementModel";
 import type { Platform } from "@/lib/rating/platformRatings";
 import { useRatingHistory } from "@/lib/rating/useRatingHistory";
+import { ACCENT, LINE, SURFACE } from "@/theme/tokens";
 
 /**
  * Setting a goal from /profile — control by control.
@@ -155,8 +156,8 @@ export default function GoalSetterCard({
         p: { xs: 2, sm: 2.5 },
         mb: 2.5,
         borderRadius: "16px",
-        background: "rgba(249,115,22,0.06)",
-        border: "1px solid rgba(249,115,22,0.22)",
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.25 }}>
@@ -174,7 +175,7 @@ export default function GoalSetterCard({
         play — leave the rest blank.
       </Typography>
 
-      <FieldLabel>How often can you practise?</FieldLabel>
+      <FieldLabel>How often can you practice?</FieldLabel>
       <ChoiceRow
         options={FREQUENCY_OPTIONS.map((o) => ({ key: o.key, label: o.label }))}
         value={daysPerWeek}
@@ -268,7 +269,7 @@ export default function GoalSetterCard({
         <Typography
           sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.78rem", mt: 1.5 }}
         >
-          Pick how often and how long you practise — the date is worked out from
+          Pick how often and how long you practice. The date is worked out from
           your schedule, so there is nothing to promise without it.
         </Typography>
       )}
@@ -350,13 +351,11 @@ function ChoiceRow({
               py: 0.5,
               borderRadius: "10px",
               color: active ? "#fff" : "rgba(255,255,255,0.65)",
-              background: active
-                ? "rgba(249,115,22,0.22)"
-                : "rgba(255,255,255,0.05)",
-              border: `1px solid ${active ? "rgba(249,115,22,0.5)" : "rgba(255,255,255,0.10)"}`,
+              background: active ? ACCENT.tint : "rgba(255,255,255,0.05)",
+              border: `1px solid ${active ? ACCENT.border : LINE.hairline}`,
               "&:hover": {
                 background: active
-                  ? "rgba(249,115,22,0.28)"
+                  ? ACCENT.tintHover
                   : "rgba(255,255,255,0.09)",
               },
             }}

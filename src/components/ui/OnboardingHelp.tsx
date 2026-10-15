@@ -2,8 +2,23 @@
 
 import { Box, IconButton, Stack, Typography } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
-import { HelpCircle, Sparkles, X } from "lucide-react";
+import { HelpCircle, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import {
+  ACCENT,
+  LINE,
+  MATERIAL,
+  MOTION,
+  RADIUS,
+  SHADOW,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
+
+// A dialog arrives with a short cross-fade and a small scale from the
+// centre, and leaves the same way.
+const DIALOG_TRANSITION = { duration: 0.18, ease: "easeOut" } as const;
 
 export interface OnboardingTip {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -57,31 +72,28 @@ export function OnboardingHelp({
           width: 48,
           height: 48,
           borderRadius: "50%",
-          background: "rgba(20,22,28,0.7)",
-          backdropFilter: "blur(14px) saturate(160%)",
-          WebkitBackdropFilter: "blur(14px) saturate(160%)",
-          border: "1px solid rgba(255,255,255,0.1)",
-          color: "rgba(255,255,255,0.85)",
+          // Opaque: it floats bottom-right on /analysis too, and nothing
+          // translucent ever sits over a board in play.
+          background: SURFACE.overlay,
+          border: `1px solid ${LINE.strong}`,
+          color: TEXT.primary,
           cursor: "pointer",
           zIndex: 100,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          boxShadow:
-            "0 8px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)",
-          transition: "all 220ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+          boxShadow: SHADOW.floating,
+          transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
           p: 0,
-          "&:hover": {
-            background: "rgba(249,115,22,0.18)",
-            borderColor: "rgba(249,115,22,0.4)",
-            color: "#FB923C",
-            transform: "translateY(-2px)",
-            boxShadow:
-              "0 12px 32px rgba(0,0,0,0.5), 0 0 16px rgba(249,115,22,0.3)",
+          "&:hover": { background: SURFACE.raisedSecondary },
+          "&:active": { transform: MOTION.pressScale },
+          "&:focus-visible": {
+            outline: `2px solid ${TEXT.primary}`,
+            outlineOffset: 2,
           },
         }}
       >
-        <HelpCircle size={20} />
+        <HelpCircle size={20} strokeWidth={1.75} />
         {showBadge && (
           <Box
             sx={{
@@ -91,13 +103,7 @@ export function OnboardingHelp({
               width: 10,
               height: 10,
               borderRadius: "50%",
-              background: "#F97316",
-              boxShadow: "0 0 8px rgba(249,115,22,0.9)",
-              animation: "pulse-badge 2s ease-in-out infinite",
-              "@keyframes pulse-badge": {
-                "0%, 100%": { opacity: 1, transform: "scale(1)" },
-                "50%": { opacity: 0.6, transform: "scale(1.15)" },
-              },
+              background: ACCENT.main,
             }}
           />
         )}
@@ -110,14 +116,12 @@ export function OnboardingHelp({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.22 }}
+              transition={DIALOG_TRANSITION}
               onClick={handleDismiss}
               style={{
                 position: "fixed",
                 inset: 0,
-                background: "rgba(0,0,0,0.65)",
-                backdropFilter: "blur(8px)",
-                WebkitBackdropFilter: "blur(8px)",
+                background: MATERIAL.scrim,
                 zIndex: 2000,
               }}
             />
@@ -134,13 +138,10 @@ export function OnboardingHelp({
               }}
             >
               <motion.div
-                initial={{ opacity: 0, y: 16, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 16, scale: 0.96 }}
-                transition={{
-                  duration: 0.32,
-                  ease: [0.22, 0.61, 0.36, 1],
-                }}
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={DIALOG_TRANSITION}
                 style={{
                   width: "100%",
                   maxWidth: 560,
@@ -159,13 +160,11 @@ export function OnboardingHelp({
                     display: "flex",
                     flexDirection: "column",
                     maxHeight: "100%",
-                    borderRadius: "1.5rem",
-                    background: "rgba(15,17,23,0.95)",
-                    backdropFilter: "blur(20px) saturate(160%)",
-                    WebkitBackdropFilter: "blur(20px) saturate(160%)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    boxShadow:
-                      "0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(249,115,22,0.08), inset 0 1px 0 rgba(255,255,255,0.06)",
+                    borderRadius: `${RADIUS.sheet}px`,
+                    background: SURFACE.overlay,
+                    border: `1px solid ${LINE.hairline}`,
+                    boxShadow: SHADOW.modal,
+                    color: TEXT.primary,
                     overflow: "hidden",
                   }}
                 >
@@ -174,44 +173,23 @@ export function OnboardingHelp({
                       px: 2.75,
                       py: 2,
                       flexShrink: 0,
-                      borderBottom: "1px solid rgba(255,255,255,0.06)",
+                      borderBottom: `1px solid ${LINE.hairline}`,
                       display: "flex",
                       alignItems: "center",
                       gap: 1.5,
                     }}
                   >
-                    <Box
-                      sx={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: "9px",
-                        background:
-                          "linear-gradient(135deg, #F97316, #EA580C)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        boxShadow: "0 0 16px rgba(249,115,22,0.4)",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Sparkles size={14} color="#0A0A0A" />
-                    </Box>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Typography
-                        sx={{
-                          fontSize: "0.95rem",
-                          fontWeight: 800,
-                          color: "rgba(255,255,255,0.96)",
-                          lineHeight: 1.15,
-                          letterSpacing: "-0.015em",
-                        }}
+                        component="h2"
+                        sx={{ ...TYPE.h4, color: TEXT.primary }}
                       >
                         {title}
                       </Typography>
                       <Typography
                         sx={{
-                          fontSize: "0.74rem",
-                          color: "rgba(255,255,255,0.55)",
+                          ...TYPE.bodySmall,
+                          color: TEXT.secondary,
                           mt: 0.25,
                         }}
                       >
@@ -220,17 +198,15 @@ export function OnboardingHelp({
                     </Box>
                     <IconButton
                       onClick={handleDismiss}
+                      aria-label="Close"
                       sx={{
-                        color: "rgba(255,255,255,0.6)",
-                        background: "rgba(255,255,255,0.04)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        borderRadius: "10px",
+                        color: TEXT.secondary,
                         width: 28,
                         height: 28,
                         flexShrink: 0,
                       }}
                     >
-                      <X size={13} />
+                      <X size={16} />
                     </IconButton>
                   </Box>
 
@@ -239,97 +215,67 @@ export function OnboardingHelp({
                       {tips.map((tip, i) => {
                         const Icon = tip.icon;
                         return (
-                          <motion.div
+                          <Box
                             key={i}
-                            initial={{ opacity: 0, x: -8 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{
-                              duration: 0.32,
-                              delay: 0.05 + i * 0.06,
-                              ease: [0.22, 0.61, 0.36, 1],
+                            sx={{
+                              px: 1.75,
+                              py: 1.35,
+                              borderRadius: `${RADIUS.control}px`,
+                              background: SURFACE.raisedSecondary,
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: 1.5,
                             }}
                           >
-                            <Box
-                              sx={{
-                                px: 1.75,
-                                py: 1.35,
-                                borderRadius: "12px",
-                                background: "rgba(255,255,255,0.03)",
-                                border: "1px solid rgba(255,255,255,0.06)",
-                                display: "flex",
-                                alignItems: "flex-start",
-                                gap: 1.5,
-                                transition: "all 180ms ease",
-                                "&:hover": {
-                                  background: "rgba(255,255,255,0.06)",
-                                  borderColor: "rgba(249,115,22,0.2)",
-                                },
-                              }}
-                            >
-                              <Box
-                                sx={{
-                                  width: 28,
-                                  height: 28,
-                                  borderRadius: "8px",
-                                  background: `${tip.iconColor ?? "#F97316"}22`,
-                                  border: `1px solid ${tip.iconColor ?? "#F97316"}55`,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  flexShrink: 0,
-                                }}
+                            <Icon
+                              size={18}
+                              strokeWidth={1.75}
+                              color={tip.iconColor ?? TEXT.secondary}
+                              style={{ flexShrink: 0, marginTop: 2 }}
+                            />
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Stack
+                                direction="row"
+                                alignItems="center"
+                                spacing={1}
                               >
-                                <Icon
-                                  size={14}
-                                  color={tip.iconColor ?? "#F97316"}
-                                />
-                              </Box>
-                              <Box sx={{ flex: 1, minWidth: 0 }}>
-                                <Stack
-                                  direction="row"
-                                  alignItems="center"
-                                  spacing={1}
-                                >
-                                  <Typography
-                                    sx={{
-                                      fontSize: "0.86rem",
-                                      fontWeight: 700,
-                                      color: "rgba(255,255,255,0.94)",
-                                    }}
-                                  >
-                                    {tip.title}
-                                  </Typography>
-                                  {tip.shortcut && (
-                                    <Box
-                                      sx={{
-                                        px: 0.85,
-                                        py: 0.2,
-                                        borderRadius: "5px",
-                                        background: "rgba(255,255,255,0.05)",
-                                        border: "1px solid rgba(255,255,255,0.1)",
-                                        fontFamily: "Monaco, Menlo, monospace",
-                                        fontSize: "0.68rem",
-                                        fontWeight: 600,
-                                        color: "rgba(255,255,255,0.55)",
-                                      }}
-                                    >
-                                      {tip.shortcut}
-                                    </Box>
-                                  )}
-                                </Stack>
                                 <Typography
                                   sx={{
-                                    fontSize: "0.78rem",
-                                    color: "rgba(255,255,255,0.58)",
-                                    mt: 0.25,
-                                    lineHeight: 1.4,
+                                    ...TYPE.bodySmall,
+                                    fontWeight: 600,
+                                    color: TEXT.primary,
                                   }}
                                 >
-                                  {tip.body}
+                                  {tip.title}
                                 </Typography>
-                              </Box>
+                                {tip.shortcut && (
+                                  <Box
+                                    sx={{
+                                      px: 0.85,
+                                      py: 0.2,
+                                      borderRadius: `${RADIUS.small}px`,
+                                      background: "rgba(255,255,255,0.06)",
+                                      border: `1px solid ${LINE.hairline}`,
+                                      fontSize: "0.75rem",
+                                      fontWeight: 600,
+                                      color: TEXT.secondary,
+                                    }}
+                                  >
+                                    {tip.shortcut}
+                                  </Box>
+                                )}
+                              </Stack>
+                              <Typography
+                                sx={{
+                                  ...TYPE.caption,
+                                  color: TEXT.secondary,
+                                  mt: 0.25,
+                                }}
+                              >
+                                {tip.body}
+                              </Typography>
                             </Box>
-                          </motion.div>
+                          </Box>
                         );
                       })}
                     </Stack>
@@ -340,20 +286,23 @@ export function OnboardingHelp({
                       px: 2.75,
                       py: 1.75,
                       flexShrink: 0,
-                      borderTop: "1px solid rgba(255,255,255,0.06)",
+                      borderTop: `1px solid ${LINE.hairline}`,
                       display: "flex",
                       alignItems: "center",
                       gap: 2,
                     }}
                   >
                     <Typography
-                      sx={{
-                        fontSize: "0.72rem",
-                        color: "rgba(255,255,255,0.4)",
-                        flex: 1,
-                      }}
+                      sx={{ ...TYPE.caption, color: TEXT.secondary, flex: 1 }}
                     >
-                      Tap the <Box component="span" sx={{ color: "#FB923C", fontWeight: 700 }}>?</Box> anytime to see this again.
+                      Tap the{" "}
+                      <Box
+                        component="span"
+                        sx={{ color: ACCENT.hover, fontWeight: 600 }}
+                      >
+                        ?
+                      </Box>{" "}
+                      anytime to see this again.
                     </Typography>
                     <Box
                       component="button"
@@ -361,19 +310,20 @@ export function OnboardingHelp({
                       sx={{
                         px: 2.25,
                         py: 0.75,
-                        borderRadius: "999px",
-                        background: "linear-gradient(135deg, #F97316, #EA580C)",
-                        color: "#0A0A0A",
-                        fontWeight: 700,
-                        fontSize: "0.82rem",
+                        borderRadius: `${RADIUS.pill}px`,
+                        background: ACCENT.main,
+                        color: TEXT.onAccent,
+                        fontWeight: 600,
+                        fontSize: TYPE.bodySmall.fontSize,
                         border: "none",
                         cursor: "pointer",
-                        transition: "all 180ms ease",
-                        boxShadow: "0 8px 24px rgba(249,115,22,0.3)",
+                        transition: `background-color ${MOTION.hover}, transform ${MOTION.press}`,
                         flexShrink: 0,
-                        "&:hover": {
-                          background: "linear-gradient(135deg, #FB923C, #F97316)",
-                          transform: "translateY(-1px)",
+                        "&:hover": { background: ACCENT.hover },
+                        "&:active": { transform: MOTION.pressScale },
+                        "&:focus-visible": {
+                          outline: `2px solid ${TEXT.primary}`,
+                          outlineOffset: 2,
                         },
                       }}
                     >

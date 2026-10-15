@@ -2,20 +2,30 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Link from "next/link";
 import { Masti, MastiAvatar } from "@/components/masti";
+import {
+  ACCENT,
+  LINE,
+  MOTION,
+  RADIUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
+/** The content pages' palette: the site tokens, by the names the pages use. */
 export const AEO_TOKENS = {
-  bg: "#08080f",
-  surface: "rgba(255,255,255,0.04)",
-  border: "rgba(255,255,255,0.08)",
-  ember: "#FF6B2B",
-  radius: "1.5rem",
+  bg: SURFACE.page,
+  surface: SURFACE.raised,
+  border: LINE.hairline,
+  ember: ACCENT.main,
+  radius: `${RADIUS.card}px`,
 } as const;
 
+/** A card: a solid raised surface with a hairline. (The name is historical.) */
 export const glassCard = {
   background: AEO_TOKENS.surface,
   border: `1px solid ${AEO_TOKENS.border}`,
   borderRadius: AEO_TOKENS.radius,
-  backdropFilter: "blur(12px)",
   p: { xs: 3, md: 4 },
 };
 
@@ -33,24 +43,29 @@ export function CtaButton({
       component={Link}
       href={href}
       sx={{
-        display: "inline-block",
+        display: "inline-flex",
+        alignItems: "center",
         px: 3,
-        py: 1.5,
-        borderRadius: "0.75rem",
+        minHeight: 44,
+        borderRadius: `${RADIUS.pill}px`,
         fontWeight: 600,
-        fontSize: "0.95rem",
+        fontSize: TYPE.bodySmall.fontSize,
         textDecoration: "none",
-        transition: "all 180ms ease-out",
+        transition: `background-color ${MOTION.hover}, color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
+        "&:active": { transform: MOTION.pressScale },
         ...(primary
           ? {
-              background: AEO_TOKENS.ember,
-              color: "#fff",
-              "&:hover": { background: "#ff8050", transform: "translateY(-1px)" },
+              background: ACCENT.main,
+              color: TEXT.onAccent,
+              "&:hover": { background: ACCENT.hover },
             }
           : {
-              border: `1px solid ${AEO_TOKENS.border}`,
-              color: "rgba(255,255,255,0.75)",
-              "&:hover": { borderColor: "rgba(255,255,255,0.2)", color: "#fff" },
+              border: `1px solid ${LINE.strong}`,
+              color: TEXT.primary,
+              "&:hover": {
+                borderColor: TEXT.secondary,
+                background: "rgba(255,255,255,0.06)",
+              },
             }),
       }}
     >
@@ -65,8 +80,9 @@ export function SectionHeading({ children }: { children: React.ReactNode }) {
       variant="h2"
       sx={{
         fontSize: { xs: "1.5rem", md: "2rem" },
-        fontWeight: 700,
-        color: "#fff",
+        fontWeight: 600,
+        letterSpacing: "-0.015em",
+        color: TEXT.primary,
         mb: 3,
       }}
     >
@@ -86,7 +102,7 @@ export function Breadcrumb({ here }: { here: string }) {
         alignItems: "center",
         gap: 1,
         fontSize: "0.85rem",
-        color: "rgba(255,255,255,0.4)",
+        color: TEXT.tertiary,
       }}
     >
       {/* Masti's face marks every page as his, the way the brand mark does elsewhere. */}
@@ -95,7 +111,7 @@ export function Breadcrumb({ here }: { here: string }) {
         Chess Masti AI
       </Link>
       <span>/</span>
-      <span style={{ color: "rgba(255,255,255,0.7)" }}>{here}</span>
+      <span style={{ color: TEXT.secondary }}>{here}</span>
     </Box>
   );
 }
@@ -107,9 +123,20 @@ export function PageShell({ children }: { children: React.ReactNode }) {
       // (PAGE_SHELL_CLASS in components/ads/PartnerSlot.tsx), so the banner
       // sits on the same dark field rather than in a white band.
       className="cm-page-shell"
-      sx={{ background: AEO_TOKENS.bg, minHeight: "100vh", color: "rgba(255,255,255,0.85)" }}
+      sx={{
+        background: AEO_TOKENS.bg,
+        minHeight: "100vh",
+        color: TEXT.primary,
+      }}
     >
-      <Box sx={{ maxWidth: 800, mx: "auto", px: { xs: 2, md: 4 }, py: { xs: 6, md: 10 } }}>
+      <Box
+        sx={{
+          maxWidth: 800,
+          mx: "auto",
+          px: { xs: 2, md: 4 },
+          py: { xs: 6, md: 10 },
+        }}
+      >
         {children}
       </Box>
     </Box>
@@ -120,9 +147,9 @@ export function AnswerBlock({ children }: { children: React.ReactNode }) {
   return (
     <Typography
       sx={{
-        fontSize: { xs: "1.05rem", md: "1.2rem" },
-        lineHeight: 1.8,
-        color: "rgba(255,255,255,0.75)",
+        fontSize: { xs: "1.0625rem", md: "1.1875rem" },
+        lineHeight: 1.6,
+        color: TEXT.primary,
         mb: 4,
       }}
     >
@@ -133,7 +160,7 @@ export function AnswerBlock({ children }: { children: React.ReactNode }) {
 
 export function ProseBlock({ children }: { children: React.ReactNode }) {
   return (
-    <Typography sx={{ lineHeight: 1.9, color: "rgba(255,255,255,0.7)", mb: 2 }}>
+    <Typography sx={{ lineHeight: 1.6, color: TEXT.secondary, mb: 2 }}>
       {children}
     </Typography>
   );
@@ -159,9 +186,10 @@ export function H1({ children }: { children: React.ReactNode }) {
         component="h1"
         sx={{
           fontSize: { xs: "2.5rem", md: "3.5rem" },
-          fontWeight: 800,
-          lineHeight: 1.1,
-          color: "#fff",
+          fontWeight: 700,
+          lineHeight: 1.07,
+          letterSpacing: "-0.025em",
+          color: TEXT.primary,
           minWidth: 0,
         }}
       >
@@ -176,7 +204,9 @@ export function H1({ children }: { children: React.ReactNode }) {
 
 export function CtaRow({ children }: { children: React.ReactNode }) {
   return (
-    <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 10 }}>{children}</Box>
+    <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 10 }}>
+      {children}
+    </Box>
   );
 }
 
@@ -192,11 +222,15 @@ export function CrossLinkCallout({
   cta: string;
 }) {
   return (
-    <Box sx={{ ...glassCard, borderColor: `${AEO_TOKENS.ember}22`, mb: 10 }}>
-      <Typography sx={{ fontWeight: 700, color: "#fff", mb: 1, fontSize: "1.1rem" }}>
+    <Box sx={{ ...glassCard, mb: 10 }}>
+      <Typography
+        sx={{ fontWeight: 600, color: TEXT.primary, mb: 1, fontSize: "1.1rem" }}
+      >
         {title}
       </Typography>
-      <Typography sx={{ color: "rgba(255,255,255,0.65)", mb: 3, lineHeight: 1.7 }}>{blurb}</Typography>
+      <Typography sx={{ color: TEXT.secondary, mb: 3, lineHeight: 1.6 }}>
+        {blurb}
+      </Typography>
       <CtaButton href={href} primary>
         {cta}
       </CtaButton>
@@ -206,18 +240,31 @@ export function CrossLinkCallout({
 
 export function FooterCta({ title, sub }: { title: string; sub: string }) {
   return (
-    <Box sx={{ ...glassCard, textAlign: "center", borderColor: `${AEO_TOKENS.ember}22` }}>
+    <Box sx={{ ...glassCard, textAlign: "center" }}>
       {/* The closing ask is Masti's: he is the coach the button leads to. */}
       <Box sx={{ display: "flex", justifyContent: "center", mb: 1.5 }}>
         <Masti mood="excited" size={120} loops={2} replayOnHover decorative />
       </Box>
       <Typography
-        sx={{ fontWeight: 700, color: "#fff", fontSize: { xs: "1.25rem", md: "1.5rem" }, mb: 1 }}
+        sx={{
+          fontWeight: 600,
+          letterSpacing: "-0.01em",
+          color: TEXT.primary,
+          fontSize: { xs: "1.25rem", md: "1.5rem" },
+          mb: 1,
+        }}
       >
         {title}
       </Typography>
-      <Typography sx={{ color: "rgba(255,255,255,0.6)", mb: 3 }}>{sub}</Typography>
-      <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
+      <Typography sx={{ color: TEXT.secondary, mb: 3 }}>{sub}</Typography>
+      <Box
+        sx={{
+          display: "flex",
+          gap: 2,
+          justifyContent: "center",
+          flexWrap: "wrap",
+        }}
+      >
         <CtaButton href="/analysis" primary>
           Analyze a game
         </CtaButton>
@@ -246,7 +293,13 @@ export function buildWebPageJsonLd({
   };
 }
 
-export function buildBreadcrumbJsonLd({ here, url }: { here: string; url: string }) {
+export function buildBreadcrumbJsonLd({
+  here,
+  url,
+}: {
+  here: string;
+  url: string;
+}) {
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",

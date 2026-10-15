@@ -4,6 +4,7 @@ import {
   Dialog,
   DialogContent,
   Box,
+  CircularProgress,
   TextField,
   Button,
   Typography,
@@ -22,6 +23,7 @@ import {
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/contexts/AuthContext";
 import PlatformRatingCard from "./PlatformRatingCard";
+import { LINE, SURFACE, TEXT } from "@/theme/tokens";
 import type {
   CoachTone,
   PlayingStyle,
@@ -57,7 +59,7 @@ const COACH_TONES: { value: CoachTone; label: string; hint: string }[] = [
   {
     value: "masti",
     label: "Masti",
-    hint: "Playful & spirited — Chess Masti's house style.",
+    hint: "Playful and spirited, Chess Masti's house style.",
   },
 ];
 
@@ -75,7 +77,7 @@ const PLAYING_STYLES: { value: PlayingStyle; label: string; hint: string }[] = [
   {
     value: "balanced",
     label: "Balanced",
-    hint: "Mix both — pick the right tool per position.",
+    hint: "Mix both: pick the right tool per position.",
   },
 ];
 
@@ -291,25 +293,26 @@ export default function ProfileDialog({
       onClose={onClose}
       maxWidth="sm"
       fullWidth
-      PaperProps={{ sx: { borderRadius: 4, overflow: "hidden" } }}
+      PaperProps={{ sx: { overflow: "hidden" } }}
     >
       {/* Header */}
       <Box
         sx={{
-          background: "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
           py: 3,
           px: 3,
           position: "relative",
+          borderBottom: `1px solid ${LINE.hairline}`,
         }}
       >
         <IconButton
           onClick={onClose}
+          aria-label="Close"
           sx={{
             position: "absolute",
             top: 8,
             right: 8,
-            color: "rgba(255,255,255,0.7)",
-            "&:hover": { color: "#fff" },
+            color: TEXT.secondary,
+            "&:hover": { color: TEXT.primary },
           }}
         >
           <Icon icon="mdi:close" />
@@ -322,23 +325,17 @@ export default function ProfileDialog({
             sx={{
               width: 56,
               height: 56,
-              bgcolor: "rgba(255,255,255,0.2)",
-              backdropFilter: "blur(10px)",
+              bgcolor: SURFACE.raisedSecondary,
+              color: TEXT.primary,
             }}
           >
             {avatarInitial(user)}
           </Avatar>
           <Box>
-            <Typography
-              variant="h6"
-              sx={{ fontWeight: 700, color: "#fff", mb: 0.5 }}
-            >
+            <Typography variant="h6" sx={{ mb: 0.5 }}>
               {addressAs(user)}
             </Typography>
-            <Typography
-              variant="body2"
-              sx={{ color: "rgba(255,255,255,0.85)" }}
-            >
+            <Typography variant="body2" sx={{ color: TEXT.secondary }}>
               {user.email}
             </Typography>
           </Box>
@@ -353,26 +350,10 @@ export default function ProfileDialog({
         }}
         variant="fullWidth"
       >
-        <Tab
-          label="Account"
-          value="account"
-          sx={{ textTransform: "none", fontWeight: 600 }}
-        />
-        <Tab
-          label="Chess"
-          value="chess"
-          sx={{ textTransform: "none", fontWeight: 600 }}
-        />
-        <Tab
-          label="Coaching"
-          value="coaching"
-          sx={{ textTransform: "none", fontWeight: 600 }}
-        />
-        <Tab
-          label="Appearance"
-          value="appearance"
-          sx={{ textTransform: "none", fontWeight: 600 }}
-        />
+        <Tab label="Account" value="account" />
+        <Tab label="Chess" value="chess" />
+        <Tab label="Coaching" value="coaching" />
+        <Tab label="Appearance" value="appearance" />
       </Tabs>
 
       <DialogContent sx={{ py: 3, px: 3 }}>
@@ -465,9 +446,13 @@ export default function ProfileDialog({
                       type="submit"
                       variant="outlined"
                       disabled={pwSubmitting}
-                      sx={{ textTransform: "none", fontWeight: 600 }}
+                      startIcon={
+                        pwSubmitting ? (
+                          <CircularProgress size={16} color="inherit" />
+                        ) : undefined
+                      }
                     >
-                      {pwSubmitting ? "Updating…" : "Update password"}
+                      {pwSubmitting ? "Updating" : "Update password"}
                     </Button>
                   </Box>
                 </Stack>
@@ -489,7 +474,7 @@ export default function ProfileDialog({
                   alt="Chess.com"
                 />
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  Chess.com Username
+                  Chess.com username
                 </Typography>
               </Box>
               <TextField
@@ -514,7 +499,7 @@ export default function ProfileDialog({
                   alt="Lichess"
                 />
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  Lichess Username
+                  Lichess username
                 </Typography>
               </Box>
               <TextField
@@ -596,18 +581,17 @@ export default function ProfileDialog({
                     value={t.value}
                     sx={{
                       flexDirection: "column",
-                      textTransform: "none",
                       px: 1.5,
                       py: 1.25,
                       gap: 0.5,
                     }}
                   >
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       {t.label}
                     </Typography>
                     <Typography
                       variant="caption"
-                      sx={{ color: "#666", lineHeight: 1.2 }}
+                      sx={{ color: TEXT.secondary, lineHeight: 1.2 }}
                     >
                       {t.hint}
                     </Typography>
@@ -634,18 +618,17 @@ export default function ProfileDialog({
                     value={s.value}
                     sx={{
                       flexDirection: "column",
-                      textTransform: "none",
                       px: 1.5,
                       py: 1.25,
                       gap: 0.5,
                     }}
                   >
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       {s.label}
                     </Typography>
                     <Typography
                       variant="caption"
-                      sx={{ color: "#666", lineHeight: 1.2 }}
+                      sx={{ color: TEXT.secondary, lineHeight: 1.2 }}
                     >
                       {s.hint}
                     </Typography>
@@ -703,8 +686,8 @@ export default function ProfileDialog({
                   />
                 ))}
                 {coaching.favoriteOpenings.length === 0 && (
-                  <Typography variant="caption" sx={{ color: "#999" }}>
-                    None yet — add up to 20.
+                  <Typography variant="caption" sx={{ color: TEXT.secondary }}>
+                    None yet. Add up to 20.
                   </Typography>
                 )}
               </Box>
@@ -717,11 +700,7 @@ export default function ProfileDialog({
                   onChange={(e) => setOpeningDraft(e.target.value)}
                   onKeyDown={onOpeningKeyDown}
                 />
-                <Button
-                  variant="outlined"
-                  onClick={addOpening}
-                  sx={{ textTransform: "none", fontWeight: 600 }}
-                >
+                <Button variant="outlined" onClick={addOpening}>
                   Add
                 </Button>
               </Box>
@@ -755,7 +734,7 @@ export default function ProfileDialog({
                   <ToggleButton
                     key={t.value}
                     value={t.value}
-                    sx={{ textTransform: "none", fontWeight: 600 }}
+                    sx={{ fontWeight: 600 }}
                   >
                     {t.label}
                   </ToggleButton>
@@ -779,7 +758,7 @@ export default function ProfileDialog({
                   <ToggleButton
                     key={p.value}
                     value={p.value}
-                    sx={{ textTransform: "none", fontWeight: 600 }}
+                    sx={{ fontWeight: 600 }}
                   >
                     {p.label}
                   </ToggleButton>
@@ -787,9 +766,8 @@ export default function ProfileDialog({
               </ToggleButtonGroup>
             </Box>
 
-            <Typography variant="caption" sx={{ color: "#999" }}>
-              Visual themes are saved but not yet applied to the board — wiring
-              lands in a follow-up.
+            <Typography variant="caption" sx={{ color: TEXT.secondary }}>
+              Your board theme is saved. It will show on the board soon.
             </Typography>
 
             <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
@@ -820,24 +798,16 @@ function SaveButton({
       variant="contained"
       onClick={onClick}
       disabled={saving}
-      sx={{
-        px: 3,
-        py: 0.75,
-        fontWeight: 700,
-        borderRadius: 2.5,
-        background: saved
-          ? "linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)"
-          : "linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)",
-        textTransform: "none",
-        "&:hover": {
-          background: saved
-            ? "linear-gradient(135deg, #43A047 0%, #5CB360 100%)"
-            : "linear-gradient(135deg, #e85d2c 0%, #e07a38 100%)",
-        },
-      }}
-      startIcon={saved ? <Icon icon="mdi:check" /> : undefined}
+      sx={{ px: 3, py: 0.75 }}
+      startIcon={
+        saving ? (
+          <CircularProgress size={16} color="inherit" />
+        ) : saved ? (
+          <Icon icon="mdi:check" />
+        ) : undefined
+      }
     >
-      {saving ? "Saving..." : saved ? "Saved" : "Save changes"}
+      {saving ? "Saving" : saved ? "Saved" : "Save changes"}
     </Button>
   );
 }

@@ -32,11 +32,24 @@ import Head from "next/head";
 import { Box, Typography } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import { BookOpen, Check, ChevronRight, Pencil, Sparkles } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  ChevronRight,
+  Lock,
+  LockOpen,
+  Pencil,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Masti, MastiAvatar, type MastiMood } from "@/components/masti";
 import { resolveUserRating } from "@/lib/coach/userRating";
-import { bandFor, nextBand, sufficiency, verdict, type Band } from "@/lib/repertoire/levels";
+import {
+  bandFor,
+  nextBand,
+  sufficiency,
+  verdict,
+  type Band,
+} from "@/lib/repertoire/levels";
 import { provenanceOf } from "@/lib/repertoire/provenance";
 import { pullBracket, pushBracket } from "@/lib/repertoire/bracketSync";
 import SlotChooser from "@/components/learn/SlotChooser";
@@ -64,11 +77,14 @@ import {
   type QuizAnswers,
 } from "@/lib/repertoire/store";
 import { facing } from "@/lib/repertoire/sentences";
-import { Lock, LockOpen } from "lucide-react";
 import { CHARACTER_STYLE, rarity } from "@/lib/repertoire/character";
-import { factsFor, mainMoveAt, measuredFor, type YourTree } from "@/lib/repertoire/yourTree";
+import {
+  factsFor,
+  mainMoveAt,
+  measuredFor,
+  type YourTree,
+} from "@/lib/repertoire/yourTree";
 import { archiveAccountFor, useYourTree } from "@/lib/repertoire/useYourTree";
-import { ACCENTS } from "@/components/ui/accents";
 import type {
   Character,
   RepertoireMap,
@@ -77,13 +93,52 @@ import type {
   TheoryLoad,
 } from "@/types/repertoire";
 
-// Ember stays the action colour; gold is this surface's identity — /learn is
-// the lessons area and wears ACCENTS.gold everywhere the nav already does.
-const EMBER = ACCENTS.ember.bright;
-const GOLD = ACCENTS.gold;
-const ROSE = ACCENTS.rose;
-const GOOD = "#86EFAC";
-const MONO = '"SF Mono", ui-monospace, Menlo, monospace';
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
+
+const FOCUS_RING = {
+  outline: `2px solid ${TEXT.primary}`,
+  outlineOffset: 2,
+} as const;
+const CARD_SX = {
+  borderRadius: `${RADIUS.card}px`,
+  border: `1px solid ${LINE.hairline}`,
+  background: SURFACE.raised,
+} as const;
+/** An outlined pill: a secondary button, or the body of a link that is one. */
+const OUTLINED_PILL_SX = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 0.75,
+  minHeight: 44,
+  px: 2,
+  borderRadius: `${RADIUS.pill}px`,
+  border: `1px solid ${LINE.strong}`,
+  background: "transparent",
+  color: TEXT.primary,
+  fontSize: TYPE.bodySmall.fontSize,
+  fontWeight: 600,
+  textDecoration: "none",
+  cursor: "pointer",
+  touchAction: "manipulation",
+  WebkitTapHighlightColor: "transparent",
+  transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
+  "&:hover": {
+    background: "rgba(255,255,255,0.06)",
+    borderColor: TEXT.secondary,
+  },
+  "&:active": { transform: MOTION.pressScale },
+  "&:focus-visible": FOCUS_RING,
+} as const;
 
 /** Stable identity, so the tree hook is not handed a new array every render. */
 const NO_SLOTS: RepertoireSlot[] = [];
@@ -92,7 +147,11 @@ const NOOP = () => {};
 
 export default function LearnPage() {
   const { profile } = useAuth();
-  const account = profile?.handle ?? profile?.chesscomUsername ?? profile?.lichessUsername ?? "guest";
+  const account =
+    profile?.handle ??
+    profile?.chesscomUsername ??
+    profile?.lichessUsername ??
+    "guest";
 
   // Measured, not asked. We already know their rating, and asking somebody
   // their level is both a question we can answer ourselves and a question
@@ -101,7 +160,9 @@ export default function LearnPage() {
   const band = useMemo(() => bandFor(rating), [rating]);
 
   const [map, setMap] = useState<RepertoireMap | null>(null);
-  const [mapState, setMapState] = useState<"loading" | "ready" | "failed">("loading");
+  const [mapState, setMapState] = useState<"loading" | "ready" | "failed">(
+    "loading"
+  );
   const [state, setState] = useState<BracketState>(EMPTY);
   const [hydrated, setHydrated] = useState(false);
   const [side, setSide] = useState<"white" | "black">("white");
@@ -129,7 +190,9 @@ export default function LearnPage() {
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/repertoire?band=${encodeURIComponent(band.id)}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((r) =>
+        r.ok ? r.json() : Promise.reject(new Error(String(r.status)))
+      )
       .then((data: RepertoireMap) => {
         if (cancelled) return;
         setMap(data);
@@ -152,7 +215,7 @@ export default function LearnPage() {
     // visitor gets a 401 and `pullBracket` returns null, which means "carry on
     // with what you have".
     let cancelled = false;
-    void pullBracket(account).then(merged => {
+    void pullBracket(account).then((merged) => {
       if (cancelled || !merged) return;
       setState(merged);
     });
@@ -185,7 +248,9 @@ export default function LearnPage() {
       // that failed is the case where the account copy matters MOST, so gating
       // the push on it would drop the data precisely when it is the only copy
       // left.
-      void pushBracket(stamped).then(merged => setSavedToAccount(merged !== null));
+      void pushBracket(stamped).then((merged) =>
+        setSavedToAccount(merged !== null)
+      );
     },
     [account, state]
   );
@@ -198,7 +263,9 @@ export default function LearnPage() {
    * it cannot be the destination — those carry `san` and no `choiceId`.
    */
   const firstCourse = useMemo(
-    () => [...state.white, ...state.black].find((p) => p.choiceId)?.choiceId ?? null,
+    () =>
+      [...state.white, ...state.black].find((p) => p.choiceId)?.choiceId ??
+      null,
     [state.white, state.black]
   );
 
@@ -218,7 +285,9 @@ export default function LearnPage() {
       // in a slot the new choice never creates, still counting toward coverage.
       const cleared = clearBelow(picks, pick.slotId, childrenOf);
       const next = setPick(cleared, pick.slotId, pick);
-      persist(side === "white" ? { ...state, white: next } : { ...state, black: next });
+      persist(
+        side === "white" ? { ...state, white: next } : { ...state, black: next }
+      );
       setOpenSlot(null);
     },
     [picks, childrenOf, persist, side, state]
@@ -233,7 +302,8 @@ export default function LearnPage() {
   // the summary came to say "1.e4, at 47% of games" directly above a row
   // reading "75% of your games".
   const rootReach = useCallback(
-    (slot: RepertoireSlot) => (measured ? (factsFor(measured, slot.id).share ?? null) : null),
+    (slot: RepertoireSlot) =>
+      measured ? (factsFor(measured, slot.id).share ?? null) : null,
     [measured]
   );
 
@@ -247,7 +317,8 @@ export default function LearnPage() {
   // decisions in total — and the rarer roots are deferred rather than hidden.
   const [showAll, setShowAll] = useState(false);
   const focus = useMemo(
-    () => (map ? focusedRoots(map, side, band.id) : { focus: [], deferred: [] }),
+    () =>
+      map ? focusedRoots(map, side, band.id) : { focus: [], deferred: [] },
     [map, side, band.id]
   );
   // Every root for this colour, deferred ones included: the residual is what
@@ -260,8 +331,8 @@ export default function LearnPage() {
 
   const visible = useMemo(() => {
     if (showAll || focus.deferred.length === 0) return bracket;
-    const wanted = new Set(focus.focus.map(s => s.id));
-    return bracket.filter(node => wanted.has(node.slot.id));
+    const wanted = new Set(focus.focus.map((s) => s.id));
+    return bracket.filter((node) => wanted.has(node.slot.id));
   }, [bracket, focus, showAll]);
   const cover = useMemo(
     () => (map ? coverage(map, side, picks, rootReach) : null),
@@ -274,7 +345,7 @@ export default function LearnPage() {
         <Empty
           mood="defeated"
           title="The opening map is not loading"
-          body="Nothing is lost — anything you have already chosen is saved on this device. Try again in a moment."
+          body="Nothing is lost: anything you have already chosen is saved on this device. Try again in a moment."
         />
       </Shell>
     );
@@ -282,7 +353,11 @@ export default function LearnPage() {
   if (!map || !hydrated) {
     return (
       <Shell>
-        <Empty mood="thinking" title="Reading the opening map" body="Three and a half million games' worth." />
+        <Empty
+          mood="thinking"
+          title="Reading the opening map"
+          body="Three and a half million games' worth."
+        />
       </Shell>
     );
   }
@@ -303,14 +378,32 @@ export default function LearnPage() {
 
   return (
     <Shell>
-      <Box sx={{ maxWidth: 860, mx: "auto", px: { xs: 2, md: 3 }, py: { xs: 3, md: 5 } }}>
-        <Typography component="h1" sx={{ color: "#fff", fontSize: { xs: "1.6rem", md: "2rem" }, fontWeight: 800, letterSpacing: "-0.02em", mb: 0.75 }}>
+      <Box
+        sx={{
+          maxWidth: 860,
+          mx: "auto",
+          px: { xs: 2, md: 3 },
+          py: { xs: 3, md: 5 },
+        }}
+      >
+        <Typography
+          component="h1"
+          sx={{
+            ...TYPE.h1,
+            fontSize: { xs: "1.75rem", md: TYPE.h1.fontSize },
+            color: TEXT.primary,
+            mb: 0.75,
+          }}
+        >
           Your repertoire
         </Typography>
-        <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.95rem", lineHeight: 1.65, mb: 3, maxWidth: 620 }}>
-          One slot for every decision a complete repertoire has to make, sized by how often you will
-          actually meet it and pitched at the level you are actually at. Fill one and the branches it
-          leaves open appear underneath.
+        <Typography
+          sx={{ ...TYPE.body, color: TEXT.secondary, mb: 3, maxWidth: "65ch" }}
+        >
+          One slot for every decision a complete repertoire has to make, sized
+          by how often you will actually meet it and pitched at the level you
+          are actually at. Fill one and the branches it leaves open appear
+          underneath.
         </Typography>
 
         <YourGamesCard
@@ -325,11 +418,18 @@ export default function LearnPage() {
           component={Link}
           href="/courses"
           sx={{
-            display: "inline-flex", alignItems: "center", gap: 0.75, minHeight: 44,
-            mb: 1, color: "rgba(255,255,255,0.55)", fontSize: "0.85rem",
-            textDecoration: "none", borderRadius: "8px",
-            "&:hover": { color: GOLD.bright },
-            "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.75,
+            minHeight: 44,
+            mb: 1,
+            color: TEXT.secondary,
+            fontSize: TYPE.bodySmall.fontSize,
+            textDecoration: "none",
+            borderRadius: `${RADIUS.small}px`,
+            transition: `color ${MOTION.hover}`,
+            "&:hover": { color: TEXT.primary },
+            "&:focus-visible": FOCUS_RING,
           }}
         >
           <BookOpen size={14} aria-hidden /> Browse every course
@@ -344,7 +444,13 @@ export default function LearnPage() {
           }}
         />
 
-        <SideToggle side={side} onChange={(s) => { setSide(s); setOpenSlot(null); }} />
+        <SideToggle
+          side={side}
+          onChange={(s) => {
+            setSide(s);
+            setOpenSlot(null);
+          }}
+        />
 
         {/* Where the last save landed, said only when it is not both places.
             An unsaved bracket is otherwise pixel-identical to a saved one, and
@@ -353,15 +459,14 @@ export default function LearnPage() {
           <Typography
             data-testid="bracket-save-state"
             sx={{
+              ...TYPE.caption,
               mt: 1.5,
-              fontSize: "0.78rem",
-              lineHeight: 1.55,
-              color: savedToAccount ? "rgba(255,255,255,0.5)" : ROSE.bright,
+              color: savedToAccount ? TEXT.secondary : STATUS.error,
             }}
           >
             {savedToAccount
               ? "This device is out of storage, so your repertoire is being kept on your account instead. It will be here when you come back."
-              : "Not saved — not on this device and not on your account. Your last change may be lost if you close this page."}
+              : "Not saved: not on this device and not on your account. Your last change may be lost if you close this page."}
           </Typography>
         )}
 
@@ -424,10 +529,18 @@ export default function LearnPage() {
             as a bug, and the one down here was the vaguer of the two — it
             named the corpus without naming the BAND, which is now the whole
             point. What is left is the part that has no other home. */}
-        <Typography sx={{ mt: 4, fontSize: "0.76rem", color: "rgba(255,255,255,0.35)", lineHeight: 1.6 }}>
-          Shares are how often players at that level meet each line, not how often you have. Coverage
-          is computed from {map.meta.openings.toLocaleString()} named openings by comparing positions,
-          so a line that transposes into yours counts as yours.
+        <Typography
+          sx={{
+            ...TYPE.caption,
+            mt: 4,
+            color: TEXT.secondary,
+            maxWidth: "65ch",
+          }}
+        >
+          Shares are how often players at that level meet each line, not how
+          often you have. Coverage is computed from{" "}
+          {map.meta.openings.toLocaleString()} named openings by comparing
+          positions, so a line that transposes into yours counts as yours.
         </Typography>
       </Box>
     </Shell>
@@ -441,17 +554,10 @@ function StudyRow({ choiceId, label }: { choiceId: string; label: string }) {
       component={Link}
       href={`/learn/${encodeURIComponent(choiceId)}`}
       sx={{
-        mt: 1, ml: { xs: 1, md: 1.5 },
-        display: "inline-flex", alignItems: "center", gap: 0.75,
-        px: 1.5, py: 0.9, borderRadius: "999px",
-        // Courses are the lessons area, and lessons wear gold sitewide — the
-        // chip into a course carries the colour of where it goes.
-        border: `1px solid ${GOLD.border}`,
-        background: GOLD.tint,
-        color: GOLD.bright, fontSize: "0.8rem", fontWeight: 600, textDecoration: "none",
-        transition: "background 180ms ease, border-color 180ms ease",
-        "&:hover": { background: GOLD.soft, borderColor: GOLD.base },
-        "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+        ...OUTLINED_PILL_SX,
+        mt: 1,
+        ml: { xs: 1, md: 1.5 },
+        minHeight: 40,
       }}
     >
       <BookOpen size={14} aria-hidden /> The {label} course
@@ -486,28 +592,32 @@ function DeferredRoots({
         onClick={onToggle}
         aria-expanded={showAll}
         sx={{
+          ...CARD_SX,
           appearance: "none",
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.10)",
-          borderRadius: "0.9rem",
+          borderRadius: `${RADIUS.control}px`,
           px: 2,
           py: 1.5,
           width: "100%",
           textAlign: "left",
           cursor: "pointer",
           color: "inherit",
-          transition: "background 180ms ease, border-color 180ms ease",
-          "&:hover": { background: "rgba(255,255,255,0.055)", borderColor: "rgba(255,255,255,0.18)" },
-          "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+          touchAction: "manipulation",
+          WebkitTapHighlightColor: "transparent",
+          transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}`,
+          "&:hover": { borderColor: LINE.strong },
+          "&:active": { background: SURFACE.raisedTertiary },
+          "&:focus-visible": FOCUS_RING,
         }}
       >
-        <Typography sx={{ color: "rgba(255,255,255,0.82)", fontSize: "0.9rem", fontWeight: 600 }}>
+        <Typography
+          sx={{ ...TYPE.bodySmall, color: TEXT.primary, fontWeight: 600 }}
+        >
           {showAll ? "Show fewer" : `${slots.length} more, when you are ready`}
         </Typography>
-        <Typography sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.82rem", lineHeight: 1.6, mt: 0.4 }}>
+        <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 0.4 }}>
           {showAll
             ? "These are real, they are just not what will win you points this month."
-            : `${slots.map((s) => facing(s)).join(", ")} — ${pctOf(total)} of games${
+            : `${slots.map((s) => facing(s)).join(", ")}: ${pctOf(total)} of games${
                 after ? `, and worth an answer around ${after.floor}` : ""
               }.`}
         </Typography>
@@ -550,7 +660,8 @@ function SlotBranch({
   // reports zero, and zero is the wrong answer to the question the row is
   // asking. So the substitution stops at the roots, which is also exactly where
   // the corpus is most wrong about a beginner.
-  const measured = node.depth === 0 && tree ? factsFor(tree, node.slot.id) : null;
+  const measured =
+    node.depth === 0 && tree ? factsFor(tree, node.slot.id) : null;
   const reach = measured?.share ?? node.reach;
   const rare = rarity(reach);
   const yourMove = mainMoveAt(tree, node.slot.id);
@@ -567,8 +678,12 @@ function SlotBranch({
         onClick={() => onOpen(open ? null : node.slot.id)}
         aria-expanded={open}
         sx={{
-          width: "100%", textAlign: "left", cursor: "pointer",
-          display: "flex", alignItems: "center", gap: 1.5,
+          width: "100%",
+          textAlign: "left",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
           // A sub-decision must not look like a root one. "Against the Sicilian"
           // and "Against 1.e4 c5 2.c3 e6" were the same height, weight and
           // radius, differing only by an indent — so a 36%-of-your-games
@@ -578,51 +693,58 @@ function SlotBranch({
           minHeight: sub ? 46 : 56,
           px: { xs: sub ? 1.4 : 1.75, md: sub ? 1.75 : 2.25 },
           py: sub ? 1 : 1.5,
-          borderRadius: sub ? "0.9rem" : "1.25rem",
-          border: `1px solid ${
-            filled
-              ? "rgba(134,239,172,0.28)"
-              : sub
-                ? "rgba(255,255,255,0.06)"
-                : "rgba(255,255,255,0.1)"
-          }`,
-          background: filled
-            ? "linear-gradient(180deg, rgba(20,30,24,0.75) 0%, rgba(12,14,20,0.75) 100%)"
-            : sub
-              ? "rgba(255,255,255,0.018)"
-              : "linear-gradient(180deg, rgba(20,22,28,0.8) 0%, rgba(12,14,20,0.8) 100%)",
-          // Only the roots are glass. Blurring every nested row cost a paint
-          // per row for an effect nobody can see behind 2%-alpha fill.
-          backdropFilter: sub ? "none" : "blur(12px)",
-          transition: "border-color 180ms ease, background 180ms ease",
-          "&:hover": { borderColor: filled ? GOOD : "rgba(249,115,22,0.5)" },
-          "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+          borderRadius: sub ? `${RADIUS.control}px` : `${RADIUS.card}px`,
+          // A root is a card; a sub-decision is an outlined row on the page,
+          // one step down in contrast. The filled state is said by the dot
+          // and the line under the title, never by a tinted card.
+          border: `1px solid ${LINE.hairline}`,
+          background: sub ? "transparent" : SURFACE.raised,
+          touchAction: "manipulation",
+          WebkitTapHighlightColor: "transparent",
+          transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
+          "&:hover": { borderColor: LINE.strong },
+          "&:active": { background: SURFACE.raisedTertiary },
+          "&:focus-visible": FOCUS_RING,
         }}
       >
         {/* Shape as well as colour: an unfilled slot is an outline and a filled
             one is solid, so the two states survive a reader who cannot separate
-            ember from green. */}
+            the hues. */}
         <Box
           sx={{
-            width: sub ? 7 : 10, height: sub ? 7 : 10, borderRadius: "50%", flexShrink: 0,
-            background: filled ? GOOD : "transparent",
-            border: filled ? "none" : `1.5px solid rgba(255,255,255,${sub ? 0.22 : 0.3})`,
+            width: sub ? 7 : 10,
+            height: sub ? 7 : 10,
+            borderRadius: "50%",
+            flexShrink: 0,
+            background: filled ? STATUS.success : "transparent",
+            border: filled ? "none" : `1.5px solid ${LINE.strong}`,
           }}
         />
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography
             sx={{
-              color: sub ? "rgba(255,255,255,0.82)" : "#fff",
+              ...TYPE.bodySmall,
+              color: TEXT.primary,
               fontWeight: sub ? 500 : 600,
-              fontSize: sub
-                ? { xs: "0.84rem", md: "0.88rem" }
-                : { xs: "0.92rem", md: "0.98rem" },
             }}
           >
             {slotTitle(node.slot)}
           </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap", mt: 0.25 }}>
-            <Typography sx={{ fontSize: "0.78rem", color: filled ? GOOD : "rgba(255,255,255,0.45)" }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.75,
+              flexWrap: "wrap",
+              mt: 0.25,
+            }}
+          >
+            <Typography
+              sx={{
+                ...TYPE.caption,
+                color: filled ? STATUS.success : TEXT.secondary,
+              }}
+            >
               {/* "of games", not "of your games". The share is measured on the
                   master corpus, not on this player's archive — see the note at
                   the foot of the page. Saying "yours" of somebody else's games
@@ -638,9 +760,13 @@ function SlotBranch({
               <Typography
                 component="span"
                 sx={{
-                  fontSize: "0.68rem", color: "rgba(255,255,255,0.4)",
-                  border: "1px solid rgba(255,255,255,0.14)", borderRadius: "999px",
-                  px: 0.75, py: 0.1, whiteSpace: "nowrap",
+                  ...TYPE.caption,
+                  color: TEXT.secondary,
+                  background: SURFACE.raisedSecondary,
+                  borderRadius: `${RADIUS.small}px`,
+                  px: 0.75,
+                  py: 0.1,
+                  whiteSpace: "nowrap",
                 }}
               >
                 {rare}
@@ -649,14 +775,32 @@ function SlotBranch({
           </Box>
         </Box>
         {node.slot.line.length > 0 && (
-          <Typography sx={{ display: { xs: "none", sm: "block" }, fontFamily: MONO, fontSize: "0.75rem", color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>
+          <Typography
+            sx={{
+              ...TYPE.caption,
+              display: { xs: "none", sm: "block" },
+              fontFamily: FONT_MONO,
+              color: TEXT.secondary,
+              flexShrink: 0,
+            }}
+          >
             {numberedLine(node.slot.line)}
           </Typography>
         )}
         {filled ? (
-          <Pencil size={14} color="rgba(255,255,255,0.35)" aria-hidden />
+          <Pencil
+            size={16}
+            strokeWidth={1.75}
+            color={TEXT.secondary}
+            aria-hidden
+          />
         ) : (
-          <ChevronRight size={16} color={EMBER} aria-hidden />
+          <ChevronRight
+            size={16}
+            strokeWidth={1.75}
+            color={TEXT.secondary}
+            aria-hidden
+          />
         )}
       </Box>
 
@@ -666,7 +810,7 @@ function SlotBranch({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.2 }}
             style={{ overflow: "hidden" }}
           >
             <SlotChooser
@@ -685,10 +829,20 @@ function SlotBranch({
 
       {/* A filled slot that maps to a curated opening has a course behind it.
           Without this the 43 courses are data nothing links to. */}
-      {node.pick?.choiceId && <StudyRow choiceId={node.pick.choiceId} label={node.pick.label} />}
+      {node.pick?.choiceId && (
+        <StudyRow choiceId={node.pick.choiceId} label={node.pick.label} />
+      )}
 
       {(kids.decisions.length > 0 || kids.unhelped.length > 0) && (
-        <Box sx={{ mt: 1.5, display: "grid", gap: 1.25, borderLeft: "1px solid rgba(255,255,255,0.08)", ml: { xs: 1, md: 1.5 } }}>
+        <Box
+          sx={{
+            mt: 1.5,
+            display: "grid",
+            gap: 1.25,
+            borderLeft: `1px solid ${LINE.hairline}`,
+            ml: { xs: 1, md: 1.5 },
+          }}
+        >
           {kids.decisions.map((child) => (
             <SlotBranch
               key={child.slot.id}
@@ -737,18 +891,36 @@ function NoAnswerYet({ nodes }: { nodes: BracketNode[] }) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         sx={{
-          appearance: "none", width: "100%", textAlign: "left", cursor: "pointer",
-          background: "none", border: "1px dashed rgba(255,255,255,0.14)",
-          borderRadius: "0.9rem", px: 1.75, py: 1.15, minHeight: 44,
-          color: "inherit", transition: "border-color 180ms ease, background 180ms ease",
-          "&:hover": { borderColor: "rgba(255,255,255,0.26)", background: "rgba(255,255,255,0.02)" },
-          "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+          appearance: "none",
+          width: "100%",
+          textAlign: "left",
+          cursor: "pointer",
+          background: "none",
+          border: `1px dashed ${LINE.strong}`,
+          borderRadius: `${RADIUS.control}px`,
+          px: 1.75,
+          py: 1.15,
+          minHeight: 44,
+          color: "inherit",
+          touchAction: "manipulation",
+          WebkitTapHighlightColor: "transparent",
+          transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
+          "&:hover": {
+            borderColor: TEXT.secondary,
+            background: "rgba(255,255,255,0.06)",
+          },
+          "&:active": { background: SURFACE.raisedTertiary },
+          "&:focus-visible": FOCUS_RING,
         }}
       >
-        <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.82rem", fontWeight: 600 }}>
-          {open ? "Hide these" : `${nodes.length} more branches, ${pctOf(total)} of games`}
+        <Typography
+          sx={{ ...TYPE.bodySmall, color: TEXT.primary, fontWeight: 600 }}
+        >
+          {open
+            ? "Hide these"
+            : `${nodes.length} more branches, ${pctOf(total)} of games`}
         </Typography>
-        <Typography sx={{ color: "rgba(255,255,255,0.38)", fontSize: "0.76rem", lineHeight: 1.55, mt: 0.3 }}>
+        <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 0.3 }}>
           {/* Said plainly. This is the thing standing between the product and a
               finished repertoire, and dressing it up as a task the player has
               not got round to would put our gap on their conscience.
@@ -765,7 +937,7 @@ function NoAnswerYet({ nodes }: { nodes: BracketNode[] }) {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.2 }}
             style={{ overflow: "hidden" }}
           >
             <Box sx={{ display: "grid", gap: 0.75, mt: 1 }}>
@@ -773,15 +945,33 @@ function NoAnswerYet({ nodes }: { nodes: BracketNode[] }) {
                 <Box
                   key={n.slot.id}
                   sx={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    gap: 1, px: 1.5, py: 1, borderRadius: "0.75rem",
-                    border: "1px solid rgba(255,255,255,0.07)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 1,
+                    px: 1.5,
+                    py: 1,
+                    borderRadius: `${RADIUS.small}px`,
+                    border: `1px solid ${LINE.hairline}`,
                   }}
                 >
-                  <Typography sx={{ color: "rgba(255,255,255,0.62)", fontSize: "0.82rem", minWidth: 0 }}>
+                  <Typography
+                    sx={{
+                      ...TYPE.bodySmall,
+                      color: TEXT.secondary,
+                      minWidth: 0,
+                    }}
+                  >
                     {slotTitle(n.slot)}
                   </Typography>
-                  <Typography sx={{ fontFamily: MONO, fontSize: "0.72rem", color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>
+                  <Typography
+                    sx={{
+                      ...TYPE.caption,
+                      fontFamily: FONT_MONO,
+                      color: TEXT.secondary,
+                      flexShrink: 0,
+                    }}
+                  >
                     {numberedLine(n.slot.line)}
                   </Typography>
                 </Box>
@@ -828,47 +1018,62 @@ function CoverageBar({
   // Measured, the residual is simply what their own root shares do not account
   // for — the first moves they met that this map has no slot for.
   const residual = tree
-    ? Math.max(0, 1 - roots.reduce((sum, s) => sum + (factsFor(tree, s.id).share ?? 0), 0))
+    ? Math.max(
+        0,
+        1 - roots.reduce((sum, s) => sum + (factsFor(tree, s.id).share ?? 0), 0)
+      )
     : meta.otherFirstMoves;
   const state = sufficiency(cover.answered, band);
   return (
     <Box
       sx={{
-        // The page's headline card wears the surface identity: gold border, a
-        // faint radial tint at the top, a soft glow and a top hairline — the
-        // same treatment /plan's accented cards get.
-        position: "relative", overflow: "hidden",
-        mt: 2.5, p: { xs: 2, md: 2.5 }, borderRadius: "1.5rem",
-        border: `1px solid ${GOLD.border}`,
-        background: `radial-gradient(120% 55% at 50% 0%, ${GOLD.tint}, transparent 70%), rgba(255,255,255,0.02)`,
-        boxShadow: GOLD.glow,
-        "&::before": {
-          content: '""', position: "absolute", top: 0, left: "8%", right: "8%",
-          height: "1.5px",
-          background: `linear-gradient(90deg, transparent, ${GOLD.base}, transparent)`,
-          opacity: 0.65,
-        },
+        // The page's headline card: one flat surface.
+        ...CARD_SX,
+        position: "relative",
+        overflow: "hidden",
+        mt: 2.5,
+        p: { xs: 2, md: 2.5 },
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, flexWrap: "wrap", mb: 1.25 }}>
-        <Typography sx={{ color: "#fff", fontSize: "1.5rem", fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 1,
+          flexWrap: "wrap",
+          mb: 1.25,
+        }}
+      >
+        <Typography
+          sx={{
+            ...TYPE.h2,
+            color: TEXT.primary,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
           {done}%
         </Typography>
-        <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.9rem" }}>
-          of what you will face as {side === "white" ? "White" : "Black"} has an answer
+        <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
+          of what you will face as {side === "white" ? "White" : "Black"} has an
+          answer
         </Typography>
       </Box>
       <Box
         role="img"
         aria-label={`${done} percent answered`}
-        sx={{ height: 6, borderRadius: 999, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}
+        sx={{
+          height: 6,
+          borderRadius: 3,
+          background: LINE.hairline,
+          overflow: "hidden",
+        }}
       >
         <Box
           sx={{
-            width: `${done}%`, height: "100%", borderRadius: 999,
-            background: `linear-gradient(90deg, ${EMBER} 0%, ${GOOD} 100%)`,
-            transition: "width 220ms cubic-bezier(0.16,1,0.3,1)",
-            "@media (prefers-reduced-motion: reduce)": { transition: "none" },
+            width: `${done}%`,
+            height: "100%",
+            borderRadius: 3,
+            background: ACCENT.main,
           }}
         />
       </Box>
@@ -877,20 +1082,36 @@ function CoverageBar({
           another course, and nothing else in this space will ever say it. */}
       <Box
         sx={{
-          mt: 1.5, p: 1.5, borderRadius: "12px",
-          display: "flex", alignItems: "flex-start", gap: 1,
-          border: `1px solid ${state.enough ? "rgba(134,239,172,0.28)" : "rgba(255,255,255,0.09)"}`,
-          background: state.enough ? "rgba(134,239,172,0.06)" : "rgba(255,255,255,0.02)",
+          mt: 1.5,
+          p: 1.5,
+          borderRadius: `${RADIUS.control}px`,
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 1,
+          border: `1px solid ${LINE.hairline}`,
+          background: state.enough
+            ? STATUS.successTint
+            : SURFACE.raisedSecondary,
         }}
       >
-        {state.enough && <Check size={15} color={GOOD} aria-hidden style={{ marginTop: 2, flexShrink: 0 }} />}
+        {state.enough && (
+          <Check
+            size={16}
+            strokeWidth={1.75}
+            color={STATUS.success}
+            aria-hidden
+            style={{ marginTop: 2, flexShrink: 0 }}
+          />
+        )}
         <Box>
-          <Typography sx={{ color: state.enough ? GOOD : "#fff", fontSize: "0.86rem", lineHeight: 1.55 }}>
+          <Typography sx={{ ...TYPE.bodySmall, color: TEXT.primary }}>
             {verdict(cover.answered, band)}
           </Typography>
-          <Typography sx={{ color: "rgba(255,255,255,0.45)", fontSize: "0.78rem", lineHeight: 1.55, mt: 0.5 }}>
+          <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 0.5 }}>
             {rating ? `Rated ${rating}, ` : "Unrated, so "}
-            {rating ? `so we are treating you as ${band.name.toLowerCase()}` : `treating you as ${band.name.toLowerCase()}`}
+            {rating
+              ? `so we are treating you as ${band.name.toLowerCase()}`
+              : `treating you as ${band.name.toLowerCase()}`}
             . {band.advice}
           </Typography>
           {/* Where the numbers came from, said in the same breath as the
@@ -905,25 +1126,31 @@ function CoverageBar({
               so the corpus states itself. */}
           <Typography
             data-testid="corpus-provenance"
-            sx={{ color: "rgba(255,255,255,0.34)", fontSize: "0.74rem", lineHeight: 1.5, mt: 0.75 }}
+            sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 0.75 }}
           >
             {tree
               ? `Frequencies from your own ${tree.games[side].toLocaleString("en-US")} games as ${side}.`
-              : provenanceOf(meta, band, { bandKnown: rating !== undefined }).sentence}
+              : provenanceOf(meta, band, { bandKnown: rating !== undefined })
+                  .sentence}
           </Typography>
         </Box>
       </Box>
 
-      <Typography sx={{ mt: 1.25, fontSize: "0.82rem", color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>
+      <Typography sx={{ ...TYPE.bodySmall, mt: 1.25, color: TEXT.secondary }}>
         {biggest ? (
           <>
             The biggest thing you have no answer for is{" "}
-            {/* Rose: this is the weakness the page exists to surface. */}
-            <Box component="span" sx={{ color: ROSE.bright, fontWeight: 600 }}>{slotTitle(biggest.slot).replace(/^Against /, "")}</Box>
+            {/* Weight, not colour: this is the weakness the page exists to surface. */}
+            <Box component="span" sx={{ color: TEXT.primary, fontWeight: 600 }}>
+              {slotTitle(biggest.slot).replace(/^Against /, "")}
+            </Box>
             , at {pctOf(biggest.reach)} of {tree ? "your games" : "games"}.
           </>
         ) : (
-          <>Every branch we can measure has an answer. Nothing left to decide at this level.</>
+          <>
+            Every branch we can measure has an answer. Nothing left to decide at
+            this level.
+          </>
         )}
         {side === "black" && residual > 0.01 && (
           <> A further {pctOf(residual)} is first moves too rare to plan for.</>
@@ -933,9 +1160,25 @@ function CoverageBar({
   );
 }
 
-function SideToggle({ side, onChange }: { side: "white" | "black"; onChange: (s: "white" | "black") => void }) {
+function SideToggle({
+  side,
+  onChange,
+}: {
+  side: "white" | "black";
+  onChange: (s: "white" | "black") => void;
+}) {
   return (
-    <Box role="tablist" aria-label="Repertoire colour" sx={{ display: "inline-flex", gap: 0.5, p: 0.5, borderRadius: "999px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.25)" }}>
+    <Box
+      role="tablist"
+      aria-label="Repertoire colour"
+      sx={{
+        display: "inline-flex",
+        gap: 0.5,
+        p: 0.5,
+        borderRadius: `${RADIUS.control}px`,
+        background: SURFACE.raisedSecondary,
+      }}
+    >
       {(["white", "black"] as const).map((option) => (
         <Box
           key={option}
@@ -944,12 +1187,23 @@ function SideToggle({ side, onChange }: { side: "white" | "black"; onChange: (s:
           aria-selected={side === option}
           onClick={() => onChange(option)}
           sx={{
-            minHeight: 40, px: 2.25, borderRadius: "999px", cursor: "pointer", border: "none",
-            background: side === option ? "rgba(249,115,22,0.16)" : "transparent",
-            color: side === option ? EMBER : "rgba(255,255,255,0.55)",
-            fontSize: "0.85rem", fontWeight: 600,
-            transition: "background 180ms ease, color 180ms ease",
-            "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+            // A segmented control: the selected segment is the lighter step.
+            minHeight: 40,
+            px: 2.25,
+            borderRadius: `${RADIUS.small}px`,
+            cursor: "pointer",
+            border: "none",
+            background:
+              side === option ? "rgba(255,255,255,0.10)" : "transparent",
+            color: side === option ? TEXT.primary : TEXT.secondary,
+            fontSize: TYPE.bodySmall.fontSize,
+            fontWeight: 600,
+            touchAction: "manipulation",
+            WebkitTapHighlightColor: "transparent",
+            transition: `background-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
+            "&:hover": side === option ? {} : { color: TEXT.primary },
+            "&:active": { transform: MOTION.pressScale },
+            "&:focus-visible": FOCUS_RING,
           }}
         >
           As {option === "white" ? "White" : "Black"}
@@ -999,7 +1253,10 @@ function YourGamesCard({
     state.run();
   };
 
-  if (asking) return <ChurnQuestion onAnswer={answer} onCancel={() => setAsking(false)} />;
+  if (asking)
+    return (
+      <ChurnQuestion onAnswer={answer} onCancel={() => setAsking(false)} />
+    );
 
   // No handle stored is not an error and must not be dressed as one. It is the
   // ordinary state for somebody who signed up over the board.
@@ -1007,7 +1264,11 @@ function YourGamesCard({
     return (
       <Note>
         Add your Lichess or Chess.com username on{" "}
-        <Box component={Link} href="/profile" sx={{ color: EMBER, textDecoration: "underline" }}>
+        <Box
+          component={Link}
+          href="/profile"
+          sx={{ color: ACCENT.hover, textDecoration: "underline" }}
+        >
           your profile
         </Box>{" "}
         and these frequencies become yours instead of the corpus average.
@@ -1016,7 +1277,7 @@ function YourGamesCard({
   }
 
   if (state.phase === "loading") {
-    return <Note>Reading your last 12 months on {account.platform}…</Note>;
+    return <Note>Reading your last 12 months on {account.platform}</Note>;
   }
 
   if (state.phase === "error") {
@@ -1031,7 +1292,8 @@ function YourGamesCard({
     return (
       <Note tone="good">
         Measured from {counted.toLocaleString()} of your own games as{" "}
-        {side === "white" ? "White" : "Black"}. <Retry onClick={state.run}>Refresh</Retry>
+        {side === "white" ? "White" : "Black"}.{" "}
+        <Retry onClick={state.run}>Refresh</Retry>
       </Note>
     );
   }
@@ -1049,7 +1311,7 @@ function YourGamesCard({
             no sample. */}
         {counted === 0
           ? `None of the games we read were yours as ${colour}, so these are still the corpus average. `
-          : `Only ${counted.toLocaleString()} of your games as ${colour} — too few to work out your own frequencies, so these are still the corpus average. `}
+          : `Only ${counted.toLocaleString()} of your games as ${colour}, too few to work out your own frequencies, so these are still the corpus average. `}
         <Retry onClick={state.run}>Refresh</Retry>
       </Note>
     );
@@ -1057,8 +1319,8 @@ function YourGamesCard({
 
   return (
     <Note>
-      These frequencies come from games by players rated 2300+, and yours will be different.{" "}
-      <Retry onClick={begin}>Use my last 12 months</Retry>
+      These frequencies come from games by players rated 2300+, and yours will
+      be different. <Retry onClick={begin}>Use my last 12 months</Retry>
     </Note>
   );
 }
@@ -1098,27 +1360,18 @@ function ChurnQuestion({
   onCancel: () => void;
 }) {
   return (
-    <Box
-      component={motion.div}
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      sx={{
-        mb: 2.5, p: { xs: 2, md: 2.5 }, borderRadius: "1.25rem",
-        border: `1px solid ${GOLD.border}`, background: GOLD.tint,
-      }}
-    >
-      <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: "1rem", mb: 0.5 }}>
-        Before we read your games — how much of what you play should change?
+    <Box sx={{ ...CARD_SX, mb: 2.5, p: { xs: 2, md: 2.5 } }}>
+      <Typography sx={{ ...TYPE.h5, color: TEXT.primary, mb: 0.5 }}>
+        Before we read your games: how much of what you play should change?
       </Typography>
-      <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.85rem", lineHeight: 1.6, mb: 2 }}>
-        This decides how hard we push your own openings up the list. You can change it later.
+      <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary, mb: 2 }}>
+        This decides how hard we push your own openings up the list. You can
+        change it later.
       </Typography>
       <Box sx={{ display: "grid", gap: 1 }}>
-        {CHURN_OPTIONS.map((option, i) => (
+        {CHURN_OPTIONS.map((option) => (
           <QuizOption
             key={option.value}
-            index={i}
             title={option.title}
             body={option.body}
             onClick={() => onAnswer(option.value)}
@@ -1129,11 +1382,22 @@ function ChurnQuestion({
         component="button"
         onClick={onCancel}
         sx={{
-          mt: 1.5, minHeight: 44, px: 1, ml: -1, background: "none", border: "none",
-          cursor: "pointer", color: "rgba(255,255,255,0.4)", fontSize: "0.8rem",
-          borderRadius: "8px",
-          "&:hover": { color: "rgba(255,255,255,0.75)" },
-          "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+          mt: 1.5,
+          minHeight: 44,
+          px: 1,
+          ml: -1,
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          color: TEXT.secondary,
+          fontSize: TYPE.bodySmall.fontSize,
+          borderRadius: `${RADIUS.small}px`,
+          touchAction: "manipulation",
+          WebkitTapHighlightColor: "transparent",
+          transition: `color ${MOTION.hover}, transform ${MOTION.press}`,
+          "&:hover": { color: TEXT.primary },
+          "&:active": { transform: MOTION.pressScale },
+          "&:focus-visible": FOCUS_RING,
         }}
       >
         Not now
@@ -1176,31 +1440,49 @@ function LockBar({
   const canLock = picks.length > 0;
 
   return (
-    <Box sx={{ mt: 3, display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+    <Box
+      sx={{
+        mt: 3,
+        display: "flex",
+        alignItems: "center",
+        gap: 1.5,
+        flexWrap: "wrap",
+      }}
+    >
       <Box
         component="button"
         onClick={() => canLock && onToggle(side)}
         disabled={!canLock}
         aria-pressed={here}
         sx={{
-          display: "inline-flex", alignItems: "center", gap: 0.75,
-          minHeight: 44, px: 2, borderRadius: "999px",
-          appearance: "none", cursor: canLock ? "pointer" : "not-allowed",
+          ...OUTLINED_PILL_SX,
+          appearance: "none",
+          cursor: canLock ? "pointer" : "not-allowed",
           opacity: canLock ? 1 : 0.4,
-          border: `1px solid ${here ? "rgba(134,239,172,0.45)" : "rgba(255,255,255,0.16)"}`,
-          background: here ? "rgba(134,239,172,0.1)" : "rgba(255,255,255,0.03)",
-          color: here ? GOOD : "rgba(255,255,255,0.8)",
-          fontSize: "0.86rem", fontWeight: 600,
-          transition: "background 180ms ease, border-color 180ms ease",
-          "&:hover": canLock ? { borderColor: here ? GOOD : "rgba(249,115,22,0.5)" } : {},
-          "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+          // Locked is a done state: the success tint, the icon and the word.
+          border: `1px solid ${here ? "transparent" : LINE.strong}`,
+          background: here ? STATUS.successTint : "transparent",
+          color: here ? STATUS.success : TEXT.primary,
+          "&:hover": canLock
+            ? {
+                background: here
+                  ? STATUS.successTint
+                  : "rgba(255,255,255,0.06)",
+                borderColor: here ? "transparent" : TEXT.secondary,
+              }
+            : {},
+          "&:active": canLock ? { transform: MOTION.pressScale } : {},
         }}
       >
-        {here ? <Lock size={14} aria-hidden /> : <LockOpen size={14} aria-hidden />}
+        {here ? (
+          <Lock size={14} aria-hidden />
+        ) : (
+          <LockOpen size={14} aria-hidden />
+        )}
         {here ? `${label} is locked` : `Lock ${label}`}
       </Box>
 
-      <Typography sx={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.42)" }}>
+      <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
         {!canLock
           ? `Choose something as ${label} first.`
           : here
@@ -1215,30 +1497,47 @@ function LockBar({
           component={Link}
           href={`/learn/${encodeURIComponent(firstCourse)}`}
           sx={{
-            ml: { sm: "auto" }, display: "inline-flex", alignItems: "center", gap: 0.75,
-            minHeight: 44, px: 2.5, borderRadius: "999px", textDecoration: "none",
-            border: "1px solid rgba(249,115,22,0.5)", background: "rgba(249,115,22,0.12)",
-            color: EMBER, fontSize: "0.88rem", fontWeight: 700,
-            transition: "background 180ms ease",
-            "&:hover": { background: "rgba(249,115,22,0.22)" },
-            "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+            // The one primary action on the page, once both sides are locked.
+            ...OUTLINED_PILL_SX,
+            ml: { sm: "auto" },
+            px: 2.5,
+            border: "none",
+            background: ACCENT.main,
+            color: TEXT.onAccent,
+            "&:hover": { background: ACCENT.hover },
           }}
         >
-          Continue — start learning <ChevronRight size={15} aria-hidden />
+          Start learning <ChevronRight size={15} aria-hidden />
         </Box>
       )}
     </Box>
   );
 }
 
-function Note({ children, tone }: { children: React.ReactNode; tone?: "good" | "warn" }) {
-  // Warnings wear rose — danger has its own colour, ember stays for actions.
-  const colour = tone === "good" ? GOOD : tone === "warn" ? ROSE.bright : "rgba(255,255,255,0.5)";
+function Note({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone?: "good" | "warn";
+}) {
+  // A warning wears the warning colour; the accent stays for actions.
+  const colour =
+    tone === "good"
+      ? STATUS.success
+      : tone === "warn"
+        ? STATUS.warning
+        : TEXT.secondary;
   return (
     <Typography
       sx={{
-        mb: 2, fontSize: "0.8rem", lineHeight: 1.6, color: colour,
-        display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap",
+        ...TYPE.bodySmall,
+        mb: 2,
+        color: colour,
+        display: "flex",
+        alignItems: "center",
+        gap: 0.75,
+        flexWrap: "wrap",
       }}
     >
       {tone === "good" && <Check size={13} aria-hidden />}
@@ -1248,18 +1547,39 @@ function Note({ children, tone }: { children: React.ReactNode; tone?: "good" | "
   );
 }
 
-function Retry({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+function Retry({
+  children,
+  onClick,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
   return (
     <Box
       component="button"
       onClick={onClick}
       sx={{
-        display: "inline-flex", alignItems: "center", minHeight: 44, px: 1, ml: -1,
-        appearance: "none", background: "none", border: "none", cursor: "pointer",
-        color: EMBER, fontSize: "0.8rem", fontWeight: 600,
-        textDecoration: "underline", textUnderlineOffset: 3, borderRadius: "8px",
-        "&:hover": { color: "#fff" },
-        "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+        display: "inline-flex",
+        alignItems: "center",
+        minHeight: 44,
+        px: 1,
+        ml: -1,
+        appearance: "none",
+        background: "none",
+        border: "none",
+        cursor: "pointer",
+        color: ACCENT.hover,
+        fontSize: TYPE.bodySmall.fontSize,
+        fontWeight: 600,
+        textDecoration: "underline",
+        textUnderlineOffset: 3,
+        borderRadius: `${RADIUS.small}px`,
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
+        transition: `color ${MOTION.hover}, transform ${MOTION.press}`,
+        "&:hover": { color: ACCENT.main },
+        "&:active": { transform: MOTION.pressScale },
+        "&:focus-visible": FOCUS_RING,
       }}
     >
       {children}
@@ -1278,7 +1598,13 @@ function Retry({ children, onClick }: { children: React.ReactNode; onClick: () =
  *
  * Editing preserves every pick. Only the ordering changes.
  */
-function QuizSummary({ quiz, onEdit }: { quiz: QuizAnswers; onEdit: () => void }) {
+function QuizSummary({
+  quiz,
+  onEdit,
+}: {
+  quiz: QuizAnswers;
+  onEdit: () => void;
+}) {
   const style = CHARACTER_STYLE[quiz.character];
   return (
     // ONE control, not a sentence with a link on the end. At 375px the
@@ -1291,40 +1617,78 @@ function QuizSummary({ quiz, onEdit }: { quiz: QuizAnswers; onEdit: () => void }
       onClick={onEdit}
       aria-label={`Ordered for ${style.label} openings and ${LOAD_SUMMARY[quiz.load]}. Change these answers.`}
       sx={{
-        display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap",
-        width: "100%", textAlign: "left", mb: 2.5,
-        minHeight: 44, px: 1.25, py: 0.75, ml: -1.25,
-        appearance: "none", background: "none", cursor: "pointer",
-        border: "1px solid transparent", borderRadius: "999px",
-        transition: "background 180ms ease, border-color 180ms ease",
-        "&:hover": { background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.12)" },
-        "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+        display: "flex",
+        alignItems: "center",
+        gap: 0.75,
+        flexWrap: "wrap",
+        width: "100%",
+        textAlign: "left",
+        mb: 2.5,
+        minHeight: 44,
+        px: 1.25,
+        py: 0.75,
+        ml: -1.25,
+        appearance: "none",
+        background: "none",
+        cursor: "pointer",
+        border: "none",
+        borderRadius: `${RADIUS.control}px`,
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
+        transition: `background-color ${MOTION.hover}`,
+        "&:hover": { background: "rgba(255,255,255,0.06)" },
+        "&:active": { background: SURFACE.raisedTertiary },
+        "&:focus-visible": FOCUS_RING,
       }}
     >
-      <Typography component="span" sx={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)" }}>
+      <Typography
+        component="span"
+        sx={{ ...TYPE.caption, color: TEXT.secondary }}
+      >
         Ordered for
       </Typography>
+      {/* The character as a tag: its hue on a quiet tint of itself. */}
       <Box
         component="span"
         sx={{
-          display: "inline-flex", alignItems: "center", gap: 0.6,
-          px: 1, py: 0.3, borderRadius: "999px",
-          border: `1px solid ${style.colour}33`, background: `${style.colour}0F`,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 0.6,
+          px: 1,
+          py: 0.25,
+          borderRadius: `${RADIUS.small}px`,
+          background: `${style.colour}1F`,
         }}
       >
-        <Box component="span" sx={{ width: 7, height: 7, borderRadius: "50%", background: style.colour }} />
-        <Typography component="span" sx={{ fontSize: "0.72rem", color: style.colour }}>
+        <Box
+          component="span"
+          sx={{
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: style.colour,
+          }}
+        />
+        <Typography
+          component="span"
+          sx={{ ...TYPE.caption, color: style.colour, fontWeight: 500 }}
+        >
           {style.label}
         </Typography>
       </Box>
-      <Typography component="span" sx={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)" }}>
+      <Typography
+        component="span"
+        sx={{ ...TYPE.caption, color: TEXT.secondary }}
+      >
         · {LOAD_SUMMARY[quiz.load]}
       </Typography>
       <Typography
         component="span"
         sx={{
-          fontSize: "0.78rem", color: "rgba(255,255,255,0.45)",
-          textDecoration: "underline", textUnderlineOffset: 3,
+          ...TYPE.caption,
+          color: TEXT.secondary,
+          textDecoration: "underline",
+          textUnderlineOffset: 3,
         }}
       >
         Change
@@ -1342,16 +1706,44 @@ const LOAD_SUMMARY: Record<TheoryLoad, string> = {
 // ── The quiz ─────────────────────────────────────────────────────────────────
 
 const LOADS: Array<{ value: TheoryLoad; title: string; body: string }> = [
-  { value: "light", title: "As little as possible", body: "Give me setups I can play against almost anything, and I will learn the ideas instead of the moves." },
-  { value: "medium", title: "A fair amount", body: "I will learn real lines, but I want them to repeat rather than branch forever." },
-  { value: "heavy", title: "Whatever it takes", body: "I want the critical stuff, and I accept that means memorising." },
+  {
+    value: "light",
+    title: "As little as possible",
+    body: "Give me setups I can play against almost anything, and I will learn the ideas instead of the moves.",
+  },
+  {
+    value: "medium",
+    title: "A fair amount",
+    body: "I will learn real lines, but I want them to repeat rather than branch forever.",
+  },
+  {
+    value: "heavy",
+    title: "Whatever it takes",
+    body: "I want the critical stuff, and I accept that means memorising.",
+  },
 ];
 
 const CHARACTERS: Array<{ value: Character; title: string; body: string }> = [
-  { value: "attack", title: "I want to attack", body: "Sharp positions, open lines, and a king to go after." },
-  { value: "solid", title: "I want to be hard to beat", body: "Sound structures, few weaknesses, and no early disasters." },
-  { value: "counterattack", title: "I want to punish mistakes", body: "Let them overextend, then hit back. Unbalanced from early on." },
-  { value: "structure", title: "I want to outplay them slowly", body: "Small edges, good pawns, and a long squeeze." },
+  {
+    value: "attack",
+    title: "I want to attack",
+    body: "Sharp positions, open lines, and a king to go after.",
+  },
+  {
+    value: "solid",
+    title: "I want to be hard to beat",
+    body: "Sound structures, few weaknesses, and no early disasters.",
+  },
+  {
+    value: "counterattack",
+    title: "I want to punish mistakes",
+    body: "Let them overextend, then hit back. Unbalanced from early on.",
+  },
+  {
+    value: "structure",
+    title: "I want to outplay them slowly",
+    body: "Small edges, good pawns, and a long squeeze.",
+  },
 ];
 
 /**
@@ -1377,18 +1769,33 @@ function Quiz({
   const step = load === null ? 0 : 1;
 
   return (
-    <Box sx={{ maxWidth: 640, mx: "auto", px: { xs: 2, md: 3 }, py: { xs: 4, md: 7 } }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-        {/* Heading eyebrow in the surface's gold, not the action ember. */}
-        <Sparkles size={15} color={GOLD.base} aria-hidden />
-        <Typography sx={{ color: GOLD.bright, fontSize: "0.72rem", letterSpacing: "0.14em", textTransform: "uppercase" }}>
-          Two questions · step {step + 1} of 2
-        </Typography>
-      </Box>
-      <Typography component="h1" sx={{ color: "#fff", fontSize: { xs: "1.5rem", md: "1.9rem" }, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.25, mb: 1 }}>
-        {step === 0 ? "How much theory do you actually want to learn?" : "And what kind of game do you want out of it?"}
+    <Box
+      sx={{
+        maxWidth: 640,
+        mx: "auto",
+        px: { xs: 2, md: 3 },
+        py: { xs: 4, md: 7 },
+      }}
+    >
+      <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mb: 1.5 }}>
+        Step {step + 1} of 2
       </Typography>
-      <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.92rem", lineHeight: 1.65, mb: 3 }}>
+      <Typography
+        component="h1"
+        sx={{
+          ...TYPE.h1,
+          fontSize: { xs: "1.75rem", md: TYPE.h1.fontSize },
+          color: TEXT.primary,
+          mb: 1,
+        }}
+      >
+        {step === 0
+          ? "How much theory do you actually want to learn?"
+          : "And what kind of game do you want out of it?"}
+      </Typography>
+      <Typography
+        sx={{ ...TYPE.body, color: TEXT.secondary, mb: 3, maxWidth: "65ch" }}
+      >
         {step === 0
           ? "There is no right answer. A system opening and a main line are both complete repertoires; they cost different things."
           : "We use this to order the suggestions, not to hide any of them. You will still see everything."}
@@ -1396,20 +1803,18 @@ function Quiz({
 
       <Box sx={{ display: "grid", gap: 1 }}>
         {step === 0
-          ? LOADS.map((option, i) => (
+          ? LOADS.map((option) => (
               <QuizOption
                 key={option.value}
-                index={i}
                 title={option.title}
                 body={option.body}
                 selected={current?.load === option.value}
                 onClick={() => setLoad(option.value)}
               />
             ))
-          : CHARACTERS.map((option, i) => (
+          : CHARACTERS.map((option) => (
               <QuizOption
                 key={option.value}
-                index={i}
                 title={option.title}
                 body={option.body}
                 selected={current?.character === option.value}
@@ -1429,15 +1834,28 @@ function Quiz({
            through to the medium/solid default would silently rewrite a
            deliberate "attacking, heavy" answer into its opposite, and the only
            evidence would be a suggestion order that quietly changed. */
-        onClick={() => onDone(current ?? { load: "medium", character: "solid" })}
+        onClick={() =>
+          onDone(current ?? { load: "medium", character: "solid" })
+        }
         sx={{
-          mt: 2.5, minHeight: 44, px: 1, background: "none", border: "none", cursor: "pointer",
-          color: "rgba(255,255,255,0.4)", fontSize: "0.82rem", borderRadius: "8px",
-          "&:hover": { color: "rgba(255,255,255,0.75)" },
-          "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+          mt: 2.5,
+          minHeight: 44,
+          px: 1,
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          color: TEXT.secondary,
+          fontSize: TYPE.bodySmall.fontSize,
+          borderRadius: `${RADIUS.small}px`,
+          touchAction: "manipulation",
+          WebkitTapHighlightColor: "transparent",
+          transition: `color ${MOTION.hover}, transform ${MOTION.press}`,
+          "&:hover": { color: TEXT.primary },
+          "&:active": { transform: MOTION.pressScale },
+          "&:focus-visible": FOCUS_RING,
         }}
       >
-        {current ? "Keep my current answers" : "Skip — I know what I play"}
+        {current ? "Keep my current answers" : "Skip, I know what I play"}
       </Box>
     </Box>
   );
@@ -1446,41 +1864,42 @@ function Quiz({
 function QuizOption({
   title,
   body,
-  index,
   colour,
   selected,
   onClick,
 }: {
   title: string;
   body: string;
-  index: number;
   /** The character hue, when this option has one. Theory-load options do not. */
   colour?: string;
   /** Already their answer, on a re-take. */
   selected?: boolean;
   onClick: () => void;
 }) {
-  const accent = colour ?? EMBER;
   return (
     <Box
-      component={motion.button}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, delay: index * 0.05, ease: [0.16, 1, 0.3, 1] }}
+      component="button"
       onClick={onClick}
       aria-pressed={selected ? true : undefined}
       sx={{
-        textAlign: "left", width: "100%", cursor: "pointer",
-        display: "flex", alignItems: "flex-start", gap: 1.25,
-        p: 2, borderRadius: "1.25rem",
-        border: `1px solid ${selected ? `${accent}80` : "rgba(255,255,255,0.1)"}`,
-        background: selected
-          ? `${accent}14`
-          : "linear-gradient(180deg, rgba(20,22,28,0.8) 0%, rgba(12,14,20,0.8) 100%)",
-        backdropFilter: "blur(12px)",
-        transition: "border-color 180ms ease, background 180ms ease",
-        "&:hover": { borderColor: `${accent}8C`, background: `${accent}14` },
-        "&:focus-visible": { outline: `2px solid ${accent}`, outlineOffset: 2 },
+        // Selected is the accent tint, whatever the option's own hue: the hue
+        // lives on the dot, and selection reads the same on every card.
+        textAlign: "left",
+        width: "100%",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 1.25,
+        p: 2,
+        borderRadius: `${RADIUS.card}px`,
+        border: `1px solid ${selected ? ACCENT.border : LINE.hairline}`,
+        background: selected ? ACCENT.tint : SURFACE.raised,
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
+        transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
+        "&:hover": { borderColor: selected ? ACCENT.border : LINE.strong },
+        "&:active": { background: SURFACE.raisedTertiary },
+        "&:focus-visible": FOCUS_RING,
       }}
     >
       {/* A dot rather than a tinted card. Washing the whole option in colour
@@ -1492,23 +1911,33 @@ function QuizOption({
         <Box
           aria-hidden
           sx={{
-            width: 10, height: 10, borderRadius: "50%", flexShrink: 0, mt: 0.75,
-            background: colour, boxShadow: `0 0 10px ${colour}66`,
+            width: 10,
+            height: 10,
+            borderRadius: "50%",
+            flexShrink: 0,
+            mt: 0.75,
+            background: colour,
           }}
         />
       )}
       <Box sx={{ minWidth: 0 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.4 }}>
-          <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: "1rem" }}>{title}</Typography>
+          <Typography sx={{ ...TYPE.h5, color: TEXT.primary }}>
+            {title}
+          </Typography>
           {/* Selection has to survive somebody who cannot separate the hues, so
               it is a word as well as a tint. */}
           {selected && (
-            <Typography sx={{ fontSize: "0.68rem", color: accent, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            <Typography
+              sx={{ ...TYPE.caption, color: ACCENT.hover, fontWeight: 600 }}
+            >
               your answer
             </Typography>
           )}
         </Box>
-        <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.86rem", lineHeight: 1.55 }}>{body}</Typography>
+        <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
+          {body}
+        </Typography>
       </Box>
     </Box>
   );
@@ -1520,14 +1949,14 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Head>
-        <title key="title">Your repertoire — Chess Masti AI</title>
+        <title key="title">Your repertoire · Chess Masti AI</title>
         <meta
           key="description"
           name="description"
           content="Build a complete opening repertoire: every decision it contains, weighted by how often you will actually face it."
         />
       </Head>
-      {/* No GradientBackdrop and no NavPill here: /learn is not in Layout's
+      {/* No NavPill here: /learn is not in Layout's
           SELF_CHROMED_ROUTES, so it already gets both. Mounting a second set
           double-stacks the gradient and ships two navigation pills. */}
       <Box sx={{ minHeight: "100dvh" }}>{children}</Box>
@@ -1535,16 +1964,34 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Empty({ title, body, mood }: { title: string; body: string; mood?: MastiMood }) {
+function Empty({
+  title,
+  body,
+  mood,
+}: {
+  title: string;
+  body: string;
+  mood?: MastiMood;
+}) {
   return (
     <Box sx={{ maxWidth: 520, mx: "auto", px: 3, py: 10 }}>
       {/* Masti reads while the map loads and is dizzy when it will not; the
           copy underneath already says which, so he is decorative. */}
       {mood && (
-        <Masti mood={mood} size={120} loops={mood === "thinking" ? 0 : 2} decorative style={{ marginBottom: 12 }} />
+        <Masti
+          mood={mood}
+          size={120}
+          loops={mood === "thinking" ? 0 : 2}
+          decorative
+          style={{ marginBottom: 12 }}
+        />
       )}
-      <Typography sx={{ color: "#fff", fontSize: "1.1rem", fontWeight: 700, mb: 1 }}>{title}</Typography>
-      <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.92rem", lineHeight: 1.65 }}>{body}</Typography>
+      <Typography sx={{ ...TYPE.h4, color: TEXT.primary, mb: 1 }}>
+        {title}
+      </Typography>
+      <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
+        {body}
+      </Typography>
     </Box>
   );
 }

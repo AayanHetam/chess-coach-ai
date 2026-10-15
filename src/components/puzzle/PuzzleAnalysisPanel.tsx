@@ -6,8 +6,7 @@ import { Chess } from "chess.js";
 import { getLineEvalLabel, moveLineUciToSan } from "@/lib/chess";
 import { useEngineWithStatus, isEngineUnavailable } from "@/hooks/useEngine";
 import { DEFAULT_ENGINE, ENGINE_LABELS } from "@/constants";
-import { SERIF_DISPLAY } from "@/theme/fonts";
-import { ACCENTS } from "@/components/ui/accents";
+import { FONT_MONO, LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 import type { LineEval } from "@/types/eval";
 
 /**
@@ -26,7 +25,7 @@ import type { LineEval } from "@/types/eval";
  */
 
 const DEPTH = 16;
-const DIM = "rgba(255,240,224,0.5)";
+const DIM = TEXT.secondary;
 
 /**
  * How long to sit on "Evaluating…" before admitting nothing is coming.
@@ -67,10 +66,10 @@ export function PuzzleAnalysisPanel({
       const game = new Chess(fen);
       if (game.isCheckmate()) {
         const winner = game.turn() === "w" ? "Black" : "White";
-        return `Checkmate — ${winner} has won this position, so there's nothing left to evaluate.`;
+        return `Checkmate: ${winner} has won this position, so there's nothing left to evaluate.`;
       }
       if (game.isStalemate()) {
-        return "Stalemate — this position is a draw, so there's nothing left to evaluate.";
+        return "Stalemate: this position is a draw, so there's nothing left to evaluate.";
       }
       if (game.isDraw()) {
         return "This position is a dead draw, so there's nothing left to evaluate.";
@@ -180,20 +179,19 @@ export function PuzzleAnalysisPanel({
         mt: 1.5,
         px: 1.5,
         py: 1.25,
-        borderRadius: "0.75rem",
-        // Analysis is cyan wherever it appears on the site.
-        background: `linear-gradient(180deg, ${ACCENTS.cyan.tint}, rgba(255,255,255,0.02))`,
-        border: `1px solid ${ACCENTS.cyan.border}`,
+        borderRadius: `${RADIUS.control}px`,
+        // A quiet inset panel on the board card, same as the reference card.
+        background: SURFACE.raisedSecondary,
+        border: `1px solid ${LINE.hairline}`,
       }}
     >
       {terminal ? (
-        // The one evaluation that needs no engine. Serif like the eval label —
-        // this IS the answer, not an apology for missing one.
+        // The one evaluation that needs no engine. Primary text, like the
+        // eval label: this IS the answer, not an apology for missing one.
         <Typography
           sx={{
-            fontFamily: SERIF_DISPLAY,
             fontSize: "0.92rem",
-            color: "rgba(255,240,224,0.88)",
+            color: TEXT.primary,
           }}
         >
           {terminal}
@@ -238,10 +236,9 @@ export function PuzzleAnalysisPanel({
         >
           <Typography
             sx={{
-              fontFamily: SERIF_DISPLAY,
               fontSize: "1.05rem",
               fontWeight: 600,
-              color: ACCENTS.cyan.bright,
+              color: TEXT.primary,
               fontVariantNumeric: "tabular-nums",
             }}
           >
@@ -250,9 +247,9 @@ export function PuzzleAnalysisPanel({
           {sanLine && (
             <Typography
               sx={{
-                fontFamily: SERIF_DISPLAY,
+                fontFamily: FONT_MONO,
                 fontSize: "0.9rem",
-                color: "rgba(255,240,224,0.88)",
+                color: TEXT.primary,
                 minWidth: 0,
               }}
             >
@@ -264,9 +261,9 @@ export function PuzzleAnalysisPanel({
               trust the number, and it visibly climbs while the search runs. */}
           <Typography
             sx={{
-              fontSize: "0.7rem",
+              fontSize: TYPE.caption.fontSize,
               color: DIM,
-              fontFamily: "Monaco, Menlo, monospace",
+              fontVariantNumeric: "tabular-nums",
               whiteSpace: "nowrap",
             }}
           >

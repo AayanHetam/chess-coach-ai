@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import type { GetStaticPaths, GetStaticProps, InferGetStaticPropsType } from "next";
+import type {
+  GetStaticPaths,
+  GetStaticProps,
+  InferGetStaticPropsType,
+} from "next";
 import Head from "next/head";
 import NextLink from "next/link";
 import { Box, Button, Chip, Link as MuiLink, Typography } from "@mui/material";
@@ -14,6 +18,7 @@ import {
 import { PuzzleSignInGate } from "@/components/puzzle/PuzzleSignInGate";
 import { useViewer } from "@/hooks/useViewer";
 import { MastiSays } from "@/components/masti";
+import { ACCENT, LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 
 /**
  * /puzzles/<rating> — statically generated SEO landing pages, one per
@@ -75,7 +80,7 @@ export const getStaticProps: GetStaticProps<
 
   const { puzzles: corpus } = await getPuzzleCorpus();
   const candidates = corpus.filter(
-    (p) => p.rating >= band && p.rating <= bandMax,
+    (p) => p.rating >= band && p.rating <= bandMax
   );
   // The eight most satisfying puzzles of the WHOLE band, not of an
   // arbitrary sample: popularity, then play volume; id as the final
@@ -84,7 +89,7 @@ export const getStaticProps: GetStaticProps<
     (a, b) =>
       b.popularity - a.popularity ||
       b.nbPlays - a.nbPlays ||
-      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
   );
 
   const picked: LandingPuzzle[] = [];
@@ -105,15 +110,18 @@ export const getStaticProps: GetStaticProps<
 
 const CARD_SX = {
   p: 2,
-  borderRadius: "1.5rem",
-  background: "rgba(20, 22, 28, 0.66)",
-  border: "1px solid rgba(255,255,255,0.08)",
-  backdropFilter: "blur(12px)",
+  borderRadius: `${RADIUS.card}px`,
+  background: SURFACE.raised,
+  border: `1px solid ${LINE.hairline}`,
 } as const;
 
 const GRID_SX = {
   display: "grid",
-  gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+  gridTemplateColumns: {
+    xs: "1fr",
+    sm: "repeat(2, 1fr)",
+    md: "repeat(3, 1fr)",
+  },
   gap: 2.5,
 } as const;
 
@@ -143,7 +151,7 @@ function PuzzleCard({
           sx={{ fontSize: "0.9rem", fontWeight: 700, minWidth: 0 }}
           noWrap
         >
-          <Box component="span" sx={{ color: "rgba(255,255,255,0.4)", mr: 0.75 }}>
+          <Box component="span" sx={{ color: TEXT.tertiary, mr: 0.75 }}>
             #{index + 1}
           </Box>
           {puzzle.themeLabel}
@@ -152,11 +160,7 @@ function PuzzleCard({
           size="small"
           variant="outlined"
           label={`Rated ${puzzle.rating}`}
-          sx={{
-            color: "rgba(255,255,255,0.75)",
-            borderColor: "rgba(255,255,255,0.2)",
-            flexShrink: 0,
-          }}
+          sx={{ flexShrink: 0 }}
         />
       </Box>
 
@@ -173,7 +177,7 @@ function PuzzleCard({
           {/* BOARD_CAPTION_SX, not a local copy: this caption and the
               interactive one it is swapped for after mount have to occupy
               the same line box, or every card below this one moves. */}
-          <Typography sx={{ ...BOARD_CAPTION_SX, color: "rgba(255,255,255,0.6)" }}>
+          <Typography sx={{ ...BOARD_CAPTION_SX, color: TEXT.secondary }}>
             {sideLabel} to move
           </Typography>
         </>
@@ -208,7 +212,7 @@ export default function PuzzleRatingLandingPage({
   const lockedPuzzles = puzzles.slice(FREE_PUZZLE_COUNT);
 
   const title = `Chess Puzzles Rated ${band}–${bandMax} · Chess Masti`;
-  const description = `Solve free interactive chess puzzles rated ${band}–${bandMax} from the Lichess database — the most-played tactics in this band, playable right in your browser.`;
+  const description = `Solve free interactive chess puzzles rated ${band}–${bandMax} from the Lichess database: the most-played tactics in this band, playable right in your browser.`;
 
   const lockedGrid = (
     <Box sx={GRID_SX}>
@@ -230,15 +234,18 @@ export default function PuzzleRatingLandingPage({
         <meta name="description" content={description} />
         <link rel="canonical" href={`${SITE_BASE}/puzzles/${band}`} />
         <meta name="color-scheme" content="dark" />
-        <meta name="theme-color" content="#0A0907" />
+        <meta name="theme-color" content={SURFACE.page} />
       </Head>
 
-      <Box sx={{ maxWidth: 1100, mx: "auto", px: { xs: 1, sm: 2 }, py: { xs: 2, md: 4 } }}>
-        <Typography
-          component="h1"
-          variant="h4"
-          sx={{ fontWeight: 800, letterSpacing: "-0.02em", mb: 1 }}
-        >
+      <Box
+        sx={{
+          maxWidth: 1100,
+          mx: "auto",
+          px: { xs: 1, sm: 2 },
+          py: { xs: 2, md: 4 },
+        }}
+      >
+        <Typography component="h1" variant="h2" sx={{ mb: 1 }}>
           Chess Puzzles Rated {band}–{bandMax}
         </Typography>
         {/* Masti carries the intro. He stays a still for a signed-out
@@ -275,12 +282,7 @@ export default function PuzzleRatingLandingPage({
 
         <Box sx={GRID_SX}>
           {freePuzzles.map((p, i) => (
-            <PuzzleCard
-              key={p.id}
-              puzzle={p}
-              index={i}
-              interactive={mounted}
-            />
+            <PuzzleCard key={p.id} puzzle={p} index={i} interactive={mounted} />
           ))}
         </Box>
 
@@ -299,27 +301,14 @@ export default function PuzzleRatingLandingPage({
             component={NextLink}
             href="/puzzles"
             variant="contained"
-            sx={{
-              textTransform: "none",
-              fontWeight: 700,
-              borderRadius: "12px",
-              px: 3,
-              py: 1.1,
-            }}
+            size="large"
           >
-            Train endless puzzles with Masti
+            Practice more puzzles with Masti
           </Button>
         </Box>
 
         <Box component="nav" aria-label="Puzzles by rating" sx={{ mt: 5 }}>
-          <Typography
-            sx={{
-              fontSize: "0.8rem",
-              fontWeight: 700,
-              color: "rgba(255,255,255,0.5)",
-              mb: 1,
-            }}
-          >
+          <Typography sx={{ ...TYPE.label, color: TEXT.secondary, mb: 1 }}>
             Puzzles by rating
           </Typography>
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
@@ -330,9 +319,9 @@ export default function PuzzleRatingLandingPage({
                   size="small"
                   label={b}
                   sx={{
-                    fontWeight: 700,
-                    color: "#FB923C",
-                    backgroundColor: "rgba(249,115,22,0.14)",
+                    color: ACCENT.hover,
+                    backgroundColor: ACCENT.tint,
+                    border: `1px solid ${ACCENT.border}`,
                   }}
                 />
               ) : (
@@ -344,18 +333,16 @@ export default function PuzzleRatingLandingPage({
                   href={`/puzzles/${b}`}
                   label={b}
                   sx={{
-                    color: "rgba(255,255,255,0.7)",
-                    backgroundColor: "rgba(255,255,255,0.06)",
+                    color: TEXT.secondary,
+                    backgroundColor: SURFACE.raisedSecondary,
                   }}
                 />
-              ),
+              )
             )}
           </Box>
         </Box>
 
-        <Typography
-          sx={{ mt: 4, fontSize: "0.72rem", color: "rgba(255,255,255,0.4)" }}
-        >
+        <Typography sx={{ mt: 4, fontSize: "0.75rem", color: TEXT.secondary }}>
           Puzzles from the{" "}
           <MuiLink
             href="https://database.lichess.org/#puzzles"

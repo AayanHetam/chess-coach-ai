@@ -34,7 +34,7 @@ test.describe("Masti on the landing", () => {
       )
       .toBe(true);
 
-    const cta = page.getByRole("link", { name: /start your plan/i }).first();
+    const cta = page.getByRole("link", { name: /let.s go/i }).first();
     const box = await cta.boundingBox();
     const viewport = page.viewportSize();
     expect(box).not.toBeNull();

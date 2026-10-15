@@ -5,6 +5,7 @@ import { PageTitle } from "@/components/pageTitle";
 import { Masti, type MastiMood } from "@/components/masti";
 import AgeGate from "@/components/consent/AgeGate";
 import { isAgeGateBlocked } from "@/lib/tracking/ageGateLock";
+import { LINE, RADIUS, TEXT, TYPE } from "@/theme/tokens";
 
 /**
  * COPPA interstitial for brand-new Google accounts (see
@@ -15,8 +16,8 @@ import { isAgeGateBlocked } from "@/lib/tracking/ageGateLock";
  * cookie simply expires (10-minute TTL). Devices locked by the retired DOB
  * gate still see the blocked notice.
  *
- * Plain utility styling on purpose — auth utility pages (reset-password
- * et al.) are outside the dark-glass chrome rollout.
+ * Plain utility styling on purpose: the theme's Paper and Alert carry the
+ * look, as on the other auth utility pages (reset-password et al.).
  */
 
 type Phase = "gate" | "submitting" | "blocked" | "expired";
@@ -79,7 +80,7 @@ export default function AgeInterstitialPage() {
           setPhase("expired");
         } else {
           setPhase("gate");
-          setError(data.error ?? "Something went wrong. Please try again.");
+          setError(data.error ?? "We couldn't save that. Try again.");
         }
         return;
       }
@@ -88,7 +89,7 @@ export default function AgeInterstitialPage() {
       window.location.assign(sanitizeReturnTo(router.query.returnTo));
     } catch {
       setPhase("gate");
-      setError("Network error. Please try again.");
+      setError("We couldn't reach the server. Try again.");
     }
   };
 
@@ -98,7 +99,15 @@ export default function AgeInterstitialPage() {
     <>
       <PageTitle title="One quick check" />
       <Box sx={{ display: "flex", justifyContent: "center", py: 8, px: 2 }}>
-        <Paper sx={{ p: 4, maxWidth: 440, width: "100%", borderRadius: 4 }}>
+        <Paper
+          sx={{
+            p: 4,
+            maxWidth: 440,
+            width: "100%",
+            borderRadius: `${RADIUS.card}px`,
+            border: `1px solid ${LINE.hairline}`,
+          }}
+        >
           {/* Card header: the coach, sized by the size prop so the box is
               right before hydration (no Emotion SSR on the Pages Router). */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2.5 }}>
@@ -109,16 +118,8 @@ export default function AgeInterstitialPage() {
               priority
             />
             <Box>
-              <Typography
-                sx={{
-                  fontSize: "0.72rem",
-                  fontWeight: 700,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: "#FF6B35",
-                }}
-              >
-                Chess Masti
+              <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
+                Masti
               </Typography>
               <Typography sx={{ fontWeight: 700, lineHeight: 1.3 }}>
                 {masti.line}

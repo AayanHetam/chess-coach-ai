@@ -19,7 +19,6 @@ import Link from "next/link";
 import type { GetServerSideProps } from "next";
 import { Box, Typography } from "@mui/material";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { GradientBackdrop } from "@/components/ui/GradientBackdrop";
 import OpeningDiagram from "@/components/learn/OpeningDiagram";
 import { MastiSays, type MastiMood } from "@/components/masti";
 import { numbered } from "@/lib/courses/lines";
@@ -31,9 +30,15 @@ import { hubFor, type ChapterUnit } from "@/lib/courses/hub";
 import { drillRounds, ROUND_SIZE } from "@/lib/learn/chapterRound";
 import { isCourseId } from "@/lib/learn/courseRoute";
 import { drillHref } from "@/lib/learn/courseHubRoute";
-
-const EMBER = "#FB923C";
-const MONO = "ui-monospace, SFMono-Regular, Menlo, monospace";
+import {
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 interface Props {
   courseId: string;
@@ -56,12 +61,18 @@ export default function DrillPickerPage(props: Props) {
   return (
     <>
       <Head>
-        <title key="title">{`Drill ${props.courseName} — Chess Masti`}</title>
+        <title key="title">{`Drill ${props.courseName} · Chess Masti`}</title>
         <meta name="robots" content="noindex" />
       </Head>
-      <GradientBackdrop />
 
-      <Box sx={{ maxWidth: 760, mx: "auto", px: { xs: 2, md: 3 }, py: { xs: 3, md: 5 } }}>
+      <Box
+        sx={{
+          maxWidth: 760,
+          mx: "auto",
+          px: { xs: 2, md: 3 },
+          py: { xs: 3, md: 5 },
+        }}
+      >
         <Box
           component={Link}
           href={`/learn/${props.courseId}`}
@@ -70,10 +81,11 @@ export default function DrillPickerPage(props: Props) {
             alignItems: "center",
             gap: 0.75,
             minHeight: 44,
-            color: "rgba(255,255,255,0.55)",
-            fontSize: "0.85rem",
+            color: TEXT.secondary,
+            fontSize: TYPE.bodySmall.fontSize,
             textDecoration: "none",
-            "&:hover": { color: "#fff" },
+            transition: `color ${MOTION.hover}`,
+            "&:hover": { color: TEXT.primary },
           }}
           data-testid="drill-back"
         >
@@ -95,13 +107,19 @@ export default function DrillPickerPage(props: Props) {
           <Box sx={{ minWidth: 0, flex: "1 1 0" }}>
             <Typography
               component="h1"
-              sx={{ color: "#fff", fontSize: { xs: "1.35rem", md: "1.7rem" }, fontWeight: 800, letterSpacing: "-0.02em" }}
+              sx={{
+                ...TYPE.h2,
+                fontSize: { xs: "1.375rem", md: TYPE.h2.fontSize },
+                color: TEXT.primary,
+              }}
             >
               Drill
             </Typography>
-            <Typography sx={{ color: "rgba(255,255,255,0.55)", fontSize: "0.88rem", mt: 0.4, lineHeight: 1.6 }}>
-              Pick anything and be asked it cold, whether or not you owe it. Nothing here is
-              unlocked by anything else.
+            <Typography
+              sx={{ ...TYPE.bodySmall, color: TEXT.secondary, mt: 0.4 }}
+            >
+              Pick anything and be asked it cold, whether or not you owe it.
+              Nothing here is unlocked by anything else.
             </Typography>
           </Box>
           <Box
@@ -131,10 +149,9 @@ export default function DrillPickerPage(props: Props) {
               key={unit.i}
               data-testid={`drill-chapter-${unit.i}`}
               sx={{
-                borderRadius: "1.5rem",
-                border: "1px solid rgba(255,255,255,0.10)",
-                background: "rgba(255,255,255,0.03)",
-                backdropFilter: "blur(12px)",
+                borderRadius: `${RADIUS.card}px`,
+                border: `1px solid ${LINE.hairline}`,
+                background: SURFACE.raised,
                 overflow: "hidden",
               }}
             >
@@ -149,14 +166,14 @@ export default function DrillPickerPage(props: Props) {
               {unit.studies.length > 0 && (
                 <Box sx={{ px: 1, pb: 1, display: "grid", gap: 0.25 }}>
                   {unit.studies
-                    .filter(study => study.asked > 0)
-                    .map(study => (
-                    <Row
-                      key={study.id}
-                      href={drillHref(props.courseId, unit.i, study.id)}
-                      title={study.title}
-                      under={sizeWords(study.asked)}
-                      inset
+                    .filter((study) => study.asked > 0)
+                    .map((study) => (
+                      <Row
+                        key={study.id}
+                        href={drillHref(props.courseId, unit.i, study.id)}
+                        title={study.title}
+                        under={sizeWords(study.asked)}
+                        inset
                         testid={`drill-go-${unit.i}-${study.id}`}
                       />
                     ))}
@@ -167,7 +184,7 @@ export default function DrillPickerPage(props: Props) {
         </Box>
 
         {props.asked === 0 && (
-          <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.88rem", mt: 3 }}>
+          <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary, mt: 3 }}>
             There is nothing to drill in this course at your level yet.
           </Typography>
         )}
@@ -218,31 +235,33 @@ function Row({
           px: inset ? 1.5 : 2,
           py: 1,
           ml: inset ? 1 : 0,
-          borderRadius: inset ? "0.9rem" : 0,
-          background: inset ? "rgba(0,0,0,0.22)" : "transparent",
-          border: inset ? "1px solid rgba(255,255,255,0.06)" : "none",
-          transition: "background 200ms ease-out",
-          "&:hover": { background: inset ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.05)" },
+          borderRadius: inset ? `${RADIUS.control}px` : 0,
+          background: inset ? SURFACE.raisedSecondary : "transparent",
+          border: inset ? `1px solid ${LINE.hairline}` : "none",
+          transition: `background-color ${MOTION.hover}`,
+          "&:hover": {
+            background: inset
+              ? SURFACE.raisedTertiary
+              : "rgba(255,255,255,0.06)",
+          },
+          "&:active": { background: SURFACE.raisedTertiary },
+          "a:focus-visible > &": {
+            outline: `2px solid ${TEXT.primary}`,
+            outlineOffset: -2,
+          },
         }}
       >
         <Box sx={{ flex: 1, minWidth: 0 }}>
           {over && (
-            <Typography
-              sx={{
-                color: "rgba(255,255,255,0.35)",
-                fontSize: "0.66rem",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
+            <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
               {over}
             </Typography>
           )}
           <Typography
             sx={{
-              color: "#fff",
-              fontSize: inset ? "0.82rem" : "0.9rem",
-              fontFamily: mono ? MONO : undefined,
+              ...TYPE.bodySmall,
+              color: TEXT.primary,
+              fontFamily: mono ? FONT_MONO : undefined,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -250,18 +269,20 @@ function Row({
           >
             {title}
           </Typography>
-          <Typography sx={{ color: "rgba(255,255,255,0.42)", fontSize: "0.74rem", mt: 0.2 }}>
+          <Typography sx={{ ...TYPE.caption, color: TEXT.secondary, mt: 0.2 }}>
             {under}
           </Typography>
         </Box>
-        <ChevronRight size={16} color={EMBER} aria-hidden />
+        <ChevronRight size={16} color={TEXT.secondary} aria-hidden />
       </Box>
     </Link>
   );
 }
 
-export const getServerSideProps: GetServerSideProps<Props> = async ctx => {
-  const raw = Array.isArray(ctx.params?.courseId) ? ctx.params?.courseId[0] : ctx.params?.courseId;
+export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
+  const raw = Array.isArray(ctx.params?.courseId)
+    ? ctx.params?.courseId[0]
+    : ctx.params?.courseId;
   if (!isCourseId(raw)) return { notFound: true };
 
   let rating: number | undefined;
@@ -286,7 +307,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async ctx => {
       side: hub.meta.side,
       root: hub.meta.root,
       // A chapter that asks nothing is not something to pick.
-      chapters: hub.chapters.filter(c => c.asked > 0),
+      chapters: hub.chapters.filter((c) => c.asked > 0),
       asked: hub.asked,
     },
   };

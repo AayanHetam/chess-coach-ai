@@ -1,9 +1,10 @@
 "use client";
 
-import { Box, Typography } from "@mui/material";
-import { motion } from "framer-motion";
+import { Box, CircularProgress, Typography } from "@mui/material";
 import { User } from "lucide-react";
 import { MastiAvatar, type MastiMood } from "@/components/masti";
+import { FadeIn } from "@/components/ui/FadeIn";
+import { ACCENT, LINE, RADIUS, SURFACE, TEXT, TYPE } from "@/theme/tokens";
 import { PuzzleCoachMiniboard } from "./PuzzleCoachMiniboard";
 import { GlossifiedText } from "./ChessTermGlossary";
 import { DemoMoveCard } from "./DemoMoveCard";
@@ -14,7 +15,7 @@ import type {
 
 /**
  * Chat-style bubble for the Puzzle Coach. Two roles: "user" (right-aligned,
- * ember-tinted) and "coach" (left-aligned, glass).
+ * accent-tinted) and "coach" (left-aligned, a secondary surface).
  *
  * The coach role parses two kinds of tags out of the prose:
  *   - `[SHOW_MOVE: san1 san2 ...]` (canonical) — renders a DemoMoveCard
@@ -23,16 +24,16 @@ import type {
  *     PuzzleCoachMiniboard. Kept for backwards compat with already-cached
  *     coach replies; the prompt only emits SHOW_MOVE going forward.
  *
- * Design tokens mirror /preview/move-reveal (glass blur 12px, rgba(22,18,14,0.55)
- * fill, #FF7A1A accent, cubic-bezier(0.23, 1, 0.32, 1) easing).
+ * A new message fades in (opacity only, see FadeIn); nothing slides.
  */
-
-const EASE_OUT_STRONG: [number, number, number, number] = [0.23, 1, 0.32, 1];
 
 // Match SHOW_MOVE first, then POSITION_AFTER — same alternation so a single
 // pass over `content` yields ordered tags without double-matching.
-const COACH_TAG_RE =
-  /\[(SHOW_MOVE|POSITION_AFTER):\s*([^\]]+)\]/g;
+const COACH_TAG_RE = /\[(SHOW_MOVE|POSITION_AFTER):\s*([^\]]+)\]/g;
+
+/** Chat-bubble corners: the card radius with a 4px tail corner. */
+const USER_RADIUS = `${RADIUS.card}px ${RADIUS.card}px 4px ${RADIUS.card}px`;
+const COACH_RADIUS = `${RADIUS.card}px ${RADIUS.card}px ${RADIUS.card}px 4px`;
 
 interface PuzzleCoachBubbleProps {
   role: "user" | "coach";
@@ -40,8 +41,8 @@ interface PuzzleCoachBubbleProps {
   /** The puzzle's "student starting position" FEN — the anchor for legacy
    *  [POSITION_AFTER:...] miniboards. */
   startFen: string;
-  /** Streaming state — when true, render with a soft pulse so the user
-   *  knows tokens are still arriving. */
+  /** Streaming state: tokens are still arriving. The arriving text shows the
+   *  activity and Masti's face reads "thinking"; nothing blinks. */
   streaming?: boolean;
   /** Called when the user taps "Show on board" inside a DemoMoveCard.
    *  Bubble passes the SAN sequence up; parent opens DemoMoveDialog. */
@@ -61,9 +62,7 @@ function renderCoachContent(
   startFen: string,
   onCoachDemoRequest: ((moves: string[]) => void) | undefined,
   mentions: TermMention[] | undefined,
-  onShowCoachHighlight:
-    | ((highlight: CoachHighlight) => void)
-    | undefined,
+  onShowCoachHighlight: ((highlight: CoachHighlight) => void) | undefined
 ): React.ReactNode[] {
   const out: React.ReactNode[] = [];
   let lastIdx = 0;
@@ -80,7 +79,7 @@ function renderCoachContent(
             text={prose}
             mentions={mentions}
             onShowOnBoard={onShowCoachHighlight}
-          />,
+          />
         );
     }
     const tagKind = match[1] as "SHOW_MOVE" | "POSITION_AFTER";
@@ -98,12 +97,10 @@ function renderCoachContent(
             key={`d${key++}`}
             moves={sans}
             onShow={onCoachDemoRequest}
-          />,
+          />
         );
       } else {
-        out.push(
-          <span key={`d${key++}`}>{sans.join(" ")}</span>,
-        );
+        out.push(<span key={`d${key++}`}>{sans.join(" ")}</span>);
       }
     } else {
       // Legacy miniboard render.
@@ -112,7 +109,7 @@ function renderCoachContent(
           key={`m${key++}`}
           startFen={startFen}
           moves={sans}
-        />,
+        />
       );
     }
     lastIdx = match.index + match[0].length;
@@ -124,7 +121,7 @@ function renderCoachContent(
         text={content.slice(lastIdx)}
         mentions={mentions}
         onShowOnBoard={onShowCoachHighlight}
-      />,
+      />
     );
   }
   if (out.length === 0)
@@ -134,7 +131,7 @@ function renderCoachContent(
         text={content}
         mentions={mentions}
         onShowOnBoard={onShowCoachHighlight}
-      />,
+      />
     );
   return out;
 }
@@ -152,11 +149,7 @@ export function PuzzleCoachBubble({
   const isUser = role === "user";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, transform: "translateY(6px)" }}
-      animate={{ opacity: 1, transform: "translateY(0px)" }}
-      transition={{ duration: 0.24, ease: EASE_OUT_STRONG }}
-    >
+    <FadeIn>
       <Box
         sx={{
           display: "flex",
@@ -172,16 +165,14 @@ export function PuzzleCoachBubble({
               flexShrink: 0,
               width: 28,
               height: 28,
-              borderRadius: "50%",
-              background: "rgba(255,122,26,0.18)",
-              border: "1px solid rgba(255,122,26,0.35)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               mt: 0.25,
+              color: TEXT.secondary,
             }}
           >
-            <User size={14} color="#FFD1A8" />
+            <User size={20} strokeWidth={1.75} aria-hidden />
           </Box>
         ) : (
           <MastiAvatar
@@ -198,39 +189,15 @@ export function PuzzleCoachBubble({
             minWidth: 0,
             px: 1.75,
             py: 1.25,
-            borderRadius: isUser ? "1rem 1rem 0.3rem 1rem" : "1rem 1rem 1rem 0.3rem",
-            background: isUser
-              ? "linear-gradient(135deg, rgba(255,122,26,0.18), rgba(255,140,66,0.08))"
-              : "rgba(22,18,14,0.55)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-            border: isUser
-              ? "1px solid rgba(255,122,26,0.28)"
-              : "1px solid rgba(255,255,255,0.06)",
-            color: "rgba(255,240,224,0.94)",
+            borderRadius: isUser ? USER_RADIUS : COACH_RADIUS,
+            background: isUser ? ACCENT.tint : SURFACE.raisedSecondary,
+            border: `1px solid ${isUser ? ACCENT.border : LINE.hairline}`,
+            color: TEXT.primary,
             fontSize: "0.92rem",
             lineHeight: 1.55,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
             position: "relative",
-            transition: "border-color 200ms ease",
-            ...(streaming && {
-              "&::after": {
-                content: '""',
-                display: "inline-block",
-                width: "0.5em",
-                height: "1em",
-                marginLeft: "2px",
-                verticalAlign: "text-bottom",
-                background: "#FF7A1A",
-                opacity: 0.7,
-                animation: "puzzleCoachCursor 800ms steps(1) infinite",
-              },
-              "@keyframes puzzleCoachCursor": {
-                "0%, 49%": { opacity: 0.7 },
-                "50%, 100%": { opacity: 0 },
-              },
-            }),
           }}
         >
           {isUser
@@ -240,26 +207,23 @@ export function PuzzleCoachBubble({
                 startFen,
                 onCoachDemoRequest,
                 mentions,
-                onShowCoachHighlight,
+                onShowCoachHighlight
               )}
         </Box>
       </Box>
-    </motion.div>
+    </FadeIn>
   );
 }
 
 /**
- * Standalone "coach is thinking…" indicator shown between the user's
- * message and the first arriving token. Replaced in-place by the coach
- * bubble once the first text delta lands.
+ * Standalone "Masti is thinking" indicator shown between the user's message
+ * and the first arriving token. Replaced in-place by the coach bubble once
+ * the first text delta lands: a 16px spinner beside the status text, gone
+ * the frame the reply starts.
  */
 export function PuzzleCoachThinkingBubble() {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.18, ease: EASE_OUT_STRONG }}
-    >
+    <FadeIn>
       <Box
         sx={{
           display: "flex",
@@ -270,50 +234,43 @@ export function PuzzleCoachThinkingBubble() {
       >
         {/* Loops while visible: the bubble unmounts on the first token, so
             this is the one place an endless loop is the right length. */}
-        <MastiAvatar mood="thinking" size={28} ring={false} animated loops={0} />
+        <MastiAvatar
+          mood="thinking"
+          size={28}
+          ring={false}
+          animated
+          loops={0}
+        />
         <Box
+          role="status"
           sx={{
             px: 1.75,
             py: 1.5,
-            borderRadius: "1rem 1rem 1rem 0.3rem",
-            background: "rgba(22,18,14,0.55)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: COACH_RADIUS,
+            background: SURFACE.raisedSecondary,
+            border: `1px solid ${LINE.hairline}`,
             display: "flex",
-            gap: 0.6,
+            alignItems: "center",
+            gap: 1,
           }}
         >
-          {[0, 1, 2].map((i) => (
-            <Box
-              key={i}
-              sx={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: "#FF7A1A",
-                opacity: 0.4,
-                animation: "puzzleCoachDot 1.2s ease-in-out infinite",
-                animationDelay: `${i * 0.15}s`,
-                "@keyframes puzzleCoachDot": {
-                  "0%, 100%": { opacity: 0.3, transform: "translateY(0)" },
-                  "50%": { opacity: 1, transform: "translateY(-3px)" },
-                },
-              }}
-            />
-          ))}
+          <CircularProgress
+            size={16}
+            thickness={4}
+            aria-hidden
+            sx={{ color: TEXT.secondary }}
+          />
           <Typography
             sx={{
-              ml: 0.75,
-              color: "rgba(255,240,224,0.5)",
-              fontSize: "0.78rem",
+              ...TYPE.caption,
+              color: TEXT.secondary,
               fontWeight: 500,
             }}
           >
-            thinking…
+            Masti is thinking
           </Typography>
         </Box>
       </Box>
-    </motion.div>
+    </FadeIn>
   );
 }

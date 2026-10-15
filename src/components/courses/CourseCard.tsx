@@ -4,13 +4,22 @@ import { memo } from "react";
 import OpeningDiagram from "@/components/learn/OpeningDiagram";
 import { CHARACTER_STYLE } from "@/lib/repertoire/character";
 import { numberedLine } from "@/lib/repertoire/bracket";
-import { progressOf, type CatalogueEntry, type CourseProgress } from "@/lib/courses/catalogue";
-import { ACCENTS } from "@/components/ui/accents";
-
-const EMBER = ACCENTS.ember.bright;
-const CYAN = ACCENTS.cyan;
-const MONO = '"SF Mono", ui-monospace, Menlo, monospace';
-const GOOD = "#86EFAC";
+import {
+  progressOf,
+  type CatalogueEntry,
+  type CourseProgress,
+} from "@/lib/courses/catalogue";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 /**
  * One course on a shelf.
@@ -47,58 +56,81 @@ function CourseCard({
          the most specific true thing about this card, and a screen reader
          should not have to hear the chapter count before the reason to open
          it. */
-      aria-label={`${entry.name} — ${
+      aria-label={`${entry.name}, ${
         due > 0
           ? `${due} ${due === 1 ? "decision" : "decisions"} due back, `
           : ""
       }${started ? `continue, ${progress?.started} of ${entry.chapters} chapters started` : `start, ${entry.chapters} chapters`}`}
       sx={{
-        position: "relative", overflow: "hidden",
-        display: "flex", flexDirection: "column",
-        width: { xs: 250, sm: 286 }, flexShrink: 0,
-        p: 1.75, borderRadius: "1.15rem", textDecoration: "none",
-        border: `1px solid ${style.colour}2E`,
+        position: "relative",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        width: { xs: 250, sm: 286 },
+        flexShrink: 0,
+        p: 1.75,
+        borderRadius: `${RADIUS.card}px`,
+        textDecoration: "none",
+        border: `1px solid ${LINE.hairline}`,
+        // The character's colour, as the one category marker on the card.
         borderLeft: `3px solid ${style.colour}`,
-        background: `linear-gradient(150deg, ${style.colour}12 0%, ${style.colour}07 45%, rgba(255,255,255,0.028) 82%)`,
-        transition: "border-color 180ms ease, background 180ms ease, transform 180ms ease",
-        "&:hover": {
-          borderColor: `${style.colour}70`,
-          background: `linear-gradient(150deg, ${style.colour}22 0%, ${style.colour}10 45%, rgba(255,255,255,0.05) 82%)`,
-          transform: "translateY(-2px)",
+        background: SURFACE.raised,
+        transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
+        "&:hover": { borderColor: LINE.strong, borderLeftColor: style.colour },
+        "&:active": { background: SURFACE.raisedTertiary },
+        "&:focus-visible": {
+          outline: `2px solid ${TEXT.primary}`,
+          outlineOffset: 2,
         },
-        "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
       }}
     >
-
       {/* The board sits ABOVE the name rather than beside it, and at 104px
           rather than 62. A chessboard is eight squares wide, so a 62px tile
           gives each piece under 8px and every opening renders as the same dark
           smudge — the tile was decoration pretending to be information. At
           104px a square is 13px and the pieces are legible, which is the whole
           reason to show a position instead of an emblem. */}
-      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25, mb: 1.25 }}>
+      <Box
+        sx={{ display: "flex", alignItems: "flex-start", gap: 1.25, mb: 1.25 }}
+      >
         <Box
           sx={{
-            borderRadius: "0.7rem", overflow: "hidden", lineHeight: 0,
-            flexShrink: 0, border: `1px solid ${style.colour}3D`,
+            borderRadius: `${RADIUS.control}px`,
+            overflow: "hidden",
+            lineHeight: 0,
+            flexShrink: 0,
+            border: `1px solid ${LINE.hairline}`,
           }}
         >
           <OpeningDiagram moves={entry.diagram} side={entry.side} px={104} />
         </Box>
-        <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 0.75 }}>
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 0.75,
+          }}
+        >
           {/* Due outranks "In progress" and REPLACES it. Both would be true at
               once on every owed card, and two badges stacked on a 250px tile is
               a badge nobody reads — the more specific one wins. */}
           {due > 0 ? (
-            /* Review debt wears cyan — the review identity — as a tinted chip,
-               not a solid fill: solid stays reserved for the ember CTA and the
-               green done state. */
+            /* Review debt is a status, so it is a quiet accent-tinted tag, not
+               a solid fill: solid stays reserved for the one primary action. */
             <Typography
               data-testid={`card-due-${entry.id}`}
               sx={{
-                px: 0.9, py: 0.25, borderRadius: "0.4rem", fontSize: "0.66rem",
-                fontWeight: 700, color: CYAN.bright, background: CYAN.soft,
-                border: `1px solid ${CYAN.border}`, whiteSpace: "nowrap",
+                px: 1,
+                py: 0.25,
+                borderRadius: `${RADIUS.small}px`,
+                fontSize: TYPE.caption.fontSize,
+                fontWeight: 600,
+                color: ACCENT.hover,
+                background: ACCENT.tint,
+                whiteSpace: "nowrap",
               }}
             >
               {due} due
@@ -106,8 +138,14 @@ function CourseCard({
           ) : started ? (
             <Typography
               sx={{
-                px: 0.9, py: 0.25, borderRadius: "0.4rem", fontSize: "0.66rem",
-                fontWeight: 700, color: "#0B0D12", background: GOOD, whiteSpace: "nowrap",
+                px: 1,
+                py: 0.25,
+                borderRadius: `${RADIUS.small}px`,
+                fontSize: TYPE.caption.fontSize,
+                fontWeight: 600,
+                color: STATUS.success,
+                background: STATUS.successTint,
+                whiteSpace: "nowrap",
               }}
             >
               In progress
@@ -120,8 +158,13 @@ function CourseCard({
             <Typography
               aria-hidden
               sx={{
-                fontWeight: 800, fontSize: "3.4rem", lineHeight: 0.85,
-                color: "rgba(255,255,255,0.09)", userSelect: "none", mt: "auto",
+                fontWeight: 700,
+                fontSize: "3.4rem",
+                lineHeight: 0.85,
+                fontVariantNumeric: "tabular-nums",
+                color: TEXT.tertiary,
+                userSelect: "none",
+                mt: "auto",
               }}
             >
               {rank}
@@ -132,52 +175,91 @@ function CourseCard({
 
       <Typography
         sx={{
-          color: "#fff", fontWeight: 700, fontSize: "0.95rem", lineHeight: 1.3,
-          display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+          ...TYPE.h5,
+          color: TEXT.primary,
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
           overflow: "hidden",
         }}
       >
         {entry.name}
       </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap", mt: 0.4, mb: 1 }}>
-        <Typography sx={{ color: style.colour, fontSize: "0.7rem" }}>{style.label}</Typography>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+          flexWrap: "wrap",
+          mt: 0.4,
+          mb: 1,
+        }}
+      >
+        <Typography sx={{ ...TYPE.caption, color: style.colour }}>
+          {style.label}
+        </Typography>
         {/* The line that defines the course. The name means nothing to somebody
             who does not already know it; the moves do. */}
-        <Typography sx={{ fontFamily: MONO, fontSize: "0.68rem", color: "rgba(255,255,255,0.35)" }}>
+        <Typography
+          sx={{ ...TYPE.caption, fontFamily: FONT_MONO, color: TEXT.secondary }}
+        >
           {numberedLine(entry.root)}
         </Typography>
       </Box>
 
       <Typography
         sx={{
-          color: "rgba(255,255,255,0.55)", fontSize: "0.79rem", lineHeight: 1.5,
-          display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical",
-          overflow: "hidden", minHeight: "3.55em", mb: 1.25,
+          ...TYPE.bodySmall,
+          color: TEXT.secondary,
+          display: "-webkit-box",
+          WebkitLineClamp: 3,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          minHeight: "3.55em",
+          mb: 1.25,
         }}
       >
         {/* No blurb is left blank rather than filled with a generated sentence.
             Every one of these is authored; a model-written stand-in would be
             indistinguishable on the page and is not something we ship. */}
-        {entry.blurb || `${entry.chapters} chapters, ${entry.lines.toLocaleString()} lines.`}
+        {entry.blurb ||
+          `${entry.chapters} chapters, ${entry.lines.toLocaleString()} lines.`}
       </Typography>
 
-      <Box sx={{ mt: "auto", display: "flex", alignItems: "center", gap: 1.25 }}>
+      <Box
+        sx={{ mt: "auto", display: "flex", alignItems: "center", gap: 1.25 }}
+      >
         <Box sx={{ minWidth: 0, flex: 1 }}>
           {started ? (
             <>
-              <Typography sx={{ color: GOOD, fontSize: "0.72rem", fontWeight: 700, mb: 0.4 }}>
+              <Typography
+                sx={{
+                  ...TYPE.caption,
+                  color: STATUS.success,
+                  fontWeight: 600,
+                  fontVariantNumeric: "tabular-nums",
+                  mb: 0.4,
+                }}
+              >
                 {Math.round(done * 100)}%
               </Typography>
               <Box
                 role="img"
                 aria-label={`${Math.round(done * 100)} percent of chapters started`}
-                sx={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,0.09)" }}
+                sx={{ height: 5, borderRadius: 3, background: LINE.hairline }}
               >
-                <Box sx={{ width: `${Math.round(done * 100)}%`, height: "100%", borderRadius: 3, background: GOOD }} />
+                <Box
+                  sx={{
+                    width: `${Math.round(done * 100)}%`,
+                    height: "100%",
+                    borderRadius: 3,
+                    background: STATUS.success,
+                  }}
+                />
               </Box>
             </>
           ) : (
-            <Typography sx={{ color: "rgba(255,255,255,0.4)", fontSize: "0.72rem" }}>
+            <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
               {entry.chapters} chapters
             </Typography>
           )}
@@ -189,11 +271,16 @@ function CourseCard({
         <Box
           aria-hidden
           sx={{
-            flexShrink: 0, px: 1.4, py: 0.7, borderRadius: "0.6rem",
-            fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap",
-            border: `1px solid ${started ? "rgba(134,239,172,0.4)" : "rgba(255,255,255,0.16)"}`,
-            background: started ? "rgba(134,239,172,0.1)" : "rgba(255,255,255,0.05)",
-            color: started ? GOOD : "rgba(255,255,255,0.82)",
+            flexShrink: 0,
+            px: 1.5,
+            py: 0.5,
+            borderRadius: `${RADIUS.pill}px`,
+            fontSize: TYPE.bodySmall.fontSize,
+            fontWeight: 600,
+            whiteSpace: "nowrap",
+            border: `1px solid ${LINE.strong}`,
+            background: "transparent",
+            color: TEXT.primary,
           }}
         >
           {started ? "Continue" : "Start"}

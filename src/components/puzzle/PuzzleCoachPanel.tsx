@@ -9,7 +9,6 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { motion } from "framer-motion";
 import { ArrowUp, RotateCcw, Target } from "lucide-react";
 import { Chess } from "chess.js";
 import {
@@ -19,7 +18,16 @@ import {
 import { HintStageRow } from "./HintStageRow";
 import { PuzzleDrillMenu } from "./PuzzleDrillMenu";
 import { Masti, MastiAvatar, type MastiMood } from "@/components/masti";
-import { SERIF_DISPLAY } from "@/theme/fonts";
+import {
+  ACCENT,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 import type {
   PuzzleContext,
   PuzzleOutcome,
@@ -30,7 +38,10 @@ import type {
   PuzzleHintResponse,
   TermMention,
 } from "@/lib/validation/puzzleHintSchemas";
-import { AI_DISABLED_ERROR, isAiDisabledPublic } from "@/lib/coach/aiAvailability";
+import {
+  AI_DISABLED_ERROR,
+  isAiDisabledPublic,
+} from "@/lib/coach/aiAvailability";
 
 /** Build-time flag; see lib/coach/aiAvailability. */
 const AI_DISABLED = isAiDisabledPublic();
@@ -57,8 +68,6 @@ const AI_DISABLED = isAiDisabledPublic();
  *     (handled by PuzzleCoachBubble).
  *   - Coach is NOT the general AI coach; scope ends when the puzzle ends.
  */
-
-const EASE_OUT_STRONG: [number, number, number, number] = [0.23, 1, 0.32, 1];
 
 interface ChatTurn {
   role: "user" | "coach";
@@ -540,14 +549,9 @@ export function PuzzleCoachPanel({
         flexDirection: "column",
         height: "100%",
         minHeight: 0,
-        borderRadius: "1.5rem",
-        background:
-          "linear-gradient(180deg, rgba(255,122,26,0.04), rgba(22,18,14,0.5))",
-        backdropFilter: "blur(16px) saturate(150%)",
-        WebkitBackdropFilter: "blur(16px) saturate(150%)",
-        border: "1px solid rgba(255,255,255,0.07)",
-        boxShadow:
-          "0 16px 48px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)",
+        borderRadius: `${RADIUS.card}px`,
+        background: SURFACE.raised,
+        border: `1px solid ${LINE.hairline}`,
         overflow: "hidden",
       }}
     >
@@ -556,7 +560,7 @@ export function PuzzleCoachPanel({
         sx={{
           px: 2.5,
           py: 2,
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          borderBottom: `1px solid ${LINE.hairline}`,
           display: "flex",
           alignItems: "center",
           gap: 1.5,
@@ -578,19 +582,24 @@ export function PuzzleCoachPanel({
             sx={{
               fontSize: "0.95rem",
               fontWeight: 700,
-              color: "rgba(255,240,224,0.96)",
+              color: TEXT.primary,
               lineHeight: 1.1,
             }}
             data-testid="puzzle-coach-title"
           >
             Masti
           </Typography>
+          {/* 13px meta on the old 17.28px line box (0.72rem x 1.5), and one
+              line: this header is part of the board's pixel budget on the
+              one-screen layout, so its height must not move. */}
           <Typography
+            noWrap
             sx={{
-              fontSize: "0.72rem",
-              color: "rgba(255,240,224,0.5)",
+              fontSize: TYPE.caption.fontSize,
+              lineHeight: "17.28px",
+              color: TEXT.secondary,
+              fontVariantNumeric: "tabular-nums",
               mt: 0.25,
-              fontFamily: "Monaco, Menlo, monospace",
             }}
           >
             #{puzzle.id}
@@ -612,12 +621,12 @@ export function PuzzleCoachPanel({
               gap: 0.6,
               px: 1.1,
               py: 0.35,
-              borderRadius: "999px",
-              background: "rgba(249,115,22,0.14)",
-              border: "1px solid rgba(249,115,22,0.38)",
-              color: "#FFD1A8",
+              borderRadius: `${RADIUS.small}px`,
+              background: ACCENT.tint,
+              border: `1px solid ${ACCENT.border}`,
+              color: ACCENT.hover,
               fontSize: "0.76rem",
-              fontWeight: 800,
+              fontWeight: 700,
               lineHeight: 1,
               whiteSpace: "nowrap",
               flexShrink: 0,
@@ -639,11 +648,8 @@ export function PuzzleCoachPanel({
             size="small"
             onClick={onResetPuzzle}
             sx={{
-              color: "rgba(255,240,224,0.55)",
-              "&:hover": {
-                color: "#FFD1A8",
-                background: "rgba(255,122,26,0.08)",
-              },
+              color: TEXT.secondary,
+              "&:hover": { color: TEXT.primary },
             }}
             aria-label="Reset puzzle"
           >
@@ -660,11 +666,9 @@ export function PuzzleCoachPanel({
           overflowY: "auto",
           px: 2.5,
           py: 2,
+          // Narrower than the baseline's 12px: this column sits in the
+          // one-screen layout. The thumb colour comes from the baseline.
           "&::-webkit-scrollbar": { width: 6 },
-          "&::-webkit-scrollbar-thumb": {
-            background: "rgba(255,122,26,0.18)",
-            borderRadius: 3,
-          },
         }}
       >
         {turns.length === 0 && outcome === "unattempted" && (
@@ -676,7 +680,7 @@ export function PuzzleCoachPanel({
               justifyContent: "center",
               height: "100%",
               minHeight: 200,
-              color: "rgba(255,240,224,0.45)",
+              color: TEXT.secondary,
               textAlign: "center",
               px: 2,
             }}
@@ -685,11 +689,8 @@ export function PuzzleCoachPanel({
             <Typography
               sx={{
                 mt: 2,
-                fontFamily: SERIF_DISPLAY,
-                fontSize: "1.28rem",
-                fontWeight: 500,
-                letterSpacing: "0.01em",
-                color: "rgba(255,240,224,0.92)",
+                ...TYPE.h3,
+                color: TEXT.primary,
               }}
             >
               Masti, your puzzle coach
@@ -699,11 +700,11 @@ export function PuzzleCoachPanel({
                 mt: 1,
                 fontSize: "0.82rem",
                 lineHeight: 1.5,
-                color: "rgba(255,240,224,0.45)",
+                color: TEXT.secondary,
                 maxWidth: 280,
               }}
             >
-              I&apos;ll explain the reasoning the moment you solve it — or get
+              I&apos;ll explain the reasoning the moment you solve it, or get
               stuck. Ask me anything about this position.
             </Typography>
           </Box>
@@ -750,49 +751,22 @@ export function PuzzleCoachPanel({
               onPick={onPickDrillPuzzle}
             />
           ) : onRequestMorePuzzles ? (
-            <motion.div
-              initial={{ opacity: 0, transform: "translateY(8px)" }}
-              animate={{ opacity: 1, transform: "translateY(0px)" }}
-              transition={{
-                duration: 0.3,
-                delay: 0.25,
-                ease: EASE_OUT_STRONG,
-              }}
-            >
-              <Box sx={{ mt: 1.5, pl: 4.5 }}>
-                <Button
-                  onClick={onRequestMorePuzzles}
-                  startIcon={<Target size={15} />}
-                  sx={{
-                    px: 2.25,
-                    py: 1,
-                    borderRadius: "999px",
-                    background:
-                      "linear-gradient(135deg, rgba(255,122,26,0.18), rgba(255,140,66,0.08))",
-                    border: "1px solid rgba(255,122,26,0.4)",
-                    color: "#FFD1A8",
-                    fontWeight: 600,
-                    fontSize: "0.85rem",
-                    textTransform: "none",
-                    "&:hover": {
-                      background:
-                        "linear-gradient(135deg, rgba(255,122,26,0.28), rgba(255,140,66,0.14))",
-                      borderColor: "rgba(255,122,26,0.6)",
-                      boxShadow: "0 0 0 4px rgba(255,122,26,0.08)",
-                    },
-                    transition: "all 200ms cubic-bezier(0.23, 1, 0.32, 1)",
-                  }}
-                >
-                  Drill 3 more like this
-                </Button>
-              </Box>
-            </motion.div>
+            <Box sx={{ mt: 1.5, pl: 4.5 }}>
+              <Button
+                onClick={onRequestMorePuzzles}
+                variant="outlined"
+                size="small"
+                startIcon={<Target size={15} strokeWidth={1.75} />}
+              >
+                Drill 3 more like this
+              </Button>
+            </Box>
           ) : null)}
 
         {error && (
           <Typography
             sx={{
-              color: "#fca5a5",
+              color: STATUS.error,
               fontSize: "0.78rem",
               mt: 1.5,
               px: 1,
@@ -806,8 +780,7 @@ export function PuzzleCoachPanel({
       {/* Suggestion chips + input — sticky at the bottom of the panel */}
       <Box
         sx={{
-          borderTop: "1px solid rgba(255,255,255,0.06)",
-          background: "rgba(10,9,7,0.4)",
+          borderTop: `1px solid ${LINE.hairline}`,
           px: 2,
           pt: 1.5,
           pb: 1.75,
@@ -834,18 +807,23 @@ export function PuzzleCoachPanel({
                 sx={{
                   px: 1.25,
                   py: 0.5,
-                  borderRadius: "999px",
-                  background: "rgba(22,18,14,0.7)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  color: "rgba(255,240,224,0.7)",
+                  borderRadius: `${RADIUS.pill}px`,
+                  background: SURFACE.raisedSecondary,
+                  border: `1px solid ${LINE.hairline}`,
+                  color: TEXT.secondary,
                   fontSize: "0.75rem",
                   fontWeight: 500,
                   cursor: streaming ? "default" : "pointer",
-                  transition: "all 160ms ease",
+                  transition: `color ${MOTION.hover}, border-color ${MOTION.hover}, background-color ${MOTION.hover}, transform ${MOTION.press}`,
                   "&:hover:not(:disabled)": {
-                    borderColor: "rgba(255,122,26,0.4)",
-                    color: "#FFD1A8",
-                    background: "rgba(255,122,26,0.06)",
+                    borderColor: LINE.strong,
+                    color: TEXT.primary,
+                    background: "rgba(255,255,255,0.06)",
+                  },
+                  "&:active:not(:disabled)": { transform: MOTION.pressScale },
+                  "&:focus-visible": {
+                    outline: `2px solid ${TEXT.primary}`,
+                    outlineOffset: 2,
                   },
                   "&:disabled": { opacity: 0.5 },
                 }}
@@ -861,14 +839,14 @@ export function PuzzleCoachPanel({
             display: "flex",
             alignItems: "flex-end",
             gap: 1,
-            borderRadius: "0.9rem",
-            background: "rgba(22,18,14,0.7)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: `${RADIUS.control}px`,
+            background: "rgba(255,255,255,0.06)",
+            border: `1px solid ${LINE.hairline}`,
             px: 1.25,
             py: 0.5,
-            transition: "border-color 200ms ease",
+            transition: `border-color ${MOTION.hover}`,
             "&:focus-within": {
-              borderColor: "rgba(255,122,26,0.4)",
+              borderColor: ACCENT.main,
             },
           }}
         >
@@ -878,16 +856,16 @@ export function PuzzleCoachPanel({
                 mb: 1.5,
                 px: 1.5,
                 py: 1,
-                borderRadius: "10px",
-                border: "1px solid rgba(249,115,22,0.28)",
-                background: "rgba(249,115,22,0.08)",
+                borderRadius: `${RADIUS.control}px`,
+                border: `1px solid ${LINE.hairline}`,
+                background: STATUS.warningTint,
                 fontSize: "0.78rem",
                 lineHeight: 1.5,
-                color: "rgba(255,255,255,0.75)",
+                color: TEXT.primary,
               }}
             >
-              <Box component="span" sx={{ color: "#FB923C", fontWeight: 600 }}>
-                AI coaching is paused.
+              <Box component="span" sx={{ fontWeight: 600 }}>
+                Masti is paused.
               </Box>{" "}
               {AI_DISABLED_ERROR.message}
             </Box>
@@ -903,7 +881,7 @@ export function PuzzleCoachPanel({
             }}
             placeholder={
               AI_DISABLED
-                ? "AI coaching is paused."
+                ? "Masti is paused."
                 : outcome === "unattempted"
                   ? "Ask for a hint…"
                   : "Ask about this puzzle…"
@@ -917,10 +895,10 @@ export function PuzzleCoachPanel({
               disableUnderline: true,
               sx: {
                 fontSize: "0.9rem",
-                color: "rgba(255,240,224,0.94)",
+                color: TEXT.primary,
                 py: 0.5,
                 "& textarea::placeholder": {
-                  color: "rgba(255,240,224,0.4)",
+                  color: TEXT.tertiary,
                   opacity: 1,
                 },
               },
@@ -930,24 +908,23 @@ export function PuzzleCoachPanel({
             onClick={handleSend}
             disabled={AI_DISABLED || streaming || !input.trim()}
             size="small"
+            // Enabled only with text in the box (see `disabled`), so the
+            // enabled state is always the solid send; empty is the tinted
+            // disabled state below.
             sx={{
               flexShrink: 0,
               width: 32,
               height: 32,
-              background: input.trim()
-                ? "linear-gradient(135deg, #FF7A1A, #FB923C)"
-                : "rgba(255,122,26,0.12)",
-              color: input.trim() ? "#0A0907" : "rgba(255,122,26,0.5)",
+              background: ACCENT.main,
+              color: TEXT.onAccent,
               "&:hover": {
-                background: input.trim()
-                  ? "linear-gradient(135deg, #FB923C, #FBBF24)"
-                  : "rgba(255,122,26,0.18)",
+                background: ACCENT.hover,
               },
               "&:disabled": {
-                background: "rgba(255,122,26,0.08)",
-                color: "rgba(255,122,26,0.3)",
+                background: ACCENT.tint,
+                color: TEXT.tertiary,
               },
-              transition: "all 160ms ease",
+              transition: `background-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
             }}
             aria-label="Send"
           >

@@ -13,6 +13,7 @@ import { useEffect } from "react";
 import { isInViewport } from "@/lib/helpers";
 import { CLASSIFICATION_COLORS } from "@/constants";
 import PrettyMoveSan from "@/components/prettyMoveSan";
+import { MOTION, RADIUS, TYPE } from "@/theme/tokens";
 
 interface Props {
   san: string;
@@ -70,9 +71,11 @@ export default function MoveItem({
 
     // Optionally scroll to coach tab or show notification
     console.log(
-      `📊 Requesting analysis for move ${moveNumber}${isBlackMove ? "..." : "."} ${san}`
+      `Requesting analysis for move ${moveNumber}${isBlackMove ? "..." : "."} ${san}`
     );
   };
+
+  const moveLabel = `${Math.floor(moveIdx / 2) + 1}${moveIdx % 2 === 1 ? "..." : "."} ${san}`;
 
   return (
     <Grid
@@ -87,30 +90,24 @@ export default function MoveItem({
       paddingY={0.5}
       sx={(theme) => ({
         cursor: isCurrentMove ? undefined : "pointer",
-        backgroundColor:
-          isCurrentMove && theme.palette.mode === "dark"
-            ? "#4f4f4f"
-            : undefined,
-        border:
-          isCurrentMove && theme.palette.mode === "light"
-            ? "1px solid #424242"
-            : undefined,
-        borderRadius: 1,
+        backgroundColor: isCurrentMove
+          ? theme.palette.action.selected
+          : undefined,
+        borderRadius: `${RADIUS.small}px`,
+        transition: `background-color ${MOTION.hover}`,
         "&:hover": {
           backgroundColor: isCurrentMove
             ? undefined
-            : theme.palette.mode === "dark"
-              ? "rgba(255, 255, 255, 0.05)"
-              : "rgba(0, 0, 0, 0.05)",
+            : theme.palette.action.hover,
         },
       })}
       id={`move-${moveIdx}`}
-      title={`Left-click to navigate | Right-click to analyze move ${Math.floor(moveIdx / 2) + 1}${moveIdx % 2 === 1 ? "..." : "."} ${san}`}
+      title={`Go to ${moveLabel}. Right-click to ask Masti about it.`}
     >
       {color && (
         <Image
           src={`/icons/${moveClassification}.png`}
-          alt="move-icon"
+          alt={moveClassification ?? ""}
           width={14}
           height={14}
           style={{
@@ -123,7 +120,7 @@ export default function MoveItem({
       <PrettyMoveSan
         san={san}
         color={moveColor}
-        typographyProps={{ fontSize: "0.9rem" }}
+        typographyProps={{ fontSize: TYPE.bodySmall.fontSize }}
       />
     </Grid>
   );

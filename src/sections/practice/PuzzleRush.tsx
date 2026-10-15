@@ -18,9 +18,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { puzzleSolvedStatusAtom } from "./states";
 import { useScreenSize } from "@/hooks/useScreenSize";
 import { pieceSetAtom } from "@/components/board/states";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
-import BoltIcon from "@mui/icons-material/Bolt";
-import FavoriteIcon from "@mui/icons-material/Favorite";
+import { Heart, Trophy, Zap } from "lucide-react";
 import type { DifficultyBand } from "@/types/puzzles";
 import type { ChessPuzzle } from "@/lib/chessPuzzlesService";
 import {
@@ -37,13 +35,46 @@ import {
   type LeaderboardStanding,
 } from "./RushLeaderboard";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  ACCENT,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+} from "@/theme/tokens";
 
 type RushMode = "three" | "five" | "survival";
 
-const RUSH_MODES: { value: RushMode; label: string; description: string; timeSeconds: number; lives: number }[] = [
-  { value: "three", label: "3 Min Rush", description: "Solve as many as you can in 3 minutes", timeSeconds: 180, lives: Infinity },
-  { value: "five", label: "5 Min Rush", description: "Solve as many as you can in 5 minutes", timeSeconds: 300, lives: Infinity },
-  { value: "survival", label: "Survival", description: "3 lives — one wrong answer costs a life", timeSeconds: Infinity, lives: 3 },
+const RUSH_MODES: {
+  value: RushMode;
+  label: string;
+  description: string;
+  timeSeconds: number;
+  lives: number;
+}[] = [
+  {
+    value: "three",
+    label: "3 min rush",
+    description: "Solve as many as you can in 3 minutes",
+    timeSeconds: 180,
+    lives: Infinity,
+  },
+  {
+    value: "five",
+    label: "5 min rush",
+    description: "Solve as many as you can in 5 minutes",
+    timeSeconds: 300,
+    lives: Infinity,
+  },
+  {
+    value: "survival",
+    label: "Survival",
+    description: "3 lives: one wrong answer costs a life",
+    timeSeconds: Infinity,
+    lives: 3,
+  },
 ];
 
 // Delay before auto-advancing after solved/wrong, so the user gets a
@@ -96,7 +127,11 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
   // rush modes.
   useEffect(() => {
     if (!user) return;
-    if (rushScores.threeMin === 0 && rushScores.fiveMin === 0 && rushScores.survivalBest === 0) {
+    if (
+      rushScores.threeMin === 0 &&
+      rushScores.fiveMin === 0 &&
+      rushScores.survivalBest === 0
+    ) {
       return;
     }
     const field =
@@ -113,22 +148,20 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
       body: JSON.stringify({ rush: rushScores, mode: field }),
     })
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then(
-        (data: LeaderboardSeed & LeaderboardStanding) => {
-          if (cancelled) return;
-          // The board as it stands AFTER this write — the only read
-          // guaranteed to show a just-set personal best, since the public GET
-          // is served from a per-instance cache that may predate it.
-          if (Array.isArray(data?.entries)) {
-            setBoardSeed({ mode: data.mode, entries: data.entries });
-          }
-          setStanding({
-            ranks: data?.ranks ?? null,
-            scores: data?.scores ?? null,
-            handle: data?.handle ?? null,
-          });
+      .then((data: LeaderboardSeed & LeaderboardStanding) => {
+        if (cancelled) return;
+        // The board as it stands AFTER this write — the only read
+        // guaranteed to show a just-set personal best, since the public GET
+        // is served from a per-instance cache that may predate it.
+        if (Array.isArray(data?.entries)) {
+          setBoardSeed({ mode: data.mode, entries: data.entries });
         }
-      )
+        setStanding({
+          ranks: data?.ranks ?? null,
+          scores: data?.scores ?? null,
+          handle: data?.handle ?? null,
+        });
+      })
       .catch(() => {});
     return () => {
       cancelled = true;
@@ -178,7 +211,9 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
   // Fetch puzzles for the rush
   const fetchPuzzles = useCallback(async () => {
     try {
-      const solvedIds = Object.keys(solvedStatus).filter((id) => solvedStatus[id]);
+      const solvedIds = Object.keys(solvedStatus).filter(
+        (id) => solvedStatus[id]
+      );
       const body: Record<string, unknown> = {
         command: "random",
         limit: 100,
@@ -248,10 +283,10 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
           timeMs,
           theme: currentPuzzle.themes?.[0] || "unknown",
           timestamp: Date.now(),
-        }),
+        })
       );
     },
-    [currentPuzzle, setGlobalStats],
+    [currentPuzzle, setGlobalStats]
   );
 
   const handleSolved = useCallback(
@@ -263,7 +298,7 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
         setTimeout(advanceToNext, ADVANCE_DELAY_AFTER_SOLVED_MS);
       }
     },
-    [recordSolve, advanceToNext],
+    [recordSolve, advanceToNext]
   );
 
   const handleWrong = useCallback(
@@ -274,7 +309,10 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
         setLives((prev) => {
           const newLives = prev - 1;
           if (newLives <= 0) {
-            setTimeout(() => setPhase("finished"), FINISH_DELAY_AFTER_LIVES_OUT_MS);
+            setTimeout(
+              () => setPhase("finished"),
+              FINISH_DELAY_AFTER_LIVES_OUT_MS
+            );
           }
           return newLives;
         });
@@ -286,7 +324,7 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
         }, ADVANCE_DELAY_AFTER_WRONG_MS);
       }
     },
-    [mode, recordSolve, advanceToNext, phase],
+    [mode, recordSolve, advanceToNext, phase]
   );
 
   // Pass the puzzle to the hook only while we're in the playing phase.
@@ -318,7 +356,9 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
       // already closed, stranding the player on an empty board in the
       // "finished" phase with nothing to click. Say so, and stay somewhere
       // they can act.
-      setStartError("Couldn't load puzzles just now. Check your connection and try again.");
+      setStartError(
+        "Couldn't load puzzles just now. Check your connection and try again."
+      );
       setPhase("setup");
       return;
     }
@@ -326,7 +366,9 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
     setPuzzleIndex(0);
     setScore(0);
     setLives(modeConfig.lives === Infinity ? 3 : modeConfig.lives);
-    setTimeLeft(modeConfig.timeSeconds === Infinity ? 0 : modeConfig.timeSeconds);
+    setTimeLeft(
+      modeConfig.timeSeconds === Infinity ? 0 : modeConfig.timeSeconds
+    );
     setPhase("playing");
     setShowFinishDialog(false);
     setIsNewHighScore(false);
@@ -370,7 +412,11 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
     if (phase !== "finished") return;
     let newHigh = false;
     const key: keyof PuzzleRushScores =
-      mode === "three" ? "threeMin" : mode === "five" ? "fiveMin" : "survivalBest";
+      mode === "three"
+        ? "threeMin"
+        : mode === "five"
+          ? "fiveMin"
+          : "survivalBest";
     if (score > rushScores[key]) {
       setRushScores((prev) => ({ ...prev, [key]: score }));
       newHigh = true;
@@ -390,179 +436,143 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
   if (phase === "setup") {
     return (
       <>
-      <Paper
-        sx={{
-          p: 4,
-          maxWidth: 600,
-          mx: "auto",
-          borderRadius: "1.5rem",
-          background: "rgba(20,22,28,0.55)",
-          backdropFilter: "blur(14px) saturate(140%)",
-          WebkitBackdropFilter: "blur(14px) saturate(140%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow:
-            "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
-          overflow: "hidden",
-        }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-          <BoltIcon sx={{ color: "#FB923C", fontSize: 32 }} />
-          <Typography variant="h5" sx={{ fontWeight: 700, color: "rgba(255,255,255,0.94)" }}>
-            Puzzle Rush
+        <Paper
+          sx={{
+            p: 4,
+            maxWidth: 600,
+            mx: "auto",
+            borderRadius: `${RADIUS.card}px`,
+            background: SURFACE.raised,
+            border: `1px solid ${LINE.hairline}`,
+            overflow: "hidden",
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+            <Zap
+              size={20}
+              strokeWidth={1.75}
+              color={TEXT.secondary}
+              aria-hidden
+            />
+            <Typography variant="h5" sx={{ color: TEXT.primary }}>
+              Puzzle rush
+            </Typography>
+          </Box>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Solve as many puzzles as you can. Wrong answers skip to the next
+            puzzle. In Survival mode you get 3 lives.
           </Typography>
-        </Box>
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Solve as many puzzles as you can! Wrong answers skip to the next puzzle.
-          In Survival mode, you only get 3 lives.
-        </Typography>
-
-        {/* Mode selection */}
-        <Box sx={{ display: "flex", gap: 1.5, mb: 3, flexWrap: "wrap" }}>
-          {RUSH_MODES.map((m) => (
-            <Paper
-              key={m.value}
-              onClick={() => setMode(m.value)}
-              sx={{
-                p: 2,
-                flex: 1,
-                minWidth: 140,
-                cursor: "pointer",
-                borderRadius: "1rem",
-                border:
-                  mode === m.value
-                    ? "1px solid rgba(249,115,22,0.4)"
-                    : "1px solid rgba(255,255,255,0.08)",
-                background:
-                  mode === m.value
-                    ? "rgba(249,115,22,0.18)"
-                    : "rgba(255,255,255,0.04)",
-                boxShadow:
-                  mode === m.value
-                    ? "0 0 0 1px rgba(249,115,22,0.18)"
-                    : "none",
-                transition: "all 180ms ease",
-                "&:hover": { borderColor: "rgba(249,115,22,0.4)" },
-              }}
-            >
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "rgba(255,255,255,0.94)" }}>
-                {m.label}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {m.description}
-              </Typography>
-              {rushScores[m.value === "three" ? "threeMin" : m.value === "five" ? "fiveMin" : "survivalBest"] > 0 && (
-                <Chip
-                  icon={<EmojiEventsIcon sx={{ fontSize: 14 }} />}
-                  label={`Best: ${rushScores[m.value === "three" ? "threeMin" : m.value === "five" ? "fiveMin" : "survivalBest"]}`}
-                  size="small"
-                  sx={{ mt: 1, bgcolor: "rgba(255,193,7,0.15)", color: "warning.light" }}
-                />
-              )}
-            </Paper>
-          ))}
-        </Box>
-
-        {/* Difficulty */}
-        <FormControl size="small" sx={{ mb: 3, minWidth: 200 }}>
-          <InputLabel
-            sx={{
-              color: "rgba(255,255,255,0.55)",
-              "&.Mui-focused": { color: "#FB923C" },
-            }}
-          >
-            Difficulty
-          </InputLabel>
-          <Select
-            value={difficulty}
-            label="Difficulty"
-            onChange={(e) => setDifficulty(e.target.value as DifficultyBand | "all")}
-            sx={{
-              background: "rgba(255,255,255,0.03)",
-              color: "rgba(255,255,255,0.7)",
-              "& .MuiOutlinedInput-notchedOutline": {
-                borderColor: "rgba(255,255,255,0.1)",
-              },
-              "&:hover .MuiOutlinedInput-notchedOutline": {
-                borderColor: "rgba(255,255,255,0.2)",
-              },
-              "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                borderColor: "#F97316",
-              },
-              "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.55)" },
-            }}
-            MenuProps={{
-              slotProps: {
-                paper: {
-                  sx: {
-                    background: "rgba(20,22,28,0.92)",
-                    backdropFilter: "blur(14px) saturate(140%)",
-                    WebkitBackdropFilter: "blur(14px) saturate(140%)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: "12px",
-                    color: "rgba(255,255,255,0.85)",
+          {/* Mode selection */}
+          <Box sx={{ display: "flex", gap: 1.5, mb: 3, flexWrap: "wrap" }}>
+            {RUSH_MODES.map((m) => (
+              <Paper
+                key={m.value}
+                component="button"
+                type="button"
+                aria-pressed={mode === m.value}
+                onClick={() => setMode(m.value)}
+                sx={{
+                  p: 2,
+                  flex: 1,
+                  minWidth: 140,
+                  textAlign: "left",
+                  font: "inherit",
+                  color: "inherit",
+                  cursor: "pointer",
+                  borderRadius: `${RADIUS.control}px`,
+                  border: `1px solid ${mode === m.value ? ACCENT.border : LINE.hairline}`,
+                  background:
+                    mode === m.value ? ACCENT.tint : SURFACE.raisedSecondary,
+                  touchAction: "manipulation",
+                  WebkitTapHighlightColor: "transparent",
+                  transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
+                  "&:hover": {
+                    borderColor: mode === m.value ? ACCENT.border : LINE.strong,
                   },
-                },
-              },
-            }}
-          >
-            <MenuItem value="all">All Levels</MenuItem>
-            <MenuItem value="beginner">Beginner (0-1200)</MenuItem>
-            <MenuItem value="intermediate">Intermediate (1201-1600)</MenuItem>
-            <MenuItem value="advanced">Advanced (1601-2000)</MenuItem>
-            <MenuItem value="expert">Expert (2001+)</MenuItem>
-          </Select>
-        </FormControl>
+                  "&:active": { background: SURFACE.raisedTertiary },
+                  "&:focus-visible": {
+                    outline: "2px solid #FFFFFF",
+                    outlineOffset: 2,
+                  },
+                }}
+              >
+                <Typography
+                  variant="subtitle2"
+                  component="span"
+                  sx={{ display: "block", color: TEXT.primary }}
+                >
+                  {m.label}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: "block" }}
+                >
+                  {m.description}
+                </Typography>
+                {rushScores[
+                  m.value === "three"
+                    ? "threeMin"
+                    : m.value === "five"
+                      ? "fiveMin"
+                      : "survivalBest"
+                ] > 0 && (
+                  <Chip
+                    icon={<Trophy size={16} strokeWidth={1.75} aria-hidden />}
+                    label={`Best: ${rushScores[m.value === "three" ? "threeMin" : m.value === "five" ? "fiveMin" : "survivalBest"]}`}
+                    size="small"
+                    sx={{ mt: 1 }}
+                  />
+                )}
+              </Paper>
+            ))}
+          </Box>
 
-        <Box sx={{ display: "flex", gap: 2 }}>
-          <Button
-            variant="outlined"
-            onClick={onBack}
-            sx={{
-              textTransform: "none",
-              color: "rgba(255,255,255,0.85)",
-              borderColor: "rgba(255,255,255,0.18)",
-              background: "rgba(255,255,255,0.04)",
-              "&:hover": {
-                borderColor: "rgba(249,115,22,0.4)",
-                color: "#FB923C",
-                background: "rgba(249,115,22,0.12)",
-              },
-            }}
-          >
-            Back
-          </Button>
-          <Button
-            variant="contained"
-            size="large"
-            onClick={handleStart}
-            disabled={starting}
-            startIcon={<BoltIcon />}
-            sx={{
-              px: 4,
-              fontWeight: 700,
-              textTransform: "none",
-              borderRadius: "999px",
-              bgcolor: "#F97316",
-              color: "#0A0A0A",
-              boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
-              "&:hover": { bgcolor: "#FB923C" },
-            }}
-          >
-            {starting ? "Loading\u2026" : "Start Rush"}
-          </Button>
-        </Box>
-        {startError && (
-          <Typography
-            role="alert"
-            variant="body2"
-            sx={{ mt: 2, color: "#FCA5A5", textAlign: "center" }}
-          >
-            {startError}
-          </Typography>
-        )}
-      </Paper>
-      <RushLeaderboard mode={mode} seed={boardSeed} standing={standing} />
+          {/* Difficulty */}
+          <FormControl size="small" sx={{ mb: 3, minWidth: 200 }}>
+            <InputLabel>Difficulty</InputLabel>
+            <Select
+              value={difficulty}
+              label="Difficulty"
+              onChange={(e) =>
+                setDifficulty(e.target.value as DifficultyBand | "all")
+              }
+            >
+              <MenuItem value="all">All levels</MenuItem>
+              <MenuItem value="beginner">Beginner (0-1200)</MenuItem>
+              <MenuItem value="intermediate">Intermediate (1201-1600)</MenuItem>
+              <MenuItem value="advanced">Advanced (1601-2000)</MenuItem>
+              <MenuItem value="expert">Expert (2001+)</MenuItem>
+            </Select>
+          </FormControl>
+
+          <Box sx={{ display: "flex", gap: 2 }}>
+            <Button variant="outlined" onClick={onBack}>
+              Back
+            </Button>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={handleStart}
+              disabled={starting}
+              startIcon={<Zap size={18} strokeWidth={1.75} aria-hidden />}
+            >
+              {starting ? "Loading\u2026" : "Start rush"}
+            </Button>
+          </Box>
+          {startError && (
+            <Typography
+              role="alert"
+              variant="body2"
+              sx={{ mt: 2, color: STATUS.error, textAlign: "center" }}
+            >
+              {startError}
+            </Typography>
+          )}
+        </Paper>
+        <RushLeaderboard mode={mode} seed={boardSeed} standing={standing} />
       </>
     );
   }
@@ -581,19 +591,20 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
           justifyContent: "space-between",
           flexWrap: "wrap",
           gap: 1,
-          borderRadius: "1rem",
-          background: "rgba(20,22,28,0.55)",
-          backdropFilter: "blur(14px) saturate(140%)",
-          WebkitBackdropFilter: "blur(14px) saturate(140%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow:
-            "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+          borderRadius: `${RADIUS.card}px`,
+          background: SURFACE.raised,
+          border: `1px solid ${LINE.hairline}`,
           overflow: "hidden",
-          color: "rgba(255,255,255,0.94)",
+          color: TEXT.primary,
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <BoltIcon sx={{ color: "#FB923C" }} />
+          <Zap
+            size={20}
+            strokeWidth={1.75}
+            color={TEXT.secondary}
+            aria-hidden
+          />
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
             {modeConfig.label}
           </Typography>
@@ -602,24 +613,35 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
         <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
           {/* Score */}
           <Box sx={{ textAlign: "center" }}>
-            <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>Score</Typography>
-            <Typography variant="h5" sx={{ fontWeight: 700, color: "success.light", lineHeight: 1, fontFamily: "Monaco, monospace" }}>
+            <Typography variant="caption" sx={{ color: TEXT.secondary }}>
+              Score
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{
+                color: STATUS.success,
+                lineHeight: 1,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
               {score}
             </Typography>
           </Box>
 
           {/* Timer */}
           <Box sx={{ textAlign: "center" }}>
-            <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.55)" }}>
-              {modeConfig.timeSeconds === Infinity ? "Time" : "Time Left"}
+            <Typography variant="caption" sx={{ color: TEXT.secondary }}>
+              {modeConfig.timeSeconds === Infinity ? "Time" : "Time left"}
             </Typography>
             <Typography
               variant="h5"
               sx={{
-                fontWeight: 700,
                 lineHeight: 1,
-                fontFamily: "monospace",
-                color: modeConfig.timeSeconds !== Infinity && timeLeft <= 30 ? "error.light" : "rgba(255,255,255,0.94)",
+                fontVariantNumeric: "tabular-nums",
+                color:
+                  modeConfig.timeSeconds !== Infinity && timeLeft <= 30
+                    ? STATUS.error
+                    : TEXT.primary,
               }}
             >
               {formatTimer(timeLeft)}
@@ -628,31 +650,35 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
 
           {/* Lives (survival only) */}
           {mode === "survival" && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Box
+              role="img"
+              aria-label={`${lives} of 3 lives left`}
+              sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+            >
               {[...Array(3)].map((_, i) => (
-                <FavoriteIcon
+                <Box
                   key={i}
+                  component="span"
                   sx={{
-                    fontSize: 22,
-                    color: i < lives ? "error.main" : "rgba(255,255,255,0.14)",
-                    transition: "color 0.3s",
+                    display: "inline-flex",
+                    color: i < lives ? STATUS.error : LINE.strong,
+                    transition: `color ${MOTION.hover}`,
                   }}
-                />
+                >
+                  <Heart
+                    size={22}
+                    strokeWidth={1.75}
+                    fill="currentColor"
+                    aria-hidden
+                  />
+                </Box>
               ))}
             </Box>
           )}
 
           {/* Puzzle rating */}
           {currentPuzzle && (
-            <Chip
-              label={`Rating: ${currentPuzzle.rating}`}
-              size="small"
-              sx={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "rgba(255,255,255,0.85)",
-              }}
-            />
+            <Chip label={`Rating: ${currentPuzzle.rating}`} size="small" />
           )}
         </Box>
 
@@ -663,19 +689,8 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
             if (timerRef.current) clearInterval(timerRef.current);
             setPhase("finished");
           }}
-          sx={{
-            color: "rgba(255,255,255,0.85)",
-            borderColor: "rgba(255,255,255,0.18)",
-            background: "rgba(255,255,255,0.04)",
-            "&:hover": {
-              borderColor: "rgba(249,115,22,0.4)",
-              color: "#FB923C",
-              background: "rgba(249,115,22,0.12)",
-            },
-            textTransform: "none",
-          }}
         >
-          End Rush
+          End rush
         </Button>
       </Paper>
 
@@ -688,9 +703,13 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
             mb: 2,
             height: 6,
             borderRadius: 3,
-            bgcolor: "rgba(255,255,255,0.08)",
             "& .MuiLinearProgress-bar": {
-              bgcolor: timeLeft <= 30 ? "error.main" : timeLeft <= 60 ? "warning.main" : "success.main",
+              bgcolor:
+                timeLeft <= 30
+                  ? STATUS.error
+                  : timeLeft <= 60
+                    ? STATUS.warning
+                    : STATUS.success,
               transition: "transform 1s linear",
             },
           }}
@@ -706,14 +725,15 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
               mb: 1,
               px: 1.5,
               py: 0.75,
-              borderRadius: "12px",
-              bgcolor: board.puzzleError
-                ? "warning.dark"
+              borderRadius: `${RADIUS.control}px`,
+              border: `1px solid ${LINE.hairline}`,
+              background: board.puzzleError
+                ? STATUS.warningTint
                 : board.status === "solved"
-                  ? "success.dark"
+                  ? STATUS.successTint
                   : board.status === "wrong"
-                    ? "error.dark"
-                    : "rgba(255,255,255,0.06)",
+                    ? STATUS.errorTint
+                    : SURFACE.raisedSecondary,
               display: "flex",
               alignItems: "center",
               gap: 1,
@@ -727,31 +747,23 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
                   borderRadius: "50%",
                   bgcolor: board.game.turn() === "w" ? "#fff" : "#1a1a1a",
                   border: "2px solid",
-                  borderColor: "rgba(255,255,255,0.3)",
+                  borderColor: LINE.strong,
                   flexShrink: 0,
                 }}
               />
             )}
             <Typography
               variant="body2"
-              sx={{
-                fontWeight: 600,
-                color:
-                  board.status === "solved" ||
-                  board.status === "wrong" ||
-                  board.puzzleError
-                    ? "#fff"
-                    : "rgba(255,255,255,0.85)",
-              }}
+              sx={{ fontWeight: 600, color: TEXT.primary }}
             >
               {board.puzzleError
-                ? "Bad puzzle data — skipping…"
+                ? "This puzzle didn't load. Skipping to the next one."
                 : board.status === "loading"
-                  ? "Loading..."
+                  ? "Loading…"
                   : board.status === "solved"
-                    ? "Correct! Next puzzle..."
+                    ? "Correct. Next puzzle…"
                     : board.status === "wrong"
-                      ? "Wrong! Skipping..."
+                      ? "Wrong. Skipping…"
                       : board.game.turn() === "w"
                         ? "White to move"
                         : "Black to move"}
@@ -781,36 +793,28 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
       </Box>
 
       {/* Finish Dialog */}
-      <Dialog
-        open={showFinishDialog}
-        maxWidth="xs"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: "1.5rem",
-            background: "rgba(20,22,28,0.92)",
-            backdropFilter: "blur(16px) saturate(160%)",
-            WebkitBackdropFilter: "blur(16px) saturate(160%)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          },
-        }}
-        slotProps={{
-          backdrop: {
-            sx: {
-              backgroundColor: "rgba(0,0,0,0.6)",
-              backdropFilter: "blur(2px)",
-            },
-          },
-        }}
-      >
+      <Dialog open={showFinishDialog} maxWidth="xs" fullWidth>
         <DialogContent sx={{ textAlign: "center", py: 4 }}>
           {isNewHighScore && (
-            <EmojiEventsIcon sx={{ fontSize: 48, color: "warning.main", mb: 1 }} />
+            <Trophy
+              size={48}
+              strokeWidth={1.75}
+              color={STATUS.warning}
+              aria-hidden
+              style={{ marginBottom: 8 }}
+            />
           )}
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: "rgba(255,255,255,0.94)" }}>
-            {isNewHighScore ? "New High Score!" : "Rush Complete!"}
+          <Typography variant="h4" sx={{ mb: 1, color: TEXT.primary }}>
+            {isNewHighScore ? "New high score" : "Rush complete"}
           </Typography>
-          <Typography variant="h2" sx={{ fontWeight: 800, color: "success.light", mb: 2 }}>
+          <Typography
+            variant="h2"
+            sx={{
+              color: STATUS.success,
+              mb: 2,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
             {score}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
@@ -821,8 +825,11 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
               Time: {formatTimer(timeLeft)}
             </Typography>
           )}
-          <Typography variant="body2" sx={{ mt: 2, color: "rgba(255,255,255,0.55)" }}>
-            Your puzzle rating: <strong style={{ color: "rgba(255,255,255,0.9)" }}>{globalStats.rating}</strong>
+          <Typography variant="body2" sx={{ mt: 2, color: TEXT.secondary }}>
+            Your puzzle rating:{" "}
+            <strong style={{ color: TEXT.primary }}>
+              {globalStats.rating}
+            </strong>
           </Typography>
         </DialogContent>
         <DialogActions sx={{ justifyContent: "center", pb: 3, gap: 1 }}>
@@ -832,19 +839,8 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
               setPhase("setup");
               setShowFinishDialog(false);
             }}
-            sx={{
-              textTransform: "none",
-              color: "rgba(255,255,255,0.85)",
-              borderColor: "rgba(255,255,255,0.18)",
-              background: "rgba(255,255,255,0.04)",
-              "&:hover": {
-                borderColor: "rgba(249,115,22,0.4)",
-                color: "#FB923C",
-                background: "rgba(249,115,22,0.12)",
-              },
-            }}
           >
-            Back to Setup
+            Back to setup
           </Button>
           <Button
             variant="contained"
@@ -852,18 +848,9 @@ export default function PuzzleRush({ onBack }: PuzzleRushProps) {
               setShowFinishDialog(false);
               handleStart();
             }}
-            startIcon={<BoltIcon />}
-            sx={{
-              textTransform: "none",
-              fontWeight: 700,
-              borderRadius: "999px",
-              bgcolor: "#F97316",
-              color: "#0A0A0A",
-              boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
-              "&:hover": { bgcolor: "#FB923C" },
-            }}
+            startIcon={<Zap size={18} strokeWidth={1.75} aria-hidden />}
           >
-            Play Again
+            Play again
           </Button>
         </DialogActions>
       </Dialog>

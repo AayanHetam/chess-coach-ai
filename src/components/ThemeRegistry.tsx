@@ -2,26 +2,13 @@
 
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
-import { createTheme } from "@mui/material/styles";
-import { Inter } from "next/font/google";
+import { buildChessMastiTheme } from "@/theme/chessMasti";
+import { MotionConfig } from "framer-motion";
 
-const inter = Inter({ subsets: ["latin"] });
-
-// Create a theme instance
-const theme = createTheme({
-  palette: {
-    mode: "light",
-    primary: {
-      main: "#1976d2",
-    },
-    secondary: {
-      main: "#dc004e",
-    },
-  },
-  typography: {
-    fontFamily: inter.style.fontFamily,
-  },
-});
+// The App Router tree is the content pages (SEO landings, legal, internship).
+// They read best on white, so this is the site theme in its light mode: the
+// same type scale, buttons and controls as the product, on a light surface.
+const theme = buildChessMastiTheme({ mode: "light" });
 
 export default function ThemeRegistry({
   children,
@@ -31,7 +18,7 @@ export default function ThemeRegistry({
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      {children}
+      <MotionConfig reducedMotion="user">{children}</MotionConfig>
     </ThemeProvider>
   );
 }

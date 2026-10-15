@@ -2,12 +2,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Typography, Button, Paper, Chip } from "@mui/material";
 import { Chess } from "chess.js";
 import { useAtomValue } from "jotai";
-import CasinoIcon from "@mui/icons-material/Casino";
-import PsychologyAltIcon from "@mui/icons-material/PsychologyAlt";
+import { CircleHelp, Dices } from "lucide-react";
 import { useScreenSize } from "@/hooks/useScreenSize";
 import { pieceSetAtom } from "@/components/board/states";
 import { PuzzleBoardSurface } from "@/components/puzzle/PuzzleBoardSurface";
-import { GUESS_THE_MOVE_GAMES, type GuessTheMoveGame } from "@/data/guessTheMoveGames";
+import { GUESS_THE_MOVE_GAMES } from "@/data/guessTheMoveGames";
+import {
+  ACCENT,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
 /**
  * Guess the Move — step through a real master game, guessing the next move
@@ -38,17 +47,21 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
   const pieceSet = useAtomValue(pieceSetAtom);
 
   const [phase, setPhase] = useState<Phase>("setup");
-  const [selectedGameId, setSelectedGameId] = useState(GUESS_THE_MOVE_GAMES[0].id);
+  const [selectedGameId, setSelectedGameId] = useState(
+    GUESS_THE_MOVE_GAMES[0].id
+  );
   const [userColor, setUserColor] = useState<Side>("w");
 
   const selectedGame = useMemo(
     () => GUESS_THE_MOVE_GAMES.find((g) => g.id === selectedGameId)!,
-    [selectedGameId],
+    [selectedGameId]
   );
 
   const [game, setGame] = useState<Chess>(() => new Chess());
   const [moveIndex, setMoveIndex] = useState(0);
-  const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
+  const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(
+    null
+  );
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
   const [revealedSan, setRevealedSan] = useState<string | null>(null);
   const [score, setScore] = useState(0);
@@ -160,10 +173,11 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
       }, WRONG_FLASH_MS);
       return false;
     },
-    [isUsersTurn, game, selectedGame, moveIndex, advanceOneMove],
+    [isUsersTurn, game, selectedGame, moveIndex, advanceOneMove]
   );
 
-  const accuracy = userMoveCount > 0 ? Math.round((score / userMoveCount) * 100) : 0;
+  const accuracy =
+    userMoveCount > 0 ? Math.round((score / userMoveCount) * 100) : 0;
 
   // ---- SETUP SCREEN ----
   if (phase === "setup") {
@@ -173,19 +187,20 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
           p: 4,
           maxWidth: 640,
           mx: "auto",
-          borderRadius: "1.5rem",
-          background: "rgba(20,22,28,0.55)",
-          backdropFilter: "blur(14px) saturate(140%)",
-          WebkitBackdropFilter: "blur(14px) saturate(140%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow:
-            "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+          borderRadius: `${RADIUS.card}px`,
+          background: SURFACE.raised,
+          border: `1px solid ${LINE.hairline}`,
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-          <PsychologyAltIcon sx={{ color: "#FDE047", fontSize: 32 }} />
-          <Typography variant="h5" sx={{ fontWeight: 700, color: "rgba(255,255,255,0.94)" }}>
-            Guess the Move
+          <CircleHelp
+            size={20}
+            strokeWidth={1.75}
+            color={TEXT.secondary}
+            aria-hidden
+          />
+          <Typography variant="h5" sx={{ color: TEXT.primary }}>
+            Guess the move
           </Typography>
         </Box>
 
@@ -196,33 +211,62 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
           continues.
         </Typography>
 
-        <Typography sx={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", mb: 1 }}>
+        <Typography sx={{ ...TYPE.label, color: TEXT.secondary, mb: 1 }}>
           Game
         </Typography>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 3 }}>
           {GUESS_THE_MOVE_GAMES.map((g) => (
             <Paper
               key={g.id}
+              component="button"
+              type="button"
+              aria-pressed={selectedGameId === g.id}
               onClick={() => setSelectedGameId(g.id)}
               sx={{
                 p: 1.5,
+                textAlign: "left",
+                font: "inherit",
+                color: "inherit",
                 cursor: "pointer",
-                borderRadius: "0.85rem",
-                border:
-                  selectedGameId === g.id
-                    ? "1px solid rgba(250,204,21,0.4)"
-                    : "1px solid rgba(255,255,255,0.08)",
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
+                borderRadius: `${RADIUS.control}px`,
+                border: `1px solid ${selectedGameId === g.id ? ACCENT.border : LINE.hairline}`,
                 background:
                   selectedGameId === g.id
-                    ? "rgba(250,204,21,0.1)"
-                    : "rgba(255,255,255,0.03)",
-                transition: "all 160ms ease",
+                    ? ACCENT.tint
+                    : SURFACE.raisedSecondary,
+                transition: `border-color ${MOTION.hover}, background-color ${MOTION.hover}`,
+                "&:hover": {
+                  borderColor:
+                    selectedGameId === g.id ? ACCENT.border : LINE.strong,
+                },
+                "&:active": { background: SURFACE.raisedTertiary },
+                "&:focus-visible": {
+                  outline: "2px solid #FFFFFF",
+                  outlineOffset: 2,
+                },
               }}
             >
-              <Typography sx={{ fontWeight: 700, fontSize: "0.88rem", color: "rgba(255,255,255,0.92)" }}>
+              <Typography
+                component="span"
+                sx={{
+                  display: "block",
+                  fontWeight: 600,
+                  fontSize: "0.88rem",
+                  color: TEXT.primary,
+                }}
+              >
                 {g.white} vs {g.black}
               </Typography>
-              <Typography sx={{ fontSize: "0.74rem", color: "rgba(255,255,255,0.5)" }}>
+              <Typography
+                component="span"
+                sx={{
+                  ...TYPE.caption,
+                  display: "block",
+                  color: TEXT.secondary,
+                }}
+              >
                 {g.event}, {g.year} · {g.result} · {g.moves.length} moves
               </Typography>
             </Paper>
@@ -230,7 +274,7 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
-          <Typography sx={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)" }}>
+          <Typography sx={{ ...TYPE.label, color: TEXT.secondary }}>
             Play as
           </Typography>
           {(["w", "b"] as Side[]).map((side) => (
@@ -239,56 +283,33 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
               label={side === "w" ? "White" : "Black"}
               onClick={() => setUserColor(side)}
               sx={{
-                fontWeight: 700,
-                bgcolor: userColor === side ? "rgba(250,204,21,0.18)" : "rgba(255,255,255,0.05)",
-                color: userColor === side ? "#FDE047" : "rgba(255,255,255,0.6)",
-                border: userColor === side ? "1px solid rgba(250,204,21,0.4)" : "1px solid rgba(255,255,255,0.1)",
+                fontWeight: 600,
+                bgcolor:
+                  userColor === side ? ACCENT.tint : SURFACE.raisedSecondary,
+                color: userColor === side ? ACCENT.hover : TEXT.secondary,
+                border: `1px solid ${userColor === side ? ACCENT.border : "transparent"}`,
               }}
             />
           ))}
           <Button
             size="small"
-            startIcon={<CasinoIcon />}
+            startIcon={<Dices size={18} strokeWidth={1.75} aria-hidden />}
             onClick={pickRandomGame}
-            sx={{ ml: "auto", textTransform: "none", color: "rgba(255,255,255,0.55)" }}
+            sx={{ ml: "auto", color: TEXT.secondary }}
           >
             Random
           </Button>
         </Box>
 
         <Box sx={{ display: "flex", gap: 2 }}>
-          <Button
-            variant="outlined"
-            onClick={onBack}
-            sx={{
-              textTransform: "none",
-              color: "rgba(255,255,255,0.85)",
-              borderColor: "rgba(255,255,255,0.18)",
-              background: "rgba(255,255,255,0.04)",
-              "&:hover": {
-                borderColor: "rgba(250,204,21,0.4)",
-                color: "#FDE047",
-                background: "rgba(250,204,21,0.1)",
-              },
-            }}
-          >
+          <Button variant="outlined" onClick={onBack}>
             Back
           </Button>
           <Button
             variant="contained"
             size="large"
             onClick={handleStart}
-            startIcon={<PsychologyAltIcon />}
-            sx={{
-              px: 4,
-              fontWeight: 700,
-              textTransform: "none",
-              borderRadius: "999px",
-              bgcolor: "#F97316",
-              color: "#0A0A0A",
-              boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
-              "&:hover": { bgcolor: "#FB923C" },
-            }}
+            startIcon={<CircleHelp size={18} strokeWidth={1.75} aria-hidden />}
           >
             Start
           </Button>
@@ -306,19 +327,22 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
           maxWidth: 480,
           mx: "auto",
           textAlign: "center",
-          borderRadius: "1.5rem",
-          background: "rgba(20,22,28,0.55)",
-          backdropFilter: "blur(14px) saturate(140%)",
-          WebkitBackdropFilter: "blur(14px) saturate(140%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow:
-            "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+          borderRadius: `${RADIUS.card}px`,
+          background: SURFACE.raised,
+          border: `1px solid ${LINE.hairline}`,
         }}
       >
-        <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: "rgba(255,255,255,0.94)" }}>
-          Game Complete!
+        <Typography variant="h4" sx={{ mb: 1, color: TEXT.primary }}>
+          Game complete
         </Typography>
-        <Typography variant="h2" sx={{ fontWeight: 800, color: "success.light", mb: 1 }}>
+        <Typography
+          variant="h2"
+          sx={{
+            color: STATUS.success,
+            mb: 1,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
           {accuracy}%
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
@@ -326,33 +350,15 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
           {userColor === "w" ? selectedGame.white : selectedGame.black}
         </Typography>
         <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
-          <Button
-            variant="outlined"
-            onClick={() => setPhase("setup")}
-            sx={{
-              textTransform: "none",
-              color: "rgba(255,255,255,0.85)",
-              borderColor: "rgba(255,255,255,0.18)",
-              background: "rgba(255,255,255,0.04)",
-            }}
-          >
-            Back to Setup
+          <Button variant="outlined" onClick={() => setPhase("setup")}>
+            Back to setup
           </Button>
           <Button
             variant="contained"
             onClick={handleStart}
-            startIcon={<PsychologyAltIcon />}
-            sx={{
-              textTransform: "none",
-              fontWeight: 700,
-              borderRadius: "999px",
-              bgcolor: "#F97316",
-              color: "#0A0A0A",
-              boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
-              "&:hover": { bgcolor: "#FB923C" },
-            }}
+            startIcon={<CircleHelp size={18} strokeWidth={1.75} aria-hidden />}
           >
-            Play Again
+            Play again
           </Button>
         </Box>
       </Paper>
@@ -372,31 +378,36 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
           justifyContent: "space-between",
           flexWrap: "wrap",
           gap: 1,
-          borderRadius: "1rem",
-          background: "rgba(20,22,28,0.55)",
-          backdropFilter: "blur(14px) saturate(140%)",
-          WebkitBackdropFilter: "blur(14px) saturate(140%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          color: "rgba(255,255,255,0.94)",
+          borderRadius: `${RADIUS.card}px`,
+          background: SURFACE.raised,
+          border: `1px solid ${LINE.hairline}`,
+          color: TEXT.primary,
         }}
       >
         <Typography sx={{ fontWeight: 700, fontSize: "0.9rem" }}>
           {selectedGame.white} vs {selectedGame.black}{" "}
-          <Box component="span" sx={{ color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>
+          <Box component="span" sx={{ color: TEXT.secondary, fontWeight: 400 }}>
             · {selectedGame.event} {selectedGame.year}
           </Box>
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Typography sx={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.55)" }}>
+          <Typography sx={{ ...TYPE.caption, color: TEXT.secondary }}>
             Score{" "}
-            <Box component="span" sx={{ color: "success.light", fontWeight: 700, fontFamily: "Monaco, monospace" }}>
+            <Box
+              component="span"
+              sx={{
+                color: STATUS.success,
+                fontWeight: 700,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
               {score}/{userMoveCount}
             </Box>
           </Typography>
           <Button
             size="small"
             onClick={() => setPhase("finished")}
-            sx={{ textTransform: "none", color: "rgba(255,255,255,0.55)" }}
+            sx={{ color: TEXT.secondary }}
           >
             End
           </Button>
@@ -408,25 +419,28 @@ export default function GuessTheMove({ onBack }: GuessTheMoveProps) {
           mb: 1.5,
           px: 2,
           py: 1,
-          borderRadius: "0.85rem",
+          borderRadius: `${RADIUS.control}px`,
           textAlign: "center",
-          bgcolor:
+          border: `1px solid ${LINE.hairline}`,
+          background:
             feedback === "correct"
-              ? "success.dark"
+              ? STATUS.successTint
               : feedback === "wrong"
-                ? "error.dark"
-                : "rgba(255,255,255,0.05)",
-          color: "#fff",
+                ? STATUS.errorTint
+                : SURFACE.raisedSecondary,
+          color: TEXT.primary,
           fontWeight: 600,
           fontSize: "0.88rem",
         }}
       >
-        {feedback === "correct" && "Correct! That's what was played."}
-        {feedback === "wrong" && revealedSan && `Not quite — the actual move was ${revealedSan}.`}
+        {feedback === "correct" && "Correct. That's what was played."}
+        {feedback === "wrong" &&
+          revealedSan &&
+          `Not quite. The move played was ${revealedSan}.`}
         {!feedback &&
           (isUsersTurn
-            ? `Your move — what did ${userColor === "w" ? selectedGame.white : selectedGame.black} play here?`
-            : "Opponent is thinking…")}
+            ? `Your move. What did ${userColor === "w" ? selectedGame.white : selectedGame.black} play here?`
+            : `Playing ${userColor === "w" ? selectedGame.black : selectedGame.white}'s move…`)}
       </Box>
 
       <Box sx={{ display: "flex", justifyContent: "center" }}>

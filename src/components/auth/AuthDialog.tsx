@@ -19,15 +19,37 @@ const ModalChild = React.forwardRef<
     </div>
   );
 });
-import { Box, Modal, Stack, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  CircularProgress,
+  Modal,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, X, ArrowLeft, AlertTriangle, Check } from "lucide-react";
+import { X, ArrowLeft, AlertTriangle, Check } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { checkHandle, HANDLE_MAX } from "@/lib/auth/handle";
 import { firstNameOf } from "@/lib/auth/displayIdentity";
 import AgeGate from "@/components/consent/AgeGate";
 import { isAgeGateBlocked } from "@/lib/tracking/ageGateLock";
+import {
+  ACCENT,
+  LINE,
+  MOTION,
+  RADIUS,
+  SHADOW,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
+
+// A dialog arrives with a short cross-fade and a small scale from the
+// centre, and leaves the same way.
+const DIALOG_TRANSITION = { duration: 0.18, ease: "easeOut" } as const;
 
 interface AuthDialogProps {
   open: boolean;
@@ -37,14 +59,12 @@ interface AuthDialogProps {
 type Mode = "signin" | "signup" | "forgot";
 type Step = "auth" | "usernames";
 
-// Dark-glass redesign of the legacy AuthDialog. Same exterior API
-// (open / onClose), same auth logic, completely rebuilt visuals to
-// match the design OS used by /preview/* surfaces: glass-blurred
-// rgba dark fill, 1px white-alpha edge, orange as accent (not fill),
-// pill tabs with sliding indicator. Layout uses Modal + flex column
-// + body min-height:0 so the submit button stays inside the viewport
-// even on short laptop screens (the bug we just fixed in
-// LoadGameDialog).
+// Same exterior API (open / onClose) and auth logic as the legacy
+// AuthDialog; the visuals follow docs/design/DESIGN_RULES.md: a solid
+// sheet with a hairline, one ember primary action, a segmented
+// sign-in / sign-up control. Layout uses Modal + flex column + body
+// min-height:0 so the submit button stays inside the viewport even on
+// short laptop screens (the bug we just fixed in LoadGameDialog).
 export default function AuthDialog({ open, onClose }: AuthDialogProps) {
   const {
     signInWithGoogle,
@@ -162,7 +182,15 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
         );
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : mode === "signin"
+            ? "Sign-in failed. Try again."
+            : mode === "signup"
+              ? "Sign-up failed. Try again."
+              : "We couldn't send the reset link. Try again."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -207,7 +235,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
 
   const headerTitle =
     step === "usernames"
-      ? `Welcome, ${firstNameOf(user)}!`
+      ? `Welcome, ${firstNameOf(user)}`
       : mode === "signup"
         ? "Create your account"
         : mode === "forgot"
@@ -216,44 +244,38 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
 
   const headerSubtitle =
     step === "usernames"
-      ? "Link your chess accounts for personalised coaching."
+      ? "Link your chess accounts so Masti can use your games."
       : mode === "signup"
-        ? "Sync your games + coaching across devices."
+        ? "Keep your games and coaching on every device."
         : mode === "forgot"
           ? "We'll email you a link to choose a new password."
           : "Sign in to keep your games and progress.";
 
-  // Shared input styling — applied to every TextField. Dark glass fill,
-  // orange focus, white-92 text.
-  const inputSx = {
-    "& .MuiOutlinedInput-root": {
-      backgroundColor: "rgba(255,255,255,0.03)",
-      borderRadius: "12px",
-      fontSize: "0.92rem",
-      color: "rgba(255,255,255,0.94)",
-      "& fieldset": { borderColor: "rgba(255,255,255,0.1)" },
-      "&:hover fieldset": { borderColor: "rgba(255,255,255,0.2)" },
-      "&.Mui-focused fieldset": {
-        borderColor: "rgba(249,115,22,0.55)",
-        borderWidth: "1px",
-      },
-    },
-    "& .MuiInputLabel-root": {
-      color: "rgba(255,255,255,0.55)",
-      "&.Mui-focused": { color: "#FB923C" },
-    },
-    "& .MuiFormHelperText-root": {
-      color: "rgba(255,255,255,0.42)",
-      fontSize: "0.72rem",
-    },
-    "& .MuiOutlinedInput-input::placeholder": {
-      color: "rgba(255,255,255,0.3)",
-      opacity: 1,
-    },
-  } as const;
+  // The theme styles every TextField (6% white fill, hairline, accent
+  // border when focused), so the inputs carry no sx of their own.
 
-  const orangeGradient = "linear-gradient(135deg, #F97316 0%, #EA580C 100%)";
-  const orangeHover = "linear-gradient(135deg, #FB923C 0%, #F97316 100%)";
+  // A custom <button> is outside MUI's ButtonBase, so it adds the focus
+  // ring and the press feedback the theme gives MUI buttons.
+  const focusRing = {
+    outline: `2px solid ${TEXT.primary}`,
+    outlineOffset: 2,
+  } as const;
+  const primaryButtonSx = {
+    border: "none",
+    outline: "none",
+    borderRadius: `${RADIUS.pill}px`,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 1,
+    fontWeight: 600,
+    color: TEXT.onAccent,
+    background: ACCENT.main,
+    transition: `background-color ${MOTION.hover}, transform ${MOTION.press}, opacity ${MOTION.hover}`,
+    "&:hover": { background: ACCENT.hover },
+    "&:active": { transform: MOTION.pressScale },
+    "&:focus-visible": focusRing,
+  } as const;
 
   const submitDisabled = submitting;
 
@@ -262,15 +284,6 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
       open={open}
       onClose={handleClose}
       closeAfterTransition
-      slotProps={{
-        backdrop: {
-          sx: {
-            backgroundColor: "rgba(8,9,12,0.72)",
-            backdropFilter: "blur(8px)",
-            WebkitBackdropFilter: "blur(8px)",
-          },
-        },
-      }}
       sx={{
         display: "flex",
         alignItems: "center",
@@ -282,13 +295,10 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
         <AnimatePresence>
           {open && (
             <motion.div
-              initial={{ opacity: 0, y: 16, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 16, scale: 0.98 }}
-              transition={{
-                duration: 0.28,
-                ease: [0.22, 0.61, 0.36, 1],
-              }}
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={DIALOG_TRANSITION}
               // Centering is handled by the parent MUI Modal's flexbox
               // (display:flex; align/justify center). We must NOT also set
               // position:fixed + translate(-50%,-50%) here, because framer-motion
@@ -307,27 +317,22 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                   maxHeight: "84vh",
                   display: "flex",
                   flexDirection: "column",
-                  borderRadius: "1.5rem",
-                  background:
-                    "linear-gradient(180deg, rgba(20,22,28,0.92), rgba(12,14,20,0.92))",
-                  backdropFilter: "blur(20px) saturate(150%)",
-                  WebkitBackdropFilter: "blur(20px) saturate(150%)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  boxShadow:
-                    "0 24px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)",
-                  color: "rgba(255,255,255,0.94)",
+                  borderRadius: `${RADIUS.sheet}px`,
+                  background: SURFACE.overlay,
+                  border: `1px solid ${LINE.hairline}`,
+                  boxShadow: SHADOW.modal,
+                  color: TEXT.primary,
                   overflow: "hidden",
                 }}
               >
-                {/* Header — glass card with ember-glow Sparkles, NOT a big
-                  orange fill. Orange reserved as accent per design OS. */}
+                {/* Header: title and one line under it. */}
                 <Box
                   sx={{
                     position: "relative",
                     px: 3,
                     pt: 3,
                     pb: 2.25,
-                    borderBottom: "1px solid rgba(255,255,255,0.06)",
+                    borderBottom: `1px solid ${LINE.hairline}`,
                   }}
                 >
                   <Box
@@ -350,74 +355,50 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                       font: "inherit",
                       width: 28,
                       height: 28,
-                      borderRadius: "8px",
+                      borderRadius: `${RADIUS.small}px`,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      color: "rgba(255,255,255,0.55)",
-                      transition: "all 180ms ease",
+                      color: TEXT.secondary,
+                      transition: `background-color ${MOTION.hover}, color ${MOTION.hover}, transform ${MOTION.press}`,
                       "&:hover": {
                         background: "rgba(255,255,255,0.06)",
-                        color: "rgba(255,255,255,0.92)",
+                        color: TEXT.primary,
                       },
+                      "&:active": { transform: MOTION.pressScale },
+                      "&:focus-visible": focusRing,
                     }}
                   >
                     <X size={16} />
                   </Box>
 
-                  {/* Brand mark — small glass disc with ember-glow Sparkles */}
-                  <Box
-                    sx={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: "12px",
-                      background: orangeGradient,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      boxShadow:
-                        "0 0 24px rgba(249,115,22,0.45), inset 0 1px 0 rgba(255,255,255,0.18)",
-                      mb: 1.5,
-                    }}
-                  >
-                    <Sparkles size={20} color="#0A0A0A" />
-                  </Box>
-
                   <Typography
-                    sx={{
-                      fontSize: "1.15rem",
-                      fontWeight: 800,
-                      letterSpacing: "-0.02em",
-                      lineHeight: 1.2,
-                      color: "rgba(255,255,255,0.96)",
-                    }}
+                    component="h2"
+                    sx={{ ...TYPE.h4, color: TEXT.primary, pr: 4 }}
                   >
                     {headerTitle}
                   </Typography>
                   <Typography
-                    sx={{
-                      mt: 0.4,
-                      fontSize: "0.82rem",
-                      color: "rgba(255,255,255,0.55)",
-                    }}
+                    sx={{ mt: 0.5, ...TYPE.bodySmall, color: TEXT.secondary }}
                   >
                     {headerSubtitle}
                   </Typography>
                 </Box>
 
-                {/* Mode tabs — pill style with sliding indicator. Only shown
-                  in the auth step when not in forgot mode. */}
+                {/* Mode tabs: a segmented control with a sliding indicator.
+                  Only shown in the auth step when not in forgot mode. */}
                 {step === "auth" && mode !== "forgot" && (
                   <Box
+                    role="tablist"
+                    aria-label="Sign in or sign up"
                     sx={{
                       display: "flex",
                       gap: 0.5,
                       p: 0.5,
                       mx: 3,
                       mt: 2,
-                      borderRadius: "999px",
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.06)",
+                      borderRadius: `${RADIUS.control}px`,
+                      background: SURFACE.raisedSecondary,
                     }}
                   >
                     {(
@@ -430,6 +411,10 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                       return (
                         <Box
                           key={id}
+                          component="button"
+                          type="button"
+                          role="tab"
+                          aria-selected={isActive}
                           onClick={() => {
                             setMode(id);
                             setError(null);
@@ -439,36 +424,30 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                             position: "relative",
                             flex: 1,
                             textAlign: "center",
+                            px: 0,
                             py: 0.85,
-                            borderRadius: "999px",
+                            border: "none",
+                            background: "transparent",
+                            font: "inherit",
+                            borderRadius: `${RADIUS.small}px`,
                             cursor: "pointer",
-                            fontSize: "0.86rem",
-                            fontWeight: 700,
-                            color: isActive
-                              ? "#0A0A0A"
-                              : "rgba(255,255,255,0.62)",
-                            transition: "color 180ms ease",
-                            "&:hover": {
-                              color: isActive
-                                ? "#0A0A0A"
-                                : "rgba(255,255,255,0.92)",
-                            },
+                            fontSize: TYPE.bodySmall.fontSize,
+                            fontWeight: 600,
+                            color: isActive ? TEXT.primary : TEXT.secondary,
+                            transition: `color ${MOTION.hover}`,
+                            "&:hover": { color: TEXT.primary },
+                            "&:focus-visible": focusRing,
                           }}
                         >
                           {isActive && (
                             <motion.div
                               layoutId="authDialogTabIndicator"
-                              transition={{
-                                type: "spring",
-                                stiffness: 420,
-                                damping: 34,
-                              }}
+                              transition={MOTION.springSheet}
                               style={{
                                 position: "absolute",
                                 inset: 0,
-                                borderRadius: "999px",
-                                background: orangeGradient,
-                                boxShadow: "0 4px 14px rgba(249,115,22,0.32)",
+                                borderRadius: RADIUS.small,
+                                background: SURFACE.raisedTertiary,
                               }}
                             />
                           )}
@@ -494,11 +473,6 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                     overflowY: "auto",
                     px: 3,
                     py: 2.5,
-                    "&::-webkit-scrollbar": { width: 6 },
-                    "&::-webkit-scrollbar-thumb": {
-                      background: "rgba(249,115,22,0.2)",
-                      borderRadius: "3px",
-                    },
                   }}
                 >
                   {step === "auth" && mode === "signup" && ageBlocked ? (
@@ -519,33 +493,25 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                       }}
                     >
                       <AlertTriangle
-                        size={28}
-                        color="rgba(255,255,255,0.45)"
+                        size={20}
+                        strokeWidth={1.75}
+                        color={TEXT.secondary}
                         style={{ marginBottom: 12 }}
                       />
                       <Typography
-                        sx={{
-                          fontSize: "0.95rem",
-                          fontWeight: 700,
-                          color: "rgba(255,255,255,0.92)",
-                          mb: 1,
-                        }}
+                        sx={{ ...TYPE.h5, color: TEXT.primary, mb: 1 }}
                       >
                         We can&apos;t create an account for you right now.
                       </Typography>
                       <Typography
-                        sx={{
-                          fontSize: "0.8rem",
-                          lineHeight: 1.5,
-                          color: "rgba(255,255,255,0.55)",
-                        }}
+                        sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}
                       >
                         A parent or guardian can get in touch through the
                         contact details on our{" "}
                         <Box
                           component="a"
                           href="/privacy"
-                          sx={{ color: "#FB923C", textDecoration: "none" }}
+                          sx={{ color: ACCENT.hover, textDecoration: "none" }}
                         >
                           Privacy page
                         </Box>
@@ -562,38 +528,32 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                           setAgePassed(true);
                         }}
                         slotSx={{
-                          title: {
-                            fontSize: "0.95rem",
-                            fontWeight: 700,
-                            color: "rgba(255,255,255,0.92)",
-                          },
-                          caption: {
-                            color: "rgba(255,255,255,0.55)",
-                            fontSize: "0.78rem",
-                            lineHeight: 1.45,
-                          },
+                          title: { ...TYPE.h5, color: TEXT.primary },
+                          caption: { ...TYPE.caption, color: TEXT.secondary },
                           label: {
                             "& .MuiFormControlLabel-label": {
-                              fontSize: "0.85rem",
-                              color: "rgba(255,255,255,0.8)",
+                              fontSize: TYPE.bodySmall.fontSize,
+                              color: TEXT.primary,
                             },
                           },
                           checkbox: {
-                            color: "rgba(255,255,255,0.4)",
-                            "&.Mui-checked": { color: "#FB923C" },
+                            color: TEXT.secondary,
+                            "&.Mui-checked": { color: ACCENT.main },
                           },
                           button: {
-                            background: orangeGradient,
-                            color: "#0A0A0A",
-                            fontWeight: 800,
-                            textTransform: "none",
-                            borderRadius: "12px",
+                            background: ACCENT.main,
+                            color: TEXT.onAccent,
+                            fontWeight: 600,
+                            borderRadius: `${RADIUS.pill}px`,
                             py: 1.1,
-                            boxShadow: "0 4px 14px rgba(249,115,22,0.32)",
-                            "&:hover": { background: orangeHover },
+                            boxShadow: "none",
+                            "&:hover": {
+                              background: ACCENT.hover,
+                              boxShadow: "none",
+                            },
                             "&.Mui-disabled": {
                               background: "rgba(255,255,255,0.08)",
-                              color: "rgba(255,255,255,0.35)",
+                              color: TEXT.tertiary,
                             },
                           },
                         }}
@@ -623,7 +583,6 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                                 mode === "signin" ? "username" : "email"
                               }
                               required
-                              sx={inputSx}
                             />
                           )}
 
@@ -637,8 +596,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                               autoComplete="username"
                               required
                               inputProps={{ maxLength: HANDLE_MAX }}
-                              helperText="How we'll address you, and how you can sign in. Other players see this — don't use your full name."
-                              sx={inputSx}
+                              helperText="How we'll address you, and how you can sign in. Other players see this, so don't use your full name."
                             />
                           )}
 
@@ -661,7 +619,6 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                                   ? "At least 10 characters with a number or symbol."
                                   : undefined
                               }
-                              sx={inputSx}
                             />
                           )}
 
@@ -675,7 +632,6 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                               onChange={(e) => setEmail(e.target.value)}
                               autoComplete="email"
                               helperText="Needed to reset your password or sign in with Google. Without one, a forgotten password means a lost account."
-                              sx={inputSx}
                             />
                           )}
 
@@ -686,7 +642,6 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                               label="Display name (optional)"
                               value={displayName}
                               onChange={(e) => setDisplayName(e.target.value)}
-                              sx={inputSx}
                             />
                           )}
 
@@ -704,10 +659,13 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                                   background: "transparent",
                                   border: "none",
                                   cursor: "pointer",
-                                  fontSize: "0.78rem",
-                                  color: "#FB923C",
+                                  font: "inherit",
+                                  ...TYPE.caption,
+                                  color: ACCENT.hover,
                                   padding: 0,
-                                  "&:hover": { color: "#FDBA74" },
+                                  borderRadius: `${RADIUS.small}px`,
+                                  "&:hover": { textDecoration: "underline" },
+                                  "&:focus-visible": focusRing,
                                 }}
                               >
                                 Forgot password?
@@ -717,27 +675,25 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
 
                           {error && (
                             <Box
+                              role="alert"
                               sx={{
                                 display: "flex",
                                 alignItems: "flex-start",
                                 gap: 1,
                                 p: 1.25,
-                                borderRadius: "10px",
-                                background: "rgba(239,68,68,0.08)",
-                                border: "1px solid rgba(239,68,68,0.25)",
+                                borderRadius: `${RADIUS.control}px`,
+                                background: STATUS.errorTint,
+                                border: `1px solid ${LINE.hairline}`,
                               }}
                             >
                               <AlertTriangle
-                                size={14}
-                                color="#fca5a5"
-                                style={{ marginTop: 2, flexShrink: 0 }}
+                                size={16}
+                                strokeWidth={1.75}
+                                color={STATUS.error}
+                                style={{ marginTop: 1, flexShrink: 0 }}
                               />
                               <Typography
-                                sx={{
-                                  fontSize: "0.82rem",
-                                  color: "#fca5a5",
-                                  lineHeight: 1.4,
-                                }}
+                                sx={{ ...TYPE.caption, color: TEXT.primary }}
                               >
                                 {error}
                               </Typography>
@@ -745,27 +701,25 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                           )}
                           {info && (
                             <Box
+                              role="status"
                               sx={{
                                 display: "flex",
                                 alignItems: "flex-start",
                                 gap: 1,
                                 p: 1.25,
-                                borderRadius: "10px",
-                                background: "rgba(34,197,94,0.08)",
-                                border: "1px solid rgba(34,197,94,0.25)",
+                                borderRadius: `${RADIUS.control}px`,
+                                background: STATUS.successTint,
+                                border: `1px solid ${LINE.hairline}`,
                               }}
                             >
                               <Check
-                                size={14}
-                                color="#86efac"
-                                style={{ marginTop: 2, flexShrink: 0 }}
+                                size={16}
+                                strokeWidth={1.75}
+                                color={STATUS.success}
+                                style={{ marginTop: 1, flexShrink: 0 }}
                               />
                               <Typography
-                                sx={{
-                                  fontSize: "0.82rem",
-                                  color: "#86efac",
-                                  lineHeight: 1.4,
-                                }}
+                                sx={{ ...TYPE.caption, color: TEXT.primary }}
                               >
                                 {info}
                               </Typography>
@@ -777,34 +731,28 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                             type="submit"
                             disabled={submitDisabled}
                             sx={{
+                              ...primaryButtonSx,
                               width: "100%",
                               cursor: submitDisabled
                                 ? "not-allowed"
                                 : "pointer",
                               opacity: submitDisabled ? 0.7 : 1,
-                              border: "none",
-                              outline: "none",
                               py: 1.25,
-                              borderRadius: "12px",
-                              fontWeight: 700,
-                              fontSize: "0.92rem",
-                              letterSpacing: "0.01em",
-                              color: "#0A0A0A",
-                              background: orangeGradient,
-                              boxShadow: "0 6px 18px rgba(249,115,22,0.32)",
-                              transition: "all 180ms ease",
+                              fontSize: TYPE.bodySmall.fontSize,
                               "&:hover": submitDisabled
                                 ? {}
-                                : {
-                                    background: orangeHover,
-                                    transform: "translateY(-1px)",
-                                    boxShadow:
-                                      "0 8px 22px rgba(249,115,22,0.42)",
-                                  },
+                                : { background: ACCENT.hover },
                             }}
                           >
+                            {submitting && (
+                              <CircularProgress size={16} color="inherit" />
+                            )}
                             {submitting
-                              ? "Working…"
+                              ? mode === "signin"
+                                ? "Signing in"
+                                : mode === "signup"
+                                  ? "Creating account"
+                                  : "Sending"
                               : mode === "signin"
                                 ? "Sign in"
                                 : mode === "signup"
@@ -830,9 +778,10 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                                 justifyContent: "center",
                                 gap: 0.5,
                                 py: 0.75,
-                                fontSize: "0.84rem",
-                                color: "rgba(255,255,255,0.62)",
-                                "&:hover": { color: "rgba(255,255,255,0.92)" },
+                                fontSize: TYPE.bodySmall.fontSize,
+                                color: TEXT.secondary,
+                                "&:hover": { color: TEXT.primary },
+                                "&:focus-visible": focusRing,
                               }}
                             >
                               <ArrowLeft size={14} />
@@ -856,17 +805,11 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                               sx={{
                                 flex: 1,
                                 height: 1,
-                                background: "rgba(255,255,255,0.08)",
+                                background: LINE.hairline,
                               }}
                             />
                             <Typography
-                              sx={{
-                                fontSize: "0.7rem",
-                                fontWeight: 700,
-                                letterSpacing: "0.14em",
-                                textTransform: "uppercase",
-                                color: "rgba(255,255,255,0.4)",
-                              }}
+                              sx={{ ...TYPE.caption, color: TEXT.tertiary }}
                             >
                               or
                             </Typography>
@@ -874,7 +817,7 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                               sx={{
                                 flex: 1,
                                 height: 1,
-                                background: "rgba(255,255,255,0.08)",
+                                background: LINE.hairline,
                               }}
                             />
                           </Box>
@@ -886,23 +829,25 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                             sx={{
                               width: "100%",
                               cursor: "pointer",
-                              border: "1px solid rgba(255,255,255,0.1)",
+                              border: `1px solid ${LINE.strong}`,
                               outline: "none",
                               py: 1.1,
-                              borderRadius: "12px",
-                              fontWeight: 700,
-                              fontSize: "0.88rem",
-                              color: "rgba(255,255,255,0.92)",
-                              background: "rgba(255,255,255,0.04)",
+                              borderRadius: `${RADIUS.pill}px`,
+                              fontWeight: 600,
+                              fontSize: TYPE.bodySmall.fontSize,
+                              color: TEXT.primary,
+                              background: "transparent",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
                               gap: 1,
-                              transition: "all 180ms ease",
+                              transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
                               "&:hover": {
-                                background: "rgba(249,115,22,0.08)",
-                                borderColor: "rgba(249,115,22,0.4)",
+                                background: "rgba(255,255,255,0.06)",
+                                borderColor: TEXT.secondary,
                               },
+                              "&:active": { transform: MOTION.pressScale },
+                              "&:focus-visible": focusRing,
                             }}
                           >
                             <Icon icon="flat-color-icons:google" width={18} />
@@ -916,9 +861,8 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                           display: "block",
                           textAlign: "center",
                           mt: 2.5,
-                          fontSize: "0.7rem",
-                          color: "rgba(255,255,255,0.4)",
-                          lineHeight: 1.45,
+                          ...TYPE.caption,
+                          color: TEXT.secondary,
                         }}
                       >
                         Your data is encrypted and never shared with third
@@ -931,14 +875,11 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                       <Typography
                         sx={{
                           mb: 2.5,
-                          fontSize: "0.86rem",
-                          color: "rgba(255,255,255,0.7)",
-                          lineHeight: 1.5,
+                          ...TYPE.bodySmall,
+                          color: TEXT.secondary,
                         }}
                       >
-                        Link your chess accounts so the coach can ground
-                        analysis in your actual play history. You can also add
-                        these later in Profile Settings.
+                        You can also add these later in your profile.
                       </Typography>
 
                       <Stack spacing={2}>
@@ -956,19 +897,12 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                               alt="Chess.com"
                             />
                             <Typography
-                              sx={{
-                                fontSize: "0.82rem",
-                                fontWeight: 700,
-                                color: "rgba(255,255,255,0.88)",
-                              }}
+                              sx={{ ...TYPE.label, color: TEXT.primary }}
                             >
                               Chess.com username
                             </Typography>
                             <Typography
-                              sx={{
-                                fontSize: "0.72rem",
-                                color: "rgba(255,255,255,0.4)",
-                              }}
+                              sx={{ ...TYPE.caption, color: TEXT.secondary }}
                             >
                               (optional)
                             </Typography>
@@ -981,7 +915,6 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                             onChange={(e) =>
                               setChesscomUsername(e.target.value)
                             }
-                            sx={inputSx}
                           />
                         </Box>
 
@@ -999,19 +932,12 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                               alt="Lichess"
                             />
                             <Typography
-                              sx={{
-                                fontSize: "0.82rem",
-                                fontWeight: 700,
-                                color: "rgba(255,255,255,0.88)",
-                              }}
+                              sx={{ ...TYPE.label, color: TEXT.primary }}
                             >
                               Lichess username
                             </Typography>
                             <Typography
-                              sx={{
-                                fontSize: "0.72rem",
-                                color: "rgba(255,255,255,0.4)",
-                              }}
+                              sx={{ ...TYPE.caption, color: TEXT.secondary }}
                             >
                               (optional)
                             </Typography>
@@ -1022,7 +948,6 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                             placeholder="e.g., drnykterstein"
                             value={lichessUsername}
                             onChange={(e) => setLichessUsername(e.target.value)}
-                            sx={inputSx}
                           />
                         </Box>
                       </Stack>
@@ -1043,17 +968,20 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                             background: "transparent",
                             border: "none",
                             cursor: "pointer",
-                            fontSize: "0.84rem",
-                            fontWeight: 700,
-                            color: "rgba(255,255,255,0.55)",
+                            font: "inherit",
+                            fontSize: TYPE.bodySmall.fontSize,
+                            fontWeight: 600,
+                            color: TEXT.secondary,
                             px: 2,
                             py: 1,
-                            borderRadius: "10px",
-                            transition: "all 180ms ease",
+                            borderRadius: `${RADIUS.pill}px`,
+                            transition: `color ${MOTION.hover}, background-color ${MOTION.hover}, transform ${MOTION.press}`,
                             "&:hover": {
-                              color: "rgba(255,255,255,0.92)",
-                              background: "rgba(255,255,255,0.04)",
+                              color: TEXT.primary,
+                              background: "rgba(255,255,255,0.06)",
                             },
+                            "&:active": { transform: MOTION.pressScale },
+                            "&:focus-visible": focusRing,
                           }}
                         >
                           Skip for now
@@ -1064,28 +992,21 @@ export default function AuthDialog({ open, onClose }: AuthDialogProps) {
                           onClick={handleSaveUsernames}
                           disabled={submitting}
                           sx={{
+                            ...primaryButtonSx,
                             cursor: submitting ? "not-allowed" : "pointer",
                             opacity: submitting ? 0.7 : 1,
-                            border: "none",
-                            outline: "none",
                             px: 2.5,
                             py: 1,
-                            borderRadius: "10px",
-                            fontWeight: 700,
-                            fontSize: "0.84rem",
-                            color: "#0A0A0A",
-                            background: orangeGradient,
-                            boxShadow: "0 4px 14px rgba(249,115,22,0.32)",
-                            transition: "all 180ms ease",
+                            fontSize: TYPE.bodySmall.fontSize,
                             "&:hover": submitting
                               ? {}
-                              : {
-                                  background: orangeHover,
-                                  transform: "translateY(-1px)",
-                                },
+                              : { background: ACCENT.hover },
                           }}
                         >
-                          {submitting ? "Saving…" : "Save & continue"}
+                          {submitting && (
+                            <CircularProgress size={16} color="inherit" />
+                          )}
+                          {submitting ? "Saving" : "Save & continue"}
                         </Box>
                       </Box>
                     </>

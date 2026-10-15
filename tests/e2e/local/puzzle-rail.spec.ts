@@ -22,9 +22,11 @@ const RAIL = 'nav[aria-label="Session puzzles"]';
 // The banner itself is covered by the answer-mode specs; this spec is about
 // rail rows. Same cookie the one-screen spec seeds.
 test.beforeEach(async ({ page }) => {
-  await page.context().addCookies([
-    { name: "cm_consent", value: "accepted", domain: "127.0.0.1", path: "/" },
-  ]);
+  await page
+    .context()
+    .addCookies([
+      { name: "cm_consent", value: "accepted", domain: "127.0.0.1", path: "/" },
+    ]);
 });
 
 function boardOnly(fen: string): string {
@@ -36,8 +38,11 @@ async function railRows(page: Page): Promise<string[]> {
     const nav = document.querySelector(sel);
     if (!nav) return [];
     // Array.from, not spread: the repo's tsconfig target rejects iterating a
-    // NodeList directly (TS2802).
-    return Array.from(nav.querySelectorAll("div.MuiStack-root"))
+    // NodeList directly (TS2802). A queued row you can jump to is a real
+    // <button>; graded and current rows are not clickable and stay <div>s.
+    return Array.from(
+      nav.querySelectorAll("div.MuiStack-root, button.MuiStack-root")
+    )
       .map((r) => (r.textContent || "").trim().replace(/\s+/g, " "))
       .filter((t) => /\d{3,4}$/.test(t));
   }, RAIL);
@@ -156,7 +161,8 @@ test("the graded current row keeps BOTH its outcome glyph and its highlight", as
     .poll(async () =>
       current.evaluate((el) => getComputedStyle(el).backgroundColor)
     )
-    .toMatch(/rgba?\(255, 122, 26/);
+    // ACCENT.tint (rgba(249,115,22,0.14)) in src/theme/tokens.ts.
+    .toMatch(/rgba?\(249, 115, 22/);
   // ...and still shows its outcome glyph. The helper learned the line from
   // "Show solution", and seeing the answer grades as a MISS (it used to let
   // the demo's final position count as a first-try solve), so the disc here
@@ -166,5 +172,6 @@ test("the graded current row keeps BOTH its outcome glyph and its highlight", as
     .poll(async () =>
       glyph.evaluate((el) => getComputedStyle(el).backgroundColor)
     )
-    .toMatch(/rgba?\(248, 113, 113/);
+    // STATUS.error (#FF453A) in src/theme/tokens.ts.
+    .toMatch(/rgba?\(255, 69, 58/);
 });

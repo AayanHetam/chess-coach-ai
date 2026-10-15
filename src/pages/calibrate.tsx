@@ -30,6 +30,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PageTitle } from "@/components/pageTitle";
 import { Masti, type MastiMood } from "@/components/masti";
+import { FONT_MONO, TYPE } from "@/theme/tokens";
 import {
   buildExport,
   CalibrationData,
@@ -313,10 +314,7 @@ export default function CalibratePage() {
                       position={current.fen}
                       boardWidth={boardWidth}
                       arePiecesDraggable={false}
-                      customBoardStyle={{
-                        borderRadius: 8,
-                        boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
-                      }}
+                      customBoardStyle={{ borderRadius: 8 }}
                     />
                   </Box>
                 </Box>
@@ -330,7 +328,7 @@ export default function CalibratePage() {
                   {/* Insight facts — straight from the coach's [INSIGHT] header,
                       so they match the board and the WHY prose by construction. */}
                   <Paper sx={{ p: 2, mb: 2 }}>
-                    <Typography variant="overline" color="text.secondary">
+                    <Typography sx={TYPE.label} color="text.secondary">
                       Insight ({current.moveLabel})
                     </Typography>
                     <Box
@@ -363,7 +361,7 @@ export default function CalibratePage() {
 
                   {/* Coach prose for THIS move: headline lede + WHY. */}
                   <Paper sx={{ p: 2, mb: 2 }}>
-                    <Typography variant="overline" color="text.secondary">
+                    <Typography sx={TYPE.label} color="text.secondary">
                       Coach response (this move)
                     </Typography>
                     <Box
@@ -390,8 +388,8 @@ export default function CalibratePage() {
               ) : (
                 /* Full-game overall review — no board, no single-move card. */
                 <Paper sx={{ p: 2, mb: 2 }}>
-                  <Typography variant="overline" color="text.secondary">
-                    Overall game review — {current.id} (rating{" "}
+                  <Typography sx={TYPE.label} color="text.secondary">
+                    Overall game review: {current.id} (rating{" "}
                     {current.userRating}, {current.tier})
                   </Typography>
                   <Box
@@ -410,7 +408,7 @@ export default function CalibratePage() {
 
               {/* Rubric rows — identical for both item types. */}
               <Paper sx={{ p: 2 }}>
-                <Typography variant="overline" color="text.secondary">
+                <Typography sx={TYPE.label} color="text.secondary">
                   Rate (0 / 1 / 2 / N/A)
                 </Typography>
                 {DIMENSIONS.map((dim) => (
@@ -426,7 +424,7 @@ export default function CalibratePage() {
 
               {/* Free-text notes / issue flag */}
               <Paper sx={{ p: 2, mt: 2 }}>
-                <Typography variant="overline" color="text.secondary">
+                <Typography sx={TYPE.label} color="text.secondary">
                   Notes / flag an issue (optional)
                 </Typography>
                 <TextField
@@ -491,7 +489,7 @@ function FactLabel({ children }: { children: React.ReactNode }) {
 
 function FactValue({ children }: { children: React.ReactNode }) {
   return (
-    <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
+    <Typography variant="body2" sx={{ fontFamily: FONT_MONO }}>
       {children}
     </Typography>
   );

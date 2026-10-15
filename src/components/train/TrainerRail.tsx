@@ -13,10 +13,31 @@
 import { Box, Typography } from "@mui/material";
 import { ArrowLeft, Check, RotateCcw } from "lucide-react";
 import type { ActStep } from "@/lib/learn/trainerSession";
+import {
+  ACCENT,
+  FONT_MONO,
+  LINE,
+  MOTION,
+  RADIUS,
+  STATUS,
+  SURFACE,
+  TEXT,
+  TYPE,
+} from "@/theme/tokens";
 
-const EMBER = "#FB923C";
-const DONE = "#86EFAC";
-const MONO = '"SF Mono", ui-monospace, Menlo, monospace';
+/** A bare text button in the rail: 44px target, press feedback, focus ring. */
+const RAIL_BUTTON_SX = {
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  color: TEXT.secondary,
+  touchAction: "manipulation",
+  WebkitTapHighlightColor: "transparent",
+  transition: `color ${MOTION.hover}, transform ${MOTION.press}`,
+  "&:hover": { color: TEXT.primary },
+  "&:active": { transform: MOTION.pressScale },
+  "&:focus-visible": { outline: `2px solid ${TEXT.primary}`, outlineOffset: 2 },
+} as const;
 
 export interface TrainerRailProps {
   /** The line, already numbered: `1.e4 c5 2.c3`. */
@@ -56,8 +77,8 @@ export default function TrainerRail({
         width: 220,
         flexShrink: 0,
         minHeight: "100dvh",
-        background: "rgba(9,10,14,0.92)",
-        borderRight: "1px solid rgba(255,255,255,0.06)",
+        background: SURFACE.raised,
+        borderRight: `1px solid ${LINE.hairline}`,
         px: 2.5,
         py: 3,
         display: { xs: "none", md: "flex" },
@@ -69,7 +90,12 @@ export default function TrainerRail({
 
       <Box>
         <Typography
-          sx={{ fontFamily: MONO, fontSize: "1rem", fontWeight: 700, color: "#fff", lineHeight: 1.4 }}
+          sx={{
+            ...TYPE.bodySmall,
+            fontFamily: FONT_MONO,
+            fontWeight: 600,
+            color: TEXT.primary,
+          }}
         >
           {line}
         </Typography>
@@ -77,7 +103,7 @@ export default function TrainerRail({
 
       <Box>
         <RailLabel>The session</RailLabel>
-        <Box sx={{ height: "1px", background: "rgba(255,255,255,0.08)", mb: 1.5 }} />
+        <Box sx={{ height: "1px", background: LINE.hairline, mb: 1.5 }} />
         <Box component="ol" sx={{ listStyle: "none", m: 0, p: 0 }}>
           {steps.map((s) => (
             <StepRow key={s.act} step={s} />
@@ -95,23 +121,17 @@ export default function TrainerRail({
           component="button"
           onClick={onRestart}
           sx={{
+            ...RAIL_BUTTON_SX,
             display: "inline-flex",
             alignItems: "center",
-            gap: 0.6,
+            gap: 0.75,
             minHeight: 44,
             px: 0.5,
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "rgba(255,255,255,0.35)",
-            fontSize: "0.76rem",
-            borderRadius: "8px",
-            transition: "color 180ms ease",
-            "&:hover": { color: "rgba(255,255,255,0.7)" },
-            "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+            fontSize: TYPE.bodySmall.fontSize,
+            borderRadius: `${RADIUS.small}px`,
           }}
         >
-          <RotateCcw size={13} aria-hidden />
+          <RotateCcw size={15} aria-hidden />
           Start over
         </Box>
       </Box>
@@ -129,7 +149,8 @@ export function TrainerRailStrip({
   onExit,
   onRestart,
 }: TrainerRailProps) {
-  const current = steps.find((s) => s.status === "current") ?? steps[steps.length - 1];
+  const current =
+    steps.find((s) => s.status === "current") ?? steps[steps.length - 1];
   return (
     <Box
       // Same landmark and label as the rail. Only one of the two is ever in the
@@ -143,19 +164,24 @@ export function TrainerRailStrip({
         gap: 1.5,
         px: 2,
         py: 1.5,
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-        background: "rgba(9,10,14,0.92)",
+        borderBottom: `1px solid ${LINE.hairline}`,
+        background: SURFACE.raised,
       }}
     >
       <ExitLink onExit={onExit} compact />
       <Box sx={{ minWidth: 0, flex: 1 }}>
         <Typography
           noWrap
-          sx={{ fontFamily: MONO, fontSize: "0.85rem", fontWeight: 700, color: "#fff" }}
+          sx={{
+            ...TYPE.bodySmall,
+            fontFamily: FONT_MONO,
+            fontWeight: 600,
+            color: TEXT.primary,
+          }}
         >
           {line}
         </Typography>
-        <Typography noWrap sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.5)" }}>
+        <Typography noWrap sx={{ ...TYPE.caption, color: TEXT.secondary }}>
           {current?.label}
         </Typography>
       </Box>
@@ -168,18 +194,13 @@ export function TrainerRailStrip({
         onClick={onRestart}
         aria-label="Start over"
         sx={{
+          ...RAIL_BUTTON_SX,
           display: "grid",
           placeItems: "center",
           width: 44,
           height: 44,
           flexShrink: 0,
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          color: "rgba(255,255,255,0.4)",
-          borderRadius: "8px",
-          "&:hover": { color: "rgba(255,255,255,0.8)" },
-          "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+          borderRadius: `${RADIUS.small}px`,
         }}
       >
         <RotateCcw size={16} aria-hidden />
@@ -188,13 +209,20 @@ export function TrainerRailStrip({
   );
 }
 
-function ExitLink({ onExit, compact }: { onExit: () => void; compact?: boolean }) {
+function ExitLink({
+  onExit,
+  compact,
+}: {
+  onExit: () => void;
+  compact?: boolean;
+}) {
   return (
     <Box
       component="button"
       onClick={onExit}
       aria-label="Leave the session"
       sx={{
+        ...RAIL_BUTTON_SX,
         display: "inline-flex",
         alignItems: "center",
         gap: 0.75,
@@ -202,16 +230,9 @@ function ExitLink({ onExit, compact }: { onExit: () => void; compact?: boolean }
         // the visible text.
         minHeight: 44,
         px: 0.5,
-        background: "none",
-        border: "none",
-        cursor: "pointer",
-        color: "rgba(255,255,255,0.55)",
-        fontSize: "0.8rem",
+        fontSize: TYPE.bodySmall.fontSize,
         alignSelf: "flex-start",
-        borderRadius: "8px",
-        transition: "color 180ms ease",
-        "&:hover": { color: "#fff" },
-        "&:focus-visible": { outline: `2px solid ${EMBER}`, outlineOffset: 2 },
+        borderRadius: `${RADIUS.small}px`,
       }}
     >
       <ArrowLeft size={15} aria-hidden />
@@ -221,7 +242,6 @@ function ExitLink({ onExit, compact }: { onExit: () => void; compact?: boolean }
 }
 
 function StepRow({ step }: { step: ActStep }) {
-  const done = step.status === "done";
   const current = step.status === "current";
   return (
     <Box
@@ -237,14 +257,10 @@ function StepRow({ step }: { step: ActStep }) {
       <Glyph status={step.status} />
       <Typography
         sx={{
-          fontSize: "0.84rem",
-          color: done
-            ? "rgba(255,255,255,0.45)"
-            : current
-              ? "#fff"
-              : "rgba(255,255,255,0.4)",
+          ...TYPE.bodySmall,
+          color: current ? TEXT.primary : TEXT.secondary,
           fontWeight: current ? 600 : 400,
-          transition: "color 180ms ease",
+          transition: `color ${MOTION.hover}`,
         }}
       >
         {step.label}
@@ -266,13 +282,13 @@ function Glyph({ status }: { status: ActStep["status"] }) {
           width: 18,
           height: 18,
           borderRadius: "50%",
-          background: DONE,
+          background: STATUS.success,
           display: "grid",
           placeItems: "center",
           flexShrink: 0,
         }}
       >
-        <Check size={12} color="#0B0C10" strokeWidth={3} aria-hidden />
+        <Check size={12} color={TEXT.onAccent} strokeWidth={3} aria-hidden />
       </Box>
     );
   }
@@ -283,8 +299,7 @@ function Glyph({ status }: { status: ActStep["status"] }) {
           width: 18,
           height: 18,
           borderRadius: "50%",
-          background: EMBER,
-          boxShadow: `0 0 12px ${EMBER}66`,
+          background: ACCENT.main,
           flexShrink: 0,
         }}
       />
@@ -296,7 +311,7 @@ function Glyph({ status }: { status: ActStep["status"] }) {
         width: 18,
         height: 18,
         borderRadius: "50%",
-        border: "1.5px solid rgba(255,255,255,0.25)",
+        border: `1.5px solid ${LINE.strong}`,
         flexShrink: 0,
       }}
     />
@@ -309,7 +324,15 @@ function Glyph({ status }: { status: ActStep["status"] }) {
  * Visible before the streak is at risk, so the cost of a miss is legible in
  * advance rather than only after it is paid.
  */
-function Pips({ streak, goal, compact }: { streak: number; goal: number; compact?: boolean }) {
+function Pips({
+  streak,
+  goal,
+  compact,
+}: {
+  streak: number;
+  goal: number;
+  compact?: boolean;
+}) {
   return (
     <Box
       role="img"
@@ -323,10 +346,9 @@ function Pips({ streak, goal, compact }: { streak: number; goal: number; compact
             width: 10,
             height: 10,
             borderRadius: "50%",
-            background: i < streak ? DONE : "rgba(255,255,255,0.14)",
+            background: i < streak ? STATUS.success : LINE.strong,
             transform: i < streak ? "scale(1)" : "scale(0.8)",
-            transition: "background 160ms ease, transform 160ms cubic-bezier(0.34,1.56,0.64,1)",
-            "@media (prefers-reduced-motion: reduce)": { transition: "background 160ms ease" },
+            transition: `background-color ${MOTION.hover}, transform ${MOTION.hover}`,
           }}
         />
       ))}
@@ -336,15 +358,7 @@ function Pips({ streak, goal, compact }: { streak: number; goal: number; compact
 
 function RailLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Typography
-      sx={{
-        fontSize: "0.65rem",
-        letterSpacing: "0.12em",
-        textTransform: "uppercase",
-        color: "rgba(255,255,255,0.35)",
-        mb: 0.75,
-      }}
-    >
+    <Typography sx={{ ...TYPE.label, color: TEXT.secondary, mb: 0.75 }}>
       {children}
     </Typography>
   );

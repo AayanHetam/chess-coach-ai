@@ -11,7 +11,7 @@ test("landing is dark with the hero visible (light-preference visitor)", async (
   page,
 }) => {
   await page.goto("/");
-  await expect(page.locator("h1")).toContainText(/chess coaching/i, {
+  await expect(page.locator("h1")).toContainText(/chess coach/i, {
     timeout: 15_000,
   });
   expect(await bodyLuminance(page)).toBeLessThan(0.2);
@@ -21,6 +21,27 @@ test("landing has no sideways scroll on mobile", async ({ page }) => {
   await page.goto("/");
   await page.waitForLoadState("networkidle");
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
+});
+
+/**
+ * The home page is one screen (2026-09-23): Masti, one sentence, one button,
+ * the masters and a one-line footer, and nothing under the fold to scroll
+ * to. Both projects run this, so it holds at 1280x720 and at 390x664; the
+ * hero sizes Masti against the viewport height to make it so.
+ */
+test("landing fits on one screen with nothing to scroll to", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.locator("h1")).toContainText(/chess coach/i, {
+    timeout: 15_000,
+  });
+  await page.waitForLoadState("networkidle");
+  const { scrollHeight, clientHeight } = await page.evaluate(() => ({
+    scrollHeight: document.documentElement.scrollHeight,
+    clientHeight: document.documentElement.clientHeight,
+  }));
+  expect(scrollHeight).toBeLessThanOrEqual(clientHeight);
 });
 
 test("landing survives without JS crashes", async ({ page }) => {
@@ -66,7 +87,7 @@ test.describe("landing hydration under a skewed clock", () => {
     await page.clock.setFixedTime(new Date("2031-03-09T12:00:00Z"));
     await page.goto("/");
     // The page has to have rendered for the empty error list to mean anything.
-    await expect(page.locator("h1")).toContainText(/chess coaching/i, {
+    await expect(page.locator("h1")).toContainText(/chess coach/i, {
       timeout: 15_000,
     });
     await page.waitForTimeout(3000);

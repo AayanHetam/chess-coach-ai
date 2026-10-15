@@ -298,7 +298,7 @@ describe("what goes to the coach", () => {
     const master = masterLineInsight(
       row({ san: "e4", count: 100, whiteWins: 50, draws: 30, blackWins: 20 })
     );
-    expect(master.tag).toBe("e4 — Master line");
+    expect(master.tag).toBe("e4: Master line");
     expect(master.classification).toBe("White 50% · draw 30% · Black 20%");
     const engine = masterLineInsight(
       row({ san: "e4", eval: 35, rank: 2, source: "chessdb" })

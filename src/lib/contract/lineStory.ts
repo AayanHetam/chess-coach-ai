@@ -253,7 +253,7 @@ function motifSayable(m: AnyMotif): string | null {
   }
 }
 
-function factSayable(f: StoryFact): string | null {
+export function factSayable(f: StoryFact): string | null {
   switch (f.kind) {
     case "checkmate": return "checkmate";
     case "stalemate": return "stalemate — the game is drawn";

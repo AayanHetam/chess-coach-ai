@@ -15,7 +15,10 @@
  */
 import { MoveClassification } from "@/types/enums";
 import type { PositionEval } from "@/types/eval";
-import { captionLine } from "@/lib/coach/lineCaptions";
+import { captionLine, type LineCaption } from "@/lib/coach/lineCaptions";
+import { isClaimVerifierEnabled } from "@/lib/coach/claimVerifierFlag";
+import { verifyClaims } from "@/lib/coach/verifyClaims";
+import { factSayable, type StoryFact } from "@/lib/contract/lineStory";
 import { engineLineAt, playedLineAt, type CoachLine } from "./coachLines";
 
 export interface MoveAnalysis {
@@ -67,6 +70,46 @@ function formatEval(
 
 const strip = (s: string) => s.replace(/[+#!?]/g, "");
 
+/** What a move leaves to be taken: the facts that turn a "why" into blame. */
+const COST_KINDS = new Set<StoryFact["kind"]>([
+  "en_prise",
+  "still_en_prise",
+  "leaves_trapped",
+]);
+
+/**
+ * A move's first two facts as the reason it works or fails (COACH_CLAIM_
+ * VERIFIER), minus any "it can be taken" fact that the engine's reply does
+ * not bear out. 12.Ng5's knight on b5 could be taken for nothing by static
+ * count, but the engine's reply (12...g6) never takes it and it had been
+ * loose since move 11: it is not why 12.Ng5 was a slip. A piece the reply
+ * really takes (19.Nxa8 Kxg5) stays the reason. No reply line, no blame.
+ */
+function whyCaption(
+  first: LineCaption,
+  startFen: string,
+  san: string,
+  reply: readonly string[] | undefined
+): string {
+  const kept = first.facts.filter((f) => {
+    if (!COST_KINDS.has(f.kind) || !("square" in f) || !("piece" in f)) {
+      return true;
+    }
+    const [v] = verifyClaims({
+      startFen,
+      line: [san],
+      claims: [{ kind: "refutation_takes", square: f.square, piece: f.piece }],
+      refutation: reply,
+    }).verdicts;
+    return v.status === "verified";
+  });
+  return kept
+    .map(factSayable)
+    .filter((s): s is string => s !== null)
+    .slice(0, 2)
+    .join("; ");
+}
+
 function labelFor(moveNumber: number, color: "w" | "b", san: string): string {
   return `${moveNumber}${color === "w" ? "." : "..."} ${san}`;
 }
@@ -117,10 +160,33 @@ export function analyzeMoveAt(
     bestSan = null;
     engineLine = null;
   }
-  const bestCaption = engineLine
-    ? (captionLine(engineLine.startFen, engineLine.sans, playerColor).plies[0]
-        ?.caption ?? "")
-    : "";
+  const verified = isClaimVerifierEnabled();
+  const engineFirst = engineLine
+    ? captionLine(engineLine.startFen, engineLine.sans, playerColor).plies[0]
+    : undefined;
+  const bestCaption =
+    engineLine && engineFirst
+      ? verified
+        ? whyCaption(
+            engineFirst,
+            engineLine.startFen,
+            engineLine.sans[0],
+            engineLine.sans.slice(1)
+          )
+        : engineFirst.caption
+      : "";
+  // The engine's reply to the move actually played: its line from the
+  // position after it.
+  const reply =
+    after?.lines?.[0]?.depth && after.lines[0].pv.length > 0
+      ? after.lines[0].pv
+      : undefined;
+  const caption =
+    first && played
+      ? verified
+        ? whyCaption(first, played.startFen, san, reply)
+        : first.caption
+      : "";
 
   const classification = (after?.moveClassification ??
     null) as MoveClassification | null;
@@ -134,7 +200,7 @@ export function analyzeMoveAt(
     classification,
     evalBefore: formatEval(before?.lines?.[0]),
     evalAfter: formatEval(after?.lines?.[0]),
-    caption: first?.caption ?? "",
+    caption,
     captionFull: first?.full ?? "",
     bestSan,
     engineLine,

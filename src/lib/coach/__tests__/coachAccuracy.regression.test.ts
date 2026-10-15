@@ -10,7 +10,7 @@
  * These run with COACH_CLAIM_VERIFIER at its test default (on).
  */
 import { Chess } from "chess.js";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { MoveClassification } from "@/types/enums";
 import { buildLineStory, projectLineStory } from "@/lib/contract/lineStory";
 import { analyzeMoveAt } from "@/components/preview-analysis/moveAnalysis";
@@ -23,6 +23,10 @@ import { loadGame, positionEvals } from "./coachAccuracyFixtures";
 
 const gameB = loadGame("gameB");
 const opera = loadGame("operaGame");
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("BUG 1: the footer states where material ends, not how much it changed", () => {
   it("Game B, the 19.Nxa8 card (depth 16): White starts 2 down, wins a point back, ends 1 DOWN", () => {
@@ -167,6 +171,15 @@ describe("BUG 3: the strip's 'why' for 12.Ng5 does not blame a hanging knight", 
     expect(a.bestSan).toBe("Rb1");
     expect(a.sentence).toMatch(/The engine preferred 12\. Rb1/);
     expect(a.sentence).not.toMatch(/hanging|en prise|can now be taken/);
+  });
+
+  it("with COACH_CLAIM_VERIFIER off, the legacy sentence is unchanged", () => {
+    vi.stubEnv("COACH_CLAIM_VERIFIER", "0");
+    vi.stubEnv("NEXT_PUBLIC_COACH_CLAIM_VERIFIER", "0");
+    const a = analyzeMoveAt(gameB.sans, withVerdict(16), 23, undefined, "w")!;
+    expect(a.sentence).toMatch(
+      /^Defends the bishop on h7; leaves the knight on b5 hanging\. A small slip\./
+    );
   });
 
   it("…but a hanging piece the refutation really takes is still the reason (19.Nxa8 drops the g5 knight)", () => {

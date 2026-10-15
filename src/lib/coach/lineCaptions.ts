@@ -15,6 +15,7 @@ import {
   buildLineStory,
   type LineStory,
   type PlyStory,
+  type StoryFact,
 } from "@/lib/contract/lineStory";
 import { isClaimVerifierEnabled } from "./claimVerifierFlag";
 import { pieceDifference } from "./verifyClaims";
@@ -27,6 +28,8 @@ export interface LineCaption {
   caption: string;
   /** Every fact, for a tooltip. */
   full: string;
+  /** The same facts, structured, for readers that weigh them (moveAnalysis). */
+  facts: StoryFact[];
   mover: "w" | "b";
 }
 
@@ -150,7 +153,14 @@ export function captionLine(
   }
   const plies: LineCaption[] = story.plies.map((p) => {
     const { short, full } = plyCaption(p);
-    return { san: p.san, label: p.label, caption: short, full, mover: p.mover };
+    return {
+      san: p.san,
+      label: p.label,
+      caption: short,
+      full,
+      facts: p.facts,
+      mover: p.mover,
+    };
   });
   return {
     plies,

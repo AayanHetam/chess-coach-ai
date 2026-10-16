@@ -23,7 +23,8 @@ import { getLineWinPercentage } from "@/lib/engine/helpers/winPercentage";
 import { evalBand } from "@/lib/contract/cardWorthiness";
 import { capturable } from "@/lib/tactics/capturable";
 import type { LineEval, PositionEval } from "@/types/eval";
-import { MoveClassification } from "@/types/enums";
+import { EngineName, MoveClassification } from "@/types/enums";
+import { ENGINE_LABELS } from "@/constants";
 import {
   missedMate,
   recheckedPair,
@@ -823,8 +824,8 @@ export function renderReportTail(report: GameReport): {
   }
   const m = report.method;
   const footnote = m.recheck
-    ? `_Every board fact here was replayed move by move. Evaluations: ${m.engine} at depth ${m.depth}; the decisive moments re-checked by ${m.recheck.engine} at depth ${m.recheck.depth}._`
-    : `_Every board fact here was replayed move by move. Evaluations: ${m.engine} at depth ${m.depth}._`;
+    ? `_Every board fact here was replayed move by move. Evaluations: ${engineLabel(m.engine)} at depth ${m.depth}; the decisive moments re-checked by ${engineLabel(m.recheck.engine)} at depth ${m.recheck.depth}._`
+    : `_Every board fact here was replayed move by move. Evaluations: ${engineLabel(m.engine)} at depth ${m.depth}._`;
   parts.push(footnote);
   sources.push({ text: footnote, source: "verified-fact" });
   return { text: `\n\n${parts.join("\n\n")}`, sources };
@@ -862,4 +863,9 @@ export function gameReportPromptBlock(report: GameReport): string {
     JSON.stringify(facts),
     "The app itself shows the verdict, the story of the game, the decisive moments, the credit and the habit above. Do NOT write your own intro line and do not repeat them; write only the cards, consistent with these facts. Use no board facts beyond the contract and REPORT FACTS.",
   ].join("\n");
+}
+
+/** The browser sends the engine's id ("stockfish_17_lite"); readers get its name. */
+function engineLabel(id: string): string {
+  return ENGINE_LABELS[id as EngineName]?.small ?? id;
 }

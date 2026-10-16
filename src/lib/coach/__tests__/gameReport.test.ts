@@ -144,6 +144,21 @@ describe("Game B", () => {
   });
 });
 
+describe("engine names", () => {
+  it("print the engine's name, not the id the browser sends", () => {
+    const report = buildGameReport({
+      ...input("gameB"),
+      engine: "stockfish_17_lite",
+      recheck: { ...input("gameB").recheck!, engine: "stockfish_17_lite" },
+    })!;
+    const tail = renderReportTail(report).text;
+    expect(tail).toContain(
+      "Evaluations: Stockfish 17 Lite at depth 16; the decisive moments re-checked by Stockfish 17 Lite at depth 20."
+    );
+    expect(tail).not.toContain("stockfish_17_lite");
+  });
+});
+
 describe("the Opera Game", () => {
   const report = buildGameReport(input("operaGame"))!;
 

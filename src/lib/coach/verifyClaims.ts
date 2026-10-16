@@ -23,7 +23,13 @@
  * it. They are different types so the compiler refuses to mix them.
  */
 import { Chess, type Color, type PieceSymbol, type Square } from "chess.js";
-import { attackersOf, see } from "@/lib/tactics/utils";
+import {
+  attackersOf,
+  coordToSquare,
+  pieceValue,
+  see,
+  squareToCoord,
+} from "@/lib/tactics/utils";
 import { EN_PRISE_MIN_CP, capturable } from "@/lib/tactics/capturable";
 
 // ── Material: a balance is a state, a delta is a change ─────────────────────
@@ -378,7 +384,31 @@ export type Claim =
       square: Square;
       piece: PieceSymbol;
       color?: Color;
-    };
+    }
+
+  /**
+   * "the bishop on g5 pins the knight on f6 to the queen on d8", after
+   * `atPly` plies: pinner, pinned and the piece behind on one clear line,
+   * the pinner a slider that moves along it, the piece behind worth more
+   * than the pinned one (or a king). A king is never the pinned piece.
+   */
+  | {
+      kind: "pin";
+      pinned?: Square;
+      pinnedPiece?: PieceSymbol;
+      behind?: Square;
+      behindPiece?: PieceSymbol;
+      pinner?: Square;
+      atPly: number;
+    }
+  /** "the only legal reply" / "a forced reply": one legal move after `atPly` plies. */
+  | { kind: "only_reply"; atPly: number }
+  /**
+   * "the king is forced to f6" (`whole`: the side has no other legal move) or
+   * "f6 is the king's only legal square" (the king has no other square),
+   * for the side to move after `atPly` plies.
+   */
+  | { kind: "only_square"; atPly: number; square: Square; whole: boolean };
 
 export type ClaimStatus = "verified" | "false" | "unverified";
 
@@ -490,6 +520,164 @@ function hangingRead(
     };
   }
   return { hangs: true };
+}
+
+interface PinFound {
+  pinner: Square;
+  pinned: Square;
+  behind: Square;
+}
+
+const DIRS: Array<[number, number]> = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+  [1, 1],
+  [1, -1],
+  [-1, 1],
+  [-1, -1],
+];
+
+/**
+ * Could the piece on `sq` step off the line (dx, dy) if it were free to? A
+ * pin binds only then: a pawn whose every push stays on the pinning file is
+ * not constrained by it (the phantom pin of src/lib/tactics/escapability.ts).
+ */
+function canLeaveLine(
+  game: Chess,
+  sq: Square,
+  dx: number,
+  dy: number
+): boolean {
+  const piece = game.get(sq)!;
+  const [x0, y0] = squareToCoord(sq);
+  const offLine = (x: number, y: number) => (x - x0) * dy !== (y - y0) * dx;
+  const free = (x: number, y: number) => {
+    const t = coordToSquare(x, y);
+    return t !== null && game.get(t)?.color !== piece.color;
+  };
+  if (piece.type === "n") {
+    return [
+      [1, 2],
+      [2, 1],
+      [2, -1],
+      [1, -2],
+      [-1, -2],
+      [-2, -1],
+      [-2, 1],
+      [-1, 2],
+    ].some(([a, b]) => free(x0 + a, y0 + b));
+  }
+  if (piece.type === "p") {
+    const f = piece.color === "w" ? 1 : -1;
+    const ep = game.fen().split(" ")[3];
+    const one = coordToSquare(x0, y0 + f);
+    if (one && !game.get(one) && offLine(x0, y0 + f)) return true;
+    return [-1, 1].some((a) => {
+      const t = coordToSquare(x0 + a, y0 + f);
+      if (!t || !offLine(x0 + a, y0 + f)) return false;
+      const there = game.get(t);
+      return (there && there.color !== piece.color) || t === ep;
+    });
+  }
+  const steps =
+    piece.type === "q"
+      ? DIRS
+      : DIRS.filter(([a, b]) => (piece.type === "b") === (a !== 0 && b !== 0));
+  return steps.some(
+    ([a, b]) => offLine(x0 + a, y0 + b) && free(x0 + a, y0 + b)
+  );
+}
+
+/** Every pin on the piece at `sq`: an enemy slider on one side, a dearer friend (or the king) on the other. */
+function pinsOn(game: Chess, sq: Square): PinFound[] {
+  const piece = game.get(sq);
+  if (!piece || piece.type === "k") return [];
+  const [x0, y0] = squareToCoord(sq);
+  const firstFrom = (dx: number, dy: number): Square | null => {
+    for (let x = x0 + dx, y = y0 + dy; ; x += dx, y += dy) {
+      const s = coordToSquare(x, y);
+      if (!s) return null;
+      if (game.get(s)) return s;
+    }
+  };
+  const out: PinFound[] = [];
+  for (const [dx, dy] of DIRS) {
+    const behindSq = firstFrom(dx, dy);
+    const pinnerSq = firstFrom(-dx, -dy);
+    if (!behindSq || !pinnerSq) continue;
+    const behind = game.get(behindSq)!;
+    const pinner = game.get(pinnerSq)!;
+    const slider = dx !== 0 && dy !== 0 ? "b" : "r";
+    if (
+      behind.color === piece.color &&
+      pinner.color !== piece.color &&
+      (pinner.type === "q" || pinner.type === slider) &&
+      (behind.type === "k" ||
+        pieceValue(behind.type) > pieceValue(piece.type)) &&
+      canLeaveLine(game, sq, dx, dy)
+    ) {
+      out.push({ pinner: pinnerSq, pinned: sq, behind: behindSq });
+    }
+  }
+  return out;
+}
+
+/** Does the pin the claim describes stand at `fen`? */
+function pinRead(
+  fen: string,
+  claim: Extract<Claim, { kind: "pin" }>
+): ClaimVerdict {
+  const game = new Chess(fen);
+  const no = (reason: string) => verdict(claim, "false", reason);
+  let candidates: Square[];
+  if (claim.pinned) {
+    const there = game.get(claim.pinned);
+    if (!there) return no(`there is no piece on ${claim.pinned}`);
+    if (claim.pinnedPiece && there.type !== claim.pinnedPiece)
+      return no(`the piece on ${claim.pinned} is a ${PIECE_NAME[there.type]}`);
+    if (there.type === "k")
+      return no("a king cannot be pinned: a line to it is a check");
+    candidates = [claim.pinned];
+  } else {
+    candidates = game
+      .board()
+      .flat()
+      .filter(
+        (p): p is NonNullable<typeof p> => !!p && p.type === claim.pinnedPiece
+      )
+      .map((p) => p.square as Square);
+  }
+  if (claim.behind) {
+    const there = game.get(claim.behind);
+    if (!there) return no(`there is no piece on ${claim.behind}`);
+    if (claim.behindPiece && there.type !== claim.behindPiece)
+      return no(`the piece on ${claim.behind} is a ${PIECE_NAME[there.type]}`);
+  }
+  const match = candidates
+    .flatMap((sq) => pinsOn(game, sq))
+    .find(
+      (f) =>
+        (!claim.behind || f.behind === claim.behind) &&
+        (!claim.behindPiece ||
+          game.get(f.behind)?.type === claim.behindPiece) &&
+        (!claim.pinner || f.pinner === claim.pinner)
+    );
+  if (!match) {
+    const what = claim.pinned
+      ? `the ${PIECE_NAME[game.get(claim.pinned)!.type]} on ${claim.pinned}`
+      : `any ${PIECE_NAME[claim.pinnedPiece!]}`;
+    return no(
+      `nothing pins ${what}${claim.behind ? ` to ${claim.behind}` : claim.behindPiece ? ` to a ${PIECE_NAME[claim.behindPiece]}` : ""}`
+    );
+  }
+  const name = (sq: Square) => PIECE_NAME[game.get(sq)!.type];
+  return verdict(
+    claim,
+    "verified",
+    `the ${name(match.pinner)} on ${match.pinner} pins the ${name(match.pinned)} on ${match.pinned} to the ${name(match.behind)} on ${match.behind}`
+  );
 }
 
 function evaluate(
@@ -823,6 +1011,61 @@ function evaluate(
         "false",
         `no ${claim.color ? `${SIDE_NAME[claim.color]} ` : ""}${PIECE_NAME[claim.piece]} stands on ${claim.square} at any point of the line`
       );
+    }
+    case "pin": {
+      if (claim.pinnedPiece === "k")
+        return verdict(
+          claim,
+          "false",
+          "a king cannot be pinned: a line to it is a check"
+        );
+      if (!inRange(claim.atPly, n) || (!claim.pinned && !claim.pinnedPiece))
+        return verdict(
+          claim,
+          "unverified",
+          "the sentence does not say which piece is pinned"
+        );
+      return pinRead(fenAt(replay, claim.atPly), claim);
+    }
+    case "only_reply":
+    case "only_square": {
+      if (!inRange(claim.atPly, n))
+        return verdict(
+          claim,
+          "unverified",
+          "the sentence does not say which move"
+        );
+      const game = new Chess(fenAt(replay, claim.atPly));
+      const moves = game.moves({ verbose: true });
+      const sans = moves.map((m) => m.san);
+      if (claim.kind === "only_reply") {
+        return moves.length === 1
+          ? verdict(claim, "verified", `${sans[0]} is the only legal move`)
+          : verdict(
+              claim,
+              "false",
+              `${SIDE_NAME[game.turn()]} has ${moves.length} legal moves: ${sans.join(", ")}`,
+              { moves: sans }
+            );
+      }
+      const kingTo = moves.filter((m) => m.piece === "k").map((m) => m.to);
+      const ok = claim.whole
+        ? moves.length === 1 && kingTo[0] === claim.square
+        : kingTo.length > 0 && kingTo.every((t) => t === claim.square);
+      return ok
+        ? verdict(
+            claim,
+            "verified",
+            `the king's only legal move is to ${claim.square}`
+          )
+        : verdict(
+            claim,
+            "false",
+            claim.whole
+              ? `${SIDE_NAME[game.turn()]} has ${moves.length} legal moves: ${sans.join(", ")}`
+              : `the king can go to ${kingTo.join(", ") || "no square"}`,
+            { moves: sans }
+          );
     }
     default:
       return verdict(

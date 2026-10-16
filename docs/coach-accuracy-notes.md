@@ -326,6 +326,21 @@ Dev-only noise, not from this work: each Fast Refresh while the page is open
 recreates the engine, and the review sweep left on the terminated worker
 logs `position N/44 exceeded 30000ms` for a long while. A reload clears it.
 
+## Live turn (after the merge)
+
+One real coach turn on Game B, served through `serveContractAnalysis` with
+the flags on (about $0.25: 49k input, 19k cache-write and 2k output tokens,
+plus $0.004 of ladder checks; 28 s). The code-written report was right, the
+19.Nxa8 card's facts checked out, and two false sentences got through the
+gate, which could not read them then: "after the king is forced to f6" (after
+15.Nxe6+ Black had four replies) and "the queen on h7 pins the king on g7"
+(a king is never pinned). The gate now reads both kinds (`pin`,
+`only_reply`, `only_square` in verifyClaims.ts); re-run offline on the same
+text, it drops those two and keeps the true "15. Qh7+ … forcing the only
+legal reply" and "21. g4+ drives the king to e4 — the only legal square". The
+report's footnote also printed the engine id (`stockfish_17_lite`); it now
+prints its name.
+
 ## Known limits (stated, not hidden)
 
 - **The verifier proves board facts, not chess judgment.** Pieces, captures,
@@ -345,7 +360,9 @@ logs `position N/44 exceeded 30000ms` for a long while. A reload clears it.
   moments on a fast laptop; the rest stay depth 16 and say so.
 - **The extractor is small and regex-based.** It reads material outcomes and
   changes, captures with the piece named, hanging pieces, mate written with
-  "#", and pieces named on squares. Forks, pins and "controls the d-file" are
+  "#", pieces named on squares, pins ("pins", "is pinned"; a pin must bind,
+  and a king is never pinned) and forced moves ("forced to f6", "the only
+  legal reply/move/square"). Forks, threats and "controls the d-file" are
   left to the existing referee checks. A claim-like sentence it cannot parse
   is logged at debug level and kept.
 - **Gated where the cards are refereed.** The gate and the report run on the

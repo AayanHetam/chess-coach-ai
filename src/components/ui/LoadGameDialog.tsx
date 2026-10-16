@@ -69,17 +69,74 @@ import type { ChessComGame } from "@/types/chessCom";
 import { getLichessUserRecentGames } from "@/lib/lichess";
 import { getChessComUserRecentGames } from "@/lib/chessCom";
 import { useGameDatabase } from "@/hooks/useGameDatabase";
+import { useChessUsernames } from "@/hooks/useChessUsernames";
+import { useUsernameSavedNote } from "@/components/ui/UsernameSavedNote";
+import {
+  PLATFORM_NAME,
+  sameUsername,
+  type ChessPlatform,
+  type PlatformUsername,
+} from "@/lib/chessAccounts";
 import type { Game } from "@/types/game";
 
 type Tab = "paste" | "saved" | "lichess" | "chesscom";
 
+/** Where a game picked from a platform's list came from: the username whose
+ *  games the reader was looking through. */
+export type LoadedFrom = PlatformUsername;
+
 interface LoadGameDialogProps {
   open: boolean;
   onClose: () => void;
-  onLoad: (game: Chess) => void;
+  onLoad: (game: Chess, from?: LoadedFrom) => void;
 }
 
 export function LoadGameDialog({ open, onClose, onLoad }: LoadGameDialogProps) {
+  const { saved, remember } = useChessUsernames();
+  const savedNote = useUsernameSavedNote();
+  const showSavedNote = savedNote.show;
+
+  const loadFromPlatform = useCallback(
+    (game: Chess, from: LoadedFrom) => {
+      onLoad(game, from);
+      onClose();
+      remember(from.platform, from.username)
+        .then((target) => {
+          if (target === "profile") showSavedNote(from);
+        })
+        .catch((err) => {
+          // The game is loaded either way; the reader can still set the
+          // username in Profile.
+          console.warn("[load game] couldn't save username:", err);
+        });
+    },
+    [onLoad, onClose, remember, showSavedNote]
+  );
+
+  return (
+    <>
+      <LoadGameModal
+        open={open}
+        onClose={onClose}
+        onLoad={onLoad}
+        onLoadFromPlatform={loadFromPlatform}
+        savedUsername={saved}
+      />
+      {savedNote.element}
+    </>
+  );
+}
+
+function LoadGameModal({
+  open,
+  onClose,
+  onLoad,
+  onLoadFromPlatform,
+  savedUsername,
+}: LoadGameDialogProps & {
+  onLoadFromPlatform: (game: Chess, from: LoadedFrom) => void;
+  savedUsername: (platform: ChessPlatform) => string;
+}) {
   const [tab, setTab] = useState<Tab>("paste");
 
   // Reset to paste tab whenever dialog reopens
@@ -288,20 +345,14 @@ export function LoadGameDialog({ open, onClose, onLoad }: LoadGameDialogProps) {
                       }}
                     />
                   )}
-                  {tab === "lichess" && (
-                    <LichessTab
-                      onLoad={(g) => {
-                        onLoad(g);
-                        onClose();
-                      }}
-                    />
-                  )}
-                  {tab === "chesscom" && (
-                    <ChessComTab
-                      onLoad={(g) => {
-                        onLoad(g);
-                        onClose();
-                      }}
+                  {(tab === "lichess" || tab === "chesscom") && (
+                    <PlatformGamesTab
+                      // One mount per platform, so switching tabs starts the
+                      // other platform from its own saved username.
+                      key={tab}
+                      platform={tab}
+                      savedUsername={savedUsername(tab)}
+                      onLoad={onLoadFromPlatform}
                     />
                   )}
                 </Box>
@@ -566,146 +617,128 @@ function SavedGamesTab({ onLoad }: { onLoad: (game: Chess) => void }) {
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
-// Lichess tab
+// Lichess and Chess.com tabs
 // ───────────────────────────────────────────────────────────────────────────────
 
-function LichessTab({ onLoad }: { onLoad: (game: Chess) => void }) {
+const PLATFORM_TAB: Record<
+  ChessPlatform,
+  { search: string; placeholder: string; unreachable: string }
+> = {
+  lichess: {
+    search:
+      "Search any Lichess username. We'll fetch their 50 most recent games. Click any one to analyze.",
+    placeholder: "e.g. DrNykterstein",
+    unreachable: "Couldn't reach Lichess.",
+  },
+  chesscom: {
+    search:
+      "Search any Chess.com username. We fetch the current month's archive first, then last month if needed.",
+    placeholder: "e.g. Hikaru",
+    unreachable: "Couldn't reach Chess.com.",
+  },
+};
+
+/**
+ * A platform's recent games for a username. Opens on the reader's saved
+ * username with their games already fetched; the field stays theirs to change
+ * for a look at anybody else's.
+ */
+function PlatformGamesTab({
+  platform,
+  savedUsername,
+  onLoad,
+}: {
+  platform: ChessPlatform;
+  savedUsername: string;
+  onLoad: (game: Chess, from: LoadedFrom) => void;
+}) {
+  const copy = PLATFORM_TAB[platform];
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [games, setGames] = useState<LichessGame[]>([]);
+  const [games, setGames] = useState<LichessGame[] | ChessComGame[]>([]);
+  // Whose games the list shows, which stops being the field's text as soon
+  // as the reader starts typing another name.
+  const [fetchedFor, setFetchedFor] = useState("");
+  const typedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  const handleFetch = useCallback(async () => {
-    const u = username.trim();
-    if (!u) {
-      setError("Enter a Lichess username first.");
-      return;
-    }
-    abortRef.current?.abort();
-    const ac = new AbortController();
-    abortRef.current = ac;
-    setLoading(true);
-    setError(null);
-    setGames([]);
-    try {
-      const result = await getLichessUserRecentGames(u, ac.signal);
-      if (ac.signal.aborted) return;
-      if (result.length === 0) {
-        setError(`No recent games found for ${u}.`);
-      } else {
-        setGames(result);
+  const fetchGames = useCallback(
+    async (raw: string) => {
+      const u = raw.trim();
+      if (!u) {
+        setError(`Enter a ${PLATFORM_NAME[platform]} username first.`);
+        return;
       }
-    } catch (err) {
-      if (ac.signal.aborted) return;
-      setError(err instanceof Error ? err.message : "Couldn't reach Lichess.");
-    } finally {
-      if (!ac.signal.aborted) setLoading(false);
-    }
-  }, [username]);
-
-  return (
-    <Stack spacing={1.5}>
-      <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
-        Search any Lichess username. We'll fetch their 50 most recent games.
-        Click any one to analyze.
-      </Typography>
-      <Stack direction="row" spacing={1}>
-        <TextField
-          value={username}
-          onChange={(e) => {
-            setUsername(e.target.value);
-            setError(null);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleFetch();
-          }}
-          placeholder="e.g. DrNykterstein"
-          fullWidth
-        />
-        <Button
-          onClick={handleFetch}
-          disabled={loading || !username.trim()}
-          startIcon={
-            loading ? (
-              <CircularProgress size={16} color="inherit" />
-            ) : (
-              <Search size={14} strokeWidth={1.75} />
-            )
-          }
-          sx={primaryButtonSx}
-        >
-          {loading ? "Searching" : "Fetch"}
-        </Button>
-      </Stack>
-      {error && <ErrorPill text={error} />}
-      <GameList games={games} kind="lichess" onLoad={onLoad} />
-    </Stack>
+      abortRef.current?.abort();
+      const ac = new AbortController();
+      abortRef.current = ac;
+      setLoading(true);
+      setError(null);
+      setGames([]);
+      setFetchedFor("");
+      try {
+        const result =
+          platform === "lichess"
+            ? await getLichessUserRecentGames(u, ac.signal)
+            : await getChessComUserRecentGames(u, ac.signal);
+        if (ac.signal.aborted) return;
+        if (result.length === 0) {
+          setError(`No recent games found for ${u}.`);
+        } else {
+          setGames(result);
+          setFetchedFor(u);
+        }
+      } catch (err) {
+        if (ac.signal.aborted) return;
+        setError(err instanceof Error ? err.message : copy.unreachable);
+      } finally {
+        if (!ac.signal.aborted) setLoading(false);
+      }
+    },
+    [platform, copy.unreachable]
   );
-}
 
-// ───────────────────────────────────────────────────────────────────────────────
-// Chess.com tab
-// ───────────────────────────────────────────────────────────────────────────────
+  // Open on the reader's own games. The saved username can land a moment
+  // after the tab does (the account is still loading), so this waits for it,
+  // and stands down for good once the reader has typed anything.
+  useEffect(() => {
+    if (!savedUsername || typedRef.current) return;
+    setUsername(savedUsername);
+    void fetchGames(savedUsername);
+  }, [savedUsername, fetchGames]);
 
-function ChessComTab({ onLoad }: { onLoad: (game: Chess) => void }) {
-  const [username, setUsername] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [games, setGames] = useState<ChessComGame[]>([]);
-  const abortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => abortRef.current?.abort(), []);
 
-  const handleFetch = useCallback(async () => {
-    const u = username.trim();
-    if (!u) {
-      setError("Enter a Chess.com username first.");
-      return;
-    }
-    abortRef.current?.abort();
-    const ac = new AbortController();
-    abortRef.current = ac;
-    setLoading(true);
-    setError(null);
-    setGames([]);
-    try {
-      const result = await getChessComUserRecentGames(u, ac.signal);
-      if (ac.signal.aborted) return;
-      if (result.length === 0) {
-        setError(`No recent games found for ${u}.`);
-      } else {
-        setGames(result);
-      }
-    } catch (err) {
-      if (ac.signal.aborted) return;
-      setError(
-        err instanceof Error ? err.message : "Couldn't reach Chess.com."
-      );
-    } finally {
-      if (!ac.signal.aborted) setLoading(false);
-    }
-  }, [username]);
+  const showingOwn =
+    Boolean(savedUsername) && sameUsername(username, savedUsername);
 
   return (
     <Stack spacing={1.5}>
       <Typography sx={{ ...TYPE.bodySmall, color: TEXT.secondary }}>
-        Search any Chess.com username. We fetch the current month's archive
-        first, then last month if needed.
+        {showingOwn
+          ? "Your recent games. To look at someone else's, type their username."
+          : copy.search}
       </Typography>
       <Stack direction="row" spacing={1}>
         <TextField
           value={username}
           onChange={(e) => {
+            typedRef.current = true;
             setUsername(e.target.value);
             setError(null);
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter") handleFetch();
+            if (e.key === "Enter") void fetchGames(username);
           }}
-          placeholder="e.g. Hikaru"
+          placeholder={copy.placeholder}
+          slotProps={{
+            htmlInput: { "aria-label": `${PLATFORM_NAME[platform]} username` },
+          }}
           fullWidth
         />
         <Button
-          onClick={handleFetch}
+          onClick={() => void fetchGames(username)}
           disabled={loading || !username.trim()}
           startIcon={
             loading ? (
@@ -720,7 +753,11 @@ function ChessComTab({ onLoad }: { onLoad: (game: Chess) => void }) {
         </Button>
       </Stack>
       {error && <ErrorPill text={error} />}
-      <GameList games={games} kind="chesscom" onLoad={onLoad} />
+      <GameList
+        games={games}
+        kind={platform}
+        onLoad={(g) => onLoad(g, { platform, username: fetchedFor })}
+      />
     </Stack>
   );
 }

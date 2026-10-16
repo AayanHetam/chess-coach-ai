@@ -19,6 +19,7 @@ import { SERIF_DISPLAY } from "@/theme/fonts";
 import { NavPill } from "@/components/ui/NavPill";
 import ProfileDialog from "@/components/auth/ProfileDialog";
 import HandleCard from "@/components/profile/HandleCard";
+import ChessAccountsCard from "@/components/profile/ChessAccountsCard";
 import GoalSetterCard from "@/components/profile/GoalSetterCard";
 import { SIGN_IN_PROPS } from "@/components/ads/PartnerSlot";
 import { PanelCard } from "@/components/performance/PanelCard";
@@ -477,6 +478,16 @@ export default function Profile() {
               once a handle exists, or once dismissed. */}
           {user && (
             <HandleCard currentHandle={account?.handle} onClaimed={refresh} />
+          )}
+
+          {/* The Chess.com and Lichess usernames the load dialog opens on.
+              It saves the first one a reader uses, and says so; this is
+              where they change it. */}
+          {user && (
+            <ChessAccountsCard
+              profile={account}
+              onChange={() => setSettingsOpen(true)}
+            />
           )}
 
           {/* Rating goals. The anchor for the deep link /plan uses when it has

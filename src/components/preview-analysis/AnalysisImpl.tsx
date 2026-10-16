@@ -74,11 +74,17 @@ import {
   gameSideKey,
   inferPlayerSideFromHeaders,
   loadStoredSide,
+  playerSideCandidates,
+  sideNamesFromHeaders,
   storeSide,
   type PlayerSide,
   type PlayerSideColor,
 } from "@/components/preview-analysis/playerSide";
-import BookExitCard from "@/components/analysis/BookExitCard";
+import {
+  PlayerSideAsk,
+  PlayerSideChip,
+} from "@/components/preview-analysis/PlayerSideLine";
+import { readDeviceUsername } from "@/lib/chessAccounts";
 import type { DrawShape } from "@/components/ui/ChessgroundBoard";
 import { ChessgroundBoardPlaceholder } from "@/components/ui/ChessgroundBoardPlaceholder";
 import {
@@ -3890,138 +3896,6 @@ function EngineLinesPanel({
   );
 }
 
-// ─── "Which side were you playing?" inline ask ───────────────────────────
-// Shown once per game inside the coach stream when the player's side
-// can't be inferred (no username match, no stored answer). Answering
-// threads playerColor into every analysis/chat request and persists the
-// choice per-game. The two side buttons are equal choices, so neither
-// wears the accent; hover is a neutral step up the surface ladder.
-/**
- * The side question, asked inside the greeting rather than as a card of its
- * own: "Which side were you playing? [White] [Black]".
- */
-function PlayerSideAsk({
-  onChoose,
-}: {
-  onChoose: (color: PlayerSideColor) => void;
-}) {
-  const sideButton = (color: PlayerSideColor) => (
-    <Box
-      component="button"
-      type="button"
-      onClick={() => onChoose(color)}
-      aria-label={`I was playing ${color}`}
-      sx={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 0.5,
-        px: 1.1,
-        py: 0.35,
-        borderRadius: `${RADIUS.pill}px`,
-        border: `1px solid ${LINE.strong}`,
-        background: "transparent",
-        color: TEXT.primary,
-        font: "inherit",
-        fontSize: "0.8rem",
-        fontWeight: 600,
-        cursor: "pointer",
-        touchAction: "manipulation",
-        transition: `background-color ${MOTION.hover}, border-color ${MOTION.hover}, transform ${MOTION.press}`,
-        "&:hover": {
-          background: "rgba(255,255,255,0.06)",
-          borderColor: TEXT.secondary,
-        },
-        "&:active": { transform: MOTION.pressScale },
-        "&:focus-visible": {
-          outline: `2px solid ${TEXT.primary}`,
-          outlineOffset: 2,
-        },
-      }}
-    >
-      <Box
-        component="span"
-        sx={{ fontSize: "1rem", lineHeight: 1 }}
-        aria-hidden
-      >
-        {color === "white" ? "♔" : "♚"}
-      </Box>
-      {color === "white" ? "White" : "Black"}
-    </Box>
-  );
-  return (
-    <Box
-      data-testid="player-side-ask"
-      sx={{
-        mt: 1,
-        display: "flex",
-        alignItems: "center",
-        gap: 1,
-        flexWrap: "wrap",
-      }}
-    >
-      <Typography sx={{ fontSize: "0.9rem", color: TEXT.primary }}>
-        Which side were you playing?
-      </Typography>
-      {sideButton("white")}
-      {sideButton("black")}
-    </Box>
-  );
-}
-
-// One quiet line under the greeting saying which side is being coached and
-// how that was decided, with the switch a word away, so a wrong guess is one
-// tap from right.
-function PlayerSideChip({
-  side,
-  onChoose,
-}: {
-  side: PlayerSide;
-  onChoose?: (color: PlayerSideColor) => void;
-}) {
-  const other: PlayerSideColor = side.color === "white" ? "black" : "white";
-  const sourceLabel =
-    side.source === "username_match"
-      ? "matched your username"
-      : side.source === "stored_choice"
-        ? "remembered from last time"
-        : "your choice";
-  return (
-    <Typography
-      data-testid="player-side-chip"
-      sx={{ mt: 0.75, fontSize: "0.8rem", color: TEXT.secondary }}
-    >
-      Coaching you as {side.color === "white" ? "White" : "Black"} (
-      {sourceLabel}).
-      {onChoose && (
-        <>
-          {" "}
-          <Box
-            component="button"
-            type="button"
-            onClick={() => onChoose(other)}
-            sx={{
-              font: "inherit",
-              fontWeight: 600,
-              color: ACCENT.hover,
-              background: "none",
-              border: 0,
-              p: 0,
-              cursor: "pointer",
-              "&:hover": { textDecoration: "underline" },
-              "&:focus-visible": {
-                outline: `2px solid ${TEXT.primary}`,
-                outlineOffset: 2,
-              },
-            }}
-          >
-            Switch to {other === "white" ? "White" : "Black"}
-          </Box>
-        </>
-      )}
-    </Typography>
-  );
-}
-
 /** Human-readable name for a theme key, falling back to the key itself
  *  rather than inventing a label for a pattern we don't have copy for. */
 function themeDisplayName(theme: string): string {
@@ -4321,11 +4195,11 @@ function CoachPanel({
     [onChangeInput]
   );
 
-  // Stable identity for BookExitCard: a fresh array per render made its
-  // effect refetch on every engine tick (see the note in BookExitCard).
-  const bookExitSans = useMemo(
-    () => (allMoves ?? []).map((mv) => mv.san),
-    [allMoves]
+  // The players as the game names them, so the side line can say whose side
+  // is whose: "White (hikaru)".
+  const sideNames = useMemo(
+    () => sideNamesFromHeaders(loadedGame?.header() ?? {}),
+    [loadedGame]
   );
   const playerColor: "w" | "b" | null = playerSide
     ? playerSide.color === "white"
@@ -4339,10 +4213,11 @@ function CoachPanel({
     }
   }, [messages.length, isThinking]);
 
-  // The side question, the side line and the book note are things the
-  // coach says on meeting the game, so they read as part of the greeting
-  // (the first message when a game has just loaded) rather than as cards
-  // pinned above the conversation.
+  // The side question and the side line are things the coach says on
+  // meeting the game, so they read as part of the greeting (the first
+  // message when a game has just loaded) rather than as cards pinned above
+  // the conversation. The opening-book note that used to follow them is gone
+  // (founder feedback 2026-10-16): it said the same thing on every game.
   const greetingFirst =
     messages.length > 0 &&
     messages[0].role === "coach" &&
@@ -4350,22 +4225,14 @@ function CoachPanel({
   const sideBlock = sideUiEligible ? (
     <Box sx={{ pl: "38px" }}>
       {playerSide ? (
-        <PlayerSideChip side={playerSide} onChoose={onChoosePlayerSide} />
-      ) : onChoosePlayerSide ? (
-        <PlayerSideAsk onChoose={onChoosePlayerSide} />
-      ) : null}
-      {/* Where this game left what players at the reader's own level play.
-          Gated on playerSide because the answer is per COLOUR: without it
-          we would have to guess whose moves to judge, and guessing wrong
-          reports the opponent's departure as the reader's. The note fetches
-          its own answer and renders nothing at all when it has none. */}
-      {playerSide && bookExitSans.length > 0 && (
-        <BookExitCard
-          sans={bookExitSans}
-          side={playerSide.color}
-          variant="plain"
+        <PlayerSideChip
+          side={playerSide}
+          names={sideNames}
+          onChoose={onChoosePlayerSide}
         />
-      )}
+      ) : onChoosePlayerSide ? (
+        <PlayerSideAsk names={sideNames} onChoose={onChoosePlayerSide} />
+      ) : null}
     </Box>
   ) : null;
 
@@ -8035,19 +7902,59 @@ export default function AnalysisPage() {
     [loadedGame]
   );
 
+  // Everyone the reader might be in a game's headers, strongest first. Read
+  // through a ref because loadNewGame is created once: its closure over
+  // `user` saw the signed-out first render for the life of the page, so the
+  // account's names never matched, and the profile's usernames were never
+  // asked at all. That is why the side line kept saying "your choice".
+  const accountRef = useRef({ user, profile });
+  accountRef.current = { user, profile };
+  const readerCandidates = useCallback(
+    (fetchedFor?: string) =>
+      playerSideCandidates({
+        profile: accountRef.current.profile,
+        device: [readDeviceUsername("chesscom"), readDeviceUsername("lichess")],
+        fetchedFor,
+        displayName: accountRef.current.user?.displayName,
+        email: accountRef.current.user?.email,
+      }),
+    []
+  );
+
+  // The account can arrive after the game: a ?pgn= link or the /profile
+  // handoff loads it as soon as the router is ready, often before
+  // /api/auth/me answers. While the side is still unknown, try again with
+  // the usernames the profile brought. Never over an answer the reader gave.
+  useEffect(() => {
+    if (playerSide || !profile || loadedGame.history().length === 0) return;
+    const inferred = inferPlayerSideFromHeaders(
+      loadedGame.header(),
+      readerCandidates()
+    );
+    if (!inferred) return;
+    setPlayerSide({ color: inferred, source: "username_match" });
+    setBoardOrientation(inferred);
+  }, [profile, playerSide, loadedGame, readerCandidates]);
+
   // Replace the loaded game from a fresh Chess instance (e.g. user pasted
   // a PGN, or a URL param brought one in). Resets cursor + seed chat +
   // analysis cache via the useEffect on [loadedGame]. Pass keepChat=true
   // to preserve existing message history (e.g. on insight permalinks).
+  // `fetchedFor` is the username whose Chess.com or Lichess games the reader
+  // picked this one from.
   const loadNewGame = useCallback(
-    (game: Chess, opts?: { keepChat?: boolean; greeting?: string }) => {
+    (
+      game: Chess,
+      opts?: { keepChat?: boolean; greeting?: string; fetchedFor?: string }
+    ) => {
       setLoadedGame(game);
       setGameLoaded(true);
       setCurrentPly(0);
       // G13 (extended 2026-08-10): resolve which side the user played.
-      //  1. Username match against the White/Black headers — any known
-      //     handle (lichess/chess.com localStorage stash, display name,
-      //     email prefix). Broader than the old check, which required a
+      //  1. Username match against the White/Black headers — the reader's
+      //     saved Chess.com / Lichess usernames (profile, then this
+      //     device), the username the game was fetched for, display name,
+      //     email prefix. Broader than the old check, which required a
       //     chess.com/lichess Site header before even trying.
       //  2. A stored per-game answer from a previous "Which side?" ask.
       //  3. Neither → playerSide null → CoachPanel asks inline before the
@@ -8057,16 +7964,11 @@ export default function AnalysisPage() {
       try {
         let resolved: PlayerSide | null = null;
         if (typeof window !== "undefined") {
-          const clean = (v: string | null) =>
-            v ? v.replace(/^"|"$/g, "") : null;
-          const candidates = [
-            clean(window.localStorage.getItem("lichess-username")),
-            clean(window.localStorage.getItem("chesscom-username")),
-            user?.displayName,
-            user?.email?.split("@")[0],
-          ];
           const headers = game.header();
-          const inferred = inferPlayerSideFromHeaders(headers, candidates);
+          const inferred = inferPlayerSideFromHeaders(
+            headers,
+            readerCandidates(opts?.fetchedFor)
+          );
           if (inferred) {
             resolved = { color: inferred, source: "username_match" };
           } else {
@@ -8120,7 +8022,7 @@ export default function AnalysisPage() {
         ]);
       }
     },
-    []
+    [readerCandidates]
   );
 
   // ───── URL-param + localStorage ingestion (mirrors production /analysis) ─────
@@ -10288,7 +10190,7 @@ export default function AnalysisPage() {
       <LoadGameDialog
         open={loadGameOpen}
         onClose={() => setLoadGameOpen(false)}
-        onLoad={(g) => loadNewGame(g)}
+        onLoad={(g, from) => loadNewGame(g, { fetchedFor: from?.username })}
       />
 
       {shareDialog && (

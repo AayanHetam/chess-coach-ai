@@ -1,4 +1,5 @@
-import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useEffect, useRef, useState } from "react";
+import { useChessUsernames } from "@/hooks/useChessUsernames";
 import { getLichessUserRecentGames } from "@/lib/lichess";
 import { capitalize } from "@/lib/helpers";
 import {
@@ -24,10 +25,15 @@ interface Props {
 }
 
 export default function LichessInput({ onSelect }: Props) {
-  const [lichessUsername, setLichessUsername] = useLocalStorage(
-    "lichess-username",
-    ""
-  );
+  // Opens on the reader's saved username (the profile's, else this device's)
+  // with their games already fetched; typing another name looks that player
+  // up. The first one a reader adds a game from is saved by the dialog.
+  const [lichessUsername, setLichessUsername] = useState("");
+  const savedUsername = useChessUsernames().saved("lichess");
+  const typedRef = useRef(false);
+  useEffect(() => {
+    if (savedUsername && !typedRef.current) setLichessUsername(savedUsername);
+  }, [savedUsername]);
   const debouncedUsername = useDebounce(lichessUsername, 500);
   const dark = useTheme().palette.mode === "dark";
 
@@ -50,7 +56,10 @@ export default function LichessInput({ onSelect }: Props) {
           label="Enter your Lichess username..."
           variant="outlined"
           value={lichessUsername ?? ""}
-          onChange={(e) => setLichessUsername(e.target.value)}
+          onChange={(e) => {
+            typedRef.current = true;
+            setLichessUsername(e.target.value);
+          }}
           sx={glassInputSx(dark)}
         />
       </FormControl>

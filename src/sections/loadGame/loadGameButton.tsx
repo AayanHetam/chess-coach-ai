@@ -2,6 +2,7 @@ import { Button, Typography } from "@mui/material";
 import { useState } from "react";
 import NewGameDialog from "./loadGameDialog";
 import { Chess } from "chess.js";
+import { useUsernameSavedNote } from "@/components/ui/UsernameSavedNote";
 
 interface Props {
   setGame?: (game: Chess) => Promise<void>;
@@ -11,6 +12,7 @@ interface Props {
 
 export default function LoadGameButton({ setGame, label, size }: Props) {
   const [openDialog, setOpenDialog] = useState(false);
+  const savedNote = useUsernameSavedNote();
 
   return (
     <>
@@ -28,7 +30,9 @@ export default function LoadGameButton({ setGame, label, size }: Props) {
         open={openDialog}
         onClose={() => setOpenDialog(false)}
         setGame={setGame}
+        onUsernameSaved={savedNote.show}
       />
+      {savedNote.element}
     </>
   );
 }

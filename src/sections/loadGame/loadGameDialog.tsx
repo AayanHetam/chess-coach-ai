@@ -27,6 +27,8 @@ import LichessInput from "./lichessInput";
 import { useSetAtom } from "jotai";
 import { boardOrientationAtom, userPlayerInfoAtom } from "../analysis/states";
 import { extractImportedGameInfo, detectUserColor } from "@/lib/smartColorDetection";
+import { useChessUsernames } from "@/hooks/useChessUsernames";
+import type { PlatformUsername } from "@/lib/chessAccounts";
 import {
   glassDialogPaperSx,
   glassBackdropSx,
@@ -39,9 +41,17 @@ interface Props {
   open: boolean;
   onClose: () => void;
   setGame?: (game: Chess) => Promise<void>;
+  /** Called once a reader's first Chess.com or Lichess username has been
+   *  saved to their profile, so the opener can say so after this closes. */
+  onUsernameSaved?: (saved: PlatformUsername) => void;
 }
 
-export default function NewGameDialog({ open, onClose, setGame }: Props) {
+export default function NewGameDialog({
+  open,
+  onClose,
+  setGame,
+  onUsernameSaved,
+}: Props) {
   const [pgn, setPgn] = useState("");
   const [gameOrigin, setGameOrigin] = useLocalStorage(
     "preferred-game-origin",
@@ -52,6 +62,7 @@ export default function NewGameDialog({ open, onClose, setGame }: Props) {
   const setBoardOrientation = useSetAtom(boardOrientationAtom);
   const setUserPlayerInfo = useSetAtom(userPlayerInfoAtom);
   const { addGame } = useGameDatabase();
+  const { remember } = useChessUsernames();
   const dark = useTheme().palette.mode === "dark";
 
   const handleAddGame = async (
@@ -101,6 +112,24 @@ export default function NewGameDialog({ open, onClose, setGame }: Props) {
         await setGame(gameToAdd);
       } else {
         await addGame(gameToAdd);
+      }
+
+      // The first username a reader adds a game from becomes theirs.
+      if (
+        (gameOrigin === "chesscom" || gameOrigin === "lichess") &&
+        searchUsername
+      ) {
+        const saved: PlatformUsername = {
+          platform: gameOrigin,
+          username: searchUsername.trim(),
+        };
+        remember(saved.platform, saved.username)
+          .then((target) => {
+            if (target === "profile") onUsernameSaved?.(saved);
+          })
+          .catch((err) => {
+            console.warn("[add game] couldn't save username:", err);
+          });
       }
 
       setBoardOrientation(boardOrientation ?? true);

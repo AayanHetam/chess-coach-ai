@@ -7,6 +7,12 @@
 //   2. a previously stored per-game answer (localStorage);
 //   3. otherwise → null, and CoachPanel shows the inline two-button ask
 //      before the first analysis request.
+//
+// Both the ask and the line that follows it name the players (founder
+// feedback 2026-10-16): "White (hikaru)" rather than "White", because the
+// reader knows which name is theirs before they know which colour it had.
+
+import type { ProfileUsernames } from "@/lib/chessAccounts";
 
 export type PlayerSideColor = "white" | "black";
 
@@ -54,6 +60,71 @@ export function inferPlayerSideFromHeaders(
     if (black && candidate === black) return "black";
   }
   return null;
+}
+
+/**
+ * The usernames that may be the reader's, strongest first: their saved
+ * profile usernames, the ones this device remembers, the username the game
+ * was fetched for, then the account's display name and email prefix.
+ *
+ * Their own names come before the fetched one because a game found through
+ * someone else's list can still be the reader's own: looking through a
+ * friend's games, they pick the one they played against that friend.
+ */
+export function playerSideCandidates(input: {
+  profile?: ProfileUsernames | null;
+  device?: Array<string | null | undefined>;
+  fetchedFor?: string | null;
+  displayName?: string | null;
+  email?: string | null;
+}): string[] {
+  const all = [
+    input.profile?.chesscomUsername,
+    input.profile?.lichessUsername,
+    ...(input.device ?? []),
+    input.fetchedFor,
+    input.displayName,
+    input.email?.split("@")[0],
+  ];
+  return all
+    .map((c) => c?.trim() ?? "")
+    .filter((c): c is string => c.length > 0);
+}
+
+export interface SideNames {
+  white: string | null;
+  black: string | null;
+}
+
+/**
+ * The name a PGN header gives a side, or null when it gives none worth
+ * showing: empty, the "?" placeholder, or the colour itself
+ * (`[White "White"]` would read "White (White)").
+ */
+export function sideDisplayName(
+  raw: string | null | undefined,
+  color: PlayerSideColor
+): string | null {
+  const name = raw?.trim();
+  if (!name || name === "?") return null;
+  if (name.toLowerCase() === color) return null;
+  return name;
+}
+
+export function sideNamesFromHeaders(
+  headers: Record<string, string | null | undefined>
+): SideNames {
+  return {
+    white: sideDisplayName(headers.White, "white"),
+    black: sideDisplayName(headers.Black, "black"),
+  };
+}
+
+/** "White (hikaru)", or "White" when the game names nobody. */
+export function sideLabel(color: PlayerSideColor, names: SideNames): string {
+  const colour = color === "white" ? "White" : "Black";
+  const name = names[color];
+  return name ? `${colour} (${name})` : colour;
 }
 
 function readStore(): Record<string, PlayerSideColor> {

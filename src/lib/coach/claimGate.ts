@@ -212,7 +212,7 @@ const HYPOTHETICAL_RE =
 const ENGINE_RE =
   /(?:[+\-−]\d+\.\d{2}\b|\bM[+-]\d+\b|\bmate in \d+\b|\bengine\b|\bstockfish\b|\bbest move\b|\bpreferred\b|\bprefers\b|\btop choice\b|\bevaluation\b|\beval\b)/i;
 const CLAIM_TRIGGER_RE =
-  /\b(wins?|won|loses?|lost|hangs?|hanging|en prise|undefended|captures?|takes|ahead|behind|checkmate|pins?|pinned|forced|only legal)\b/i;
+  /\b(wins?|won|loses?|lost|hangs?|hanging|en prise|undefended|captures?|takes|ahead|behind|checkmate|pins?|pinned|forced to|only legal)\b/i;
 
 // ── Anchors ─────────────────────────────────────────────────────────────────
 interface Anchor {

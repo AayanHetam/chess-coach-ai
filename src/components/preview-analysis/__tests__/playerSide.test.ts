@@ -3,6 +3,10 @@ import {
   gameSideKey,
   inferPlayerSideFromHeaders,
   loadStoredSide,
+  playerSideCandidates,
+  sideDisplayName,
+  sideLabel,
+  sideNamesFromHeaders,
   storeSide,
 } from "@/components/preview-analysis/playerSide";
 
@@ -40,6 +44,79 @@ describe("inferPlayerSideFromHeaders", () => {
 
   it("does not partial-match (a substring is not the player)", () => {
     expect(inferPlayerSideFromHeaders(HEADERS, ["aayan"])).toBeNull();
+  });
+});
+
+describe("playerSideCandidates", () => {
+  it("puts the reader's own saved names first, then the fetched-for name, then the account's", () => {
+    expect(
+      playerSideCandidates({
+        profile: { chesscomUsername: "aayan_h", lichessUsername: "aayan-li" },
+        device: ["aayan_device"],
+        fetchedFor: "friend",
+        displayName: "Aayan",
+        email: "aayan@example.com",
+      })
+    ).toEqual([
+      "aayan_h",
+      "aayan-li",
+      "aayan_device",
+      "friend",
+      "Aayan",
+      "aayan",
+    ]);
+  });
+
+  it("a game found through a friend's list is still the reader's own", () => {
+    // Fetched for MagnusFan99, but the reader's saved username is Black.
+    const candidates = playerSideCandidates({
+      profile: { chesscomUsername: "aayan_h" },
+      fetchedFor: "MagnusFan99",
+    });
+    expect(inferPlayerSideFromHeaders(HEADERS, candidates)).toBe("black");
+  });
+
+  it("falls back to whoever the games were fetched for", () => {
+    const candidates = playerSideCandidates({
+      profile: { chesscomUsername: "someone_else" },
+      fetchedFor: "magnusfan99",
+    });
+    expect(inferPlayerSideFromHeaders(HEADERS, candidates)).toBe("white");
+  });
+
+  it("drops empty and missing names", () => {
+    expect(
+      playerSideCandidates({
+        profile: null,
+        device: ["", "  ", null, undefined],
+        fetchedFor: undefined,
+      })
+    ).toEqual([]);
+  });
+});
+
+describe("side names", () => {
+  it("names each side from the headers", () => {
+    expect(sideNamesFromHeaders(HEADERS)).toEqual({
+      white: "MagnusFan99",
+      black: "aayan_h",
+    });
+  });
+
+  it("names nobody where the header says nothing worth showing", () => {
+    expect(sideDisplayName("?", "white")).toBeNull();
+    expect(sideDisplayName("  ", "black")).toBeNull();
+    expect(sideDisplayName(undefined, "black")).toBeNull();
+    // [White "White"] would read "White (White)".
+    expect(sideDisplayName("White", "white")).toBeNull();
+    expect(sideDisplayName("black", "black")).toBeNull();
+    expect(sideDisplayName("White", "black")).toBe("White");
+  });
+
+  it("labels a side by colour and name, or by colour alone", () => {
+    const names = { white: "hikaru", black: null };
+    expect(sideLabel("white", names)).toBe("White (hikaru)");
+    expect(sideLabel("black", names)).toBe("Black");
   });
 });
 

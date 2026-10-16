@@ -167,6 +167,35 @@ const HANGS_THE_RE = new RegExp(
   String.raw`\b(?:hangs|hanging)\s+${OWNER}\s+${PIECE}(?:\s+on\s+${SQ})?`,
   "gi"
 );
+const PIECE_K = String.raw`(king|queen|rook|bishop|knight|pawn)`;
+/** "pins the knight (on f6) (to the queen on d8)". */
+const PINS_RE = new RegExp(
+  String.raw`\b(?:pins|pinning|pinned)\s+${OWNER}\s+${PIECE_K}(?:\s+on\s+${SQ})?(?:\s+(?:to|against)\s+${OWNER}\s+${PIECE_K}(?:\s+on\s+${SQ})?)?`,
+  "gi"
+);
+/** "the knight on f6 is pinned (to the queen on d8)". */
+const PINNED_RE = new RegExp(
+  String.raw`\b${OWNER}\s+${PIECE_K}(?:\s+on\s+${SQ})?\s+(?:(?:is|was|now|still|stays|remains|being|gets|got|left|absolutely|completely|badly)\s+)+pinned(?:\s+(?:to|against)\s+${OWNER}\s+${PIECE_K}(?:\s+on\s+${SQ})?)?`,
+  "gi"
+);
+/** "the king is forced to f6". */
+const FORCED_TO_RE = new RegExp(
+  String.raw`\b${OWNER}\s+${PIECE_K}\s+(?:is|was|gets|being|has\s+been)\s+(?:forced|driven|compelled)\s+(?:back\s+)?(?:to|onto|into)\s+${SQ}`,
+  "gi"
+);
+/** "forces the king to f6". */
+const FORCES_RE = new RegExp(
+  String.raw`\b(?:forces?|forcing|forced|compels?)\s+${OWNER}\s+${PIECE_K}\s+(?:back\s+)?(?:to|onto|into)\s+${SQ}`,
+  "gi"
+);
+/** "drives the king to e4 — the only legal square". */
+const ONLY_SQUARE_RE = new RegExp(
+  String.raw`\b${OWNER}\s+(king)\s+(?:to|on|onto|into)\s+${SQ}\b[^.;]{0,40}?\bonly\s+(?:legal\s+|available\s+|safe\s+)?square\b`,
+  "gi"
+);
+/** "the only legal reply", "a forced reply". */
+const ONLY_REPLY_RE =
+  /\b(?:only\s+legal\s+(?:reply|move|response)|forced\s+(?:reply|response))\b/gi;
 /** "the knight on g5", "Black's rook on f8". */
 const PIECE_ON_RE =
   /\b(the|your|white's|black's|his|her|their|its|a|an)\s+(king|queen|rook|bishop|knight|pawn)\s+on\s+([a-h][1-8])\b/gi;
@@ -183,7 +212,7 @@ const HYPOTHETICAL_RE =
 const ENGINE_RE =
   /(?:[+\-−]\d+\.\d{2}\b|\bM[+-]\d+\b|\bmate in \d+\b|\bengine\b|\bstockfish\b|\bbest move\b|\bpreferred\b|\bprefers\b|\btop choice\b|\bevaluation\b|\beval\b)/i;
 const CLAIM_TRIGGER_RE =
-  /\b(wins?|won|loses?|lost|hangs?|hanging|en prise|undefended|captures?|takes|ahead|behind|checkmate)\b/i;
+  /\b(wins?|won|loses?|lost|hangs?|hanging|en prise|undefended|captures?|takes|ahead|behind|checkmate|pins?|pinned|forced|only legal)\b/i;
 
 // ── Anchors ─────────────────────────────────────────────────────────────────
 interface Anchor {
@@ -345,6 +374,11 @@ interface Extracted {
   claims: Array<{ claim: Claim; phrase: string; anchor: Anchor }>;
   /** Uncited piece-on-square mentions: true if any of the card's lines bears them out. */
   anyLine: Array<{ claim: Claim; phrase: string }>;
+  /** Claims with several readings (a pin before or after the move): true if any reading holds. */
+  anyOf: Array<{
+    phrase: string;
+    options: Array<{ claim: Claim; anchor: Anchor }>;
+  }>;
 }
 
 function extract(
@@ -352,7 +386,7 @@ function extract(
   insight: InsightContract,
   player: Color
 ): Extracted {
-  const out: Extracted = { claims: [], anyLine: [] };
+  const out: Extracted = { claims: [], anyLine: [], anyOf: [] };
   // Text a capture or hanging phrase already read ("takes the knight on d7"):
   // its "knight on d7" is not a second, separate claim.
   const consumed: Array<[number, number]> = [];
@@ -551,6 +585,110 @@ function extract(
     }
   }
 
+  // Pins. A pin is a fact about one position, and prose rarely says which:
+  // the cited line's position, or the board before or after the played move.
+  const played = anchorFor(null, insight);
+  for (const re of [PINS_RE, PINNED_RE]) {
+    for (const m of Array.from(sentence.matchAll(re))) {
+      const idx = m.index ?? 0;
+      const end = idx + m[0].length;
+      if (hypothetical(idx)) continue;
+      if (consumed.some(([a, b]) => idx < b && end > a)) continue;
+      consumed.push([idx, end]);
+      const pinnerOn = Array.from(
+        clauseBefore(sentence, idx).matchAll(PIECE_ON_RE)
+      ).at(-1);
+      const claim = (atPly: number): Claim => ({
+        kind: "pin",
+        pinnedPiece: PIECE_OF[m[2].toLowerCase()],
+        ...(m[3] ? { pinned: m[3].toLowerCase() as Square } : {}),
+        ...(m[5] ? { behindPiece: PIECE_OF[m[5].toLowerCase()] } : {}),
+        ...(m[6] ? { behind: m[6].toLowerCase() as Square } : {}),
+        ...(re === PINS_RE && pinnerOn
+          ? { pinner: pinnerOn[3].toLowerCase() as Square }
+          : {}),
+        atPly,
+      });
+      const a = anchorAt(end);
+      const options = [
+        ...(a.playedMove ? [] : [{ claim: claim(endOf(a)), anchor: a }]),
+        { claim: claim(0), anchor: played },
+        { claim: claim(1), anchor: played },
+      ];
+      out.anyOf.push({ phrase: m[0], options });
+    }
+  }
+
+  // Forced moves: "the only legal reply", "the king is forced to f6". The
+  // position is the one after the move the clause names; failing that, the
+  // one before the forced move itself.
+  const lines = (a: Anchor) => [a, ...cardLines(insight)];
+  const afterNamedMove = (idx: number, a: Anchor) => {
+    const clause = clauseBefore(sentence, idx);
+    for (const c of lines(a)) {
+      const k = lastLineSanIn(clause, c.line);
+      if (k >= 0) return { anchor: c, at: k + 1 };
+    }
+    return null;
+  };
+  const beforeMove = (a: Anchor, piece: PieceSymbol, to: Square) => {
+    for (const c of lines(a)) {
+      const r = replayLine(c.startFen, c.line);
+      const j = r.ok
+        ? r.plies.findIndex((p) => p.piece === piece && p.to === to)
+        : -1;
+      if (j >= 0) return { anchor: c, at: j };
+    }
+    return null;
+  };
+  for (const re of [FORCED_TO_RE, FORCES_RE, ONLY_SQUARE_RE]) {
+    for (const m of Array.from(sentence.matchAll(re))) {
+      const idx = m.index ?? 0;
+      const end = idx + m[0].length;
+      if (hypothetical(idx)) continue;
+      if (consumed.some(([a, b]) => idx < b && end > a)) continue;
+      consumed.push([idx, end]);
+      const piece = PIECE_OF[m[2].toLowerCase()];
+      const square = m[3].toLowerCase() as Square;
+      const a = anchorAt(end);
+      const where = afterNamedMove(idx, a) ?? beforeMove(a, piece, square);
+      out.claims.push({
+        claim: {
+          kind: "only_square",
+          atPly: where?.at ?? -1,
+          square,
+          whole: re !== ONLY_SQUARE_RE,
+        },
+        phrase: m[0],
+        anchor: where?.anchor ?? a,
+      });
+    }
+  }
+  for (const m of Array.from(sentence.matchAll(ONLY_REPLY_RE))) {
+    const idx = m.index ?? 0;
+    if (hypothetical(idx)) continue;
+    const a = anchorAt(idx + m[0].length);
+    let where = afterNamedMove(idx, a);
+    if (!where) {
+      // "the only legal reply is 15...Kf6": the position before that move.
+      for (const s of Array.from(sentence.slice(idx).matchAll(SAN_RE))) {
+        for (const c of lines(a)) {
+          const j = sanIndex(c.line, s[1]);
+          if (j >= 0) {
+            where = { anchor: c, at: j };
+            break;
+          }
+        }
+        if (where) break;
+      }
+    }
+    out.claims.push({
+      claim: { kind: "only_reply", atPly: where?.at ?? -1 },
+      phrase: m[0],
+      anchor: where?.anchor ?? a,
+    });
+  }
+
   // Mate, read off a SAN written with "#".
   for (const m of Array.from(sentence.matchAll(SAN_RE))) {
     if (!m[1].endsWith("#")) continue;
@@ -698,7 +836,7 @@ export function checkCardClaims(
   const blocked: CheckedClaim[] = [];
   for (const text of sentencesOf(prose)) {
     const opinion = OPINION_RE.test(text.replace(CITATION_RE, ""));
-    const { claims: raw, anyLine } = extract(text, insight, player);
+    const { claims: raw, anyLine, anyOf } = extract(text, insight, player);
     // The anchor object rides beside each claim for the rewrite.
     const anchors = new Map<CheckedClaim, Anchor>();
     const claims: CheckedClaim[] = raw.map((c) => {
@@ -727,6 +865,23 @@ export function checkCardClaims(
         phrase: c.phrase,
         anchor: insight.factIdPrefix,
         verdict,
+      });
+    }
+    for (const c of anyOf) {
+      const checked = c.options.map((o) => ({
+        o,
+        v: verifyAt(o.claim, o.anchor),
+      }));
+      const pick =
+        checked.find((x) => x.v.status === "verified") ??
+        (checked.every((x) => x.v.status === "false")
+          ? checked[0]
+          : (checked.find((x) => x.v.status === "unverified") ?? checked[0]));
+      claims.push({
+        claim: pick.o.claim,
+        phrase: c.phrase,
+        anchor: pick.o.anchor.id,
+        verdict: pick.v,
       });
     }
     const falses = claims.filter((c) => c.verdict.status === "false");

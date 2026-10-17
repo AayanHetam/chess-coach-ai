@@ -144,8 +144,9 @@ const LC0: Lc0Result = {
 
 const CDB_WIN: ChessdbResult = {
   fen: "test",
-  best_move: "Nf3",
   score_cp: 220,
+  mate: null,
+  tablebase: false,
   outcome: "win",
   source: "live",
 };

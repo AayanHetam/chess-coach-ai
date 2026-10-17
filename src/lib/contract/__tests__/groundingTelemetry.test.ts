@@ -84,9 +84,10 @@ describe("contract_grounding_fetched telemetry", () => {
   it("reports a healthy source as ok", async () => {
     mockQueryChessdb.mockResolvedValue({
       fen: "x",
-      best_move: "e4",
       score_cp: 30,
-      outcome: "win",
+      mate: null,
+      tablebase: false,
+      outcome: "draw",
       source: "live",
     });
     await buildCoachContract(ARGS);
